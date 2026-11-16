@@ -153,4 +153,57 @@ namespace game_skyrimse
         const AliasFill fill = state.aliasFill(quest, aliasId);
         return fill.mKnown && fill.mReference != kNullFormId;
     }
+
+    namespace
+    {
+        FormId eventReference(const QuestAlias& alias, const StoryEvent& event)
+        {
+            if ((alias.mEventData & 0xFF) != 'R')
+                return kNullFormId;
+            const std::uint32_t which = (alias.mEventData >> 8) & 0xFF;
+            return which == '1' ? event.mRef1 : which == '2' ? event.mRef2 : kNullFormId;
+        }
+    }
+
+    bool QuestAliasFiller::eventAliasesMatch(FormId questId, const StoryEvent& event)
+    {
+        const QuestRecord* quest = mQuests.quest(questId);
+        if (quest == nullptr)
+            return false;
+        for (const QuestAlias& alias : quest->mAliases)
+        {
+            if (alias.mFill != AliasFillKind::FromEvent)
+                continue;
+            const FormId ref = eventReference(alias, event);
+            const PlacedEntry* entry = ref != kNullFormId ? mRefs.find(ref) : nullptr;
+            const bool ok = entry != nullptr && (!mMatcher || mMatcher(*quest, alias, ref, entry->mBase));
+            if (!ok && (alias.mFlags & AliasFlags::Optional) == 0)
+                return false;
+        }
+        return true;
+    }
+
+    std::size_t QuestAliasFiller::fillEventAliases(FormId questId, QuestState& state, const StoryEvent& event)
+    {
+        const QuestRecord* quest = mQuests.quest(questId);
+        if (quest == nullptr)
+            return 0;
+        std::size_t filled = 0;
+        for (const QuestAlias& alias : quest->mAliases)
+        {
+            if (alias.mFill != AliasFillKind::FromEvent)
+                continue;
+            const FormId ref = eventReference(alias, event);
+            const PlacedEntry* entry = ref != kNullFormId ? mRefs.find(ref) : nullptr;
+            if (entry == nullptr || (mMatcher && !mMatcher(*quest, alias, ref, entry->mBase)))
+                continue;
+            AliasFill fill;
+            fill.mKnown = true;
+            fill.mReference = ref;
+            state.setAliasFill(questId, alias.mId, fill);
+            ++mStats.mFilled;
+            ++filled;
+        }
+        return filled;
+    }
 }

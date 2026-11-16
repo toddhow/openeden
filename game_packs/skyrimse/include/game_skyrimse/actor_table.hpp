@@ -104,6 +104,34 @@ namespace game_skyrimse
                 mBrain->onConversation(reference, begins);
         }
 
+        /// Task 0194 (scenes): the handle of an actor of the table (invalid when unknown), a package that overrides its
+        /// schedule (forwarded to the brain), and whether the brain has the actor standing or done with its package.
+        /// The placements of the actors of the table, in ascending order (task 0194: who can take part in an ambient scene).
+        [[nodiscard]] std::vector<openeden::sdk::game::WorldId> actorReferences() const
+        {
+            std::vector<openeden::sdk::game::WorldId> out;
+            out.reserve(mRows.size());
+            for (const auto& [reference, row] : mRows)
+                out.push_back(reference);
+            return out;
+        }
+        [[nodiscard]] openeden::sdk::game::ActorHandle handleOf(openeden::sdk::game::WorldId reference) const
+        {
+            const auto it = mRows.find(reference);
+            return it == mRows.end() ? openeden::sdk::game::ActorHandle{} : it->second.mHandle;
+        }
+        bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package)
+        {
+            return mBrain != nullptr && mBrain->forcePackage(reference, package);
+        }
+        [[nodiscard]] bool packageDone(openeden::sdk::game::WorldId reference) const
+        {
+            if (!mBrain)
+                return true;
+            const auto v = mBrain->view(reference);
+            return !v || v->mPhase == PackageBrain::Phase::Done || v->mPhase == PackageBrain::Phase::Idle;
+        }
+
         /// Stage S6g: forwarded to the brain (no brain: ready at once).
         bool prepareTalk(openeden::sdk::game::WorldId reference)
         {

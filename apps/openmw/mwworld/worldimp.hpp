@@ -1,6 +1,7 @@
 #ifndef GAME_MWWORLD_WORLDIMP_H
 #define GAME_MWWORLD_WORLDIMP_H
 
+#include <map>
 #include <set>
 
 #include <components/debug/debuglog.hpp>
@@ -65,6 +66,7 @@ namespace MWWorld
     class Player;
     class ProjectileManager;
     class NeutralProjectiles;
+    class NeutralSceneSpeech;
 
     /// \brief The game world and its visual representation
 
@@ -91,6 +93,8 @@ namespace MWWorld
         std::unique_ptr<MWWorld::WeatherManager> mWeatherManager;
         std::unique_ptr<MWWorld::DateTimeManager> mTimeManager;
         std::unique_ptr<ProjectileManager> mProjectileManager;
+        std::unique_ptr<NeutralSceneSpeech> mNeutralSceneSpeech; // task 0194: the lines of the pack's scenes
+        std::map<const void*, Ptr> mNeutralSpeakers; // the actor behind each speech key
         std::unique_ptr<NeutralProjectiles> mNeutralProjectiles; // task 0178: the arrows of the neutral combat bridge
 
         bool mGodMode;

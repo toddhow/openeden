@@ -92,6 +92,7 @@ namespace game_skyrimse
             }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
             bool isTopicInfo(FormId form) const override { return mView.isScriptedInfo(form); }
+            bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
             bool initiallyEnabled(FormId reference) const override
             {
@@ -104,6 +105,110 @@ namespace game_skyrimse
             const FileSource* mFiles;
             SkyrimWorldView& mView;
             const QuestIndex* mQuests = nullptr;
+        };
+
+        // Task 0194: the scene runner's environment over the pack's own parts: the quest state and alias filler, the
+        // condition evaluator and dialogue runtime of the view, the cell source (speech queue, holding actors, packages)
+        // and the Papyrus host (fragments). Main thread only.
+        class SceneGlue final : public SceneEnvironment, public SceneControl
+        {
+        public:
+            SceneGlue(const SkyrimWorldView::PapyrusAccess& access, PapyrusHost& host, SkyrimCellSource* cells,
+                std::function<void(const std::string&)> log)
+                : mAccess(access)
+                , mHost(host)
+                , mCells(cells)
+                , mLog(std::move(log))
+                , mRunner(*access.mScenes, *this)
+            {
+                if (mAccess.mSetSceneLookup)
+                    mAccess.mSetSceneLookup(
+                        [this](FormId scene, std::uint32_t action) { return mRunner.actionComplete(scene, action); });
+            }
+            ~SceneGlue() override
+            {
+                if (mAccess.mSetSceneLookup)
+                    mAccess.mSetSceneLookup(nullptr);
+            }
+
+            SceneRunner& runner() { return mRunner; }
+
+            // SceneControl
+            bool startScene(FormId scene, bool force) override { return mRunner.start(scene, force); }
+            bool stopScene(FormId scene) override { return mRunner.stop(scene); }
+            [[nodiscard]] bool scenePlaying(FormId scene) const override { return mRunner.isPlaying(scene); }
+            void questStarted(FormId quest) override { (void)mRunner.questStarted(quest); }
+            void questStopped(FormId quest) override { mRunner.questStopped(quest); }
+
+            // SceneEnvironment
+            [[nodiscard]] bool questRunning(FormId quest) const override { return mAccess.mState->running(quest); }
+            [[nodiscard]] FormId aliasReference(FormId quest, std::uint32_t alias) const override
+            {
+                AliasFill fill = mAccess.mState->aliasFill(quest, alias);
+                if ((!fill.mKnown || fill.mReference == kNullFormId) && mAccess.mAliases != nullptr
+                    && mAccess.mState->running(quest))
+                {
+                    (void)mAccess.mAliases->fillAlias(quest, alias, *mAccess.mState);
+                    fill = mAccess.mState->aliasFill(quest, alias);
+                }
+                return fill.mKnown ? fill.mReference : kNullFormId;
+            }
+            bool evaluate(const std::vector<survey::Ctda>& list, FormId scene, FormId quest) override
+            {
+                return mAccess.mEvaluate && mAccess.mEvaluate(list, scene, quest);
+            }
+            bool resolveLine(FormId, FormId topic, FormId speaker, SceneLine& out) override
+            {
+                return mAccess.mLine && mAccess.mLine(topic, speaker, speaker, out);
+            }
+            bool speak(FormId speaker, const SceneLine& line) override
+            {
+                return mCells != nullptr && mCells->sceneSpeak(speaker, line.mText, line.mVoice);
+            }
+            void hold(FormId actor, bool on) override
+            {
+                if (mCells != nullptr)
+                    mCells->sceneHold(actor, on);
+            }
+            bool setPackage(FormId actor, FormId package) override
+            {
+                const PackageRecord* record = mAccess.mPackage ? mAccess.mPackage(package) : nullptr;
+                mPackageChecks[actor] = 0;
+                return record != nullptr && mCells != nullptr && mCells->sceneForcePackage(actor, record);
+            }
+            void clearPackage(FormId actor) override
+            {
+                if (mCells != nullptr)
+                    (void)mCells->sceneForcePackage(actor, nullptr);
+                mPackageChecks.erase(actor);
+            }
+            // The brain evaluates a forced package at its next update, so a few answers are not trusted: the actor may
+            // still look done with the package it had before.
+            bool packageFinished(FormId actor) override
+            {
+                return mCells != nullptr && ++mPackageChecks[actor] > kTrustAfterChecks && mCells->scenePackageDone(actor);
+            }
+            void runFragment(FormId scene, const std::string& script, const std::string& function) override
+            {
+                const SceneRecord* record = mAccess.mScenes->scene(scene);
+                if (record != nullptr && record->mVmad != nullptr)
+                    (void)mHost.runSceneFragment(scene, *record->mVmad, script, function);
+            }
+            void stopQuest(FormId quest) override { mAccess.mState->stop(quest); }
+            void log(const std::string& line) override { mLog(line); }
+            [[nodiscard]] bool actorLoaded(FormId actor) const override
+            {
+                return mCells != nullptr && mCells->sceneActorLoaded(actor);
+            }
+
+        private:
+            static constexpr int kTrustAfterChecks = 3;
+            SkyrimWorldView::PapyrusAccess mAccess;
+            PapyrusHost& mHost;
+            SkyrimCellSource* mCells;
+            std::function<void(const std::string&)> mLog;
+            std::map<FormId, int> mPackageChecks;
+            SceneRunner mRunner;
         };
 
         // Task 0176: runs the Papyrus host in the pack's frame phase. It waits (without blocking) until the quest data
@@ -140,6 +245,9 @@ namespace game_skyrimse
                     return;
                 flushPending();
                 mHost.tick(dt);
+                if (mScenes != nullptr)
+                    mScenes->runner().update(dt); // task 0194
+                raiseAmbient(dt);
                 if (mHost.scriptTime() >= mNextSummary)
                 {
                     mNextSummary += kSummarySeconds;
@@ -235,6 +343,13 @@ namespace game_skyrimse
                         (void)mHost.runInfoFragments(
                             call.mInfo, *call.mVmad, call.mSpeakerReference, call.mSpeakerBase);
                 });
+                // Task 0194: the scene runner, over the pack's own cell source
+                if (access.mScenes != nullptr)
+                {
+                    mScenes = std::make_unique<SceneGlue>(access, mHost, dynamic_cast<SkyrimCellSource*>(&mCells),
+                        [this](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                    mHost.setSceneControl(mScenes.get());
+                }
                 mStarted = true;
                 const auto began = std::chrono::steady_clock::now();
                 if (mPendingRestore)
@@ -310,6 +425,64 @@ namespace game_skyrimse
                         + std::to_string(started) + " quests");
             }
 
+            // Task 0194: the story manager's ambient dialogue event (ADIA). The engine raises it now and then for two
+            // actors that stand together; ours: from `kAmbientFirstSeconds` after the actors of a cell exist, every
+            // `kAmbientSeconds` of script time, over the actors the core told the pack about, pairs of the same cell in a
+            // seeded order, until one pair starts a quest (at most `kAmbientPairs` events a time). RECALLED-VERIFY, a
+            // decision for toddhow: the timing and the pairing.
+            void raiseAmbient(float dt)
+            {
+                SkyrimCellSource* cells = dynamic_cast<SkyrimCellSource*>(&mCells);
+                const PlacedRefIndex* refs = mView.placedRefs();
+                if (!mAmbientOn || cells == nullptr || refs == nullptr || mScenes == nullptr)
+                    return;
+                mAmbientClock += dt;
+                if (mAmbientClock < mAmbientNext)
+                    return;
+                std::vector<FormId> actors;
+                for (const openeden::sdk::game::WorldId id : cells->sceneActors())
+                {
+                    const PlacedEntry* entry = refs->find(static_cast<FormId>(id));
+                    if (entry != nullptr && (entry->mFlags & PlacedFlags::Dead) == 0
+                        && (entry->mFlags & PlacedFlags::Disabled) == 0 && mHost.referenceEnabled(entry->mId))
+                        actors.push_back(entry->mId);
+                }
+                if (actors.size() < 2)
+                    return; // nobody to talk: asked again next frame
+                mAmbientNext = mAmbientClock + kAmbientSeconds;
+                std::vector<std::pair<FormId, FormId>> pairs;
+                for (const FormId a : actors)
+                    for (const FormId b : actors)
+                    {
+                        const PlacedEntry* ea = refs->find(a);
+                        const PlacedEntry* eb = refs->find(b);
+                        if (a != b && ea->mCell == eb->mCell)
+                            pairs.emplace_back(a, b);
+                    }
+                std::uint64_t state = (++mAmbientEvents) * 0x9E3779B97F4A7C15ull;
+                for (std::size_t i = pairs.size(); i > 1; --i)
+                {
+                    state += 0x9E3779B97F4A7C15ull;
+                    std::uint64_t z = (state ^ (state >> 30)) * 0xBF58476D1CE4E5B9ull;
+                    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+                    std::swap(pairs[i - 1], pairs[static_cast<std::size_t>((z ^ (z >> 31)) % i)]);
+                }
+                for (std::size_t i = 0; i < pairs.size() && i < kAmbientPairs; ++i)
+                {
+                    StoryEvent event;
+                    event.mType = "ADIA";
+                    event.mRef1 = pairs[i].first;
+                    event.mRef2 = pairs[i].second;
+                    if (mHost.raiseStoryEvent(event) != 0)
+                    {
+                        say(openeden::sdk::LogLevel::Info,
+                            "SCENE ambient dialogue event started a quest after " + std::to_string(i + 1)
+                                + " pairs");
+                        break;
+                    }
+                }
+            }
+
             void pushEnabled(FormId reference, bool enabled)
             {
                 if (mSources == nullptr)
@@ -352,7 +525,15 @@ namespace game_skyrimse
             PackPapyrusData mData;
             PapyrusHost mHost;
             openeden::sdk::Logger* mLogger;
+            static constexpr double kAmbientFirstSeconds = 5.0;
+            static constexpr double kAmbientSeconds = 30.0;
+            static constexpr std::size_t kAmbientPairs = 40;
+            bool mAmbientOn = true;
+            double mAmbientClock = 0.0;
+            double mAmbientNext = kAmbientFirstSeconds;
+            std::uint64_t mAmbientEvents = 0;
             bool mStarted = false;
+            std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
             std::optional<std::vector<std::uint8_t>> mPendingRestore;
             openeden::sdk::game::WorldSourceService* mSources;
             openeden::sdk::game::WorldCellSource& mCells;

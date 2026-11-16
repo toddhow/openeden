@@ -21,6 +21,7 @@
 //    0xFFFFFFFF none), DMAX f32, DMIN f32, DEMO, DEVA; package: PNAM u32 (one or more packages); timer: a second SNAM f32
 //    (the seconds); ANAM (empty) closes the action.
 
+#include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/survey.hpp>
 #include <game_skyrimse/vmad.hpp>
@@ -133,6 +134,18 @@ namespace game_skyrimse
 
     [[nodiscard]] bool parseSceneRecordsBytes(const std::string& bytes, const std::string& name, const LoadOrder& order,
         const SceneLimits& limits, SceneRecords& out, Content::Error& error);
+
+    /// What fn_550 IsSceneActionComplete reads from a condition world (task 0194): has the action with this index of
+    /// the scene ended (in the current or the last play)? A world that is not a `SceneStateSource` answers 0.
+    class SceneStateSource
+    {
+    public:
+        virtual ~SceneStateSource() = default;
+        [[nodiscard]] virtual bool sceneActionComplete(FormId scene, std::uint32_t actionIndex) const = 0;
+    };
+
+    /// The extra condition functions of a scene evaluator: 550 IsSceneActionComplete.
+    [[nodiscard]] const std::vector<conditions::ExtraFunction>& sceneExtraFunctions();
 
     /// The scenes of a whole load order: a later record replaces an earlier one with the same form id (a deleted one is
     /// removed).

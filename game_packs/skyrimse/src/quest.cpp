@@ -479,7 +479,7 @@ namespace game_skyrimse
                         || type == Content::fourCC("ALEA") || type == Content::fourCC("ALNA")
                         || type == Content::fourCC("ALRT") || type == Content::fourCC("ALCO")
                         || type == Content::fourCC("ALCA") || type == Content::fourCC("ALCL")
-                        || type == Content::fourCC("ALFE");
+                        || type == Content::fourCC("ALFE") || type == Content::fourCC("ALFD");
                     if (type == Content::fourCC("FNAM") && section == Section::Objective && objective != nullptr)
                     {
                         std::uint32_t flags = 0;
@@ -552,6 +552,9 @@ namespace game_skyrimse
                             return;
                         case Content::fourCC("ALFE"):
                             bits |= Seen::Alfe;
+                            return;
+                        case Content::fourCC("ALFD"): // task 0194: the event's member ('R1', 'R2', ...)
+                            (void)u32Field(type, data, alias->mEventData);
                             return;
                         default:
                             return;

@@ -30,6 +30,7 @@
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/quest_alias.hpp>
+#include <game_skyrimse/scene_runner.hpp>
 #include <game_skyrimse/story.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
@@ -172,6 +173,15 @@ namespace game_skyrimse
             QuestAliasFiller* mAliases = nullptr;
             /// task 0187: the story manager: raises an event and returns the quests it starts (the caller starts them)
             std::function<std::vector<FormId>(const StoryEvent& event)> mStory;
+            /// task 0194: the scenes, their conditions (with fn_550 answered by `mSetSceneLookup`'s function), the line a
+            /// topic gives an actor, and the package records
+            const SceneIndex* mScenes = nullptr;
+            std::function<bool(const std::vector<survey::Ctda>&, FormId scene, FormId quest)> mEvaluate;
+            std::function<bool(FormId topic, FormId speakerReference, std::uint32_t pick, SceneLine& out)> mLine;
+            std::function<void(std::function<bool(FormId scene, std::uint32_t action)>)> mSetSceneLookup;
+            std::function<const PackageRecord*(FormId package)> mPackage;
+            /// the base form of a placed reference (0 when unknown)
+            std::function<FormId(FormId reference)> mBaseOf;
         };
 
         /// What startLoad's worker did, handed to the completion function.
@@ -437,6 +447,8 @@ namespace game_skyrimse
         void setInfoFragmentSink(InfoFragmentSink sink);
         /// Task 0187: is the form a dialogue INFO with scripts (the class of a TIF fragment script's form)?
         [[nodiscard]] bool isScriptedInfo(FormId info) const;
+        /// Task 0194: is the form a scene (SCEN)? (the class of a scene's fragment script's form)
+        [[nodiscard]] bool isScene(FormId form) const;
         /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
         [[nodiscard]] FormId questOfInfo(FormId info) const;
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false

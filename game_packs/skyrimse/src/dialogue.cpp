@@ -1184,6 +1184,16 @@ namespace game_skyrimse
                     return kPlacedTag | ref;
                 return 0;
             }
+            case 7: // task 0194: a reference of the story event; the reference field holds 'R' and '1' or '2'
+            {
+                if (mStoryEvent == nullptr || mPlacedRefs == nullptr || (reference & 0xFF) != 'R')
+                    return 0;
+                const std::uint32_t which = (reference >> 8) & 0xFF;
+                const FormId ref = which == '1' ? mStoryEvent->mRef1 : which == '2' ? mStoryEvent->mRef2 : kNullFormId;
+                if (ref == kNullFormId || mPlacedRefs->find(ref) == nullptr)
+                    return 0;
+                return kPlacedTag | ref;
+            }
             default:
                 return 0;
         }
@@ -1260,6 +1270,12 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::inCell(conditions::Subject subject, std::uint32_t cell) const
     {
+        if (isOtherSubject(subject))
+        {
+            // task 0194: another reference stands in the cell the data places it in
+            ActorView view;
+            return viewOf(subject, view) && view.mRef != nullptr && view.mRef->mCell == resolve(cell);
+        }
         return isSpeaker(subject) && mSpeaker.mCell != kNullFormId && resolve(cell) == mSpeaker.mCell;
     }
 

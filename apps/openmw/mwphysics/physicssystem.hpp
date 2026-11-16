@@ -269,6 +269,16 @@ namespace MWPhysics
         };
         const std::vector<NeutralPoseChange>& getNeutralPoseChanges() const { return mNeutralPoseChanges; }
 
+        /// Task 0194: lines the game pack's scenes want said, taken from the pack in the last updateNeutralActors
+        /// (SceneSpeechSource, found by dynamic_cast on the actor rules). Cleared at the start of every update.
+        struct NeutralSpeechLine
+        {
+            MWWorld::Ptr mPtr;
+            std::string mText;
+            std::vector<std::string> mVoice;
+        };
+        const std::vector<NeutralSpeechLine>& getNeutralSpeech() const { return mNeutralSpeech; }
+
         /// Task 0148: the horizontal ground speed (units a second, measured over the last frame) of each neutral actor
         /// whose measured speed changed in the last updateNeutralActors, or that walked in it; a stopped actor is
         /// reported once with 0. The caller hands each to the renderer (locomotion blend). Reserved with the other
@@ -656,6 +666,7 @@ namespace MWPhysics
         std::vector<NeutralDoorMove> mNeutralDoorsMoved;
         void updateNeutralDoors(float dt);
         std::vector<NeutralPoseChange> mNeutralPoseChanges;
+        std::vector<NeutralSpeechLine> mNeutralSpeech;
         // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.
         class NeutralRequestApplier final : public NeutralRequestSink
         {

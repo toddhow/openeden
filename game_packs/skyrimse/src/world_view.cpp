@@ -183,6 +183,7 @@ namespace game_skyrimse
         QuestScriptIndex mQuestScripts; ///< task 0156
         PlacedRefIndex mPlacedRefs; ///< task 0160
         StoryIndex mStory; ///< task 0187: the story manager's nodes
+        SceneIndex mScenes; ///< task 0194
         QuestVmadIndex mQuestVmads; ///< task 0176: scripts, fragments and alias scripts of every quest
         std::uint64_t mPlacedRefsMillis = 0; ///< the part of the build that read references (task 0160)
     };
@@ -204,6 +205,7 @@ namespace game_skyrimse
         conditions::Evaluator mQuestEvaluator;
         StoryEvent mStoryEvent;
         std::unique_ptr<QuestAliasFiller> mAliasFiller;
+        std::set<FormId> mStoryRan; ///< task 0194: quests an ADIA event started
         std::unique_ptr<StoryManager> mStoryManager;
         conditions::Evaluator mPackageEvaluator;
         std::map<FormId, std::vector<const PackageRecord*>> mPackageLists; ///< by NPC base: resolved once
@@ -605,6 +607,7 @@ namespace game_skyrimse
                 data->mQuestScripts.add(QuestScriptRecords());
                 data->mQuestVmads.add(QuestVmadRecords());
                 data->mStory.add(StoryRecords(), FormIdResolver(Content::Header(), name, order));
+                data->mScenes.add(SceneRecords(), FormIdResolver(Content::Header(), name, order));
                 continue;
             }
             DialogueRecords dialogue;
@@ -616,6 +619,9 @@ namespace game_skyrimse
             StoryRecords story;
             (void)parseStoryRecords(*file, order, StoryLimits(), story);
             data->mStory.add(std::move(story), FormIdResolver(file->header(), name, order));
+            SceneRecords scenes;
+            (void)parseSceneRecords(*file, order, SceneLimits(), scenes);
+            data->mScenes.add(std::move(scenes), FormIdResolver(file->header(), name, order));
             PackageRecords packages;
             (void)parsePackageRecords(*file, order, packageLimits, packages);
             data->mPackages.add(std::move(packages), FormIdResolver(file->header(), name, order));
@@ -784,7 +790,12 @@ namespace game_skyrimse
             world->setLocations(&raw->mData->mLocations);
             world->setPlacedRefs(&raw->mData->mPlacedRefs);
             world->setQuestVariables(raw->mQuestVariables.get());
-            raw->mQuestEvaluator.setExtraFunctions(storyExtraFunctions());
+            static const std::vector<conditions::ExtraFunction> extras = [] {
+                std::vector<conditions::ExtraFunction> all = storyExtraFunctions();
+                all.insert(all.end(), sceneExtraFunctions().begin(), sceneExtraFunctions().end());
+                return all;
+            }();
+            raw->mQuestEvaluator.setExtraFunctions(extras);
             raw->mAliasFiller = std::make_unique<QuestAliasFiller>(raw->mData->mQuests, raw->mData->mPlacedRefs,
                 [this, raw, world](const QuestRecord& quest, const QuestAlias& alias, FormId reference, FormId base) {
                     DialogueSpeaker speaker;
@@ -809,6 +820,11 @@ namespace game_skyrimse
         mInfoFragmentSink = std::move(sink);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setFragmentSink(mInfoFragmentSink);
+    }
+
+    bool SkyrimWorldView::isScene(FormId form) const
+    {
+        return mDialogue != nullptr && mDialogue->mData != nullptr && mDialogue->mData->mScenes.scene(form) != nullptr;
     }
 
     bool SkyrimWorldView::isScriptedInfo(FormId info) const
@@ -1180,6 +1196,42 @@ namespace game_skyrimse
         out.mText = mDialogue->mResolver;
         DialogueState* state = mDialogue.get();
         out.mAliases = state->mAliasFiller.get();
+        // Task 0194: scenes
+        out.mScenes = &data->mScenes;
+        out.mPackage = [data](FormId id) { return data->mPackages.package(id); };
+        out.mBaseOf = [data](FormId reference) {
+            const PlacedEntry* entry = data->mPlacedRefs.find(reference);
+            return entry != nullptr ? entry->mBase : kNullFormId;
+        };
+        out.mSetSceneLookup = [state](std::function<bool(FormId, std::uint32_t)> lookup) {
+            state->mQuestWorld->setSceneActionLookup(std::move(lookup));
+        };
+        out.mEvaluate = [state, data](const std::vector<survey::Ctda>& list, FormId scene, FormId quest) {
+            SkyrimConditionWorld* world = state->mQuestWorld.get();
+            const SceneRecord* record = data->mScenes.scene(scene);
+            world->setStoryEvent(nullptr);
+            world->setSpeaker(DialogueSpeaker());
+            world->setQuestContext(quest);
+            if (record != nullptr)
+                world->setPlugin(&data->mScenes.resolverOf(*record));
+            return state->mQuestEvaluator.evaluate(list, *world);
+        };
+        out.mLine = [this, state, data](FormId topic, FormId reference, std::uint32_t pick, SceneLine& line) {
+            const PlacedEntry* entry = data->mPlacedRefs.find(reference);
+            if (entry == nullptr)
+                return false;
+            DialogueSpeaker speaker;
+            speaker.mReference = reference;
+            speaker.mBase = entry->mBase;
+            fillSpeakerCell(speaker, entry->mCell);
+            speaker.mCell = entry->mCell;
+            sdkgame::DialogueTurn turn;
+            if (!state->mRuntime->sceneLine(topic, speaker, pick, turn))
+                return false;
+            line.mText = turn.text;
+            line.mVoice = turn.voice;
+            return true;
+        };
         out.mStory = [state](const StoryEvent& event) {
             state->mStoryEvent = event;
             SkyrimConditionWorld* world = state->mQuestWorld.get();
@@ -1191,9 +1243,18 @@ namespace game_skyrimse
                     world->setPlugin(&resolver);
                     return state->mQuestEvaluator.evaluate(list, *world);
                 },
-                [&quests](FormId quest) {
-                    return quests.exists(quest) && !quests.running(quest) && !quests.completed(quest);
+                [&quests, state, &event](FormId quest) {
+                    if (!quests.exists(quest) || quests.running(quest) || quests.completed(quest))
+                        return false;
+                    // Task 0194: an ambient (ADIA) quest needs its event aliases to match the pair and runs once a session
+                    // (the hours until reset, RNAM, are not honoured: decision for toddhow)
+                    if (event.mType == "ADIA")
+                        return state->mStoryRan.count(quest) == 0 && state->mAliasFiller->eventAliasesMatch(quest, event);
+                    return true;
                 });
+            if (event.mType == "ADIA")
+                for (const FormId quest : chosen)
+                    state->mStoryRan.insert(quest);
             world->setStoryEvent(nullptr);
             return chosen;
         };

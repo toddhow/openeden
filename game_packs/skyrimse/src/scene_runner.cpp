@@ -79,6 +79,12 @@ namespace game_skyrimse
             mEnv.log("SCENE " + hex(scene) + " not started: no actor of it has a reference");
             return false;
         }
+        if (std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
+        {
+            ++mStats.mRefused;
+            ++mStats.mNotLoaded;
+            return false;
+        }
         if (!force && !record->mConditions.empty() && !mEnv.evaluate(record->mConditions, scene, record->mQuest))
         {
             ++mStats.mRefused;
@@ -88,9 +94,21 @@ namespace game_skyrimse
         instance->mId = scene;
         instance->mRecord = record;
         instance->mActions.resize(record->mActions.size());
-        instance->mHeld = held;
+        // the actors that speak and walk nowhere are held still; one with a package action must be free to walk
+        for (const SceneAction& a : record->mActions)
+        {
+            if (a.mType != SceneActionType::Dialogue || a.mTopic == kNullFormId)
+                continue;
+            const FormId ref = mEnv.aliasReference(record->mQuest, a.mAlias);
+            const bool walks = std::any_of(record->mActions.begin(), record->mActions.end(), [&a](const SceneAction& o) {
+                return o.mType == SceneActionType::Package && o.mAlias == a.mAlias;
+            });
+            if (ref != kNullFormId && !walks
+                && std::find(instance->mHeld.begin(), instance->mHeld.end(), ref) == instance->mHeld.end())
+                instance->mHeld.push_back(ref);
+        }
         mDone[scene].clear();
-        for (const FormId ref : held)
+        for (const FormId ref : instance->mHeld)
             mEnv.hold(ref, true);
         mPlaying[scene] = std::move(instance);
         ++mStats.mStarted;
@@ -269,6 +287,13 @@ namespace game_skyrimse
                                     break;
                                 }
                                 st.mActor = mEnv.aliasReference(record.mQuest, a.mAlias);
+                                if (st.mActor == kNullFormId)
+                                {
+                                    // nobody fills the alias: nothing to wait for
+                                    st.mStage = ActionStage::Done;
+                                    ++mStats.mLinesSilent;
+                                    break;
+                                }
                                 st.mRetry -= step;
                                 if (st.mRetry > 0.f && st.mParked > 0.f)
                                 {
@@ -301,6 +326,8 @@ namespace game_skyrimse
                                         {
                                             st.mParkCounted = true;
                                             ++mStats.mParked;
+                                            mEnv.log("SCENE " + hex(id) + " line " + std::to_string(a.mIndex)
+                                                + " waits for " + hex(st.mActor));
                                         }
                                         st.mParked += step;
                                         st.mRetry = mOptions.mRetrySeconds;

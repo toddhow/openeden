@@ -105,6 +105,8 @@ namespace game_skyrimse
             className = mData.formClass(form);
             if (className.empty() && mData.isTopicInfo(form))
                 className = "TopicInfo";
+            if (className.empty() && mData.isScene(form))
+                className = "Scene";
             return !className.empty();
         }
 
@@ -480,7 +482,7 @@ namespace game_skyrimse
                 return;
             mPreloaded = true;
             for (const char* name : { "form", "objectreference", "actor", "quest", "alias", "referencealias",
-                     "locationalias", "location", "keyword", "topicinfo", "cell", "spell", "game", "utility", "debug" })
+                     "locationalias", "location", "keyword", "topicinfo", "scene", "cell", "spell", "game", "utility", "debug" })
                 (void)load(name, false);
         }
 
@@ -527,6 +529,8 @@ namespace game_skyrimse
             afterNative([this, quest] {
                 (void)attachQuest(quest);
                 runStartUpStage(quest);
+                if (mScenes != nullptr)
+                    mScenes->questStarted(quest); // task 0194: its scenes that begin on quest start
             });
         }
 
@@ -542,6 +546,8 @@ namespace game_skyrimse
             {
                 if (mState->running(quest) || mState->completed(quest))
                     continue;
+                if (mFiller != nullptr)
+                    (void)mFiller->fillEventAliases(quest, *mState, event); // task 0194: R1 and R2 of the event
                 startQuest(quest);
                 ++started;
                 ++mCounters.mStoryQuestsStarted;
@@ -836,7 +842,30 @@ namespace game_skyrimse
             reg("Quest", "Stop", false, [this](const NativeCall& c) {
                 if (mState != nullptr)
                     mState->stop(formOf(c.self));
+                if (mScenes != nullptr)
+                    mScenes->questStopped(formOf(c.self));
                 return NativeResult{};
+            });
+            // task 0194: scenes. A start runs after the calling script returned (it runs fragments of scripts that may
+            // not be loaded yet)
+            const auto sceneStart = [this](bool force) {
+                return [this, force](const NativeCall& c) {
+                    const FormId scene = formOf(c.self);
+                    if (mScenes == nullptr)
+                        return result(PapyrusValue::makeBool(false));
+                    afterNative([this, scene, force] { (void)mScenes->startScene(scene, force); });
+                    return result(PapyrusValue::makeBool(true));
+                };
+            };
+            reg("Scene", "Start", false, sceneStart(false));
+            reg("Scene", "ForceStart", false, sceneStart(true));
+            reg("Scene", "Stop", false, [this](const NativeCall& c) {
+                if (mScenes != nullptr)
+                    (void)mScenes->stopScene(formOf(c.self));
+                return NativeResult{};
+            });
+            reg("Scene", "IsPlaying", false, [this](const NativeCall& c) {
+                return result(PapyrusValue::makeBool(mScenes != nullptr && mScenes->scenePlaying(formOf(c.self))));
             });
             const auto objective = [this](bool completed) {
                 return [this, completed](const NativeCall& c) {
@@ -969,6 +998,7 @@ namespace game_skyrimse
         int mNativeDepth = 0; ///< > 0 while a native runs: a script cannot be loaded then (task 0187)
         std::vector<std::function<void()>> mDeferred; ///< work that needs a script loaded, run after the native returned
         bool mPreloaded = false;
+        SceneControl* mScenes = nullptr; ///< task 0194
         StoryEventSink mStorySink; ///< task 0187
         bool mStarted = false;
         bool mInTick = false;
@@ -1514,6 +1544,33 @@ namespace game_skyrimse
     void PapyrusHost::setStoryEventSink(StoryEventSink sink)
     {
         mImpl->mStorySink = std::move(sink);
+    }
+
+    void PapyrusHost::setSceneControl(SceneControl* control)
+    {
+        mImpl->mScenes = control;
+    }
+
+    std::size_t PapyrusHost::runSceneFragment(
+        FormId scene, const vmad::Vmad& vmad, const std::string& script, const std::string& function)
+    {
+        Impl& m = *mImpl;
+        m.preloadClasses();
+        std::uint32_t ordinal = 0;
+        for (const vmad::Script& s : vmad.mScripts)
+        {
+            const std::uint32_t at = ordinal++;
+            if (m.findInstance(scene, s.mName) != 0)
+                continue;
+            Impl::InstanceInfo instanceInfo;
+            instanceInfo.mForm = scene;
+            (void)m.attachScript(AttachKey{ AttachKind::Form, scene, 0, at }, instanceInfo, s);
+        }
+        const InstanceId instance = m.findInstance(scene, script);
+        if (instance == 0 || !m.sendEvent(instance, function))
+            return 0;
+        m.say(false, "Papyrus: scene " + hex(scene) + " runs " + script + "." + function);
+        return 1;
     }
 
     std::size_t PapyrusHost::raiseStoryEvent(const StoryEvent& event)

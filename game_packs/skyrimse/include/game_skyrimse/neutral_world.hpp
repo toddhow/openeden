@@ -26,6 +26,7 @@
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/grass_source.hpp>
 #include <openeden/game/player_item_source.hpp>
+#include <openeden/game/scene_speech.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -162,7 +163,8 @@ namespace game_skyrimse
                                    public openeden::sdk::game::CellWaterSource,
                                    public openeden::sdk::game::WeatherSource,
                                    public openeden::sdk::game::GrassSource,
-                                   public openeden::sdk::game::PlayerItemSource
+                                   public openeden::sdk::game::PlayerItemSource,
+                                   public openeden::sdk::game::SceneSpeechSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -272,6 +274,36 @@ namespace game_skyrimse
         {
             return mActors.homeCell(reference);
         }
+        /// Task 0194 (scenes): the pack's scene runner reaches the actors through these. `sceneSpeak` queues a line for
+        /// the core (SceneSpeechSource::takeSpeech) and is false for an actor the core has not told the pack about or
+        /// when 64 lines wait; `sceneHold` makes an actor stand still for its lines (the brain's conversation state).
+        [[nodiscard]] std::vector<openeden::sdk::game::WorldId> sceneActors() const { return mActors.actorReferences(); }
+        [[nodiscard]] bool sceneActorLoaded(openeden::sdk::game::WorldId reference) const { return mActors.has(reference); }
+        bool sceneSpeak(openeden::sdk::game::WorldId reference, std::string text, std::vector<std::string> voice)
+        {
+            const openeden::sdk::game::ActorHandle handle = mActors.handleOf(reference);
+            if (!handle.valid() || mSpeech.size() >= kMaxQueuedSpeech)
+                return false;
+            mSpeech.push_back({ handle, std::move(text), std::move(voice) });
+            return true;
+        }
+        void sceneHold(openeden::sdk::game::WorldId reference, bool on) { mActors.onConversation(reference, on); }
+        bool sceneForcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package)
+        {
+            return mActors.forcePackage(reference, package);
+        }
+        [[nodiscard]] bool scenePackageDone(openeden::sdk::game::WorldId reference) const
+        {
+            return mActors.packageDone(reference);
+        }
+        bool takeSpeech(openeden::sdk::game::SceneSpeech& out) override
+        {
+            if (mSpeech.empty())
+                return false;
+            out = std::move(mSpeech.front());
+            mSpeech.erase(mSpeech.begin());
+            return true;
+        }
         /// Combat hooks (task 0168, stage S5-0): the pack's skeleton, which refuses and counts; nothing calls it yet.
         void onClipEvent(const openeden::sdk::game::ClipEvent& event) override { mCombat.onClipEvent(event); }
         void onSweepResult(openeden::sdk::game::CombatSubject subject, std::uint32_t token,
@@ -328,6 +360,8 @@ namespace game_skyrimse
         openeden::sdk::game::WorldView& mView;
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
+        static constexpr std::size_t kMaxQueuedSpeech = 64;
+        std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         SkyrimCombat mCombat;
         CombatHud mHud;
         std::function<bool(FormId)> mPlayerItems; // task 0184

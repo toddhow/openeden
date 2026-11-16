@@ -1,3 +1,4 @@
+#include <openeden/game/scene_speech.hpp>
 #include "physicssystem.hpp"
 
 #include <algorithm>
@@ -1798,6 +1799,7 @@ namespace MWPhysics
         mNeutralTurned.clear();
         mNeutralSpeeds.clear();
         mNeutralPoseChanges.clear();
+        mNeutralSpeech.clear();
         mNeutralDoorsMoved.clear();
         mNeutralClipOps.clear();
         mNeutralClipSpeedOps.clear();
@@ -1812,6 +1814,21 @@ namespace MWPhysics
         mNeutralBridge.setPlayerPosition(mNeutralFocusValid, mNeutralFocus.x, mNeutralFocus.y, mNeutralFocus.z);
         if (mNeutralBridge.size() != 0 && mNeutralRulesResolver)
             mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
+        // Task 0194: the lines the pack's scenes want said (an actor the core does not know any more is dropped)
+        if (mNeutralRulesResolver)
+            if (auto* speech = dynamic_cast<openeden::sdk::game::SceneSpeechSource*>(mNeutralRulesResolver()))
+            {
+                openeden::sdk::game::SceneSpeech line;
+                for (int taken = 0; taken < 64 && speech->takeSpeech(line); ++taken)
+                {
+                    const void* key = mNeutralBridge.keyOfHandle(line.actor);
+                    const NeutralActorEntry* entry = key != nullptr ? findNeutralActor(key) : nullptr;
+                    const auto found = entry != nullptr ? mObjects.find(entry->mRef) : mObjects.end();
+                    if (found == mObjects.end())
+                        continue;
+                    mNeutralSpeech.push_back({ found->second->getPtr(), std::move(line.text), std::move(line.voice) });
+                }
+            }
         // Task 0170: the combat hooks run right after the actor rules (clip events first, then combatUpdate).
         if (mNeutralCombatResolver && Settings::game().mNeutralCombat.get())
         {

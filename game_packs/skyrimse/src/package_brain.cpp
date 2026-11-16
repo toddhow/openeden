@@ -985,8 +985,10 @@ namespace game_skyrimse
     {
         ++mStats.mEvaluations;
         const sdkgame::ActorClock clock = writer.clock();
-        const PackageRecord* chosen = selectPackage(actor.mPackages, clock.hour, clock.day, clock.valid, mSource,
-            actor.mBase, static_cast<FormId>(actor.mHandle.reference));
+        const PackageRecord* chosen = actor.mForced != nullptr
+            ? actor.mForced
+            : selectPackage(actor.mPackages, clock.hour, clock.day, clock.valid, mSource, actor.mBase,
+                static_cast<FormId>(actor.mHandle.reference));
         if (chosen == nullptr)
         {
             ++mStats.mNoPackage;
@@ -1168,6 +1170,16 @@ namespace game_skyrimse
             }
             run(actor, seconds, writer);
         }
+    }
+
+    bool PackageBrain::forcePackage(sdkgame::WorldId reference, const PackageRecord* package)
+    {
+        const auto it = mActors.find(reference);
+        if (it == mActors.end())
+            return false;
+        it->second.mForced = package;
+        it->second.mEvaluatedOnce = false; // evaluated again at the next update
+        return true;
     }
 
     std::optional<PackageBrain::ActorView> PackageBrain::view(sdkgame::WorldId reference) const

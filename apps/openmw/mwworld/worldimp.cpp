@@ -48,6 +48,7 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include "neutraldialogue.hpp"
+#include "neutralscenespeech.hpp"
 #include "neutralprojectiles.hpp"
 #include "neutralnavigation.hpp"
 #include "neutralrotation.hpp"
@@ -1592,6 +1593,53 @@ namespace MWWorld
             if (Settings::game().mNeutralActorLocomotion.get())
                 for (const auto& report : mPhysics->getNeutralActorSpeeds())
                     mRendering->getObjects().setNeutralActorSpeed(report.mPtr, report.mSpeed);
+            // Task 0194: the pack's scene lines: voice through the sound manager, text as a message box
+            static std::uint64_t speechFrame = 0; // frames this block ran (a trace of the lines below)
+            ++speechFrame;
+            if (!mNeutralSceneSpeech)
+                mNeutralSceneSpeech = std::make_unique<NeutralSceneSpeech>();
+            for (const auto& line : mPhysics->getNeutralSpeech())
+            {
+                mNeutralSpeakers[line.mPtr.mRef] = line.mPtr;
+                mNeutralSceneSpeech->add(line.mPtr.mRef, line.mText, line.mVoice);
+            }
+            if (mNeutralSceneSpeech->pending() != 0)
+            {
+                class SpeechSink final : public NeutralSceneSpeech::Sink
+                {
+                public:
+                    SpeechSink(std::map<const void*, Ptr>& speakers, std::uint64_t frame)
+                        : mSpeakers(speakers)
+                        , mFrame(frame)
+                    {
+                    }
+                    bool active(const void* actor) override
+                    {
+                        MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
+                        return sound != nullptr && sound->sayActive(mSpeakers[actor]);
+                    }
+                    void say(const void* actor, const std::string& path) override
+                    {
+                        MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
+                        Log(Debug::Info) << "SCENESPEECH voice " << path;
+                        if (sound != nullptr)
+                            sound->say(mSpeakers[actor],
+                                Misc::ResourceHelpers::correctSoundPath(VFS::Path::Normalized(path)));
+                    }
+                    void subtitle(const void* actor, const std::string& text) override
+                    {
+                        const Ptr& ptr = mSpeakers[actor];
+                        std::string line = std::string(ptr.getClass().getName(ptr)) + ": " + text;
+                        Log(Debug::Info) << "SCENESPEECH subtitle (frame " << mFrame << ") " << line;
+                        MWBase::Environment::get().getWindowManager()->messageBox(line);
+                    }
+
+                private:
+                    std::map<const void*, Ptr>& mSpeakers;
+                    std::uint64_t mFrame;
+                } sink(mNeutralSpeakers, speechFrame);
+                mNeutralSceneSpeech->update(sink);
+            }
             // Task 0174 (S5-5): an actor the pack reported dead becomes a ragdoll (humanoids that have a bone table).
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralDeaths())
                 startNeutralRagdoll(ptr);

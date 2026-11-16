@@ -38,6 +38,7 @@
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/speech.hpp>
+#include <game_skyrimse/scene.hpp>
 #include <game_skyrimse/story.hpp>
 #include <game_skyrimse/vmad.hpp>
 
@@ -288,7 +289,9 @@ namespace game_skyrimse
     class PlacedRefIndex;
     class PackageIndex;
 
-    class SkyrimConditionWorld final : public conditions::ConditionWorld, public StoryEventSource
+    class SkyrimConditionWorld final : public conditions::ConditionWorld,
+                                       public StoryEventSource,
+                                       public SceneStateSource
     {
     public:
         static constexpr conditions::Subject kPlayer = 0x100000007ull; ///< the player (his NPC_ is 0x00000007)
@@ -373,6 +376,12 @@ namespace game_skyrimse
 
         /// Task 0187: the story event the conditions of a story node are evaluated against (fn_576 GetEventData).
         void setStoryEvent(const StoryEvent* event) { mStoryEvent = event; }
+        /// Task 0194: fn_550 reads the scene runner through this lookup (scene, action index).
+        void setSceneActionLookup(std::function<bool(FormId, std::uint32_t)> lookup) { mSceneAction = std::move(lookup); }
+        [[nodiscard]] bool sceneActionComplete(FormId scene, std::uint32_t actionIndex) const override
+        {
+            return mSceneAction && mSceneAction(scene, actionIndex);
+        }
         [[nodiscard]] const StoryEvent* currentStoryEvent() const override { return mStoryEvent; }
         [[nodiscard]] FormId resolveStoryForm(std::uint32_t stored) const override { return resolve(stored); }
         [[nodiscard]] bool storyLocationWithin(FormId location, FormId ancestor) const override;
@@ -434,6 +443,7 @@ namespace game_skyrimse
 
     private:
         const StoryEvent* mStoryEvent = nullptr;
+        std::function<bool(FormId, std::uint32_t)> mSceneAction; ///< task 0194
         // ---- task 0160 helpers
         struct ActorView
         {

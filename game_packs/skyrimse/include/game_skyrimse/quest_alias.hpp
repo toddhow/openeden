@@ -20,6 +20,7 @@
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/story.hpp>
 
 #include <cstdint>
 #include <functional>
@@ -55,6 +56,12 @@ namespace game_skyrimse
         std::size_t fillQuest(FormId quest, QuestState& state, bool matching);
         /// Fills one alias (the lazy path of ReferenceAlias.GetReference). True when it holds a reference afterwards.
         bool fillAlias(FormId quest, std::uint32_t alias, QuestState& state);
+
+        /// Task 0194: do the quest's required event aliases (ALFE/ALFD: 'R1', 'R2') have a reference in `event` whose
+        /// conditions pass? A quest with no event alias always matches. Pure: fills nothing.
+        [[nodiscard]] bool eventAliasesMatch(FormId quest, const StoryEvent& event);
+        /// Fills the event aliases from `event` (the ones `eventAliasesMatch` accepted). Returns how many were filled.
+        std::size_t fillEventAliases(FormId quest, QuestState& state, const StoryEvent& event);
 
         [[nodiscard]] const Stats& stats() const { return mStats; }
 

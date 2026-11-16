@@ -1,6 +1,7 @@
 #include "game_skyrimse/scene.hpp"
 
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/story.hpp"
 #include "game_skyrimse/survey.hpp"
 
 #include <algorithm>
@@ -448,6 +449,24 @@ namespace game_skyrimse
                 mByQuest[s.mQuest].push_back(id);
         for (auto& [quest, list] : mByQuest)
             std::sort(list.begin(), list.end());
+    }
+
+    namespace
+    {
+        float getSceneActionComplete(const survey::Ctda& c, conditions::Subject, const conditions::ConditionWorld& world)
+        {
+            const SceneStateSource* state = dynamic_cast<const SceneStateSource*>(&world);
+            const StoryEventSource* forms = dynamic_cast<const StoryEventSource*>(&world);
+            if (state == nullptr || forms == nullptr)
+                return 0.f;
+            return state->sceneActionComplete(forms->resolveStoryForm(c.mParam1), c.mParam2) ? 1.f : 0.f;
+        }
+    }
+
+    const std::vector<conditions::ExtraFunction>& sceneExtraFunctions()
+    {
+        static const std::vector<conditions::ExtraFunction> table = { { 550, &getSceneActionComplete } };
+        return table;
     }
 
     const SceneRecord* SceneIndex::scene(FormId id) const

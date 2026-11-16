@@ -212,6 +212,25 @@ namespace game_skyrimse
         return true;
     }
 
+    bool DialogueRuntime::sceneLine(
+        FormId topic, const DialogueSpeaker& speaker, std::uint32_t pick, openeden::sdk::game::DialogueTurn& out)
+    {
+        out = {};
+        const DialogueSpeaker savedSpeaker = mSpeaker;
+        const std::string savedVoice = mVoiceType;
+        mSpeaker = speaker;
+        mWorld.setSpeaker(speaker);
+        mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
+        const Selection s = selectInfo(mDialogue, topic, mWorld, mSpeaker, options(pick));
+        const bool found = s.mInfo != nullptr;
+        if (found)
+            fillTurn(*s.mInfo, out);
+        mSpeaker = savedSpeaker;
+        mVoiceType = savedVoice;
+        mWorld.setSpeaker(savedSpeaker);
+        return found;
+    }
+
     bool DialogueRuntime::choose(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {
         out = {};

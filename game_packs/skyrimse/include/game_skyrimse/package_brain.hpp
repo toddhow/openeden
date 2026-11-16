@@ -302,6 +302,9 @@ namespace game_skyrimse
             return mFollowRefs.count(reference) != 0;
         }
         [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& followerRefs() const { return mFollowRefs; }
+        /// Task 0194 (scenes): the package an actor follows instead of the ones its schedule gives; null gives the
+        /// schedule back. Takes effect at the next update. False for an actor the brain does not know.
+        bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package);
 
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -319,6 +322,7 @@ namespace game_skyrimse
             bool mEvaluatedOnce = false;
             float mSinceEval = 0.f;
             const PackageRecord* mActive = nullptr;
+            const PackageRecord* mForced = nullptr; ///< task 0194: a scene's package, wins over the schedule
             PackageBehavior mBehavior = PackageBehavior::Stand;
             Phase mPhase = Phase::Waiting;
             double mX = 0, mY = 0, mZ = 0;

@@ -106,12 +106,32 @@ namespace game_skyrimse
             return 0;
         }
 
+        /// Task 0194: is the form a scene (SCEN)? Its class is "Scene".
+        [[nodiscard]] virtual bool isScene(FormId form) const
+        {
+            (void)form;
+            return false;
+        }
+
         /// The editor id or the name of a form for GetName; empty when none.
         [[nodiscard]] virtual std::string nameOf(FormId form) const
         {
             (void)form;
             return {};
         }
+    };
+
+    /// Task 0194: what the Scene natives and the quest hooks reach (the scene runner). Every function runs on the main
+    /// thread; the host calls them outside natives (deferred like the quest attach).
+    class SceneControl
+    {
+    public:
+        virtual ~SceneControl() = default;
+        virtual bool startScene(FormId scene, bool force) = 0;
+        virtual bool stopScene(FormId scene) = 0;
+        [[nodiscard]] virtual bool scenePlaying(FormId scene) const = 0;
+        virtual void questStarted(FormId quest) = 0;
+        virtual void questStopped(FormId quest) = 0;
     };
 
     struct PapyrusHostOptions
@@ -189,6 +209,13 @@ namespace game_skyrimse
         /// Task 0187: the story manager. `Keyword.SendStoryEvent` and `raiseStoryEvent` call it and start the quests it
         /// returns (state, scripts, start up stage fragment, aliases).
         void setStoryEventSink(StoryEventSink sink);
+        /// Task 0194: the scene runner. Not owned; null: the Scene natives answer false and quests start no scenes.
+        void setSceneControl(SceneControl* control);
+        /// Task 0194: a scene fragment function. The scripts of the SCEN VMAD are attached to the scene form (once) and
+        /// `function` of the instance named `script` is queued. Returns how many functions were queued.
+        std::size_t runSceneFragment(
+            FormId scene, const vmad::Vmad& vmad, const std::string& script, const std::string& function);
+
         /// Raises an event as a script's SendStoryEvent would; returns how many quests it started.
         std::size_t raiseStoryEvent(const StoryEvent& event);
 

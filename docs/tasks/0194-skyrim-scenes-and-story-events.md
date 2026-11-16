@@ -52,3 +52,60 @@ Creation Kit wiki could not be fetched) and the installed data (aggregates only)
   IsSceneActionComplete is an extra condition function (like fn_576).
 - Story events: ADIA raised by the pack on a seeded timer for pairs of nearby actors of the player's cell (R1, R2), run-on 7
   conditions ('R1', 'R2'), event aliases (ALFE/ALFD) filled and checked so a quest whose pair does not match does not start.
+
+## 3. Stage log (2026-11-15; same hand wrote tests and code; Windows only; local commits on branch `scenes` from `5b886a0bf8`, not pushed)
+
+**Built.** `vmad::parseScene`, `scene.*` (SCEN decoder, `SceneIndex`, fn_550 extra function), `scene_runner.*` (pure runner),
+SDK `scene_speech.hpp` 0.1 (`SceneSpeechSource`, found by `dynamic_cast` on the actor rules), `SkyrimCellSource` implements it
+(queue of 64), the package brain's `forcePackage` (one function, one line in `evaluate`), `DialogueRuntime::sceneLine`, host class
+`Scene` (Start, ForceStart, Stop, IsPlaying) and `runSceneFragment`, quest start and stop tell the runner, run-on 7 (event
+references 'R1'/'R2') and `GetInCell` for other references in the conditions world, ALFD decoded and
+`QuestAliasFiller::eventAliasesMatch` / `fillEventAliases` (an ADIA quest starts only when its event aliases match the pair), the
+pack's ambient (ADIA) raiser, the engine's `NeutralSceneSpeech` (voice through the sound manager, text as a message box,
+`SCENESPEECH` log lines). All of it behind `[extension.skyrimse] papyrus`; the engine half is inert without a pack that implements
+the interface.
+
+**Tests first.** `testskyrimsescenes.cpp`, 26 tests (decode 5, scene VMAD 3, runner 18): stubs for `scene.cpp` and
+`scene_runner.cpp` gave **21 of 26 failed red**; the 5 scene VMAD tests passed against the stub because `parseScene` was already
+written (NOT red first). Engine: `testneutralscenespeech.cpp`, 5 tests, written with the code, NOT run red first. Green:
+`Skyrim*:*Papyrus*:*Vmad*:*Dialogue*:*Quest*:*Story*:*Scene*:*Frozen*:*Extension*` 2,044 and `openmw-tests`
+`*Neutral*:*Skyrim*:*Extension*:*Lua*` 803 pass. No existing test edited. NOT unit tested: run-on 7, `GetInCell` on other
+references, ALFD, the event-alias filler, fn_550 through the evaluator, the ambient raiser, the package override, the glue.
+
+**In game** (`pap.sh`, five masters, Bannered Mare, `neutral actors`, `papyrus`, `actor packages`, fixed frame time, quiet window,
+`[Sound] device = No Device`): the ambient event ADIA, raised for a pair after 24 pairs, started quest 0x1B112
+(`DialogueGenericScene04`, not the Mare-specific Scene1: the seeded pair order decides); its scene 0x1B113 began (7 phases, 9
+actions) and Saadia and Hulda said, in phase order, "Hello." / "Oh, hi, I'm glad I ran into you. I was wondering if..." / "I don't
+know. If you see any big strong men around, let us know, will you?" / two laughter lines / "Oh, come now. Don't go away mad.", with
+their real voice files (`voice/skyrim.esm/femalesultry/...`), then the scene ended. Frames viewed:
+`I:\Projects\OpenEden-work\papyrus\run_scene8\user\screenshots\screenshot033.png` ("Saadia: Hello.") and `screenshot044.png` (two
+subtitles). Actions of alias 2 (a third actor nobody fills) complete silently.
+- **Three runs identical:** the SCENE and PAPYRUS lines of three runs (timestamps, the engine trace's `(frame N)` and the
+  end-of-run summary lines cut) have the same md5 `f693d4a1c44e07bc1421ac00e61bfa8a`. The `(frame N)` numbers differ between runs
+  (start-up timing, not script time).
+- **Setting off:** `papyrus = false`: 0 SCENE or PAPYRUS lines. **Parent comparison:** the task 0187 Saadia scenario on the parent
+  (`5b886a0bf8`, outputs in `papyrus\parent_5b88`) and on the new build differ only by one added line, `story event ADIA started
+  quest 0001B112` (and the summary lines).
+- **Morrowind unchanged:** `tools/worldobjects_check` against `integ2` (110 lines, OK) and the fixed Balmora frame `1c5d47ad0b5dc32d`.
+
+**Not built / not run.** Exterior CLOC (needs the engine to tell the pack where the player stands: a small `dynamic_cast`
+interface called when the player's cell or grid changes), LEVL (the stand-in player never levels), KILL (15 quests), CRFT (11), CAST
+(6) and the other events (no source of them in the neutral world), scenes of start-enabled quests at `startGame`, scene save state (a
+scene in play at a save is not resumed), the Linux gate, clang-format 14 (formatted by hand), clang-tidy, the Lua tests, a fresh
+review, `WhiterunBanneredMareScene1` itself, a real audio device.
+
+## Decisions for toddhow
+1. **Line length** is an estimate (15 characters a second, at least 1.5 s, plus 0.4 s) because the pack decodes no audio; the
+   engine plays the real voice queued per actor, so the pack's scene can end before the last voice does. Alternative: read the
+   xWMA length in the core and report it back.
+2. **Phase end rule:** actions that end in the phase AND its completion conditions (`PhaseEndRule`; the alternatives are options).
+3. **A speaker that is not loaded** is waited for 120 s of script time, then the action completes silent; an unfilled alias
+   completes at once.
+4. **Ambient (ADIA) timing and pairing:** first at 5 s, then every 30 s of script time, over pairs of loaded actors of one cell in a
+   seeded order, up to 40 events a time, until a quest starts; an ADIA quest runs once a session (RNAM hours are not honoured).
+5. **Scenes of start-enabled quests are not started at game start.**
+6. **Package actions** use the brain's new `forcePackage`; finished = the brain says Done or Idle, trusted after 3 polls.
+7. **Actors that only speak are held still** through the brain's conversation state for the scene's length.
+8. **Small edits in shared files** (the followers work may touch them): `package_brain.*` (`forcePackage`, one line in `evaluate`),
+   `actor_table.hpp` (accessors), `neutral_world.hpp` (scene methods, speech queue); engine `physicssystem.*` (poll) and `worldimp.*`
+   (play).

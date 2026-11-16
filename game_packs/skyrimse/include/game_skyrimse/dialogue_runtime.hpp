@@ -94,6 +94,12 @@ namespace game_skyrimse
 
         void end();
 
+        /// Task 0194: the line a scene's dialogue action gives `speaker` from `topic` (a DIAL of category Scene): the
+        /// topic's INFO by the usual selection, its text and voice, and its script fragments through the sink. Does not
+        /// touch an open conversation (the speaker, voice type and say-once of it are kept). False when no INFO passes.
+        [[nodiscard]] bool sceneLine(FormId topic, const DialogueSpeaker& speaker, std::uint32_t pick,
+            openeden::sdk::game::DialogueTurn& out);
+
         /// Turns voice on: `probe` says which files exist. Without it no turn has voice.
         /// Task 0187: where the script fragments of a shown response go. Without a sink they are not run (counted in
         /// `mScriptsNotRun`, as before).

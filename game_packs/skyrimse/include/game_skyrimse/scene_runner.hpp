@@ -67,6 +67,13 @@ namespace game_skyrimse
         virtual void runFragment(FormId scene, const std::string& script, const std::string& function) = 0;
         virtual void stopQuest(FormId quest) = 0;
         virtual void log(const std::string& line) = 0;
+        /// Is the actor a reference the world has built (so that it can speak)? A scene does not start when none of
+        /// its actors is. Default: yes.
+        [[nodiscard]] virtual bool actorLoaded(FormId actorReference) const
+        {
+            (void)actorReference;
+            return true;
+        }
     };
 
     enum class PhaseEndRule : std::uint8_t
@@ -104,6 +111,7 @@ namespace game_skyrimse
             std::uint64_t mPackages = 0;
             std::uint64_t mTimers = 0;
             std::uint64_t mFragments = 0;
+            std::uint64_t mNotLoaded = 0; ///< a start refused because no actor of the scene is loaded
         };
 
         SceneRunner(const SceneIndex& scenes, SceneEnvironment& env, Options options = {});
