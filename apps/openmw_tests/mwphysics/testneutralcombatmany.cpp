@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <memory>
@@ -137,8 +138,8 @@ namespace
     // through the real bridge frame by frame.
     struct Fight
     {
-        explicit Fight(int fighters)
-            : mKeys(static_cast<std::size_t>(fighters))
+        explicit Fight(int fighters, int bystanders = 0)
+            : mKeys(static_cast<std::size_t>(fighters + bystanders))
             , mCombat(mActors)
         {
             mRules.setData(&mData);
@@ -155,6 +156,20 @@ namespace
                 mRules.onActorAdded(info);
                 const double angle = static_cast<double>(i) / static_cast<double>(fighters) * 6.2831853;
                 mWorld.mBodies.push_back({ handle, std::cos(angle) * 90.0, std::sin(angle) * 90.0 });
+            }
+            // Actors of the rest of the world: known to the pack and to the world, 2,000 units or more away, so they
+            // are not chosen for the crowd and never in reach.
+            for (int i = 0; i < bystanders; ++i)
+            {
+                const std::size_t index = static_cast<std::size_t>(fighters + i);
+                const ActorHandle handle = mActors.add(
+                    nullptr, &mKeys[index], static_cast<WorldId>(5000 + i), kBase, "Citizen", 0, 0, 0, 0);
+                ActorInfo info;
+                info.handle = handle;
+                info.base = kBase;
+                info.editorId = "Citizen";
+                mRules.onActorAdded(info);
+                mWorld.mBodies.push_back({ handle, 2000.0 + (i % 50) * 40.0, 2000.0 + (i / 50) * 40.0 });
             }
         }
         void frame() { mCombat.update(&mRules, kDt, mSink, mMetaFn, &mWorld); }
@@ -214,6 +229,27 @@ namespace
         EXPECT_EQ(stats.mTableFull, 0u);
         EXPECT_EQ(stats.mRulesFailures, 0u);
         EXPECT_EQ(stats.mWriterFailures, 0u);
+    }
+
+    // The cost of the rest of the world: 16 fighters and 0 / 70 / 400 / 1,000 other actors that never fight. Printed, and
+    // the allocations of a steady fight stay at zero whatever the population.
+    TEST(NeutralCombatMany, theCostPerFrameAndTheAllocationsWithAPopulation)
+    {
+        for (const int bystanders : { 0, 70, 400, 1000 })
+        {
+            Fight fight(16, bystanders);
+            for (int i = 0; i < 1200; ++i)
+                fight.frame();
+            const auto start = std::chrono::steady_clock::now();
+            const Measure m = measure(fight, 1200);
+            const double us
+                = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count()
+                / 1200.0;
+            std::cout << "[ MEASURE ] 16 fighters and " << bystanders << " other actors: " << us
+                      << " us a frame (bridge and pack, with the allocation counter on), " << m.mAllocations
+                      << " allocations\n";
+            EXPECT_EQ(m.mAllocations, 0u) << bystanders << " other actors";
+        }
     }
 
     TEST(NeutralCombatMany, theAllocationsOfASteadyFightAreCountedPerFrame)
