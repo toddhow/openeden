@@ -16,29 +16,6 @@ namespace game_skyrimse::dragons
         constexpr double kMinRadius = 300.0;
         constexpr double kMaxStep = 1.0; ///< a frame longer than this is clamped
 
-        // The row of the table (docs/tasks/0253-skyrim-dragons.md section 1). Clips: the generator names are
-        // `CLIP_Ground_Combat_Default_Standing_Idle` (ground_combatidle, 2 s), `CLIP_Ground_Locomotion_Forward`
-        // (mtforwardground, 1.33333 s, motion 512 units), `CLIP_Ground_Combat_Attack_Bite` (ground_bite, 3 s, HitFrame
-        // 1.5667 s), `CLIP_Ground_Combat_Attack_Tail` (ground_tailwhip, 2.66667 s, HitFrame 1.4 s), `CLIP_Ground_Stagger`
-        // (mtland_staggerheavy, 2 s). The death is mtdeathintro (2.5 s). Height 414 is the z extent of dragon.nif at
-        // rest; the radius 150 is OURS (the skin's mid-body slab includes the spread wings: 1675 wide).
-        const CreatureProfile kDragon = { "dragon", "actors/dragon/character assets/skeleton.nif", "dragonproject",
-            "ground_combatidle", "mtforwardground", "mtforwardground", 512.f / 1.33333f, 512.f / 1.33333f, 512.f, 512.f,
-            414.f, "ground_bite", "ground_tailwhip", "", "mtland_staggerheavy", "mtdeathintro", 150.f };
-
-        std::string normalised(std::string_view path)
-        {
-            std::string out(path);
-            for (char& c : out)
-            {
-                if (c == '\\')
-                    c = '/';
-                else if (c >= 'A' && c <= 'Z')
-                    c = static_cast<char>(c + 32);
-            }
-            return out;
-        }
-
         double wrapPi(double a)
         {
             a = std::fmod(a, kTwoPi);
@@ -63,21 +40,19 @@ namespace game_skyrimse::dragons
 
     const CreatureProfile& dragonProfile()
     {
-        return kDragon;
+        // The row lives in the shared creature table (task 0262).
+        return *creatureProfileFor("actors/dragon/character assets/skeleton.nif");
     }
 
     const CreatureProfile* dragonProfileFor(std::string_view skeletonPath)
     {
-        const std::string path = normalised(skeletonPath);
-        const std::string exact(kDragon.mSkeletonFolder);
-        if (path == exact || path == "meshes/" + exact)
-            return &kDragon;
-        return nullptr;
+        const CreatureProfile* row = creatureProfileFor(skeletonPath);
+        return isDragon(row) ? row : nullptr;
     }
 
     bool isDragon(const CreatureProfile* profile)
     {
-        return profile != nullptr && profile == &kDragon;
+        return profile != nullptr && profile->mName == "dragon";
     }
 
     Flight::Flight(FlightSettings settings)

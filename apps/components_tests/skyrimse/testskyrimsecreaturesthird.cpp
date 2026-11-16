@@ -88,10 +88,10 @@ namespace
 
     // ---- the table ------------------------------------------------------------------------------------------------
 
-    TEST(SkyrimCreatureThirdTable, theFirstTenAreStillTheEarlierSliceAndTheAllTableAddsSeven)
+    TEST(SkyrimCreatureThirdTable, theFirstTenAreStillTheEarlierSliceAndTheAllTableAddsSevenAndTheDragon)
     {
         EXPECT_EQ(creatureProfiles().size(), 10u);
-        ASSERT_EQ(creatureProfilesAll().size(), 10u + std::size(kThird));
+        ASSERT_EQ(creatureProfilesAll().size(), 10u + std::size(kThird) + 1u /* the dragon, task 0262 */);
         for (std::size_t i = 0; i < creatureProfiles().size(); ++i)
             EXPECT_EQ(&creatureProfiles()[i], &creatureProfilesAll()[i]) << i;
         EXPECT_EQ(&creatureProfilesAll()[0], &wolfProfile());
@@ -202,8 +202,7 @@ namespace
 
     TEST(SkyrimCreatureThirdLookup, creaturesNoRowKnowsAndPeopleStillHaveNoProfile)
     {
-        for (const char* path : { "Actors\\Dragon\\Character Assets\\Skeleton.nif",
-                 "Actors\\DwarvenSpider\\Character Assets\\skeleton.nif",
+        for (const char* path : { "Actors\\DwarvenSpider\\Character Assets\\skeleton.nif",
                  "Actors\\WerewolfBeast\\Character Assets\\skeleton.nif",
                  "Actors\\FrostbiteSpiderX\\Character Assets\\skeleton.nif",
                  "Actors\\Character\\Character Assets\\skeleton.nif",

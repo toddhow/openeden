@@ -160,8 +160,7 @@ namespace
 
     TEST(SkyrimCreatureTable, creaturesThisSliceDoesNotKnowAndPeopleHaveNoProfile)
     {
-        for (const char* path : { "Actors\\Dragon\\Character Assets\\Skeleton.nif",
-                 "Actors\\Ambient\\Hare\\Character Assets\\skeleton.nif",
+        for (const char* path : { "Actors\\Ambient\\Hare\\Character Assets\\skeleton.nif",
                  "Actors\\Ambient\\Chicken\\Character Assets\\Skeleton.nif",
                  "Actors\\Character\\Character Assets\\skeleton.nif",
                  "Actors\\Character\\Character Assets Female\\skeleton_female.nif",

@@ -58,10 +58,10 @@ namespace
         EXPECT_FALSE(isDragon(&wolfProfile()));
     }
 
-    TEST(SkyrimDragonTable, theOlderCreatureLookupStillDoesNotKnowTheDragon)
+    TEST(SkyrimDragonTable, theSharedCreatureLookupKnowsTheDragon)
     {
-        EXPECT_EQ(creatureProfileFor("Actors\\Dragon\\Character Assets\\Skeleton.nif"), nullptr);
-        EXPECT_EQ(creatureProfilesAll().size(), 17u);
+        EXPECT_EQ(creatureProfileFor("Actors\\Dragon\\Character Assets\\Skeleton.nif"), &dragonProfile());
+        EXPECT_EQ(creatureProfilesAll().size(), 18u);
     }
 
     // ---- the flight -------------------------------------------------------------------------------------------------

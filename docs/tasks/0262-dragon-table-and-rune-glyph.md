@@ -54,3 +54,17 @@ Tests (new files only): `apps/components_tests/skyrimse/testskyrimseruneglyph.cp
 - In game: `OPENEDEN_QUIET_WINDOW=1`, volumes 0, scripts in `I:\Projects\OpenEden-work\bow6\fu` (`run_rune.sh`, `run_dragon.sh`). Fire Rune placed by the real attack key (`summons = true` and `summons test magicka = 1000` give the stand-in the 234 magicka), hostile Hulda released: `rune placed`, `rune set off by actor 108142`, `explosion reached 1`; `keep/screenshot004.png` the glyph on the floor, `keep/screenshot008.png` and the later frames without it. Dragon: `dragons test place = EncDragon01Fire` shows the engage, ground bite, breath, take-off and cruise lines as in task 0253.
 - Morrowind: fixed Balmora frame `0d6dd39995b927fa`.
 - Not run: Linux gate, clang-format 14, clang-tidy, Lua tests, whole binaries, three-run determinism of the rune scenario, a fresh review.
+
+### Stage log, part A done (branch `dragontable`, 2026-11-16)
+
+toddhow approved editing exactly four tests, only as far as the fold needs. Done: `kDragon` moved from `dragons.cpp` into
+`kProfiles` as row 18 (`creatures.cpp`); `dragonProfile()` and `dragonProfileFor()` ask the shared `creatureProfileFor`
+(`dragonProfileFor` returns the row only when it is the dragon), `isDragon` compares the row's name; the now unused
+`normalised` helper in `dragons.cpp` is gone. `creatureProfiles()` is still the first ten.
+
+Edited test lines:
+- `testskyrimsecreaturesmore.cpp`, `SkyrimCreatureTable.creaturesThisSliceDoesNotKnowAndPeopleHaveNoProfile`: the Dragon path removed from the list.
+- `testskyrimsecreaturesthird.cpp`, `SkyrimCreatureThirdLookup.creaturesNoRowKnowsAndPeopleStillHaveNoProfile`: the Dragon path removed; `theFirstTen...AllTableAddsSeven` renamed `...AddsSevenAndTheDragon` and its size check is `10u + std::size(kThird) + 1u`.
+- `testskyrimsedragons.cpp`, `theOlderCreatureLookupStillDoesNotKnowTheDragon` became `theSharedCreatureLookupKnowsTheDragon` (the shared lookup returns `&dragonProfile()`, table size 18).
+
+Results: `components-tests` filter `*Creature*:*Dragon*:SkyrimCombat*:CombatContract*:CombatMagic*:RuneGlyph*:SpellDelivery*:SkyrimCrime*:SkyrimHud*` 337 pass, no other existing test failed. In game (`fu/run_dragon.sh`, `EncDragon01Fire`, quiet window, volumes 0): the `COMBAT dragon` event lines (is a dragon, breath begin and fires x4, takeoff x6, cruise x15) equal the run before; only the periodic "ground" position lines differ in count (28 against 24, timing). Morrowind untouched (pack-only change). Not run: Linux gate, clang-format 14, clang-tidy, Lua tests, whole binaries.

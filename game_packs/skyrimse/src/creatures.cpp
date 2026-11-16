@@ -104,6 +104,14 @@ namespace game_skyrimse
             { "spriggan", "actors/spriggan/character assets/", "spriggan", "mt_idle", "walkforward", "runforward",
                 95.7992f / 1.466667f, 263.173f / 0.733333f, 95.7992f, 263.173f, 156.f, "attackright1",
                 "powerattackforwardx2", "recoilr", "staggerback_small", "death", 16.f },
+            // The dragon (task 0262, moved here from dragons.cpp; docs/tasks/0253-skyrim-dragons.md section 1). Clips:
+            // `CLIP_Ground_Combat_Default_Standing_Idle` (ground_combatidle), `CLIP_Ground_Locomotion_Forward`
+            // (mtforwardground, 1.33333 s, motion 512 units), the bite (3 s, HitFrame 1.5667 s), the tail whip (2.66667 s,
+            // HitFrame 1.4 s), `CLIP_Ground_Stagger`; the death is mtdeathintro. Height 414 is the z extent of dragon.nif
+            // at rest; the radius 150 is OURS (the skin's mid-body slab includes the spread wings: 1675 wide).
+            { "dragon", "actors/dragon/character assets/skeleton.nif", "dragonproject", "ground_combatidle",
+                "mtforwardground", "mtforwardground", 512.f / 1.33333f, 512.f / 1.33333f, 512.f, 512.f, 414.f,
+                "ground_bite", "ground_tailwhip", "", "mtland_staggerheavy", "mtdeathintro", 150.f },
         };
 
         // The rows of tasks 0212 and 0216 come first; creatureProfiles() is exactly these.
