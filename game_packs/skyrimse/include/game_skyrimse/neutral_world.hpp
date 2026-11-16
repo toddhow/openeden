@@ -253,11 +253,31 @@ namespace game_skyrimse
         }
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
         {
+            // Task 0190: the combat AI's movement. The package brain is told to wait for an engaged actor (a fight is a
+            // conversation as far as it is concerned: it stands aside and takes its package up afterwards) BEFORE it
+            // runs; the goals are written after it, so nothing of the brain's overrides them. Stops go first for the
+            // same reason.
+            mAiMoves.clear();
+            mCombat.drainAiMoves(mAiMoves);
+            using Kind = SkyrimCombat::AiMoveIntent::Kind;
+            for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
+            {
+                if (move.mKind == Kind::Suspend)
+                    mActors.onConversation(move.mActor.reference, true);
+                else if (move.mKind == Kind::Resume)
+                    mActors.onConversation(move.mActor.reference, false);
+                else if (move.mKind == Kind::Stop)
+                    (void)writer.cancelGoal(move.mActor);
+            }
             mActors.update(seconds, writer);
+            for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
+                if (move.mKind == Kind::GoTo)
+                    (void)writer.goTo(move.mActor, { move.mX, move.mY, move.mZ, move.mSpeed });
         }
         void onGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result) override
         {
             mActors.onGoalFinished(handle, result);
+            mCombat.aiGoalFinished(handle, result); // task 0190
         }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Followers (task 0196): answered by the actor table (the package brain keeps who follows).
@@ -316,7 +336,8 @@ namespace game_skyrimse
             // Task 0180: the HUD sees the damage and death reports that go through (combat.cpp is not changed) and
             // reads the player's numbers, which are only readable inside this call.
             HudWriter hudWriter(writer, mHud);
-            mCombat.combatUpdate(seconds, hudWriter);
+            AiDamageWriter aiWriter(hudWriter, mCombat); // task 0190: damage of every kind provokes the victim
+            mCombat.combatUpdate(seconds, aiWriter);
             mHud.update(seconds, writer);
         }
         /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
@@ -363,6 +384,7 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         SkyrimCombat mCombat;
+        std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
         CombatHud mHud;
         std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;

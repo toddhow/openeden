@@ -1166,6 +1166,12 @@ namespace game_skyrimse
                         say(openeden::sdk::LogLevel::Info, "combat test npc perks: " + npcPerks);
                     mCellSource.combat().setWarning(
                         [say](const std::string& line) { say(openeden::sdk::LogLevel::Warning, line); });
+                    // Task 0190 (stage S5-9): the combat AI; the test settings above stay as its overrides.
+                    if (settings->getBool(kPackId, kCombatAiKey, false))
+                    {
+                        mCellSource.combat().setCombatAi(true);
+                        say(openeden::sdk::LogLevel::Info, "combat ai: on");
+                    }
                     if (settings->getBool(kPackId, kCombatTraceKey, false))
                         mCellSource.combat().setTrace(
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });

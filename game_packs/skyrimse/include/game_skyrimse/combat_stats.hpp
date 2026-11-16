@@ -19,6 +19,7 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/combat_impact.hpp"
+#include "game_skyrimse/combat_style.hpp"
 #include "game_skyrimse/land.hpp"
 #include "game_skyrimse/perks.hpp"
 
@@ -190,6 +191,7 @@ namespace game_skyrimse
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
         SoundRecords mSounds; ///< task 0193: IPCT, IPDS, MATT, SNDR and SOUN
+        std::vector<CombatStyleRecord> mStyles; ///< task 0190
         DecodeNotes mNotes;
         std::vector<Content::Error> mErrors;
         std::uint64_t mErrorsDropped = 0;
@@ -293,6 +295,8 @@ namespace game_skyrimse
         [[nodiscard]] const ProjectileRecord* projectile(FormId id) const; ///< task 0178
         [[nodiscard]] const ArtRecord* art(FormId id) const; ///< task 0191
         [[nodiscard]] const AmmoRecord* ammo(FormId id) const; ///< task 0178
+        [[nodiscard]] const CombatStyleRecord* style(FormId id) const; ///< task 0190
+        [[nodiscard]] std::size_t styleCount() const { return mStyles.size(); }
         [[nodiscard]] std::vector<FormId> ammoIds() const; ///< sorted
         /// Task 0193: the impact, material and sound records.
         [[nodiscard]] const SoundLibrary& sounds() const { return mSoundLibrary; }
@@ -318,6 +322,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, ProjectileRecord> mProjectiles;
         std::unordered_map<FormId, ArtRecord> mArts;
         std::unordered_map<FormId, AmmoRecord> mAmmo;
+        std::unordered_map<FormId, CombatStyleRecord> mStyles;
         std::unordered_map<FormId, PerkRecord> mPerks;
         std::unordered_map<FormId, SpellRecord> mSpells;
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;

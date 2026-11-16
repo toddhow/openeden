@@ -614,6 +614,12 @@ namespace game_skyrimse
         return it == mAmmo.end() ? nullptr : &it->second;
     }
 
+    const CombatStyleRecord* CombatIndex::style(FormId id) const
+    {
+        const auto it = mStyles.find(id);
+        return it == mStyles.end() ? nullptr : &it->second;
+    }
+
     std::vector<FormId> CombatIndex::ammoIds() const
     {
         std::vector<FormId> ids;
@@ -647,7 +653,8 @@ namespace game_skyrimse
                     && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO") && t != Content::fourCC("PERK")
                     && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("IPCT")
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
-                    && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO"))
+                    && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO")
+                    && t != Content::fourCC("CSTY"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -696,6 +703,13 @@ namespace game_skyrimse
                     ok = decodeArt(bytes, record, mContext, a, why);
                     if (ok)
                         mOut.mArts.push_back(std::move(a));
+                }
+                else if (t == Content::fourCC("CSTY"))
+                {
+                    CombatStyleRecord st;
+                    ok = decodeCombatStyle(bytes, record, mContext, st, why);
+                    if (ok)
+                        mOut.mStyles.push_back(std::move(st));
                 }
                 else if (t == Content::fourCC("AMMO"))
                 {
@@ -918,6 +932,13 @@ namespace game_skyrimse
                 mAmmo.erase(a.mCommon.mId);
             else
                 mAmmo[a.mCommon.mId] = a;
+        }
+        for (const CombatStyleRecord& st : records.mStyles)
+        {
+            if (st.mCommon.deleted())
+                mStyles.erase(st.mCommon.mId);
+            else
+                mStyles[st.mCommon.mId] = st;
         }
         for (const RaceCombatRecord& r : records.mRaces)
         {

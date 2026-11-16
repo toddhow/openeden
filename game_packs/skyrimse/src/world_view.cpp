@@ -520,6 +520,27 @@ namespace game_skyrimse
             }
             for (const FactionMembership& membership : resolved.mFactions)
                 out.mFactions.push_back(membership.mFaction);
+            // Task 0190: what the combat AI reads: AIDT (from the NPC that owns the AI data after templates), the
+            // combat style it names (ZNAM; the defaults of DefaultCombatstyle when none) and whether its relation to
+            // the player makes it hostile on sight.
+            if (const ActorNpc* aiOwner = mActorIndex->npc(resolved.mAiFrom))
+            {
+                out.mAi.mKnown = true;
+                if (aiOwner->mAi)
+                {
+                    out.mAi.mAggression = aiOwner->mAi->mAggression;
+                    out.mAi.mConfidence = aiOwner->mAi->mConfidence;
+                }
+                if (aiOwner->mCombatStyle != kNullFormId)
+                    if (const CombatStyleRecord* style = mCombatIndex->style(aiOwner->mCombatStyle))
+                        out.mAi.mStyle = *style;
+                openeden::sdk::game::ActorDisposition disposition;
+                std::string dispositionError;
+                MechanicsOptions options;
+                options.mPlayerLevel = mStandInPlayerLevel;
+                if (computeActorDisposition(*mActorIndex, npc, 0, options, disposition, dispositionError))
+                    out.mAi.mHostileOnSight = disposition.hostileOnSight;
+            }
             if (const RaceCombatRecord* race = mCombatIndex->race(resolved.mRace))
             {
                 out.mHealthRegenPercent = race->mHealthRegen;

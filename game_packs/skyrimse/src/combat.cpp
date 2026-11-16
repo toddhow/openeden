@@ -615,8 +615,8 @@ namespace game_skyrimse
     // A named blocker blocks whenever it is alive, free (not swinging, not staggered) and its data is read.
     bool SkyrimCombat::isBlocking(const Fighter& fighter) const
     {
-        return !fighter.mSubject.player && isBlocker(fighter.mSubject.actor) && fighter.mReady && fighter.mHasProfile
-            && !fighter.mDead && !fighter.mSwinging && !fighter.mStaggered;
+        return !fighter.mSubject.player && (isBlocker(fighter.mSubject.actor) || aiGuardUp(fighter.mSubject.actor))
+            && fighter.mReady && fighter.mHasProfile && !fighter.mDead && !fighter.mSwinging && !fighter.mStaggered;
     }
 
     void SkyrimCombat::setTestPlayerSwing(float seconds)
@@ -755,6 +755,7 @@ namespace game_skyrimse
         std::erase(mHostiles, handle);
         std::erase_if(mOpponents, [&](const auto& pair) { return pair.first == handle; });
         std::erase(mBlockers, handle);
+        aiForget(handle); // task 0190
         cancelCastsOf(CombatSubject::of(handle)); // task 0186
         mEffects.removeCaster(CombatSubject::of(handle));
         std::erase_if(mActorNames, [&](const auto& n) { return n.first == handle; });
@@ -1039,7 +1040,7 @@ namespace game_skyrimse
 
     void SkyrimCombat::startHostiles(CombatRequestWriter& writer)
     {
-        if (mHostiles.empty())
+        if (mHostiles.empty() || mAiOn) // with the AI on the named hostiles are engaged by runAi
             return;
         openeden::sdk::game::SubjectState player;
         bool havePlayer = false;
@@ -1319,6 +1320,7 @@ namespace game_skyrimse
         victim.mHealth = after;
         victim.mCombatUntil = mClock + kCombatLingerSeconds;
         ++mHitsResolved;
+        aiProvoke(attacker, victim); // task 0190: an NPC the player hurt fights back (or flees)
 
         openeden::sdk::game::DamageReport report;
         report.attackerIsPlayer = attacker.mSubject.player;
@@ -1753,6 +1755,7 @@ namespace game_skyrimse
                     (void)ready(*f);
             if (crowdOn() && !mCrowdChosen && mClock >= mCrowdDelay)
                 chooseCrowd(writer);
+            runAi(writer); // task 0190: does nothing unless `combat ai` is on, which also stops startHostiles
             startHostiles(writer);
             runPlayerSwing(writer);
             runPlayerBow(writer);

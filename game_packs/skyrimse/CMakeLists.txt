@@ -49,6 +49,9 @@ openeden_add_game_pack(skyrimse
         src/combat_stats.cpp
         src/combat_impact.cpp
         src/combat_sound.cpp
+        src/combat_style.cpp
+        src/combat_ai.cpp
+        src/combat_ai_run.cpp
         src/perks.cpp
         src/survey.cpp
         src/survey_scripts.cpp
@@ -99,6 +102,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/combat_stats.hpp
         include/game_skyrimse/combat_impact.hpp
         include/game_skyrimse/combat_sound.hpp
+        include/game_skyrimse/combat_style.hpp
+        include/game_skyrimse/combat_ai.hpp
         include/game_skyrimse/perks.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
     MANIFEST
@@ -164,6 +169,9 @@ add_library(game_skyrimse_world STATIC
     src/combat_stats.cpp
     src/combat_impact.cpp
     src/combat_sound.cpp
+    src/combat_style.cpp
+    src/combat_ai.cpp
+    src/combat_ai_run.cpp
     src/perks.cpp
     src/survey.cpp
     src/survey_scripts.cpp

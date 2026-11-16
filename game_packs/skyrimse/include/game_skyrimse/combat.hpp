@@ -19,6 +19,7 @@
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
 #include <game_skyrimse/combat_sound.hpp>
+#include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/magic.hpp>
 
@@ -29,6 +30,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -58,6 +60,8 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTestCrowdDelayKey = "combat test crowd delay";
     inline constexpr float kDefaultCrowdDelay = 4.f;
     inline constexpr std::string_view kCombatTraceKey = "combat trace";
+    /// Task 0190 (stage S5-9): the combat AI (off by default). With it on the test settings above are overrides.
+    inline constexpr std::string_view kCombatAiKey = "combat ai";
     /// Task 0172 (stage S5-4) test settings, all off by default: every Nth attack of a hostile actor is a power attack,
     /// every Mth a bash, and the actors with this editor id block.
     inline constexpr std::string_view kCombatTestPowerEveryKey = "combat test power every";
@@ -223,6 +227,7 @@ namespace game_skyrimse
         /// Task 0193: the body's material and the bare hands' impact data set (RACE NAM4 and NAM5).
         FormId mBodyMaterial = kNullFormId;
         FormId mUnarmedImpactSet = kNullFormId;
+        AiProfile mAi; ///< task 0190: AIDT, the combat style and the relation to the player
     };
 
     /// The bow draw speed of a fighter: bowDrawSpeed(weapon speed, test bonus), times the WeaponSpeedMult ability when
@@ -340,6 +345,11 @@ namespace game_skyrimse
         /// column is the delivery class here.
         [[nodiscard]] static SlotTable magic();
 
+        /// Task 0190: the raised guard of the AI (slot BlockStart): the one-handed `1HM_BlockIdle`, in the listing of
+        /// Skyrim - Animations.bsa (actors\character\animations\1hm_blockidle.hkx). A separate table so that humanoid()
+        /// keeps its seven entries.
+        [[nodiscard]] static SlotTable guard();
+
         /// Number of (slot, weapon type) entries.
         [[nodiscard]] std::size_t size() const { return mCount; }
 
@@ -456,6 +466,44 @@ namespace game_skyrimse
         /// The player's armour percent as the next hit sees it (0 until the player's data is read).
         [[nodiscard]] float playerMitigationPercent() const;
 
+        // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp) -----------------------------------
+
+        /// What the AI asks of the actor hook (the combat writer has no movement): the cell source drains these once a
+        /// frame, BEFORE the package brain runs, and turns them into goTo / cancelGoal and `onConversation`.
+        struct AiMoveIntent
+        {
+            enum class Kind : std::uint8_t
+            {
+                Suspend, ///< the package brain stops driving this actor (it is in a fight)
+                Resume, ///< the fight is over: the brain takes its package up again
+                Stop, ///< cancel the goal
+                GoTo, ///< walk or run to (x, y, z)
+            };
+            Kind mKind = Kind::Stop;
+            openeden::sdk::game::ActorHandle mActor;
+            double mX = 0.0;
+            double mY = 0.0;
+            double mZ = 0.0;
+            openeden::sdk::game::ActorSpeed mSpeed = openeden::sdk::game::ActorSpeed::Walk;
+        };
+
+        /// Switches the AI on (the pack setting `combat ai`). Off, nothing of it runs and the old test rules are the
+        /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every` and
+        /// `bash every` fix the attack kind and `combat test block` makes the named actors block always.
+        void setCombatAi(bool on);
+        [[nodiscard]] bool combatAi() const { return mAiOn; }
+        /// Appends the movement the AI wants since the last drain, in order, and empties its queue.
+        void drainAiMoves(std::vector<AiMoveIntent>& out);
+        /// The result of a goal the AI asked for (forwarded from ActorRules::onGoalFinished).
+        void aiGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result);
+        [[nodiscard]] AiMode aiModeOf(openeden::sdk::game::ActorHandle handle) const;
+        /// A damage report as it went to the core: damage the player dealt to a living actor provokes it, whatever the
+        /// means (a blow, an arrow, a spell; the neutral world's wrapper tells every report, AiDamageWriter below).
+        void aiNoteDamage(const openeden::sdk::game::DamageReport& report);
+        [[nodiscard]] std::size_t aiEngaged() const { return mAiActors.size(); }
+        /// A test aid: sets a fighter's current health (clamped to [0, maximum]; 0 kills it for the AI's purposes).
+        bool setFighterHealth(openeden::sdk::game::CombatSubject subject, float health);
+
         /// Called with one line per combat decision (`COMBAT ...`), when set. Main thread.
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
         /// Where a warning goes (the host's log); a warning is also traced.
@@ -524,6 +572,7 @@ namespace game_skyrimse
             bool mStaggered = false; ///< task 0172: a stagger clip plays (mStaggerToken)
             std::uint32_t mStaggerToken = 0;
             std::uint32_t mAttackCount = 0; ///< attacks begun by the hostile rule, for the every-N choice
+            bool mAiScanned = false; ///< task 0190: looked at once for hostility on sight
             // Task 0178: the bow. Drawing -> (BowDrawn event) -> Releasing -> (arrowRelease event) -> shot.
             enum class Bow : std::uint8_t
             {
@@ -637,6 +686,53 @@ namespace game_skyrimse
             openeden::sdk::game::CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result);
         [[nodiscard]] bool isBlocking(const Fighter& fighter) const;
         [[nodiscard]] bool isBlocker(openeden::sdk::game::ActorHandle handle) const;
+        // Task 0190 (stage S5-9): the combat AI (combat_ai_run.cpp). Everything here is inert while mAiOn is false.
+        struct AiActor
+        {
+            openeden::sdk::game::ActorHandle mHandle;
+            AiActorState mState;
+            const SpellRecord* mSpell = nullptr;
+            bool mSpellLooked = false;
+            bool mMoving = false; ///< a goal is out (the brain was told to wait, the core is walking)
+            double mGoalX = 0.0;
+            double mGoalY = 0.0;
+            float mGoalAt = -1.0e9f; ///< the combat clock when the goal was issued
+            float mFacedAt = -1.0e9f;
+            float mGuardClipEnds = -1.f; ///< the raised-guard clip plays until then
+            std::uint32_t mGuardToken = 0;
+            bool mFleeGoalOut = false; ///< a flee goal was issued and has not ended
+            int mGoalFails = 0; ///< goals in a row that ended NoPath or Blocked outside a flee
+            bool mGiveUp = false; ///< too many failed goals: it lets go of the fight
+        };
+        struct AiWatcher
+        {
+            openeden::sdk::game::ActorHandle mHandle;
+            float mNextSight = 0.f;
+        };
+        void runAi(openeden::sdk::game::CombatRequestWriter& writer);
+        void aiScan();
+        bool aiBegin(Fighter& fighter, const char* reason);
+        void aiForget(openeden::sdk::game::ActorHandle handle);
+        void aiPickSpell(Fighter& fighter, AiActor& actor);
+        void aiRelease(std::size_t index, const char* why);
+        void aiProvoke(const Fighter& attacker, Fighter& victim);
+        void aiRaiseGuard(openeden::sdk::game::CombatRequestWriter& writer, AiActor& actor, Fighter& fighter);
+        void aiMove(openeden::sdk::game::CombatRequestWriter& writer, AiActor& actor, Fighter& fighter,
+            AiMove move, const openeden::sdk::game::SubjectState& self, const openeden::sdk::game::SubjectState& target,
+            float distance, float reach);
+        void aiPushGoTo(AiActor& actor, double x, double y, double z, openeden::sdk::game::ActorSpeed speed);
+        [[nodiscard]] bool aiGuardUp(openeden::sdk::game::ActorHandle handle) const;
+        [[nodiscard]] AiActor* aiFind(openeden::sdk::game::ActorHandle handle);
+        [[nodiscard]] const AiActor* aiFind(openeden::sdk::game::ActorHandle handle) const;
+        bool mAiOn = false;
+        SlotTable mGuardSlots;
+        std::vector<AiActor> mAiActors;
+        std::vector<AiWatcher> mAiWatchers;
+        std::size_t mAiScanCursor = 0;
+        std::map<openeden::sdk::game::WorldId, std::uint32_t> mAiEngagements;
+        std::map<openeden::sdk::game::WorldId, float> mAiCooldown; ///< the combat clock before which it does not engage
+        std::vector<AiMoveIntent> mAiMoves;
+
         void startHostiles(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerSwing(openeden::sdk::game::CombatRequestWriter& writer);
         void processHit(openeden::sdk::game::CombatRequestWriter& writer, const PendingHit& hit);
@@ -825,6 +921,65 @@ namespace game_skyrimse
         void soundEvent(const openeden::sdk::game::ClipEvent& event);
         void soundHit(openeden::sdk::game::CombatRequestWriter& writer, const Fighter& attacker, const Fighter& victim,
             bool blocked, bool bash);
+    };
+
+    /// Task 0190: passes every request on and tells the AI about each damage report that went through, so that damage
+    /// of every kind (a blow, an arrow, a spell) provokes the victim. The cell source wraps the combat writer in it.
+    class AiDamageWriter final : public openeden::sdk::game::CombatRequestWriter
+    {
+    public:
+        AiDamageWriter(openeden::sdk::game::CombatRequestWriter& inner, SkyrimCombat& combat)
+            : mInner(inner)
+            , mCombat(combat)
+        {
+        }
+        bool playClip(openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::ClipRequest& r) override
+        {
+            return mInner.playClip(subject, r);
+        }
+        bool stopClip(openeden::sdk::game::CombatSubject subject) override { return mInner.stopClip(subject); }
+        bool requestSweep(
+            openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::SweepRequest& r) override
+        {
+            return mInner.requestSweep(subject, r);
+        }
+        bool reportDamage(const openeden::sdk::game::DamageReport& report) override
+        {
+            const bool ok = mInner.reportDamage(report);
+            mCombat.aiNoteDamage(report);
+            return ok;
+        }
+        bool faceHeading(openeden::sdk::game::CombatSubject subject, float heading) override
+        {
+            return mInner.faceHeading(subject, heading);
+        }
+        bool clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out) override
+        {
+            return mInner.clipTiming(clip, perSex, out);
+        }
+        bool subjectState(openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override
+        {
+            return mInner.subjectState(subject, out);
+        }
+        bool launchProjectile(
+            openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r) override
+        {
+            return mInner.launchProjectile(owner, r);
+        }
+        bool setClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier) override
+        {
+            return mInner.setClipSpeed(subject, multiplier);
+        }
+        bool clipEventTime(
+            std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind, float& out) override
+        {
+            return mInner.clipEventTime(clip, perSex, kind, out);
+        }
+        bool reportDeath(openeden::sdk::game::ActorHandle actor) override { return mInner.reportDeath(actor); }
+
+    private:
+        openeden::sdk::game::CombatRequestWriter& mInner;
+        SkyrimCombat& mCombat;
     };
 }
 
