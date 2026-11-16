@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "mapwindow.hpp"
+#include "hudreplaced.hpp"
 #include "statswatcher.hpp"
 
 namespace MWWorld
@@ -100,6 +101,7 @@ namespace MWGui
         bool mSpellVisible = true;
         bool mWorldMouseOver = false;
         bool mIsDrowning = false;
+        ReplacedHudParts mReplaced;
 
         void onWorldClicked(MyGUI::Widget* sender);
         void onWorldMouseOver(MyGUI::Widget* sender, int x, int y);
@@ -114,6 +116,9 @@ namespace MWGui
         void doorMarkerCreated(MyGUI::Widget* marker) override;
 
         void updateEnemyHealthBar();
+
+        /// Task 0188: hides, and later gives back, the parts a game pack's own HUD replaces (see `hudreplaced.hpp`).
+        void updateReplacedParts();
 
         void updatePositions();
     };

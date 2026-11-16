@@ -230,12 +230,19 @@ namespace UiRml
             tint.blue = Rml::byte(float(tint.blue) * opacity);
             tint.alpha = Rml::byte(float(tint.alpha) * opacity);
         }
-        meshes.resize(1);
+        // RmlUi calls this once per line of a wrapped text and hands every call the same list: the lines are appended
+        // to our one mesh (the vertices of the lines before stay, the new indices are offset past them). Replacing the
+        // indices drew only the first line's glyphs (task 0188).
+        if (meshes.empty())
+            meshes.resize(1);
         Rml::Mesh& mesh = meshes[0].mesh;
-        mesh.vertices.reserve(quads.mVertices.size());
+        const int firstVertex = int(mesh.vertices.size());
+        mesh.vertices.reserve(mesh.vertices.size() + quads.mVertices.size());
         for (const Vertex2& v : quads.mVertices)
             mesh.vertices.push_back({ { v.mX, v.mY }, tint, { v.mU, v.mV } });
-        mesh.indices = quads.mIndices;
+        mesh.indices.reserve(mesh.indices.size() + quads.mIndices.size());
+        for (const int index : quads.mIndices)
+            mesh.indices.push_back(firstVertex + index);
         meshes[0].texture = face->mChoice.mTextureNearest ? font.mNearest.GetTexture(renderManager)
                                                           : font.mLinear.GetTexture(renderManager);
         return width;

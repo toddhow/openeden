@@ -762,6 +762,7 @@ if (TARGET openeden_rmlui)
         ui_rml/testuiinput.cpp
         ui_rml/testuitheme.cpp
         ui_rml/testuiwidgetsheet.cpp
+        ui_rml/testuiwrappedtext.cpp
     )
 endif()
 

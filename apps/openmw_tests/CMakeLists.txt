@@ -64,6 +64,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwdialogue/testdialoguefilter.cpp
     mwdialogue/testdialoguemanager.cpp
 
+    mwgui/hudreplaced.cpp
     mwgui/tooltips.cpp
     mwgui/weightedsearch.cpp
 

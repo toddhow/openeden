@@ -18,6 +18,7 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/worldmodel.hpp"
@@ -294,6 +295,7 @@ namespace MWGui
     void HUD::onFrame(float dt)
     {
         LocalMapBase::onFrame(dt);
+        updateReplacedParts();
 
         mCellNameTimer -= dt;
         mWeaponSpellTimer -= dt;
@@ -570,8 +572,52 @@ namespace MWGui
             mEnemyHealth->setAlpha(std::clamp(mEnemyHealthTimer / fNPCHealthBarFade, 0.f, 1.f));
     }
 
+    void HUD::updateReplacedParts()
+    {
+        // Nothing here runs unless both settings are on or something was hidden before, so a session without the
+        // neutral combat HUD (Morrowind, or the settings off) costs two setting reads a frame.
+        const bool wanted = Settings::game().mNeutralCombat.get() && Settings::gui().mRmlui.get();
+        if (!wanted && !mReplaced.any())
+            return;
+        bool neutral = false;
+        if (wanted)
+        {
+            const MWWorld::Ptr player = MWMechanics::getPlayer();
+            neutral = !player.isEmpty() && player.isInCell() && player.getCell()->isNeutral();
+        }
+        const ReplacedHudParts now = replacedHudParts(neutral, wanted, wanted);
+
+        // Parts that stop being replaced (a save of another game was loaded) come back.
+        if (mReplaced.mStats && !now.mStats)
+            setHmsVisible(true);
+        if (mReplaced.mWeaponSpell && !now.mWeaponSpell)
+        {
+            setWeapVisible(true);
+            setSpellVisible(true);
+        }
+        mReplaced = now;
+
+        if (mReplaced.mStats && mHealth->getVisible())
+            setHmsVisible(false);
+        if (mReplaced.mWeaponSpell)
+        {
+            if (mWeapBox->getVisible())
+                setWeapVisible(false);
+            if (mSpellBox->getVisible())
+                setSpellVisible(false);
+            mWeaponSpellBox->setVisible(false); // the name that pops up when a weapon or spell is selected
+        }
+        if (mReplaced.mEnemy && mEnemyHealth->getVisible())
+        {
+            mEnemyHealth->setVisible(false);
+            mWeaponSpellBox->setPosition(mWeaponSpellBox->getPosition() + MyGUI::IntPoint(0, 20));
+        }
+    }
+
     void HUD::setEnemy(const MWWorld::Ptr& enemy)
     {
+        if (mReplaced.mEnemy)
+            return;
         mEnemyActor = enemy.getCellRef().getRefNum();
         mEnemyHealthTimer = MWBase::Environment::get()
                                 .getESMStore()
