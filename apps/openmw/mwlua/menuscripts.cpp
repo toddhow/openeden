@@ -95,7 +95,6 @@ namespace MWLua
                 slotInfo["description"] = slot.mProfile.mDescription;
                 slotInfo["playerName"] = slot.mProfile.mPlayerName;
                 slotInfo["playerLevel"] = slot.mProfile.mPlayerLevel;
-                slotInfo["playerCell"] = slot.mProfile.mPlayerCellName; // task 0207
                 slotInfo["timePlayed"] = slot.mProfile.mTimePlayed;
                 sol::table contentFiles(currentState, sol::create);
                 for (size_t i = 0; i < slot.mProfile.mContentFiles.size(); ++i)
@@ -152,6 +151,11 @@ namespace MWLua
         };
         // The tip the engine's loading screen shows (text only; Lua does not run during a load, so the script hands
         // it over ahead of time).
+        // task 0207: the cell of a save, kept out of getSaves so the public save table stays as OpenMW defines it
+        api["_getSaveCell"] = [](std::string_view dir, std::string_view slotName) -> std::string {
+            const MWState::Slot* slot = findSlot(findCharacter(dir), slotName);
+            return slot ? slot->mProfile.mPlayerCellName : std::string();
+        };
         api["_setLoadingTip"] = [](std::string_view text) { MWGui::MenuReplacement::setLoadingTip(text); };
 
         return LuaUtil::makeReadOnly(api);

@@ -85,7 +85,7 @@ function M.create(env)
             dir = dir, slot = name, description = slot.description or '',
             created = slot.creationTime or 0,
             text = string.format('%s   Level %d   %s   %s   %s', slot.playerName or '?', slot.playerLevel or 0,
-              slot.playerCell or '', M.playedText(slot.timePlayed), date(slot.creationTime or 0)),
+              (menu._getSaveCell and menu._getSaveCell(dir, name)) or slot.playerCell or '', M.playedText(slot.timePlayed), date(slot.creationTime or 0)),
           }
         end
       end
