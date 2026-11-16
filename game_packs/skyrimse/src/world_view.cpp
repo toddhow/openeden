@@ -471,6 +471,11 @@ namespace game_skyrimse
         return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->projectile(id);
     }
 
+    const ExplosionRecord* SkyrimWorldView::explosionById(FormId id)
+    {
+        return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->explosion(id);
+    }
+
     std::string_view SkyrimWorldView::artModelById(FormId id)
     {
         const ArtRecord* art = mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->art(id);

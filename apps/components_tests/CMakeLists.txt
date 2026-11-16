@@ -604,6 +604,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseworldbooks.cpp
     skyrimse/testskyrimsescrolls.cpp
     skyrimse/testskyrimsescrollsreal.cpp
+    skyrimse/testskyrimsespelldelivery.cpp
+    skyrimse/testskyrimsespelldeliveryreal.cpp
     skyrimse/testskyrimsepickup.cpp
     skyrimse/testskyrimsepickupservice.cpp
     skyrimse/testskyrimseharvest.cpp
@@ -855,6 +857,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_disease.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/diseases.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_scroll.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_delivery.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_shout.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts.cpp

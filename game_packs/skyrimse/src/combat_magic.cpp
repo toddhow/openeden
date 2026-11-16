@@ -375,6 +375,7 @@ namespace game_skyrimse
             if (mConcentrations[i - 1].mCaster == subject)
                 endConcentration(i - 1, "caster gone");
         std::erase_if(mSpellShots, [&](const SpellShot& s) { return s.mOwner == subject; });
+        std::erase_if(mRunes, [&](const Rune& r) { return r.mCaster == subject; }); // task 0242
     }
 
     float SkyrimCombat::resistOf(const Fighter& fighter, std::int32_t resistValue)
@@ -857,8 +858,8 @@ namespace game_skyrimse
         return true;
     }
 
-    bool SkyrimCombat::launchSpell(
-        CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, const SubjectState* target)
+    bool SkyrimCombat::launchSpell(CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
+        const SubjectState* target, float stickSeconds)
     {
         const ProjectileRecord* projectile = nullptr;
         for (const SpellEffect& effect : spell.mEffects)
@@ -911,8 +912,9 @@ namespace game_skyrimse
         request.speed = speed;
         request.gravity = gravity;
         request.range = projectile->mRange;
-        request.stickDepth = 0.f;
-        request.stickSeconds = 0.f;
+        // Task 0242: a rune's projectile stays where it lands, drawn, for as long as the rune stands.
+        request.stickDepth = stickSeconds > 0.f ? kRuneStickDepth : 0.f;
+        request.stickSeconds = stickSeconds;
         const std::string model = projectileModelPath(projectile->mModel);
         request.model = model;
         if (!writer.launchProjectile(caster.mSubject, request))
@@ -1008,6 +1010,26 @@ namespace game_skyrimse
             touchCast(writer, *f, spell);
             return;
         }
+        if (mSpellDelivery && spell.mDelivery == MagicDelivery::TargetActor)
+        {
+            targetActorCast(writer, *f, spell); // task 0242
+            return;
+        }
+        if (mSpellDelivery && spell.mDelivery == MagicDelivery::TargetLocation)
+        {
+            // Task 0242: a rune's projectile flies like an aimed one; where it lands the rune is placed
+            // (resolveSpellShot).
+            f->mCombatUntil = mClock + kCombatLingerSeconds;
+            if (f->mSubject.player)
+            {
+                (void)launchSpell(writer, *f, spell, nullptr, kRuneLifetimeSeconds);
+                return;
+            }
+            SubjectState aim;
+            if (writer.subjectState(f->mAimTarget, aim))
+                (void)launchSpell(writer, *f, spell, &aim, kRuneLifetimeSeconds);
+            return;
+        }
         if (spell.mDelivery != MagicDelivery::Aimed)
         {
             trace("COMBAT cast " + name + ": delivery " + std::to_string(spell.mDelivery) + " is not supported");
@@ -1036,6 +1058,13 @@ namespace game_skyrimse
         trace("COMBAT spell ended " + spellName(*launched.mSpell) + " " + who(result.owner) + " token "
             + std::to_string(result.token) + " fate " + std::to_string(static_cast<int>(result.fate)) + " after "
             + num(result.flightSeconds) + " s");
+        if (mSpellDelivery)
+        {
+            // Task 0242: where the projectile ended an area spell explodes and a rune is placed.
+            if (Fighter* owner = find(result.owner))
+                if (deliverAtEnd(writer, result, *owner, *launched.mSpell))
+                    return true;
+        }
         if (result.fate != openeden::sdk::game::ProjectileFate::HitActor
             && result.fate != openeden::sdk::game::ProjectileFate::HitPlayer)
             return true;
@@ -1405,6 +1434,8 @@ namespace game_skyrimse
         mPendingHides.clear();
         tickEffects(writer, step);
         tickConcentrations(writer, step);
+        if (mSpellDelivery)
+            tickRunes(writer); // task 0242
         for (std::size_t i = 0; i < mCasts.size();)
         {
             const Cast cast = mCasts[i];

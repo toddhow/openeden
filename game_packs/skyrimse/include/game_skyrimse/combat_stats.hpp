@@ -140,6 +140,10 @@ namespace game_skyrimse
         float mGravity = 0.f; ///< 0 for 153 records, 0.35 for 36, 1.0 for 24, 4.0 for 11
         float mSpeed = 0.f; ///< units a second
         float mRange = 0.f;
+        /// Task 0242: DATA +28 the alternate trigger proximity (150 for the three runes, 0 for the rest, VERIFIED on
+        /// Skyrim.esm) and +36 the explosion (an EXPL form id, resolved; 0 when none: 38 of 134 PROJ have one).
+        float mProximity = 0.f;
+        FormId mExplosion = 0;
         std::string mModel; ///< MODL as stored (`Weapons\Iron\IronArrowFlight.nif`)
 
         /// The type value of an arrow in xEdit's enum (a flag word: Missile 1, Lobber 2, Beam 4, Flame 8, Cone 16,
@@ -169,6 +173,23 @@ namespace game_skyrimse
         std::string mModel; ///< MODL as stored (`Magic\\WardBodyFX.nif`)
     };
 
+    /// Task 0242: an EXPL, the area a projectile leaves when it ends. DATA is 52 bytes for 136 of the 143 in Skyrim.esm
+    /// (44, 40 and 48 for the others; VERIFIED): force f32 +24, damage f32 +28, radius f32 +32 and image space radius
+    /// f32 +36 (the six words before them, light, sounds, impact data set, placed object and spell, are forms the pack
+    /// does not read). The three runes name 320.0 units, the Firebolt storm explosion 106.
+    struct ExplosionRecord
+    {
+        RecordCommon mCommon;
+        bool mHasData = false;
+        float mForce = 0.f;
+        float mDamage = 0.f;
+        float mRadius = 0.f; ///< game units
+        float mImpactRadius = 0.f;
+    };
+
+    [[nodiscard]] bool decodeExplosion(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, ExplosionRecord& out, std::string& why);
+
     [[nodiscard]] bool decodeArt(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, ArtRecord& out, std::string& why);
     [[nodiscard]] bool decodeProjectile(std::span<const std::byte> bytes, const Content::RawRecord& record,
@@ -192,6 +213,7 @@ namespace game_skyrimse
         std::vector<GameSetting> mSettings;
         std::vector<ProjectileRecord> mProjectiles; ///< task 0178
         std::vector<ArtRecord> mArts; ///< task 0191
+        std::vector<ExplosionRecord> mExplosions; ///< task 0242
         std::vector<PerkRecord> mPerks; ///< task 0179
         std::vector<SpellRecord> mSpells; ///< task 0179: ability spells only
         std::vector<SpellRecord> mScrolls; ///< task 0234: SCRL records read as spells (scroll.hpp)
@@ -306,6 +328,7 @@ namespace game_skyrimse
         [[nodiscard]] const RaceCombatRecord* race(FormId id) const;
         [[nodiscard]] const ProjectileRecord* projectile(FormId id) const; ///< task 0178
         [[nodiscard]] const ArtRecord* art(FormId id) const; ///< task 0191
+        [[nodiscard]] const ExplosionRecord* explosion(FormId id) const; ///< task 0242
         [[nodiscard]] const AmmoRecord* ammo(FormId id) const; ///< task 0178
         [[nodiscard]] const CombatStyleRecord* style(FormId id) const; ///< task 0190
         [[nodiscard]] std::size_t styleCount() const { return mStyles.size(); }
@@ -337,6 +360,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, RaceCombatRecord> mRaces;
         std::unordered_map<FormId, ProjectileRecord> mProjectiles;
         std::unordered_map<FormId, ArtRecord> mArts;
+        std::unordered_map<FormId, ExplosionRecord> mExplosions;
         std::unordered_map<FormId, AmmoRecord> mAmmo;
         std::unordered_map<FormId, CombatStyleRecord> mStyles;
         std::unordered_map<FormId, PerkRecord> mPerks;

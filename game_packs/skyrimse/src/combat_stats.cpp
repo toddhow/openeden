@@ -373,6 +373,60 @@ namespace game_skyrimse
         return true;
     }
 
+    bool decodeExplosion(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, ExplosionRecord& out, std::string& why)
+    {
+        const Fields fields{ context, "EXPL", why };
+        out = ExplosionRecord();
+        out.mCommon = fields.common(record);
+        SubReader reader(bytes);
+        std::uint32_t type = 0;
+        std::span<const std::byte> data;
+        int status = 0;
+        while ((status = reader.next(type, data)) == 1)
+        {
+            if (type == Content::fourCC("EDID"))
+            {
+                if (!fields.zstring(type, data, out.mCommon.mEditorId))
+                    return false;
+            }
+            else if (type == Content::fourCC("DATA"))
+            {
+                if (data.size() < 40 || data.size() > 52)
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                const float force = readLe<float>(data.data() + 24);
+                const float damage = readLe<float>(data.data() + 28);
+                const float radius = readLe<float>(data.data() + 32);
+                const float impact = readLe<float>(data.data() + 36);
+                if (!allFinite({ force, damage, radius, impact }) || radius < 0.f)
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                out.mHasData = true;
+                out.mForce = force;
+                out.mDamage = damage;
+                out.mRadius = radius;
+                out.mImpactRadius = impact;
+            }
+        }
+        if (status < 0)
+        {
+            why = reader.message();
+            return false;
+        }
+        return true;
+    }
+
+    const ExplosionRecord* CombatIndex::explosion(FormId id) const
+    {
+        const auto it = mExplosions.find(id);
+        return it == mExplosions.end() ? nullptr : &it->second;
+    }
+
     const ArtRecord* CombatIndex::art(FormId id) const
     {
         const auto it = mArts.find(id);
@@ -423,6 +477,15 @@ namespace game_skyrimse
                 out.mHasData = true;
                 out.mFlags = readLe<std::uint16_t>(p);
                 out.mType = readLe<std::uint16_t>(p + 2);
+                // Task 0242: the alternate trigger proximity (+28) and the explosion (+36).
+                const float proximity = readLe<float>(p + 28);
+                out.mProximity = std::isfinite(proximity) && proximity > 0.f ? proximity : 0.f;
+                const std::uint32_t storedExplosion = readLe<std::uint32_t>(p + 36);
+                if (storedExplosion != 0)
+                {
+                    const FormId id = fields.resolved(storedExplosion);
+                    out.mExplosion = id == kUnresolvedFormId ? 0 : id;
+                }
                 out.mGravity = gravity;
                 out.mSpeed = speed;
                 out.mRange = range;
@@ -669,7 +732,7 @@ namespace game_skyrimse
                     && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO") && t != Content::fourCC("PERK")
                     && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("IPCT")
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
-                    && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO")
+                    && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO") && t != Content::fourCC("EXPL")
                     && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL")
                     && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP"))
                     return true;
@@ -720,6 +783,13 @@ namespace game_skyrimse
                     ok = decodeProjectile(bytes, record, mContext, p, why);
                     if (ok)
                         mOut.mProjectiles.push_back(std::move(p));
+                }
+                else if (t == Content::fourCC("EXPL"))
+                {
+                    ExplosionRecord x;
+                    ok = decodeExplosion(bytes, record, mContext, x, why);
+                    if (ok)
+                        mOut.mExplosions.push_back(std::move(x));
                 }
                 else if (t == Content::fourCC("ARTO"))
                 {
@@ -970,6 +1040,13 @@ namespace game_skyrimse
                 mArts.erase(a.mCommon.mId);
             else
                 mArts[a.mCommon.mId] = a;
+        }
+        for (const ExplosionRecord& x : records.mExplosions)
+        {
+            if (x.mCommon.deleted())
+                mExplosions.erase(x.mCommon.mId);
+            else
+                mExplosions[x.mCommon.mId] = x;
         }
         for (const AmmoRecord& a : records.mAmmo)
         {

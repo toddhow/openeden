@@ -122,6 +122,18 @@ namespace game_skyrimse
     /// hit art of its effect on its caster while it is up.
     inline constexpr std::string_view kCombatSpellBeamsKey = "combat spell beams";
     inline constexpr std::string_view kCombatSpellVisualsKey = "combat spell visuals";
+    /// Task 0242, off by default: target actor spells (Heal Other, Calm) go to the actor in the sights, target location
+    /// spells (the runes) are placed where their projectile lands and go off when an enemy comes near, and an aimed
+    /// spell whose effect has an area (the Fireball) hurts everyone within that many feet of where it ended.
+    inline constexpr std::string_view kCombatSpellDeliveryKey = "combat spell delivery";
+    /// A rune stays this long unless it goes off first, seconds (ours: the data gives no lifetime for a rune).
+    inline constexpr float kRuneLifetimeSeconds = 600.f;
+    /// The most runes standing at once; a new one replaces the oldest (ours).
+    inline constexpr std::size_t kMaxRunes = 32;
+    /// How far into the world a rune's projectile is drawn where it lands, game units (ours).
+    inline constexpr float kRuneStickDepth = 4.f;
+    /// The distance an enemy sets a rune off when the PROJ names none, game units (ours; the three runes name 150).
+    inline constexpr float kDefaultRuneProximity = 150.f;
     /// How far a touch spell reaches, game units (ours: Skyrim's own reach is not in the data; about a sword's reach).
     inline constexpr float kTouchReach = 150.f;
     /// A held beam launches a drawn-only projectile this often, seconds (ours).
@@ -320,6 +332,12 @@ namespace game_skyrimse
             return library != nullptr ? library->magicEffect(id) : nullptr;
         }
         virtual const ProjectileRecord* projectileById(FormId id)
+        {
+            (void)id;
+            return nullptr;
+        }
+        /// Task 0242: an EXPL (the area a projectile leaves), null when unknown.
+        virtual const ExplosionRecord* explosionById(FormId id)
         {
             (void)id;
             return nullptr;
@@ -550,6 +568,11 @@ namespace game_skyrimse
         /// Task 0191, off by default (see kCombatSpellBeamsKey).
         void setSpellBeams(bool on) { mSpellBeams = on; }
         void setSpellVisuals(bool on) { mSpellVisuals = on; }
+        /// Task 0242, off by default (see kCombatSpellDeliveryKey).
+        void setSpellDelivery(bool on) { mSpellDelivery = on; }
+        [[nodiscard]] std::size_t runesStanding() const { return mRunes.size(); }
+        [[nodiscard]] std::size_t runesSetOff() const { return mRunesSetOff; }
+        [[nodiscard]] std::size_t explosions() const { return mExplosionsDone; }
         [[nodiscard]] std::size_t spellsCast() const { return mSpellsCast; }
         [[nodiscard]] std::size_t effectsApplied() const { return mEffectsApplied; }
         /// Task 0233: paralysis, frenzy and fear effects that took hold.
@@ -1029,7 +1052,28 @@ namespace game_skyrimse
         void frenzyRetarget(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
         std::size_t mStatusesApplied = 0;
         [[nodiscard]] bool launchSpell(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster,
-            const SpellRecord& spell, const openeden::sdk::game::SubjectState* target);
+            const SpellRecord& spell, const openeden::sdk::game::SubjectState* target, float stickSeconds = 0.f);
+        // Task 0242 (combat_delivery.cpp): target actor, target location and area delivery.
+        struct Rune;
+        void targetActorCast(
+            openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
+        /// An aimed or location spell's projectile ended at (x, y, z): an area spell explodes there, a rune is placed.
+        /// True when it handled the end (the caller does nothing more).
+        [[nodiscard]] bool deliverAtEnd(openeden::sdk::game::CombatRequestWriter& writer,
+            const openeden::sdk::game::ProjectileResult& result, Fighter& caster, const SpellRecord& spell);
+        /// Applies the spell's effects around (x, y, z): an effect with a radius (its area in feet, or the explosion
+        /// its projectile names) reaches every living actor inside it but the caster; `direct` (the actor the shot hit,
+        /// null for none) gets every effect. No falloff: the data has none.
+        void explodeAt(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
+            double x, double y, double z, const openeden::sdk::game::SweepHit* direct);
+        void placeRune(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
+            double x, double y, double z);
+        void tickRunes(openeden::sdk::game::CombatRequestWriter& writer);
+        [[nodiscard]] bool runeTriggeredBy(const Fighter& caster, const Fighter& other) const;
+        /// The radius of one effect in game units: its area (feet) or, with none, the radius of the explosion its
+        /// projectile names; 0 for neither.
+        [[nodiscard]] float effectRadius(const SpellRecord& spell, const SpellEffect& effect) const;
+        [[nodiscard]] bool hasAreaEffect(const SpellRecord& spell) const;
         [[nodiscard]] bool resolveSpellShot(
             openeden::sdk::game::CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result);
         void beginBowDraw(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
@@ -1260,6 +1304,21 @@ namespace game_skyrimse
         std::vector<Cast> mCasts;
         std::vector<Concentration> mConcentrations;
         std::vector<SpellShot> mSpellShots;
+        struct Rune
+        {
+            openeden::sdk::game::CombatSubject mCaster;
+            const SpellRecord* mSpell = nullptr;
+            double mX = 0.0;
+            double mY = 0.0;
+            double mZ = 0.0;
+            float mTrigger = kDefaultRuneProximity; ///< game units
+            float mRadius = 0.f; ///< the explosion's, game units
+            float mExpiresAt = 0.f; ///< combat clock
+        };
+        std::vector<Rune> mRunes; ///< task 0242
+        bool mSpellDelivery = false;
+        std::size_t mRunesSetOff = 0;
+        std::size_t mExplosionsDone = 0;
         std::vector<TestCaster> mTestCasters;
         std::vector<std::pair<openeden::sdk::game::ActorHandle, std::string>> mActorNames; ///< lower case editor ids
         bool mPlayerCastWanted = false; ///< a press waits for the cast clip's timing

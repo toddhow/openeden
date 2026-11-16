@@ -93,6 +93,7 @@ openeden_add_game_pack(skyrimse
         src/combat_poison.cpp
         src/combat_disease.cpp
         src/combat_scroll.cpp
+        src/combat_delivery.cpp
         src/scroll.cpp
         src/combat_shout.cpp
         src/shouts.cpp
@@ -295,6 +296,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_disease.cpp
     src/diseases.cpp
     src/combat_scroll.cpp
+    src/combat_delivery.cpp
     src/scroll.cpp
     src/combat_shout.cpp
     src/shouts.cpp

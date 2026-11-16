@@ -3679,6 +3679,8 @@ namespace game_skyrimse
                     // Task 0191: held aimed spells, touch spells and the drawn spell effects (both off by default).
                     mCellSource.combat().setSpellBeams(settings->getBool(kPackId, kCombatSpellBeamsKey, false));
                     mCellSource.combat().setSpellVisuals(settings->getBool(kPackId, kCombatSpellVisualsKey, false));
+                    // Task 0242: target actor, target location (runes) and area delivery (off by default).
+                    mCellSource.combat().setSpellDelivery(settings->getBool(kPackId, kCombatSpellDeliveryKey, false));
                     // Task 0179 (stage S5-7): perks. The switch defaults to on; the two lists to none.
                     mCellSource.combat().setUsePerks(settings->getBool(kPackId, kCombatPerksKey, true));
                     mCellSource.combat().setUseSounds(settings->getBool(kPackId, kCombatSoundsKey, true));

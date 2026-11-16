@@ -391,6 +391,7 @@ namespace game_skyrimse
         [[nodiscard]] const ShoutIndex* shoutIndex() const;
         const ProjectileRecord* projectileById(FormId id) override;
         std::string_view artModelById(FormId id) override; ///< task 0191
+        const ExplosionRecord* explosionById(FormId id) override; ///< task 0242
         MagicSettings magicSettings() override;
         /// Review fix of task 0171: false until the combat records (and the actor records) are read, on a worker
         /// started by the first call; never blocks. The four answers above read nothing themselves: they answer

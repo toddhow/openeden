@@ -96,4 +96,21 @@ namespace game_skyrimse
         return std::erase_if(
             mEffects, [&](const ActiveEffect& e) { return e.mCaster == caster || e.mTarget == caster; });
     }
+
+    bool deliveryIsCast(std::uint32_t delivery, bool beamsOn, bool deliveryOn)
+    {
+        switch (delivery)
+        {
+            case MagicDelivery::Self:
+            case MagicDelivery::Aimed:
+                return true;
+            case MagicDelivery::Touch:
+                return beamsOn;
+            case MagicDelivery::TargetActor:
+            case MagicDelivery::TargetLocation:
+                return deliveryOn;
+            default:
+                return false;
+        }
+    }
 }

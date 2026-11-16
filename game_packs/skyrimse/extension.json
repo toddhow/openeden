@@ -171,6 +171,11 @@
       "default": false
     },
     {
+      "key": "combat spell delivery",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "combat test player bow",
       "type": "float",
       "default": 0.0

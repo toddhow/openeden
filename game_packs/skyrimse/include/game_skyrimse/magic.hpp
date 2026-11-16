@@ -49,6 +49,10 @@ namespace game_skyrimse
         inline constexpr std::uint32_t Self = 0, Touch = 1, Aimed = 2, TargetActor = 3, TargetLocation = 4;
     }
 
+    /// Task 0242: does the magic runtime cast a spell with this delivery? Self and aimed always; touch with the beams
+    /// setting; target actor and target location (the runes) with the delivery setting. Pure.
+    [[nodiscard]] bool deliveryIsCast(std::uint32_t delivery, bool beamsOn, bool deliveryOn);
+
     /// The most effects that run at once (further ones are refused and counted).
     inline constexpr std::size_t kMaxActiveEffects = 256;
     /// The most a resistance takes off (RECALLED-VERIFY: Skyrim caps resistances at 85 percent).
