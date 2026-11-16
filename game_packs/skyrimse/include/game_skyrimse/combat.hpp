@@ -976,6 +976,20 @@ namespace game_skyrimse
             return mInner.clipEventTime(clip, perSex, kind, out);
         }
         bool reportDeath(openeden::sdk::game::ActorHandle actor) override { return mInner.reportDeath(actor); }
+        // Contract 0.5 (tasks 0191, 0193): a wrapper that does not forward a new virtual silently gives the pack the
+        // default, which refuses.
+        bool castRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
+            openeden::sdk::game::RayHit& out) override
+        {
+            return mInner.castRay(from, request, out);
+        }
+        bool showEffect(
+            openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::EffectRequest& request) override
+        {
+            return mInner.showEffect(subject, request);
+        }
+        bool hideEffect(std::uint32_t token) override { return mInner.hideEffect(token); }
+        bool playSound(const openeden::sdk::game::SoundRequest& request) override { return mInner.playSound(request); }
 
     private:
         openeden::sdk::game::CombatRequestWriter& mInner;
