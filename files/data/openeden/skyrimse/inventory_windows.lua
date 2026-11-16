@@ -10,6 +10,8 @@
 --   env.equip(item), env.unequip(item), env.use(item)   (task 0184) optional: ask the pack to wield or wear an item,
 --                 take it off, or drink a potion. A package without `equipped` and `use_kind` (version 1.0) gets no
 --                 such buttons.
+--   env.read(item)   (task 0203) optional: asks the pack to read a book (a Read button on a book row of the player's
+--                 list); without it a book row has no button.
 -- Ids are text: an item is 8 hex digits, an owner is 'player' or the placement's hex id.
 --
 -- Rows are keyed by item id AND count, so a changed count makes a new row (a List row is built once).
@@ -25,7 +27,7 @@ local NAME_WIDTH = 180
 local DETAIL_WIDTH = 84
 
 -- `withUse` rows (the player's) also carry what the extra button does and whether the item is worn.
-local function rows(inv, owner, withUse)
+local function rows(inv, owner, withUse, canRead)
   local out = {}
   local canUse = withUse and inv.use_kind ~= nil
   for i, id in ipairs(inv.items(owner)) do
@@ -41,6 +43,7 @@ local function rows(inv, owner, withUse)
       weight = inv.weight(id),
       value = inv.value(id),
       useKind = useKind,
+      readable = withUse and canRead and inv.category(id) == 'book',
       equipped = equipped,
     }
   end
@@ -55,6 +58,7 @@ end
 
 -- The label of the extra button of a row, nil when it has none.
 local function useLabel(r)
+  if r.readable then return 'Read' end
   if r.useKind == 'potion' then return 'Use' end
   if r.useKind == 'weapon' or r.useKind == 'armor' then return r.equipped and 'Unequip' or 'Equip' end
   return nil
@@ -82,7 +86,7 @@ function M.create(env)
 
   local function refresh()
     lastRevision = inv.revision()
-    playerRows:set(rows(inv, 'player', true))
+    playerRows:set(rows(inv, 'player', true, env.read ~= nil))
     weightText:set(string.format('Weight %.1f / %d', inv.carried(), inv.capacity()))
     goldText:set(string.format('Gold %d', inv.count('player', inv.gold_item())))
     if openOwner then
@@ -93,6 +97,10 @@ function M.create(env)
   end
 
   local function onUse(r)
+    if r.readable then
+      env.read(r.id)
+      return
+    end
     if r.useKind == 'potion' then
       if env.use then env.use(r.id) end
     elseif r.equipped then

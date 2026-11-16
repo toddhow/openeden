@@ -1,0 +1,2 @@
+GLOBAL: scripts/inv/place.lua
+MENU: scripts/inv/menu.lua

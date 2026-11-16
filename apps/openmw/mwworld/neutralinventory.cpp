@@ -1,6 +1,7 @@
 #include "neutralinventory.hpp"
 
 #include <cstdio>
+#include <string>
 
 namespace MWWorld
 {
@@ -63,5 +64,28 @@ namespace MWWorld
     {
         return { { "placement", neutralHexId(placement) }, { "base", neutralHexId(base) },
             { "kind", std::string(kind) }, { "name", std::string(name) } };
+    }
+
+    NeutralInventoryDecision decideNeutralLockpick(openeden::sdk::game::ObjectKind kind, bool byPlayer,
+        bool inventorySettingOn, bool rmluiOn, bool packLockpickingOn, bool locked)
+    {
+        const bool lockable = kind == openeden::sdk::game::ObjectKind::Door
+            || kind == openeden::sdk::game::ObjectKind::Container;
+        if (!lockable || !byPlayer || !inventorySettingOn || !rmluiOn || !packLockpickingOn || !locked)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
+    std::vector<NeutralInventoryEventField> neutralLockpickEventFields(std::uint64_t placement, std::uint64_t base,
+        std::string_view kind, std::int32_t level, std::string_view name)
+    {
+        return { { "placement", neutralHexId(placement) }, { "base", neutralHexId(base) },
+            { "kind", std::string(kind) }, { "level", std::to_string(level) }, { "name", std::string(name) } };
+    }
+
+    bool neutralLockAlreadyOpen(bool sessionOpen,
+        const std::function<bool(openeden::sdk::game::WorldId)>& packPicked, openeden::sdk::game::WorldId placement)
+    {
+        return sessionOpen || (packPicked && packPicked(placement));
     }
 }

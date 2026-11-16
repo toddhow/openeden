@@ -279,6 +279,53 @@ namespace MWClass
             }
         };
 
+        // Task 0203: a locked door or container the player has no key for offers the pack's lock picking minigame (an
+        // event to the scripts) instead of the refusal; see mwworld/neutralinventory.hpp.
+        class LockpickAction final : public MWWorld::Action
+        {
+            std::uint64_t mPlacement;
+            std::uint64_t mBase;
+            std::string mKind;
+            std::int32_t mLevel;
+            std::string mName;
+
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor != MWMechanics::getPlayer())
+                    return;
+                std::vector<MWBase::LuaManager::ExtensionEventField> fields;
+                for (const MWWorld::NeutralInventoryEventField& f :
+                    MWWorld::neutralLockpickEventFields(mPlacement, mBase, mKind, mLevel, mName))
+                    fields.push_back({ f.mName, f.mText });
+                Log(Debug::Info) << "NLOCKPICK " << mKind << " " << MWWorld::neutralHexId(mPlacement) << " level "
+                                 << mLevel << " '" << mName << "' offered";
+                MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
+                    std::string(MWWorld::kNeutralLockpickEvent), fields);
+            }
+
+        public:
+            LockpickAction(const MWWorld::Ptr& target, std::uint64_t placement, std::uint64_t base, std::string kind,
+                std::int32_t level, std::string name)
+                : MWWorld::Action(false, target)
+                , mPlacement(placement)
+                , mBase(base)
+                , mKind(std::move(kind))
+                , mLevel(level)
+                , mName(std::move(name))
+            {
+            }
+        };
+
+        // The registered cell source of a game as the interface the pack's player items answer (null when the game has
+        // none or the extension manager is not there).
+        openeden::sdk::game::PlayerItemSource* playerItemSourceOf(const std::string& gameId)
+        {
+            MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+            NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+            return dynamic_cast<openeden::sdk::game::PlayerItemSource*>(
+                store != nullptr ? store->source(gameId) : nullptr);
+        }
+
         // One trace line per activation (OPENEDEN_NEUTRAL_DOOR_TRACE).
         void logDoor(const MWWorld::Ptr& ptr, const MWWorld::NeutralDoorDecision& decision,
             std::string_view destination, bool reused)
@@ -368,14 +415,31 @@ namespace MWClass
         {
             MWWorld::NeutralLockState& locks = MWWorld::neutralLockState();
             const std::string& gameId = cell->neutralGameId();
+            // Task 0203: a lock the player picked (the pack remembers it and saves it) is open.
+            openeden::sdk::game::PlayerItemSource* packItems
+                = Settings::game().mNeutralInventory.get() ? playerItemSourceOf(gameId) : nullptr;
+            std::function<bool(openeden::sdk::game::WorldId)> packPicked;
+            if (packItems != nullptr)
+                packPicked = [packItems](openeden::sdk::game::WorldId id) { return packItems->lockPicked(id); };
+            const bool alreadyOpen
+                = MWWorld::neutralLockAlreadyOpen(locks.isUnlocked(gameId, *placement), packPicked, *placement);
+            if (alreadyOpen && !locks.isUnlocked(gameId, *placement))
+                locks.unlock(gameId, *placement);
             const MWWorld::NeutralLockOutcome lockOutcome
-                = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(), locks.isUnlocked(gameId, *placement),
+                = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(), alreadyOpen,
                     [&](openeden::sdk::game::WorldId key) { return keyHeld(gameId, key); });
             if (doorTraceWanted() && object->lock)
                 Log(Debug::Info) << "NLOCK " << *placement << " in " << cell->getCell()->getDescription()
                                  << ": locked=" << object->lock->locked << " key " << object->lock->key << " level "
                                  << object->lock->level << " -> " << static_cast<int>(lockOutcome)
                                  << " (0 none, 1 open, 2 unlocked by key, 3 refused)";
+            if (lockOutcome == MWWorld::NeutralLockOutcome::Locked
+                && MWWorld::decideNeutralLockpick(base.mKind, true, Settings::game().mNeutralInventory.get(),
+                       Settings::gui().mRmlui.get(), packItems != nullptr && packItems->lockpickingOn(), true)
+                    == MWWorld::NeutralInventoryDecision::Open)
+                return std::make_unique<LockpickAction>(ptr, *placement, base.mBase,
+                    base.mKind == ObjectKind::Container ? "container" : "door", object->lock ? object->lock->level : 0,
+                    std::string(getName(ptr)));
             if (lockOutcome == MWWorld::NeutralLockOutcome::Locked)
                 return std::make_unique<RefusalAction>(base.mKind == ObjectKind::Container
                         ? std::string("NeutralContainerLocked")

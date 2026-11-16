@@ -191,6 +191,26 @@ namespace game_skyrimse::progression
         return true;
     }
 
+    bool ProgressionService::raiseSkill(std::size_t slot)
+    {
+        if (mProgression == nullptr || slot >= kSkillCount || mInputs.mSkills == nullptr)
+            return false;
+        const SkillRecord* record = mInputs.mSkills->skill(slot);
+        if (record == nullptr || !(record->mUseMult > 0.f) || mProgression->skill(slot) >= kMaxSkill)
+            return false;
+        // useSkill adds mUseMult x amount + mUseOffset experience; ask for what the next level still needs, and a
+        // little more on each of a few tries so that float rounding never leaves it one short.
+        const std::uint8_t before = mProgression->skill(slot);
+        float scale = 1.f;
+        for (int attempt = 0; attempt < 4 && mProgression->skill(slot) == before; ++attempt, scale += 0.01f)
+        {
+            const float missing = std::max(mProgression->skillNeed(slot) - mProgression->skillXp(slot), 0.f);
+            const float amount = (missing * scale - record->mUseOffset) / record->mUseMult;
+            skillUsed(slot, std::max(amount, 1.0e-3f));
+        }
+        return mProgression->skill(slot) > before;
+    }
+
     void ProgressionService::skillUsed(std::size_t slot, float amount)
     {
         if (mProgression == nullptr)

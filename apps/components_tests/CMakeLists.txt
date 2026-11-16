@@ -33,6 +33,8 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsejournalwindows.cpp
     ui/testskyrimsemapwindows.cpp
     ui/testskyrimseinventoryequipwindows.cpp
+    ui/testskyrimselockpickwindow.cpp
+    ui/testskyrimsebookwindow.cpp
     ui/testuiqueue.cpp
     ui/testuireactive.cpp
     ui/testuiupdatehook.cpp
@@ -574,6 +576,11 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecrime.cpp
     skyrimse/testskyrimsecrimeservice.cpp
     skyrimse/testskyrimsecrimehooks.cpp
+    skyrimse/testskyrimselockbooks.cpp
+    skyrimse/testskyrimselockbooksservice.cpp
+    skyrimse/testskyrimselockbooksreal.cpp
+    skyrimse/testskyrimselockbooksskill.cpp
+    skyrimse/testskyrimselockbookssource.cpp
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
     ui/testuicombathudcrosshair.cpp
@@ -721,6 +728,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/lockbooks.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/lockbooks_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp

@@ -53,6 +53,8 @@ openeden_add_game_pack(skyrimse
         src/progression_service.cpp
         src/crime.cpp
         src/crime_service.cpp
+        src/lockbooks.cpp
+        src/lockbooks_service.cpp
         src/magic.cpp
         src/combat_magic.cpp
         src/actor_mechanics.cpp
@@ -116,6 +118,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/progression_service.hpp
         include/game_skyrimse/crime.hpp
         include/game_skyrimse/crime_service.hpp
+        include/game_skyrimse/lockbooks.hpp
+        include/game_skyrimse/lockbooks_service.hpp
         include/game_skyrimse/actor_mechanics.hpp
         include/game_skyrimse/combat_stats.hpp
         include/game_skyrimse/combat_impact.hpp
@@ -189,6 +193,8 @@ add_library(game_skyrimse_world STATIC
     src/progression_service.cpp
     src/crime.cpp
     src/crime_service.cpp
+    src/lockbooks.cpp
+    src/lockbooks_service.cpp
     src/magic.cpp
     src/combat_magic.cpp
     src/actor_mechanics.cpp

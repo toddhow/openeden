@@ -70,6 +70,20 @@ namespace MWWorld
     /// The fields of the barter event: the speaker's placement and base (hex text) and its name, in that order.
     [[nodiscard]] std::vector<NeutralInventoryEventField> neutralBarterEventFields(
         std::uint64_t placement, std::uint64_t npcBase, std::string_view name);
+
+    /// Task 0203: a locked door or container the player activates offers the pack's lock picking minigame (an event to
+    /// the scripts) instead of the refusal, when `[Game] neutral inventory` and `[GUI] rmlui` are on (the window needs
+    /// both), the pack runs lock picking and the lock is locked (no key held). Anything else keeps the refusal.
+    inline constexpr std::string_view kNeutralLockpickEvent = "openeden_skyrimse_lock_activated";
+    [[nodiscard]] NeutralInventoryDecision decideNeutralLockpick(openeden::sdk::game::ObjectKind kind, bool byPlayer,
+        bool inventorySettingOn, bool rmluiOn, bool packLockpickingOn, bool locked);
+    /// The fields of the lock event: placement and base (hex text), kind ("door" or "container"), level (decimal text,
+    /// the raw XLOC level) and name, in that order.
+    [[nodiscard]] std::vector<NeutralInventoryEventField> neutralLockpickEventFields(std::uint64_t placement,
+        std::uint64_t base, std::string_view kind, std::int32_t level, std::string_view name);
+    /// A lock is open when the session's state says so or the pack says the player picked it (asked only then).
+    [[nodiscard]] bool neutralLockAlreadyOpen(bool sessionOpen,
+        const std::function<bool(openeden::sdk::game::WorldId)>& packPicked, openeden::sdk::game::WorldId placement);
 }
 
 #endif

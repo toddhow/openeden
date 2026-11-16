@@ -74,6 +74,11 @@ namespace game_skyrimse
             /// A use of a skill (a fight, a trade, a craft): the amount is what the use reports. Ignored before ready.
             void skillUsed(std::size_t slot, float amount);
 
+            /// Task 0203 (the one hook of the skill books): raises a skill by exactly one level (the experience it takes,
+            /// through the same rules as a use). False before ready, for a bad slot, a skill with no use numbers or one
+            /// at the top.
+            bool raiseSkill(std::size_t slot);
+
             /// The value of an actor value for the Papyrus host and conditions: a skill at 6 to 23 (its level). False
             /// for
             /// any other index or before ready.

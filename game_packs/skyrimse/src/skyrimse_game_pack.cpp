@@ -9,6 +9,7 @@
 #include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/map.hpp"
+#include "game_skyrimse/lockbooks_service.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -28,12 +29,15 @@
 
 #include <components/files/conversion.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <deque>
 #include <cstdlib>
+#include <deque>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -668,6 +672,11 @@ namespace game_skyrimse
                             mBarter->poll(); // task 0189: a pending barter session asks again
                         if (mCrafting != nullptr)
                             mCrafting->poll(); // task 0199: reads the crafting records, registers made items
+                        if (mLockBooks != nullptr)
+                        {
+                            (void)mLockBooks->poll(); // task 0203: the book index is read on a worker
+                            syncLearnedSpell();
+                        }
                         syncEquipment();
                     }
                 });
@@ -771,6 +780,8 @@ namespace game_skyrimse
                     startBarter(host, logger);
                     // Task 0204: crime, bounty and guards (the namespace skyrimse.crime).
                     startCrime(host, logger);
+                    // Task 0203: lock picking and books (the namespace skyrimse.lockbooks); needs the inventory.
+                    startLockBooks(host, logger);
                     wirePapyrusWorld(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
@@ -1439,6 +1450,137 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "BARTER the barter service is on");
             }
 
+            // Task 0203: lock picking and books, off unless [extension.skyrimse] lockpicking and books (and the
+            // inventory).
+            void startLockBooks(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (mInventory == nullptr || settings == nullptr
+                    || !settings->getBool(kPackId, "lockpicking and books", false))
+                    return;
+                const std::string language = settings->getString(kPackId, "string table language", "english");
+                mBookLanguage = "english";
+                if (language.size() >= 2 && language.size() <= 32
+                    && std::all_of(
+                        language.begin(), language.end(), [](unsigned char c) { return std::isalpha(c) != 0; }))
+                    mBookLanguage = language;
+                lockbooks::ServiceHooks hooks;
+                hooks.mInputs = [this](lockbooks::BookInputs& out) {
+                    std::vector<LeveledList> unused;
+                    if (!mWorldView.inventoryInputs(out.mPaths, out.mOrder, unused))
+                        return false;
+                    mBookPaths = out.mPaths;
+                    return true;
+                };
+                hooks.mResolve = [this](const LString& text, std::uint32_t plugin, StringTableKind kind) {
+                    return resolveBookString(text, plugin, kind);
+                };
+                hooks.mName = [this](FormId id) { return mWorldView.displayNameOf(id); };
+                hooks.mSkill = [this]() {
+                    float skill = 15.f; // a new character's start skill (progression off)
+                    if (mProgression != nullptr)
+                        (void)mProgression->actorValue(
+                            progression::kFirstSkillValue + progression::Slot::Lockpicking, skill);
+                    return skill;
+                };
+                hooks.mSkillUsed = [this](std::size_t slot, float amount) {
+                    if (mProgression != nullptr)
+                        mProgression->skillUsed(slot, amount);
+                };
+                hooks.mRaiseSkill
+                    = [this](std::size_t slot) { return mProgression != nullptr && mProgression->raiseSkill(slot); };
+                hooks.mSkillName = [](std::size_t slot) { return std::string(progression::skillName(slot)); };
+                hooks.mSpellName = [this](FormId spell) -> std::string {
+                    const SpellRecord* record = mWorldView.spellById(spell);
+                    return record != nullptr ? progression::prettyPerkName(record->mCommon.mEditorId) : std::string();
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mLockBooks = std::make_unique<lockbooks::LockBooksService>(*mInventory, std::move(hooks));
+                mCellSource.setLockpickLookups([this](std::uint64_t placement) {
+                    return mLockBooks != nullptr && mLockBooks->lockPicked(placement);
+                });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mLockBooks->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the lockbooks bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    mLockBooks->chunk().setRefusalSink([logger](const std::string& reason) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Warning, "the lockbooks chunk was refused: " + reason);
+                    });
+                    if (!chunks->registerHandler(mLockBooks->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the lockbooks chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "LOCKBOOKS lock picking and books are on");
+            }
+
+            // Task 0203: the text of a localised book string, from the plugin's own string table (parsed once).
+            std::string resolveBookString(const LString& text, std::uint32_t plugin, StringTableKind kind)
+            {
+                if (!text.mPresent)
+                    return {};
+                if (!text.mLocalized)
+                    return text.mText;
+                if (mFileSource == nullptr || plugin >= mBookPaths.size())
+                    return {};
+                auto& slot = mBookTables[{ plugin, static_cast<int>(kind) }];
+                if (slot == nullptr)
+                {
+                    auto table = std::make_unique<StringTable>();
+                    std::string bytes;
+                    Content::Error error;
+                    const std::string name = mBookPaths[plugin].filename().string();
+                    const std::string path = stringTablePath(mBookPaths[plugin].stem().string(), mBookLanguage, kind);
+                    if (mFileSource->read(path, bytes)
+                        && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, kind,
+                            name, *table, error))
+                        slot = std::move(table);
+                    else
+                        slot = std::make_unique<StringTable>(); // empty: not tried again
+                }
+                const std::string* found = slot->find(text.mId);
+                return found != nullptr ? *found : std::string();
+            }
+
+            // Task 0203: the last spell learned from a tome (or restored by a load) becomes the spell the player casts,
+            // unless a test setting already named one. The spell's record may not be read yet: asked again next frame.
+            void syncLearnedSpell()
+            {
+                const std::vector<FormId>& spells = mLockBooks->model().spells();
+                const FormId last = spells.empty() ? kNullFormId : spells.back();
+                if (spells.size() == mSyncedSpells && last == mSyncedLastSpell)
+                    return;
+                if (mPlayerSpellFromSetting)
+                {
+                    mSyncedSpells = spells.size();
+                    mSyncedLastSpell = last;
+                    return;
+                }
+                if (spells.empty())
+                {
+                    // a load without any spell: the cast spell goes too
+                    mSyncedSpells = 0;
+                    mSyncedLastSpell = kNullFormId;
+                    (void)mCellSource.combat().setTestPlayerSpell("");
+                    return;
+                }
+                const SpellRecord* record = mWorldView.spellById(last);
+                if (record == nullptr || record->mCommon.mEditorId.empty())
+                    return;
+                mSyncedSpells = spells.size();
+                mSyncedLastSpell = last;
+                (void)mCellSource.combat().setTestPlayerSpell(record->mCommon.mEditorId);
+                mLockBooks->logLine("LOCKBOOKS the player casts " + record->mCommon.mEditorId);
+            }
+
             // Task 0199: crafting over the inventory (on whenever the setting `crafting` and the inventory are).
             void startCrafting(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
@@ -1703,6 +1845,7 @@ namespace game_skyrimse
                             "combat test bow speed bonus: " + std::to_string(bowBonus));
                     // Task 0186 (stage S5-8): the spell test rules, all off by default.
                     const std::string playerSpell = settings->getString(kPackId, kCombatTestPlayerSpellKey, "");
+                    mPlayerSpellFromSetting = !playerSpell.empty(); // task 0203
                     if (!mCellSource.combat().setTestPlayerSpell(playerSpell))
                         say(openeden::sdk::LogLevel::Warning,
                             "the setting '" + std::string(kCombatTestPlayerSpellKey) + "' is too long; no spell");
@@ -1929,6 +2072,13 @@ namespace game_skyrimse
             openeden::sdk::Logger* mCraftLogger = nullptr; // task 0199
             WeaponRecord mMadeWeapon; // task 0199: the combat record of the wielded made weapon (combat points at it)
             std::function<void(std::string_view, float)> mCraftingSkillSink; // task 0199: a skills system may set it
+            std::unique_ptr<lockbooks::LockBooksService> mLockBooks; // task 0203; refers to the inventory
+            std::vector<std::filesystem::path> mBookPaths;
+            std::string mBookLanguage = "english";
+            std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mBookTables;
+            std::size_t mSyncedSpells = 0;
+            FormId mSyncedLastSpell = kNullFormId;
+            bool mPlayerSpellFromSetting = false;
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view

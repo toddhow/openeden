@@ -4,6 +4,7 @@
 local core = require('openmw.core')
 local input = require('openmw.input')
 local I = require('openmw.interfaces')
+local self = require('openmw.self')
 
 local okUi, ui = pcall(require, 'openeden.ui')
 local okInv, inv = pcall(require, 'core.skyrimse.inventory')
@@ -11,6 +12,7 @@ if not (okUi and okInv) then
   return {}
 end
 local windows = require('openeden.skyrimse.inventory_windows')
+local hasBooks = pcall(require, 'core.skyrimse.lockbooks') -- task 0203: books can be read
 
 local MODE = 'Interface'
 local view
@@ -34,6 +36,11 @@ view = windows.create{
   equip = function(item) core.sendGlobalEvent('SkyrimInventoryEquip', { item = item }) end,
   unequip = function(item) core.sendGlobalEvent('SkyrimInventoryUnequip', { item = item }) end,
   use = function(item) core.sendGlobalEvent('SkyrimInventoryUse', { item = item }) end,
+  -- task 0203: the global script applies the reading, the book window (books_player.lua) shows the book
+  read = hasBooks and function(item)
+    core.sendGlobalEvent('SkyrimBookRead', { item = item })
+    self:sendEvent('SkyrimBookOpen', { item = item })
+  end or nil,
 }
 
 local function show(owner, title)

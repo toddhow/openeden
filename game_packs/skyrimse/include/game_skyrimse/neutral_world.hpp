@@ -193,6 +193,17 @@ namespace game_skyrimse
         {
             return mPlayerItems && item <= 0xFFFFFFFFull && mPlayerItems(static_cast<FormId>(item));
         }
+        /// Task 0203: the lock picking service's answers (the game pack gives them when `lockpicking and books` is on).
+        void setLockpickLookups(std::function<bool(std::uint64_t)> picked)
+        {
+            mLockPicked = std::move(picked);
+            mLockpickingOn = static_cast<bool>(mLockPicked);
+        }
+        bool lockpickingOn() const override { return mLockpickingOn; }
+        bool lockPicked(openeden::sdk::game::WorldId placement) const override
+        {
+            return mLockPicked && mLockPicked(placement);
+        }
         /// Task 0150: forwards to the view's DisplayNameSource.
         std::string displayNameOf(openeden::sdk::game::WorldId base) override;
         std::size_t cellCount() const override { return mView.cellCount(); }
@@ -409,6 +420,8 @@ namespace game_skyrimse
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204
         std::function<bool(FormId)> mPlayerItems; // task 0184
+        std::function<bool(std::uint64_t)> mLockPicked; // task 0203
+        bool mLockpickingOn = false;
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;

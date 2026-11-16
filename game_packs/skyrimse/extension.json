@@ -231,6 +231,11 @@
       "default": false
     },
     {
+      "key": "lockpicking and books",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "journal",
       "type": "bool",
       "default": false
