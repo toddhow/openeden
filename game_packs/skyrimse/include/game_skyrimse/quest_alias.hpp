@@ -109,7 +109,12 @@ namespace game_skyrimse
         /// cell it lists).
         static constexpr double kCellSize = 4096.0;
 
-        QuestAliasFiller(const QuestIndex& quests, const PlacedRefIndex& refs, Matcher matcher, Options options = {});
+        QuestAliasFiller(const QuestIndex& quests, const PlacedRefIndex& refs, Matcher matcher, Options options);
+        /// GCC rejects `Options options = {}` as a default argument (the nested struct has member initializers).
+        QuestAliasFiller(const QuestIndex& quests, const PlacedRefIndex& refs, Matcher matcher)
+            : QuestAliasFiller(quests, refs, std::move(matcher), Options())
+        {
+        }
 
         /// Fills the aliases of the quest that are not filled yet. `matching` false: only the data-fillable kinds
         /// (specific reference, unique actor). Returns the number of aliases newly filled.

@@ -182,6 +182,7 @@ add_library(game_skyrimse_world STATIC
     src/speech.cpp
     src/location.cpp
     src/placed_refs.cpp
+    src/inventory.cpp
     src/map_markers.cpp
     src/menus.cpp
     src/presentation.cpp

@@ -147,7 +147,9 @@ namespace
         QuestVmadRecords out;
         EXPECT_NE(plugin, nullptr);
         if (plugin != nullptr)
+        {
             EXPECT_TRUE(parseQuestVmads(*plugin, order(), out));
+        }
         return out;
     }
 

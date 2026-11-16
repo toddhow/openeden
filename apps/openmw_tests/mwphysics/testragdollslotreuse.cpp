@@ -145,8 +145,12 @@ namespace
         EXPECT_TRUE(host->hasActor(victim));
         EXPECT_FALSE(host->isActorFrozen(ninth));
         for (const ActorRagdollHandle handle : handles)
+        {
             if (handle != victim)
+            {
                 EXPECT_FALSE(host->isActorFrozen(handle));
+            }
+        }
         EXPECT_EQ(host->liveActorRagdollCount(), kSlots);
         EXPECT_EQ(host->actorRagdollCount(), kSlots + 1);
     }

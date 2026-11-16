@@ -197,7 +197,12 @@ namespace game_skyrimse
 
         /// All references must outlive the manager. `world` answers every condition (it owns the event data given by
         /// `raise`: see SkyrimConditionWorld::setStoryEvent).
-        StoryManager(const StoryIndex& nodes, const QuestIndex& quests, Options options = {});
+        StoryManager(const StoryIndex& nodes, const QuestIndex& quests, Options options);
+        /// GCC rejects `Options options = {}` as a default argument (the nested struct has member initializers).
+        StoryManager(const StoryIndex& nodes, const QuestIndex& quests)
+            : StoryManager(nodes, quests, Options())
+        {
+        }
 
         /// Raises an event: walks the tree and returns the quests to start, in order. `isStartable(quest)` says whether
         /// the quest may start (exists, is not running or completed); `evaluate(list, resolver)` evaluates a condition

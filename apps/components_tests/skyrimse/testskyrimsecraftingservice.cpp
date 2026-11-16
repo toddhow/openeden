@@ -161,8 +161,8 @@ namespace
         {
             out.mPaths = { mPath };
             std::string err;
-            out.mOrder.add("Skyrim.esm", false, err);
-            out.mOrder.add("test.esp", false, err);
+            (void)out.mOrder.add("Skyrim.esm", false, err);
+            (void)out.mOrder.add("test.esp", false, err);
             return true;
         }
 
@@ -706,7 +706,7 @@ namespace
         EXPECT_EQ(mCrafting->temper(kRecForge), Status::NoBench); // not a tempering recipe
         EXPECT_EQ(mCrafting->temper(kSelf | 0xEEE), Status::UnknownRecipe);
         EXPECT_EQ(held(kSword), 1);
-        mInventory->model().consume(kPlayerOwner, kIngot, 1);
+        (void)mInventory->model().consume(kPlayerOwner, kIngot, 1);
         EXPECT_EQ(mCrafting->temper(kRecTemperSword), Status::MissingItems);
         EXPECT_EQ(held(kSword), 1);
     }

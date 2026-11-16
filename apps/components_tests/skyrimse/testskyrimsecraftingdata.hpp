@@ -73,8 +73,8 @@ namespace CraftingTestData
     {
         game_skyrimse::LoadOrder o;
         std::string err;
-        o.add("Skyrim.esm", false, err);
-        o.add("test.esp", false, err);
+        (void)o.add("Skyrim.esm", false, err);
+        (void)o.add("test.esp", false, err);
         return o;
     }
 

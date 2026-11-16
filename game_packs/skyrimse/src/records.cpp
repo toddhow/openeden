@@ -1195,7 +1195,7 @@ namespace game_skyrimse
                 else
                 {
                     ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt,
-                        {} };
+                        {}, {}, {} };
                     model.mName = std::move(fullName);
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);

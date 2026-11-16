@@ -48,7 +48,7 @@ namespace game_skyrimse::vmad
             }
             bool i16(std::int16_t& v)
             {
-                std::uint16_t u;
+                std::uint16_t u = 0;
                 if (!u16(u))
                     return false;
                 v = static_cast<std::int16_t>(u);
@@ -66,7 +66,7 @@ namespace game_skyrimse::vmad
             }
             bool i32(std::int32_t& v)
             {
-                std::uint32_t u;
+                std::uint32_t u = 0;
                 if (!u32(u))
                     return false;
                 v = static_cast<std::int32_t>(u);
@@ -74,7 +74,7 @@ namespace game_skyrimse::vmad
             }
             bool f32(float& v)
             {
-                std::uint32_t u;
+                std::uint32_t u = 0;
                 if (!u32(u))
                     return false;
                 static_assert(sizeof(float) == sizeof(std::uint32_t));
@@ -83,7 +83,7 @@ namespace game_skyrimse::vmad
             }
             bool wstring(std::string& out, std::uint32_t maxBytes)
             {
-                std::uint16_t n;
+                std::uint16_t n = 0;
                 if (!u16(n))
                     return false;
                 if (n > maxBytes)
@@ -108,7 +108,7 @@ namespace game_skyrimse::vmad
         bool readObject(Reader& r, std::int16_t format, Value& v)
         {
             v.mKind = ValueKind::Object;
-            std::uint16_t unused;
+            std::uint16_t unused = 0;
             if (format == 1)
                 return r.u32(v.mForm) && r.i16(v.mAlias) && r.u16(unused);
             return r.u16(unused) && r.i16(v.mAlias) && r.u32(v.mForm);
@@ -132,7 +132,7 @@ namespace game_skyrimse::vmad
                 case 5:
                 {
                     v.mKind = ValueKind::Bool;
-                    std::uint8_t b;
+                    std::uint8_t b = 0;
                     if (!r.u8(b))
                         return false;
                     v.mInteger = b != 0 ? 1 : 0;
@@ -167,7 +167,7 @@ namespace game_skyrimse::vmad
             if (p.mType >= 11 && p.mType <= 15)
             {
                 p.mArray = true;
-                std::uint32_t count;
+                std::uint32_t count = 0;
                 if (!r.u32(count))
                     return false;
                 const std::uint8_t element = static_cast<std::uint8_t>(p.mType - 10);
@@ -192,7 +192,7 @@ namespace game_skyrimse::vmad
             for (std::uint16_t i = 0; i < count; ++i)
             {
                 Script s;
-                std::uint16_t props;
+                std::uint16_t props = 0;
                 if (!r.wstring(s.mName, r.limits().mMaxNameBytes) || !r.u8(s.mStatus) || !r.u16(props))
                     return false;
                 if (props > r.limits().mMaxProperties)
@@ -219,8 +219,8 @@ namespace game_skyrimse::vmad
 
         bool readFragments(Reader& r, Vmad& v)
         {
-            std::uint8_t marker;
-            std::uint16_t count;
+            std::uint8_t marker = 0;
+            std::uint16_t count = 0;
             if (!r.u8(marker) || !r.u16(count) || !r.wstring(v.mFragmentScript, r.limits().mMaxNameBytes))
                 return false;
             v.mHasFragments = true;
@@ -230,15 +230,15 @@ namespace game_skyrimse::vmad
             for (std::uint16_t i = 0; i < count; ++i)
             {
                 Fragment f;
-                std::int16_t unknown16;
-                std::uint8_t unknown8;
+                std::int16_t unknown16 = 0;
+                std::uint8_t unknown8 = 0;
                 if (!r.u16(f.mStage) || !r.i16(unknown16) || !r.i32(f.mLogEntry) || !r.u8(unknown8)
                     || !r.wstring(f.mScript, r.limits().mMaxNameBytes)
                     || !r.wstring(f.mFunction, r.limits().mMaxNameBytes))
                     return false;
                 v.mFragments.push_back(std::move(f));
             }
-            std::uint16_t aliases;
+            std::uint16_t aliases = 0;
             if (!r.u16(aliases))
                 return false;
             if (aliases > r.limits().mMaxAliases)
@@ -248,9 +248,9 @@ namespace game_skyrimse::vmad
             {
                 AliasScripts a;
                 Value object;
-                std::int16_t aliasVersion;
-                std::int16_t aliasFormat;
-                std::uint16_t scripts;
+                std::int16_t aliasVersion = 0;
+                std::int16_t aliasFormat = 0;
+                std::uint16_t scripts = 0;
                 if (!readObject(r, v.mObjectFormat, object))
                     return false;
                 a.mQuest = object.mForm;

@@ -120,7 +120,7 @@ namespace MWWorld
             }
             bool i32(std::int32_t& v)
             {
-                std::uint32_t u;
+                std::uint32_t u = 0;
                 if (!u32(u))
                     return false;
                 v = static_cast<std::int32_t>(u);
@@ -128,7 +128,7 @@ namespace MWWorld
             }
             bool f32(float& v)
             {
-                std::uint32_t u;
+                std::uint32_t u = 0;
                 if (!u32(u))
                     return false;
                 v = std::bit_cast<float>(u);
@@ -138,7 +138,7 @@ namespace MWWorld
             }
             bool string(std::string& s)
             {
-                std::uint16_t n;
+                std::uint16_t n = 0;
                 if (!u16(n))
                     return false;
                 if (n > kNeutralSaveMaxString)
@@ -152,7 +152,7 @@ namespace MWWorld
             /// A count, bounded by the cap and by the bytes that could still hold that many items of `minItemBytes`.
             bool count(std::size_t& n, std::size_t cap, std::size_t minItemBytes, const char* what)
             {
-                std::uint32_t v;
+                std::uint32_t v = 0;
                 if (!u32(v))
                     return false;
                 if (v > cap)
@@ -164,7 +164,7 @@ namespace MWWorld
             }
             bool key(NeutralSaveCellKey& k, bool allowNone)
             {
-                std::uint8_t kind;
+                std::uint8_t kind = 0;
                 if (!u8(kind))
                     return false;
                 if (kind > static_cast<std::uint8_t>(NeutralSaveCellKey::Kind::Exterior))
@@ -183,7 +183,7 @@ namespace MWWorld
             }
             bool entries(std::vector<std::pair<std::string, std::uint32_t>>& out, const char* what)
             {
-                std::size_t n;
+                std::size_t n = 0;
                 if (!count(n, kNeutralSaveMaxEntries, 6, what))
                     return false;
                 out.reserve(n);
@@ -299,7 +299,7 @@ namespace MWWorld
         NeutralSaveState state;
         for (char expected : kMagic)
         {
-            std::uint8_t c;
+            std::uint8_t c = 0;
             if (!r.u8(c))
                 return fail();
             if (c != static_cast<std::uint8_t>(expected))
@@ -308,7 +308,7 @@ namespace MWWorld
                 return fail();
             }
         }
-        std::uint32_t version;
+        std::uint32_t version = 0;
         if (!r.u32(version))
             return fail();
         if (version != kNeutralSaveVersion)
@@ -319,7 +319,7 @@ namespace MWWorld
         }
         if (!r.key(state.mPlayerCell, true))
             return fail();
-        std::size_t cells;
+        std::size_t cells = 0;
         if (!r.count(cells, kNeutralSaveMaxCells, 5, "cells"))
             return fail();
         state.mCells.reserve(cells);
@@ -333,7 +333,7 @@ namespace MWWorld
                 r.fail("the cells are not in order");
                 return fail();
             }
-            std::size_t objects;
+            std::size_t objects = 0;
             if (!r.count(objects, kNeutralSaveMaxObjects, 5, "objects"))
                 return fail();
             cell.mObjects.reserve(objects);

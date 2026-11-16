@@ -633,7 +633,7 @@ namespace
 
     TEST_F(CombatSound, aHeavyCuirassChangesTheMaterialAndSoTheSound)
     {
-        mData.mProfiles[kVictimBase].mPieces.push_back({ 50.f, ArmourSlot::Body, 1 });
+        mData.mProfiles[kVictimBase].mPieces.push_back({ 50.f, ArmourSlot::Body, 1, 0, {} });
         mCombat.setData(&mData);
         update();
         blow(sdk::CombatSubject::of(mA), 5, onActor(mB));

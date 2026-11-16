@@ -109,14 +109,6 @@ namespace
         return folder;
     }
 
-    std::string readAll(const std::filesystem::path& path)
-    {
-        std::ifstream in(path, std::ios::binary);
-        std::stringstream text;
-        text << in.rdbuf();
-        return text.str();
-    }
-
     // ----- the table -----
 
     TEST(SkyrimRagdollMap, aSkyrimSkeletonGivesABoneForEveryRigBody)

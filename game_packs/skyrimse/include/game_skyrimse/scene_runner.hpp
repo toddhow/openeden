@@ -139,7 +139,12 @@ namespace game_skyrimse
             std::uint64_t mNotLoaded = 0; ///< a start refused because no actor of the scene is loaded
         };
 
-        SceneRunner(const SceneIndex& scenes, SceneEnvironment& env, Options options = {});
+        SceneRunner(const SceneIndex& scenes, SceneEnvironment& env, Options options);
+        /// GCC rejects `Options options = {}` as a default argument (the nested struct has member initializers).
+        SceneRunner(const SceneIndex& scenes, SceneEnvironment& env)
+            : SceneRunner(scenes, env, Options())
+        {
+        }
         ~SceneRunner();
         SceneRunner(const SceneRunner&) = delete;
         SceneRunner& operator=(const SceneRunner&) = delete;

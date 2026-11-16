@@ -271,15 +271,6 @@ namespace
         std::vector<std::string> mAll;
     };
 
-    vmad::Property intProp(const std::string& name, std::int32_t value)
-    {
-        vmad::Property p;
-        p.mName = name;
-        p.mType = 3;
-        p.mValue.mKind = vmad::ValueKind::Int;
-        p.mValue.mInteger = value;
-        return p;
-    }
     vmad::Property objProp(const std::string& name, FormId form, std::int16_t alias = -1)
     {
         vmad::Property p;

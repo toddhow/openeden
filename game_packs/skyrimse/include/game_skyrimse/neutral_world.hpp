@@ -198,7 +198,7 @@ namespace game_skyrimse
         void setPlayerItemLookup(std::function<bool(FormId)> lookup) { mPlayerItems = std::move(lookup); }
         bool playerHasItem(openeden::sdk::game::WorldId item) const override
         {
-            return mPlayerItems && item <= 0xFFFFFFFFull && mPlayerItems(static_cast<FormId>(item));
+            return mPlayerItems && mPlayerItems(static_cast<FormId>(item));
         }
         /// Task 0203: the lock picking service's answers (the game pack gives them when `lockpicking and books` is on).
         void setLockpickLookups(std::function<bool(std::uint64_t)> picked)

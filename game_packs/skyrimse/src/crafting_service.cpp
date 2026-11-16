@@ -898,7 +898,7 @@ namespace game_skyrimse::crafting
                           for (const std::string& s : m.mStrings)
                               m.mElements.push_back(text(s));
                           BindingResult r = ok();
-                          r.value.type = kStr;
+                          r.value.type = BindingType::String;
                           r.value.elements = m.mElements.data();
                           r.value.count = m.mElements.size();
                           return r;

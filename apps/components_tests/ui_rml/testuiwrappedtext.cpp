@@ -81,7 +81,7 @@ namespace
 
     struct UiRmlWrappedText : testing::Test
     {
-        static inline SystemInterface sSystem;
+        static inline SystemInterface sSystem{ nullptr };
         static inline RecordingRender sRender;
         static inline std::map<std::string, std::vector<char>> sFiles;
         static inline std::unique_ptr<BitmapFontEngine> sEngine;
