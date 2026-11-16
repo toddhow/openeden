@@ -190,6 +190,13 @@ namespace game_skyrimse
             std::function<const PackageRecord*(FormId package)> mPackage;
             /// the base form of a placed reference (0 when unknown)
             std::function<FormId(FormId reference)> mBaseOf;
+            /// task 0217: the display name of what fills the alias `aliasName` of `quest` (an actor's or reference's
+            ///   FULL, a
+            /// location's FULL); "" when the alias is not filled or what fills it has no name. Main thread.
+            std::function<std::string(FormId quest, std::string_view aliasName)> mAliasName;
+            /// task 0217: the locations (the Papyrus data names a form a Location, and finds the location of a
+            // reference)
+            const LocationIndex* mLocations = nullptr;
         };
 
         /// What startLoad's worker did, handed to the completion function.
@@ -561,6 +568,19 @@ namespace game_skyrimse
         [[nodiscard]] FormId locationOfGridSquare(FormId world, std::int32_t x, std::int32_t y) const;
         /// Task 0211: where the player stands, for the alias filler's closest-first rule. Main thread.
         void setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site);
+        /// Task 0217: what scripts store on locations (Location.SetKeywordData; fn_606 and fn_651 read it). Owned by
+        /// the view, so the Papyrus host and the condition worlds share it. Main thread.
+        [[nodiscard]] LocationKeywordData& keywordData() { return mKeywordData; }
+        /// Task 0217: the location the player stands in now (the site the driver reports); kNullFormId when unknown.
+        [[nodiscard]] FormId playerLocation() const { return mPlayerSite ? mPlayerSite().mLocation : kNullFormId; }
+        /// Task 0217: a developer's trace of the story manager's walks (applied now if the manager exists, else when
+        // made).
+        void setStoryTrace(StoryManager::Trace trace);
+        /// Task 0217: what a save keeps of the story manager, the ambient quests that ran and the keyword data. The
+        /// manager part is empty before the dialogue data is built.
+        [[nodiscard]] StoryState storyState() const;
+        /// Applies a loaded state; false (nothing applied) while the story manager does not exist yet: ask again.
+        bool restoreStoryState(const StoryState& state);
         [[nodiscard]] std::uint64_t placedRefsBuildMillis() const { return mPlacedRefsMillis.load(); }
 
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
@@ -693,6 +713,8 @@ namespace game_skyrimse
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
+        LocationKeywordData mKeywordData; ///< task 0217
+        StoryManager::Trace mStoryTrace; ///< task 0217
         static constexpr std::int32_t kLoadedRing = 2; ///< the engine loads the player square and two rings round it
         InfoFragmentSink mInfoFragmentSink; ///< task 0187
         bool mPackageWired = true;

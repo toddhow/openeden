@@ -33,6 +33,7 @@ openeden_add_game_pack(skyrimse
         src/quest_script.cpp
         src/story.cpp
         src/story_events.cpp
+        src/story_state.cpp
         src/location_conditions.cpp
         src/scene.cpp
         src/scene_runner.cpp
@@ -196,6 +197,7 @@ add_library(game_skyrimse_world STATIC
     src/quest_script.cpp
     src/story.cpp
     src/story_events.cpp
+    src/story_state.cpp
     src/location_conditions.cpp
     src/scene.cpp
     src/scene_runner.cpp

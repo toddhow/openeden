@@ -92,9 +92,21 @@ namespace game_skyrimse::journal
     /// alias name (the editor name of the alias, not the reference's display name: decision for toddhow), any other
     /// tag becomes `...`, and a stray `<` or `>` is dropped. Applied to every text the journal shows.
     [[nodiscard]] std::string expandTags(std::string_view text);
+    /// Task 0217: with a resolver an `<Alias=X>` or `<Alias.ShortName=X>` tag becomes the display name of what fills
+    // the
+    /// alias X (an NPC's or reference's name, a location's name); the resolver returns "" for an alias that is not
+    // filled
+    /// or has no name, and the tag becomes `...` as any tag the pack cannot fill. Without a resolver (an empty
+    // function)
+    /// the alias NAME stays as before.
+    using AliasNameResolver = std::function<std::string(std::string_view aliasName)>;
+    [[nodiscard]] std::string expandTags(std::string_view text, const AliasNameResolver& aliasName);
 
     using TextFn = std::function<std::string(const LString&, std::uint32_t plugin, StringTableKind)>;
     using ObjectiveFn = std::function<ObjectiveFlags(FormId quest, std::uint16_t index)>;
+    /// Task 0217: the display name of what fills the alias `aliasName` of `quest` ("" when it is not filled or has
+    // none).
+    using AliasNameFn = std::function<std::string(FormId quest, std::string_view aliasName)>;
 
     struct Inputs
     {
@@ -102,6 +114,7 @@ namespace game_skyrimse::journal
         const QuestState* mState = nullptr;
         TextFn mText; ///< empty: only plain (not localised) texts are read
         ObjectiveFn mObjective; ///< empty: no objective is displayed
+        AliasNameFn mAliasName; ///< empty: an alias tag shows the alias's own name (task 0217)
     };
 
     /// Fills `out` (cleared first; its revision is left to the caller). Pure and deterministic.
@@ -121,6 +134,7 @@ namespace game_skyrimse::journal
         const QuestIndex* mQuests = nullptr;
         const QuestState* mState = nullptr;
         TextFn mText;
+        AliasNameFn mAliasName; ///< task 0217: empty: an alias tag shows the alias's own name
     };
 
     struct Hooks

@@ -137,7 +137,14 @@ namespace game_skyrimse
 
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
+    public:
+        /// Task 0217: one line per required alias a dry run (canStart) could not fill (a developer's trace; null:
+        /// none).
+        using Trace = std::function<void(const std::string&)>;
+        void setTrace(Trace trace) { mTrace = std::move(trace); }
+
     private:
+        Trace mTrace;
         using FillMap = std::map<std::uint32_t, AliasFill>;
         enum class Result : std::uint8_t
         {

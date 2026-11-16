@@ -136,6 +136,14 @@ namespace game_skyrimse
             return 0;
         }
 
+        /// Task 0217: the location (LCTN) a placed reference stands in, or the player's for the player reference 0x14
+        /// (ObjectReference.GetCurrentLocation); 0 when it has none or the data cannot say.
+        [[nodiscard]] virtual FormId locationOf(FormId reference) const
+        {
+            (void)reference;
+            return 0;
+        }
+
         /// The editor id or the name of a form for GetName; empty when none.
         [[nodiscard]] virtual std::string nameOf(FormId form) const
         {
@@ -296,6 +304,10 @@ namespace game_skyrimse
 
         void setLog(LogFunction log);
         void setQuestChanged(QuestChanged changed);
+        /// Task 0217: told after the story manager's event started a quest and its aliases were filled (a developer's
+        // log).
+        using StoryStarted = std::function<void(FormId quest, const StoryEvent& event)>;
+        void setStoryStarted(StoryStarted started);
         void setEnableChanged(EnableChanged changed);
         /// The quest records and their run-time state, and where a quest's VMAD is. The state is changed by
         /// Quest.SetStage, Start and Stop; the host does not own any of the three.
@@ -311,6 +323,10 @@ namespace game_skyrimse
         void setSceneControl(SceneControl* control);
         /// Task 0198: the world natives' reach (see PapyrusWorldHooks). Not owned; null: those natives are tolerant.
         void setWorldHooks(PapyrusWorldHooks* hooks);
+        /// Task 0217: where Location.SetKeywordData stores (and GetKeywordData reads). Not owned; null: those natives
+        // are
+        /// tolerant (nothing stored, 0 read).
+        void setLocationKeywordData(LocationKeywordData* data);
 
         /// Task 0198: the events the inventory and combat can raise. `from` and `to` are the owners' reference ids (0:
         /// none, as when a script added the item). Queued like any event; run by the next tick.

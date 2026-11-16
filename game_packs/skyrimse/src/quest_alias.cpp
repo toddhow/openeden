@@ -507,7 +507,13 @@ namespace game_skyrimse
             const auto it = plan.find(a.mId);
             const AliasFill f = it != plan.end() ? it->second : state.aliasFill(questId, a.mId);
             if (!filled(f))
+            {
                 blocked = true;
+                if (mTrace && dry)
+                    mTrace("  alias " + a.mName + " (" + (a.mIsLocation ? "location" : "reference") + " fill "
+                        + std::to_string(static_cast<int>(a.mFill)) + ") of " + quest.mCommon.mEditorId
+                        + " is not filled");
+            }
         }
     }
 

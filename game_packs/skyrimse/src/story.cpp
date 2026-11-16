@@ -4,6 +4,7 @@
 #include "game_skyrimse/survey.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -323,32 +324,40 @@ namespace game_skyrimse
         for (auto& [parent, kids] : byParent)
         {
             std::sort(kids.begin(), kids.end());
-            // SNAM is the previous sibling: the head is the child whose sibling is none or not a child of this parent
-            std::map<FormId, FormId> next; // previous -> this
+            // SNAM is the previous sibling. Task 0217: the children are a forest in pre-order (heads ascending, at a
+            //   fork the
+            // lower form id first); a node no head reaches (a cycle) is appended in form id order.
+            std::map<FormId, std::vector<FormId>> next; // previous -> the children naming it, ascending
             std::vector<FormId> heads;
-            bool ok = true;
             for (FormId k : kids)
             {
                 const FormId prev = mNodes.at(k).mSibling;
-                if (prev == kNullFormId || std::find(kids.begin(), kids.end(), prev) == kids.end())
+                if (prev == kNullFormId || prev == k || std::find(kids.begin(), kids.end(), prev) == kids.end())
                     heads.push_back(k);
-                else if (!next.emplace(prev, k).second)
-                    ok = false; // two children name the same previous sibling
+                else
+                    next[prev].push_back(k);
             }
             std::vector<FormId> chain;
-            if (ok && heads.size() == 1)
+            std::set<FormId> seen;
+            std::vector<FormId> stack;
+            for (auto head = heads.rbegin(); head != heads.rend(); ++head)
+                stack.push_back(*head);
+            while (!stack.empty())
             {
-                FormId at = heads[0];
-                while (chain.size() <= kids.size())
-                {
-                    chain.push_back(at);
-                    const auto it = next.find(at);
-                    if (it == next.end())
-                        break;
-                    at = it->second;
-                }
+                const FormId at = stack.back();
+                stack.pop_back();
+                if (!seen.insert(at).second)
+                    continue;
+                chain.push_back(at);
+                const auto it = next.find(at);
+                if (it != next.end())
+                    for (auto succ = it->second.rbegin(); succ != it->second.rend(); ++succ)
+                        stack.push_back(*succ);
             }
-            mChildren[parent] = chain.size() == kids.size() ? chain : kids;
+            for (FormId k : kids)
+                if (seen.insert(k).second)
+                    chain.push_back(k);
+            mChildren[parent] = std::move(chain);
         }
         mDirty = false;
     }
@@ -393,6 +402,13 @@ namespace game_skyrimse
 
     namespace
     {
+        std::string hexOf(FormId id)
+        {
+            char buf[16];
+            std::snprintf(buf, sizeof(buf), "%08X", id);
+            return buf;
+        }
+
         float getEventData(const survey::Ctda& c, conditions::Subject, const conditions::ConditionWorld& world)
         {
             const StoryEventSource* source = dynamic_cast<const StoryEventSource*>(&world);
@@ -465,7 +481,23 @@ namespace game_skyrimse
         if (n == nullptr)
             return false;
         ++mStats.mNodesVisited;
-        if (!n->mConditionsOk || !walk.mEvaluate(n->mConditions, mNodes.resolverOf(*n)))
+        const bool conditionsPass = n->mConditionsOk && walk.mEvaluate(n->mConditions, mNodes.resolverOf(*n));
+        if (mTrace)
+        {
+            std::string line = std::string("node ")
+                + (n->mKind == StoryNodeKind::Quest        ? "quest "
+                        : n->mKind == StoryNodeKind::Branch ? "branch "
+                                                            : "event ")
+                + hexOf(id) + " " + n->mCommon.mEditorId + (conditionsPass ? " passes" : " fails");
+            if (!conditionsPass)
+                for (const survey::Ctda& c : n->mConditions)
+                    if (!walk.mEvaluate({ c }, mNodes.resolverOf(*n)))
+                        line += " fn" + std::to_string(c.mFunction) + "(" + hexOf(c.mParam1) + "," + hexOf(c.mParam2)
+                            + " cmp " + std::to_string(static_cast<int>(c.mCompare)) + " "
+                            + std::to_string(c.mComparison) + ")";
+            mTrace(line);
+        }
+        if (!conditionsPass)
             return false;
         ++mStats.mNodesPassed;
         if (n->mKind != StoryNodeKind::Quest)
@@ -495,7 +527,14 @@ namespace game_skyrimse
             ? n->mQuestsToRun
             : mOptions.mDefaultQuestsToRun;
         std::uint32_t startedHere = 0;
-        for (FormId q : n->mQuests)
+        std::vector<FormId> order = n->mQuests;
+        if ((n->mFlags & StoryFlags::Random) != 0 && order.size() > 1) // task 0217: a quest node with the random bit
+        {
+            std::uint64_t state = (mEventCounter * 0x9E3779B97F4A7C15ull) ^ id;
+            for (std::size_t i = order.size() - 1; i > 0; --i)
+                std::swap(order[i], order[static_cast<std::size_t>(splitmix(state) % (i + 1))]);
+        }
+        for (FormId q : order)
         {
             if (startedHere >= wanted)
                 break;
@@ -507,13 +546,27 @@ namespace game_skyrimse
             if (record == nullptr || !walk.mStartable(q))
             {
                 ++mStats.mQuestsSkipped;
+                if (mTrace)
+                    mTrace("  quest " + hexOf(q) + (record != nullptr ? " " + record->mCommon.mEditorId : std::string())
+                        + " cannot start (missing, running, done or an alias does not fill)");
                 continue;
             }
             if (!record->mStartConditionsOk || !walk.mEvaluate(record->mStartConditions, mQuests.resolverOf(*record)))
             {
                 ++mStats.mQuestsSkipped;
+                if (mTrace)
+                {
+                    std::string line
+                        = "  quest " + hexOf(q) + " " + record->mCommon.mEditorId + " start conditions fail";
+                    for (const survey::Ctda& c : record->mStartConditions)
+                        if (!walk.mEvaluate({ c }, mQuests.resolverOf(*record)))
+                            line += " fn" + std::to_string(c.mFunction);
+                    mTrace(line);
+                }
                 continue;
             }
+            if (mTrace)
+                mTrace("  quest " + hexOf(q) + " " + record->mCommon.mEditorId + " starts");
             walk.mStarted.push_back(q);
             done.insert(q);
             ++mStats.mQuestsStarted;
@@ -524,10 +577,31 @@ namespace game_skyrimse
         return startedHere > 0;
     }
 
+    StoryManagerState StoryManager::saveState() const
+    {
+        StoryManagerState out;
+        out.mEventCounter = mEventCounter;
+        for (const auto& [node, quests] : mCycle)
+            if (!quests.empty())
+                out.mCycle.emplace_back(node, std::vector<FormId>(quests.begin(), quests.end()));
+        return out;
+    }
+
+    void StoryManager::restoreState(const StoryManagerState& state)
+    {
+        mEventCounter = state.mEventCounter;
+        mCycle.clear();
+        for (const auto& [node, quests] : state.mCycle)
+            mCycle[node].insert(quests.begin(), quests.end());
+    }
+
     std::vector<FormId> StoryManager::raise(const StoryEvent& event, const Evaluate& evaluate, const Startable& startable)
     {
         ++mEventCounter;
         ++mStats.mEvents;
+        if (mTrace)
+            mTrace("event " + event.mType + " L1 " + hexOf(event.mLocation1) + " L2 " + hexOf(event.mLocation2) + " R1 "
+                + hexOf(event.mRef1) + " R2 " + hexOf(event.mRef2));
         const std::vector<FormId> roots = mNodes.eventNodes(event.mType);
         if (roots.empty())
         {

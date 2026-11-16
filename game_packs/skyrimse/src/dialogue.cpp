@@ -954,6 +954,23 @@ namespace game_skyrimse
             && mLocations->hasKeyword(mSpeaker.mLocation, resolve(keyword));
     }
 
+    float SkyrimConditionWorld::keywordDataForLocation(std::uint32_t location, std::uint32_t keyword) const
+    {
+        return mKeywordData != nullptr ? mKeywordData->get(resolve(location), resolve(keyword)) : 0.f;
+    }
+
+    float SkyrimConditionWorld::keywordDataForCurrentLocation(conditions::Subject subject, std::uint32_t keyword) const
+    {
+        if (mKeywordData == nullptr)
+            return 0.f;
+        FormId at = kNullFormId;
+        if (subject == kPlayer && mStoryEvent != nullptr && mSpeaker.mBase == kNullFormId)
+            at = mStoryEvent->mLocation2 != kNullFormId ? mStoryEvent->mLocation2 : mStoryEvent->mLocation1;
+        else if (isSpeaker(subject) && mSpeaker.mLocationKnown)
+            at = mSpeaker.mLocation;
+        return at != kNullFormId ? mKeywordData->get(at, resolve(keyword)) : 0.f;
+    }
+
     bool SkyrimConditionWorld::talkedToPlayer(conditions::Subject subject) const
     {
         return mTalked && isSpeaker(subject);
@@ -1032,7 +1049,7 @@ namespace game_skyrimse
             case 77: // GetRandomPercent: answered by the seeded generator (task 0156)
                 return mRandomSeeded;
             case 84: // GetDeadCount: nobody has been killed in a fresh game
-            case 606: // GetKeywordDataForLocation: no script has stored data yet
+            case 606: // GetKeywordDataForLocation: 0 until a script stores data (task 0217: Location.SetKeywordData)
             case 314: // IsActorAVictim: no crime is under way
                 return true;
             case 131: // GetPCIsSex
@@ -1125,6 +1142,8 @@ namespace game_skyrimse
                 return true;
             case 300: // IsInInterior
                 return mSpeaker.mInterior.has_value();
+            case 651: // GetKeywordDataForCurrentLocation (task 0217)
+                return mKeywordData != nullptr && (mSpeaker.mLocationKnown || mStoryEvent != nullptr);
             case 359: // GetInCurrentLoc
             case 562: // LocationHasKeyword
                 return mLocations != nullptr

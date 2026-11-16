@@ -77,6 +77,8 @@ namespace game_skyrimse
     {
         RecordCommon mCommon;
         FormId mParent = kNullFormId; ///< PNAM
+        LString mName; ///< FULL (task 0217: the journal names a location a quest alias holds)
+        std::uint32_t mPlugin = 0; ///< the index of the plugin that gave the record (LocationIndex::add numbers them)
         std::vector<FormId> mKeywords; ///< KWDA
         std::vector<LocationCells> mCells; ///< LCEC, ACEC, RCEC (task 0211)
         std::vector<LocationSpecialRef> mSpecialRefs; ///< LCSR, ACSR
@@ -141,6 +143,7 @@ namespace game_skyrimse
     private:
         void rebuildGrids() const;
         std::unordered_map<FormId, LocationRecord> mLocations;
+        std::uint32_t mAdded = 0; ///< how many plugins were added: the next plugin's index
         mutable bool mGridsDirty = true;
         mutable std::map<std::tuple<FormId, std::int32_t, std::int32_t>, FormId> mGridOwner;
     };

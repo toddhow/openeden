@@ -584,6 +584,8 @@ namespace game_skyrimse
                 ++started;
                 ++mCounters.mStoryQuestsStarted;
                 say(false, "Papyrus: story event " + event.mType + " started quest " + hex(quest));
+                if (mStoryStarted)
+                    mStoryStarted(quest, event);
             }
             return started;
         }
@@ -777,6 +779,36 @@ namespace game_skyrimse
                     unregisterUpdate(c.self.handle);
                 return NativeResult{};
             });
+            // Task 0217: what the radiant quests' start-up scripts call (the tolerant calls of a story-started Favor,
+            // WI or bounty quest): alias timers like a form's, the location of a reference, animation events
+            // (nothing raises them here, so the registration is accepted and never fires), destruction stages (no
+            // destruction here: stage 0) and the user log (OpenUserLog opens a log file: accepted)
+            reg("Alias", "RegisterForSingleUpdate", false, [this](const NativeCall& c) {
+                if (c.self.attached)
+                    registerUpdate(c.self.handle, argNumber(c, 0), false);
+                return NativeResult{};
+            });
+            reg("Alias", "RegisterForUpdate", false, [this](const NativeCall& c) {
+                if (c.self.attached)
+                    registerUpdate(c.self.handle, argNumber(c, 0), true);
+                return NativeResult{};
+            });
+            reg("Alias", "UnregisterForUpdate", false, [this](const NativeCall& c) {
+                if (c.self.attached)
+                    unregisterUpdate(c.self.handle);
+                return NativeResult{};
+            });
+            reg("Form", "RegisterForAnimationEvent", false,
+                [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+            reg("ObjectReference", "GetCurrentDestructionStage", false,
+                [](const NativeCall&) { return result(PapyrusValue::makeInt(0)); });
+            reg("Debug", "OpenUserLog", true, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+            const auto locationOfSelf = [this](const NativeCall& c) {
+                const FormId reference = formOf(c.self);
+                return result(formValue(reference != 0 ? mData.locationOf(reference) : 0));
+            };
+            reg("ObjectReference", "GetCurrentLocation", false, locationOfSelf);
+            reg("ObjectReference", "GetEditorLocation", false, locationOfSelf);
             // ObjectReference
             const auto enable = [this](bool on) {
                 return [this, on](const NativeCall& c) {
@@ -966,12 +998,44 @@ namespace game_skyrimse
             };
             reg("ReferenceAlias", "GetReference", false, reference);
             reg("ReferenceAlias", "GetActorReference", false, reference);
+            // Task 0217: a location alias keeps its location in the fill's reference word (decision 5 of task 0211), so
+            // LocationAlias.GetLocation reads it the way GetReference does
+            reg("LocationAlias", "GetLocation", false, reference);
             reg("ReferenceAlias", "ForceRefTo", false, [this](const NativeCall& c) {
                 FormId quest = 0;
                 std::uint32_t alias = 0;
                 if (aliasOf(formOf(c.self), quest, alias))
                     mAliasForced[{ quest, alias }] = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 return NativeResult{};
+            });
+            reg("LocationAlias", "ForceLocationTo", false, [this](const NativeCall& c) {
+                FormId quest = 0;
+                std::uint32_t alias = 0;
+                if (aliasOf(formOf(c.self), quest, alias))
+                    mAliasForced[{ quest, alias }] = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                return NativeResult{};
+            });
+            reg("LocationAlias", "Clear", false, [this](const NativeCall& c) {
+                FormId quest = 0;
+                std::uint32_t alias = 0;
+                if (aliasOf(formOf(c.self), quest, alias))
+                    mAliasForced.erase({ quest, alias });
+                return NativeResult{};
+            });
+            // Task 0217: what scripts store on a location for a keyword; the story manager's conditions read it
+            //   (fn_606,
+            // fn_651). Location.SetKeywordData(akKeyword, afData) and GetKeywordData(akKeyword): RECALLED-VERIFY.
+            reg("Location", "SetKeywordData", false, [this](const NativeCall& c) {
+                if (mKeywordData != nullptr && c.arguments.size() > 1)
+                    (void)mKeywordData->set(
+                        formOf(c.self), formOf(c.arguments[0]), static_cast<float>(argNumber(c, 1)));
+                return NativeResult{};
+            });
+            reg("Location", "GetKeywordData", false, [this](const NativeCall& c) {
+                const float value = mKeywordData != nullptr && !c.arguments.empty()
+                    ? mKeywordData->get(formOf(c.self), formOf(c.arguments[0]))
+                    : 0.f;
+                return result(PapyrusValue::makeFloat(value));
             });
             reg("ReferenceAlias", "Clear", false, [this](const NativeCall& c) {
                 FormId quest = 0;
@@ -1167,6 +1231,7 @@ namespace game_skyrimse
         PapyrusHostCounters mCounters;
         LogFunction mLog;
         QuestChanged mQuestChanged;
+        StoryStarted mStoryStarted; ///< task 0217
         EnableChanged mEnableChanged;
         const QuestIndex* mIndex = nullptr;
         QuestState* mState = nullptr;
@@ -1205,6 +1270,7 @@ namespace game_skyrimse
         std::string mStringScratch;
         // ---- task 0198
         PapyrusWorldHooks* mHooks = nullptr;
+        LocationKeywordData* mKeywordData = nullptr; ///< task 0217
         std::deque<std::string> mNotes;
         std::uint64_t mNoteCount = 0;
         std::map<std::pair<FormId, std::string>, double> mAvOffsets; ///< what scripts did to an actor value
@@ -1889,6 +1955,11 @@ namespace game_skyrimse
         mImpl->mHooks = hooks;
     }
 
+    void PapyrusHost::setLocationKeywordData(LocationKeywordData* data)
+    {
+        mImpl->mKeywordData = data;
+    }
+
     void PapyrusHost::onItemMoved(FormId from, FormId to, FormId item, std::int32_t count)
     {
         Impl& m = *mImpl;
@@ -2046,6 +2117,11 @@ namespace game_skyrimse
     void PapyrusHost::setLog(LogFunction log)
     {
         mImpl->mLog = std::move(log);
+    }
+
+    void PapyrusHost::setStoryStarted(StoryStarted started)
+    {
+        mImpl->mStoryStarted = std::move(started);
     }
 
     void PapyrusHost::setQuestChanged(QuestChanged changed)

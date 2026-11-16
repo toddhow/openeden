@@ -121,6 +121,8 @@ namespace game_skyrimse
         /// Locations (LCTN) and the quest scripts' initial values (task 0156); both must outlive the runtime. Without
         /// them fn_359, fn_562 and fn_629 stay unanswered.
         void setLocations(const LocationIndex* locations) { mWorld.setLocations(locations); }
+        /// Task 0217: what scripts stored on locations (fn_606 and fn_651 in a conversation's conditions).
+        void setKeywordData(const LocationKeywordData* data) { mWorld.setKeywordData(data); }
         void setQuestVariables(const QuestVariables* variables) { mWorld.setQuestVariables(variables); }
         /// Task 0160: the placed references, the packages and where actors are in their packages (see
         /// SkyrimConditionWorld).

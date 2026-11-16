@@ -77,6 +77,7 @@ namespace game_skyrimse
             {
             }
             void setQuests(const QuestIndex* quests) { mQuests = quests; }
+            void setLocations(const LocationIndex* locations) { mLocations = locations; } // task 0217
 
             bool readPex(const std::string& lowerName, std::vector<std::uint8_t>& bytes) override
             {
@@ -93,6 +94,8 @@ namespace game_skyrimse
             {
                 if (mQuests != nullptr && mQuests->quest(form) != nullptr)
                     return "Quest";
+                if (mLocations != nullptr && mLocations->location(form) != nullptr)
+                    return "Location"; // task 0217
                 if (const PlacedRefIndex* refs = mView.placedRefs())
                     if (const PlacedEntry* entry = refs->find(form))
                         return (entry->mFlags & PlacedFlags::IsActor) != 0 ? "Actor" : "ObjectReference";
@@ -116,6 +119,15 @@ namespace game_skyrimse
                 return entry != nullptr ? entry->mBase : 0;
             }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
+            // Task 0217: the location of a placed reference (its cell's) and of the player
+            FormId locationOf(FormId reference) const override
+            {
+                if (reference == kPapyrusPlayerReference)
+                    return mView.playerLocation();
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                return entry != nullptr ? mView.locationOfCell(entry->mCell) : kNullFormId;
+            }
             // Task 0198
             FormId linkedRef(FormId reference, FormId keyword) const override
             {
@@ -146,6 +158,7 @@ namespace game_skyrimse
             const FileSource* mFiles;
             SkyrimWorldView& mView;
             const QuestIndex* mQuests = nullptr;
+            const LocationIndex* mLocations = nullptr;
         };
 
         // Task 0194: the scene runner's environment over the pack's own parts: the quest state and alias filler, the
@@ -279,6 +292,7 @@ namespace game_skyrimse
                 });
                 mHost.setQuestChanged(
                     [this](FormId quest, std::uint32_t stage) { mView.setPackageQuestStage(quest, stage); });
+                mHost.setLocationKeywordData(&mView.keywordData()); // task 0217
             }
 
             void frame(float dt)
@@ -287,6 +301,7 @@ namespace game_skyrimse
                     return;
                 flushPending();
                 applyPendingScenes(); // task 0211
+                applyPendingStory(); // task 0217
                 processPlace();
                 raiseTestEvent();
                 drainStory();
@@ -387,11 +402,31 @@ namespace game_skyrimse
                 if (!mView.papyrusAccess(access))
                     return false;
                 mData.setQuests(access.mQuests);
+                mData.setLocations(access.mLocations); // task 0217
                 mHost.setQuests(access.mQuests, access.mState, access.mVmads);
                 // Task 0187: aliases fill when a quest starts, the story manager answers events, and the script
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
                 mHost.setStoryEventSink(access.mStory);
+                if (mLogStoryFills) // task 0217: the aliases of every quest the story manager started, with their names
+                    mHost.setStoryStarted([this, access](FormId quest, const StoryEvent& event) {
+                        const QuestRecord* record = access.mQuests->quest(quest);
+                        if (record == nullptr)
+                            return;
+                        std::string line = "STORY started " + hexId(quest) + " " + record->mCommon.mEditorId + " by "
+                            + event.mType + ":";
+                        for (const QuestAlias& a : record->mAliases)
+                        {
+                            const AliasFill fill = access.mState->aliasFill(quest, a.mId);
+                            if (!fill.mKnown || fill.mReference == kNullFormId)
+                                continue;
+                            const std::string name
+                                = access.mAliasName ? access.mAliasName(quest, a.mName) : std::string();
+                            line += " " + a.mName + "=" + hexId(fill.mReference)
+                                + (name.empty() ? "" : "(" + name + ")");
+                        }
+                        say(openeden::sdk::LogLevel::Info, line);
+                    });
                 mView.setInfoFragmentSink([this](const InfoFragmentCall& call) {
                     if (call.mVmad != nullptr)
                         (void)mHost.runInfoFragments(
@@ -629,6 +664,24 @@ namespace game_skyrimse
                     "PAPYRUS story test event " + event.mType + " started " + std::to_string(started) + " quests");
             }
 
+            // Task 0217: what a save keeps of the story manager and the data scripts stored on locations. A loaded
+            // state waits until the story manager exists (the dialogue data is built on a worker) and is applied in a
+            // frame.
+            [[nodiscard]] StoryState storyState() const { return mView.storyState(); }
+            void restoreStory(StoryState state) { mLoadedStory = std::move(state); }
+            void setLogStoryFills(bool on) { mLogStoryFills = on; }
+            void applyPendingStory()
+            {
+                if (!mLoadedStory || !mView.restoreStoryState(*mLoadedStory))
+                    return;
+                say(openeden::sdk::LogLevel::Info,
+                    "STORY restored: event " + std::to_string(mLoadedStory->mManager.mEventCounter) + ", "
+                        + std::to_string(mLoadedStory->mManager.mCycle.size()) + " rotations, "
+                        + std::to_string(mLoadedStory->mRan.size()) + " ambient quests, "
+                        + std::to_string(mLoadedStory->mKeywordData.size()) + " keyword data");
+                mLoadedStory.reset();
+            }
+
             // Task 0211: what a save keeps of the scenes that play, and the load's side of it. A saved state waits for the
             // host's own restore (the chunks are read in any order) and is applied in the next frame.
             [[nodiscard]] std::vector<SceneSaveEntry> sceneState() const
@@ -773,6 +826,8 @@ namespace game_skyrimse
             std::vector<std::int32_t> mTestStages;
             double mTestEventDelay = 0.0;
             std::optional<std::vector<SceneSaveEntry>> mPendingScenes;
+            std::optional<StoryState> mLoadedStory; // task 0217
+            bool mLogStoryFills = false;
             std::deque<openeden::sdk::game::WorldId> mPendingCells;
             std::vector<openeden::sdk::game::WorldId> mPendingActivations;
         };
@@ -882,6 +937,62 @@ namespace game_skyrimse
                     return refuse("the scenes chunk is damaged: " + error);
                 if (mDriver != nullptr)
                     mDriver->restoreScenes(std::move(entries));
+                return true;
+            }
+
+        private:
+            bool refuse(const std::string& why)
+            {
+                if (mSink)
+                    mSink(why);
+                return false;
+            }
+            std::unique_ptr<PapyrusDriver>& mDriver;
+            std::function<void(const std::string&)> mSink;
+        };
+
+        // Task 0217: the story manager's state and the data scripts stored on locations, a chunk of their own (the
+        // Papyrus chunk is strict about its version and size). Written whenever the driver exists; a load hands the
+        // state to the driver, which applies it once the story manager exists.
+        class StorySaveChunk final : public openeden::sdk::SaveChunkHandler
+        {
+        public:
+            static constexpr std::uint32_t kVersion = 1;
+            static constexpr std::uint32_t kMaxBytes = 16u * 1024u * 1024u;
+
+            explicit StorySaveChunk(std::unique_ptr<PapyrusDriver>& driver)
+                : mDriver(driver)
+            {
+            }
+            void setRefusalSink(std::function<void(const std::string&)> sink) { mSink = std::move(sink); }
+
+            std::string_view chunkName() const override { return "story"; }
+            std::uint32_t chunkVersion() const override { return kVersion; }
+
+            void write(openeden::sdk::ChunkWriter& writer) override
+            {
+                const std::vector<std::uint8_t> bytes
+                    = encodeStoryState(mDriver != nullptr ? mDriver->storyState() : StoryState());
+                writer.writeValue(static_cast<std::uint32_t>(bytes.size()));
+                writer.write(bytes.data(), bytes.size());
+            }
+
+            bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override
+            {
+                if (version != kVersion)
+                    return refuse("the story chunk has version " + std::to_string(version));
+                std::uint32_t size = 0;
+                if (!reader.readValue(size) || size > kMaxBytes || size != reader.remaining())
+                    return refuse("the story chunk is damaged");
+                std::vector<std::uint8_t> bytes(size);
+                if (size != 0 && !reader.read(bytes.data(), size))
+                    return refuse("the story chunk is damaged");
+                StoryState state;
+                std::string error;
+                if (!decodeStoryState(bytes, state, error))
+                    return refuse("the story chunk is damaged: " + error);
+                if (mDriver != nullptr)
+                    mDriver->restoreStory(std::move(state));
                 return true;
             }
 
@@ -1015,6 +1126,13 @@ namespace game_skyrimse
                                 });
                                 if (!chunks->registerHandler(*mSceneChunk) && logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Warning, "the scenes chunk was not registered");
+                                mStoryChunk = std::make_unique<StorySaveChunk>(mPapyrus);
+                                mStoryChunk->setRefusalSink([logger](const std::string& reason) {
+                                    if (logger != nullptr)
+                                        logger->log(openeden::sdk::LogLevel::Error, "the load is refused: " + reason);
+                                });
+                                if (!chunks->registerHandler(*mStoryChunk) && logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Warning, "the story chunk was not registered");
                             }
                             // Task 0211: where the player stands, and a developer aid for one story event
                             mCellSource.setPlayerPlaceSink(
@@ -1024,6 +1142,15 @@ namespace game_skyrimse
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
                             driver->setTestQuests(settings->getString(kPackId, "story test quest", ""),
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
+                            // Task 0217: a developer's trace of every node and quest the story manager's walk tries
+                            if (settings->getBool(kPackId, "story trace", false))
+                            {
+                                driver->setLogStoryFills(true);
+                                mWorldView.setStoryTrace([logger](const std::string& line) {
+                                    if (logger != nullptr)
+                                        logger->log(openeden::sdk::LogLevel::Info, "STORY " + line);
+                                });
+                            }
                             mCellSource.setScriptSinks(
                                 [driver](openeden::sdk::game::WorldId cell) { driver->cellBuilt(cell); },
                                 [driver](openeden::sdk::game::WorldId reference) { driver->activated(reference); });
@@ -1282,6 +1409,7 @@ namespace game_skyrimse
                     out.mQuests = access.mQuests;
                     out.mState = access.mState;
                     out.mText = access.mText;
+                    out.mAliasName = access.mAliasName; // task 0217
                     if (testQuests > 0 && !testQuestsApplied)
                     {
                         // a developer aid: a fresh session has no quest with a log text (the start-up stages have none)
@@ -2772,6 +2900,7 @@ namespace game_skyrimse
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; refers to mPapyrus
             std::unique_ptr<SceneSaveChunk> mSceneChunk; // task 0211; refers to mPapyrus
+            std::unique_ptr<StorySaveChunk> mStoryChunk; // task 0217; refers to mPapyrus
             std::unique_ptr<PapyrusNotificationBindings> mPapyrusBindings; // task 0198
             std::unique_ptr<PackWorldHooks> mPapyrusHooks; // task 0198; last: the host and the model refer to it
         };

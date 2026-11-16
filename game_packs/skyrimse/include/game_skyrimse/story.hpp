@@ -5,26 +5,31 @@
 // manager's nodes (SMBN branch, SMQN quest, SMEN event), merge a load order, and walk the tree when an event is raised,
 // which says which quests start. Pure: no engine, Papyrus, renderer or Qt type; the caller starts the quests.
 //
-// Layout, VERIFIED on Skyrim.esm (571 nodes: SMEN 24, SMBN 99, SMQN 448; aggregates by tools of the task):
-//  - every node: EDID (optional), PNAM u32 parent node, SNAM u32 sibling, CITC u32 condition count, CTDA..., DNAM u32,
-//    XNAM u32. SMEN adds ENAM (four characters, the event: 24 distinct, CLOC, SCPT, LEVL, KILL, ADIA ...). SMQN adds QNAM
-//    u32 (the quest count), NNAM u32 per quest, optional RNAM f32 per quest (hours until reset), MNAM u32 (number of
-//    quests to run; only with the 0x40000 DNAM bit, 17 nodes) and FNAM (7 nodes, not read).
-//  - the 24 event nodes (SMEN) have the story manager's root (0x5B, a branch whose own parent is 0) as parent; every other
-//    node's parent is a node of the file.
-//  - SNAM names the PREVIOUS sibling: the children of one parent form a chain, the first has SNAM 0 (RECALLED-VERIFY: of
-//    the two readings, only this one puts "WEPriorityQuests" and "WESpecificQuestsNode" before the general "WEQuests"
-//    in Skyrim.esm's own world event node). The decoder orders children by that chain; a broken chain falls back to
-//    form id order.
-//  - DNAM low bits (RECALLED-VERIFY, names from the Creation Kit's node dialog): SMBN and SMEN bit 0 "random order";
-//    SMQN bit 0 "do all quests before repeating", bit 1 "shares the event" (the walk goes on after this node starts a
-//    quest). Bit 18 (0x40000) says MNAM is the number of quests to run. Bits 16 and 17 occur and are not read.
-//  - A condition of a node and a quest's own start conditions (QuestRecord::mStartConditions) may use fn_576
-//    GetEventData(function, member, form): param 1 is two 16 bit halves, the low half the function and the high half two
-//    characters naming the member (K1 the keyword the event was sent on, L1 the location or the old location, L2 the new
-//    location, R1 and R2 the references, V1 and V2 the numbers; VERIFIED: 36 of 36 distinct member codes in the data
-//    read this way). Function 0 "the member is this form", 2 "the number of the member", 3 "the member's location has this
-//    keyword" are the only ones that occur in the nodes; others answer 0.
+// Layout, VERIFIED on Skyrim.esm (571 nodes: SMEN 24, SMBN 99, SMQN 448; aggregates by tools of the task): - every
+// node: EDID (optional), PNAM u32 parent node, SNAM u32 sibling, CITC u32 condition count, CTDA..., DNAM u32, XNAM u32.
+// SMEN adds ENAM (four characters, the event: 24 distinct, CLOC, SCPT, LEVL, KILL, ADIA ...). SMQN adds QNAM u32 (the
+// quest count), NNAM u32 per quest, optional RNAM f32 per quest (hours until reset), MNAM u32 (number of quests to run;
+// only with the 0x40000 DNAM bit, 17 nodes) and FNAM (7 nodes, not read). - the 24 event nodes (SMEN) have the story
+// manager's root (0x5B, a branch whose own parent is 0) as parent; every other node's parent is a node of the file. -
+// DNAM is two 16 bit halves (task 0217; xEdit's wbDefinitionsTES5 has "Node Flags" u16 then "Quest Flags" u16): low
+// half bit 0 "random" (children of a branch or event node, the quests of a quest node), bit 1 "warn if no child quest
+// started" (the Creation Kit's own warning, not read); high half bit 0 (0x10000) "do all quests before repeating", bit
+// 1 (0x20000) "shares event" (the walk goes on after this node starts a quest), bit 2 (0x40000) MNAM is the number of
+// quests to run. VERIFIED by the data on the five masters (tools of task 0217): every quest node whose editor id says
+// "shares" (27) has 0x20000 and no node outside the high half does; 0x40000 is set on exactly the 18 nodes that have an
+// MNAM; 0x1 is set on 77 quest nodes that name several quests (the radiant BQ and WIChangeLocation nodes are 0x30001).
+// Before this task the pack read "shares event" from 0x2 and "do all" from 0x1, so no node ever shared the event and
+// the walk ended at the first quest. - SNAM names the PREVIOUS sibling; with a load order the chains of several plugins
+// meet: at one event node the five masters give two heads (a node with SNAM 0 from Skyrim.esm and one from Dragonborn)
+// and one fork (two nodes name CWGarrisonNode). The children are listed as a forest in pre-order: heads ascending by
+// form id (the master's chain first), at a fork the lower form id first. RECALLED-VERIFY (the engine's own order is not
+// known); a chain that reaches no head (a cycle) is appended in form id order. - A condition of a node and a quest's
+// own start conditions (QuestRecord::mStartConditions) may use fn_576 GetEventData(function, member, form): param 1 is
+// two 16 bit halves, the low half the function and the high half two characters naming the member (K1 the keyword the
+// event was sent on, L1 the location or the old location, L2 the new location, R1 and R2 the references, V1 and V2 the
+// numbers; VERIFIED: 36 of 36 distinct member codes in the data read this way). Function 0 "the member is this form", 2
+// "the number of the member", 3 "the member's location has this keyword" are the only ones that occur in the nodes;
+// others answer 0.
 //
 // The walk (RECALLED-VERIFY, not settled by the data; every rule is a named option of `StoryManager`):
 //  - the event node of the event type is the root; children are tried in sibling order (random order for a node with
@@ -38,6 +43,7 @@
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/story_state.hpp>
 
 #include <components/contentsource/plugin.hpp>
 
@@ -54,9 +60,12 @@ namespace game_skyrimse
 {
     namespace StoryFlags
     {
-        inline constexpr std::uint32_t Random = 0x1; ///< SMBN, SMEN: children in random order
-        inline constexpr std::uint32_t DoAllBeforeRepeating = 0x1; ///< SMQN
-        inline constexpr std::uint32_t SharesEvent = 0x2; ///< SMQN
+        // Task 0217: DNAM is two 16 bit halves (xEdit's node flags and quest flags; VERIFIED on the five masters, see
+        // the header). Before, Shares event was read from 0x2 and "do all" from 0x1, so no node ever shared the event.
+        inline constexpr std::uint32_t Random = 0x1; ///< any node: children (or a quest node's quests) in random order
+        inline constexpr std::uint32_t WarnIfNoChildStarted = 0x2; ///< any node (CK warning only, not read)
+        inline constexpr std::uint32_t DoAllBeforeRepeating = 0x10000; ///< SMQN
+        inline constexpr std::uint32_t SharesEvent = 0x20000; ///< SMQN
         inline constexpr std::uint32_t NumQuestsToRun = 0x40000; ///< SMQN: MNAM holds the number
     }
 
@@ -214,6 +223,17 @@ namespace game_skyrimse
 
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
+        /// Task 0217: what a save keeps (the event counter and the rotation of "do all before repeating"), and its
+        // load.
+        /// The statistics are not saved.
+        [[nodiscard]] StoryManagerState saveState() const;
+        void restoreState(const StoryManagerState& state);
+
+        /// Task 0217: one line per node visited and per quest tried by a walk (for a developer's log; null: none, the
+        /// default). A failed condition list is re-evaluated one condition at a time to name the functions that fail.
+        using Trace = std::function<void(const std::string&)>;
+        void setTrace(Trace trace) { mTrace = std::move(trace); }
+
     private:
         struct Walk;
         bool visit(FormId node, Walk& walk);
@@ -224,6 +244,7 @@ namespace game_skyrimse
         Stats mStats;
         std::uint64_t mEventCounter = 0;
         std::map<FormId, std::set<FormId>> mCycle; ///< node -> quests it started in the current cycle
+        Trace mTrace;
     };
 }
 

@@ -944,6 +944,7 @@ namespace game_skyrimse
                 raw->mRuntime->setGoldSource(mGoldSource); // task 0184
             // Task 0156: locations, and the quest scripts' values before any script ran (the .pex through the VFS).
             raw->mRuntime->setLocations(&raw->mData->mLocations);
+            raw->mRuntime->setKeywordData(&mKeywordData); // task 0217
             if (mFiles != nullptr)
             {
                 const FileSource* files = mFiles;
@@ -997,6 +998,7 @@ namespace game_skyrimse
             SkyrimConditionWorld* world = raw->mQuestWorld.get();
             world->setQuests(&raw->mData->mQuests, &raw->mRuntime->questsMutable());
             world->setLocations(&raw->mData->mLocations);
+            world->setKeywordData(&mKeywordData); // task 0217
             world->setPlacedRefs(&raw->mData->mPlacedRefs);
             world->setQuestVariables(raw->mQuestVariables.get());
             static const std::vector<conditions::ExtraFunction> extras = [] {
@@ -1060,6 +1062,8 @@ namespace game_skyrimse
                 raw->mAliasFiller->setEnvironment(std::move(env));
             }
             raw->mStoryManager = std::make_unique<StoryManager>(raw->mData->mStory, raw->mData->mQuests);
+            raw->mStoryManager->setTrace(mStoryTrace); // task 0217
+            raw->mAliasFiller->setTrace(mStoryTrace);
         }
         mDialogue = std::move(state);
         return true;
@@ -1563,6 +1567,39 @@ namespace game_skyrimse
         return true;
     }
 
+    void SkyrimWorldView::setStoryTrace(StoryManager::Trace trace)
+    {
+        mStoryTrace = std::move(trace);
+        if (mDialogue != nullptr && mDialogue->mAliasFiller != nullptr)
+            mDialogue->mAliasFiller->setTrace(mStoryTrace);
+        if (mDialogue != nullptr && mDialogue->mStoryManager != nullptr)
+            mDialogue->mStoryManager->setTrace(mStoryTrace);
+    }
+
+    StoryState SkyrimWorldView::storyState() const
+    {
+        StoryState out;
+        if (mDialogue != nullptr && mDialogue->mStoryManager != nullptr)
+        {
+            out.mManager = mDialogue->mStoryManager->saveState();
+            out.mRan.assign(mDialogue->mStoryRan.begin(), mDialogue->mStoryRan.end());
+        }
+        out.mKeywordData = mKeywordData.entries();
+        return out;
+    }
+
+    bool SkyrimWorldView::restoreStoryState(const StoryState& state)
+    {
+        if (mDialogue == nullptr || mDialogue->mStoryManager == nullptr)
+            return false;
+        mDialogue->mStoryManager->restoreState(state.mManager);
+        mDialogue->mStoryRan = std::set<FormId>(state.mRan.begin(), state.mRan.end());
+        mKeywordData.clear();
+        for (const auto& [location, keyword, value] : state.mKeywordData)
+            (void)mKeywordData.set(location, keyword, value);
+        return true;
+    }
+
     bool SkyrimWorldView::papyrusAccess(PapyrusAccess& out)
     {
         if (!ready() || mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr)
@@ -1576,10 +1613,52 @@ namespace game_skyrimse
         out.mAliases = state->mAliasFiller.get();
         // Task 0194: scenes
         out.mScenes = &data->mScenes;
+        out.mLocations = &data->mLocations; // task 0217
         out.mPackage = [data](FormId id) { return data->mPackages.package(id); };
         out.mBaseOf = [data](FormId reference) {
             const PlacedEntry* entry = data->mPlacedRefs.find(reference);
             return entry != nullptr ? entry->mBase : kNullFormId;
+        };
+        // Task 0217: the journal names what an alias holds
+        out.mAliasName = [this, data, state](FormId quest, std::string_view aliasName) -> std::string {
+            const QuestRecord* record = data->mQuests.quest(quest);
+            if (record == nullptr || state->mRuntime == nullptr)
+                return {};
+            const QuestAlias* alias = nullptr;
+            for (const QuestAlias& a : record->mAliases)
+            {
+                if (a.mName.size() != aliasName.size())
+                    continue;
+                bool same = true;
+                for (std::size_t i = 0; i < aliasName.size() && same; ++i)
+                    same = std::tolower(static_cast<unsigned char>(a.mName[i]))
+                        == std::tolower(static_cast<unsigned char>(aliasName[i]));
+                if (same)
+                {
+                    alias = &a;
+                    break;
+                }
+            }
+            if (alias == nullptr)
+                return {};
+            const AliasFill fill = state->mRuntime->quests().aliasFill(quest, alias->mId);
+            if (!fill.mKnown)
+                return {};
+            if (alias->mIsLocation)
+            {
+                const LocationRecord* location = data->mLocations.location(fill.mReference);
+                return location != nullptr && state->mResolver
+                    ? state->mResolver(location->mName, location->mPlugin, StringTableKind::Strings)
+                    : std::string();
+            }
+            FormId base = fill.mActor;
+            if (fill.mReference != kNullFormId)
+            {
+                const PlacedEntry* entry = data->mPlacedRefs.find(fill.mReference);
+                if (entry != nullptr)
+                    base = entry->mBase;
+            }
+            return base != kNullFormId ? displayNameOf(static_cast<sdkgame::WorldId>(base)) : std::string();
         };
         out.mSetSceneLookup = [state](std::function<bool(FormId, std::uint32_t)> lookup) {
             state->mQuestWorld->setSceneActionLookup(std::move(lookup));
@@ -1618,10 +1697,14 @@ namespace game_skyrimse
             std::vector<FormId> chosen = state->mStoryManager->raise(
                 event,
                 [state, world](const std::vector<survey::Ctda>& list, const FormIdResolver& resolver) {
+                    // Task 0217: the alias filler's dry run (the quest start gate below) leaves a candidate speaker and
+                    // subject location in this world; the story manager's subject is the player
+                    world->setSpeaker(DialogueSpeaker());
+                    world->setSubjectLocation(kNullFormId);
                     world->setPlugin(&resolver);
                     return state->mQuestEvaluator.evaluate(list, *world);
                 },
-                [&quests, state, &event](FormId quest) {
+                [&quests, state, world, &event](FormId quest) {
                     if (!quests.exists(quest) || quests.running(quest) || quests.completed(quest))
                         return false;
                     // Task 0194: an ambient (ADIA) quest runs once a session (the hours until reset, RNAM, are not
@@ -1630,7 +1713,13 @@ namespace game_skyrimse
                         return false;
                     // Task 0211: for every event, a quest starts only when its required aliases of an answered kind fill
                     // (the event members, a find-matching reference or location, a reference in a location)
-                    return state->mAliasFiller->canStart(quest, quests, &event);
+                    // Task 0217: the dry run of the alias filler evaluates conditions on candidates and so clears the
+                    // world's event; without putting it back every node after the first quest tried saw no event (all
+                    // the fn_576 conditions failed) and the walk could never go past it.
+                    const StoryEvent* const walking = world->currentStoryEvent();
+                    const bool fills = state->mAliasFiller->canStart(quest, quests, &event);
+                    world->setStoryEvent(walking);
+                    return fills;
                 });
             if (event.mType == "ADIA")
                 for (const FormId quest : chosen)

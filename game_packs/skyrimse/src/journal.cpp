@@ -69,6 +69,11 @@ namespace game_skyrimse::journal
 
     std::string expandTags(std::string_view text)
     {
+        return expandTags(text, AliasNameResolver());
+    }
+
+    std::string expandTags(std::string_view text, const AliasNameResolver& aliasName)
+    {
         constexpr std::size_t kMaxTag = 64;
         const auto startsWith = [](std::string_view s, std::string_view prefix) {
             if (s.size() < prefix.size())
@@ -98,7 +103,16 @@ namespace game_skyrimse::journal
             const std::size_t equals = tag.find('=');
             if (equals != std::string_view::npos
                 && (startsWith(tag, "Alias=") || startsWith(tag, "Alias.ShortName=") || startsWith(tag, "Alias.Name=")))
-                out.append(tag.substr(equals + 1));
+            {
+                const std::string_view name = tag.substr(equals + 1);
+                if (!aliasName)
+                    out.append(name);
+                else
+                {
+                    const std::string shown = aliasName(name);
+                    out.append(shown.empty() ? std::string("...") : shown);
+                }
+            }
             else
                 out += "...";
             i = end;
@@ -110,7 +124,8 @@ namespace game_skyrimse::journal
     {
         // A localised string is looked up in the table the record kind expects and then in the other two (the layout of
         // which QUST text is in which table is from xEdit, RECALLED-VERIFY; the data decides at run time).
-        std::string resolveText(const Inputs& in, const LString& text, std::uint32_t plugin, StringTableKind kind)
+        std::string resolveText(
+            const Inputs& in, FormId quest, const LString& text, std::uint32_t plugin, StringTableKind kind)
         {
             if (!text.mPresent)
                 return {};
@@ -130,7 +145,11 @@ namespace game_skyrimse::journal
                         result = in.mText(text, plugin, order[i]);
                 }
             }
-            result = expandTags(result);
+            if (in.mAliasName)
+                result = expandTags(
+                    result, [&in, quest](std::string_view alias) { return in.mAliasName(quest, alias); });
+            else
+                result = expandTags(result);
             if (result.size() > kMaxTextBytes)
                 result.resize(kMaxTextBytes);
             return result;
@@ -188,7 +207,8 @@ namespace game_skyrimse::journal
             ++out.mActive;
             QuestView view;
             view.mQuest = id;
-            view.mName = resolveText(in, record->mName, record->mPlugin, StringTableKind::Strings);
+            view.mName
+                = resolveText(in, record->mCommon.mId, record->mName, record->mPlugin, StringTableKind::Strings);
             if (view.mName.empty())
             {
                 ++out.mNoName;
@@ -212,7 +232,8 @@ namespace game_skyrimse::journal
                 std::string text;
                 for (const QuestLogEntry& e : s->mEntries)
                 {
-                    text = resolveText(in, e.mText, record->mPlugin, StringTableKind::DlStrings);
+                    text = resolveText(
+                        in, record->mCommon.mId, e.mText, record->mPlugin, StringTableKind::DlStrings);
                     if (!text.empty())
                         break;
                 }
@@ -242,7 +263,8 @@ namespace game_skyrimse::journal
                     const ObjectiveFlags flags = in.mObjective(id, o->mIndex);
                     if (!flags.mDisplayed)
                         continue;
-                    std::string text = resolveText(in, o->mText, record->mPlugin, StringTableKind::DlStrings);
+                    std::string text = resolveText(
+                        in, record->mCommon.mId, o->mText, record->mPlugin, StringTableKind::DlStrings);
                     if (text.empty())
                         continue;
                     view.mObjectives.push_back({ o->mIndex, std::move(text), flags.mCompleted });
@@ -279,7 +301,8 @@ namespace game_skyrimse::journal
                 break;
             const QuestRecord* record = index.quest(id);
             if (record == nullptr || !state.exists(id)
-                || resolveText(in, record->mName, record->mPlugin, StringTableKind::Strings).empty())
+                || resolveText(in, record->mCommon.mId, record->mName, record->mPlugin, StringTableKind::Strings)
+                       .empty())
                 continue;
             std::vector<const QuestStage*> stages;
             for (const QuestStage& s : record->mStages)
@@ -292,7 +315,10 @@ namespace game_skyrimse::journal
             {
                 bool hasText = false;
                 for (const QuestLogEntry& e : s->mEntries)
-                    hasText = hasText || !resolveText(in, e.mText, record->mPlugin, StringTableKind::DlStrings).empty();
+                    hasText = hasText
+                        || !resolveText(
+                               in, record->mCommon.mId, e.mText, record->mPlugin, StringTableKind::DlStrings)
+                                .empty();
                 if (!hasText || s->failsQuest() || s->completesQuest() != wantCompleted)
                     continue;
                 pick = s;
@@ -400,6 +426,7 @@ namespace game_skyrimse::journal
             in.mState = mAccess.mState;
             in.mText = mAccess.mText;
             in.mObjective = mHooks.mObjective;
+            in.mAliasName = mAccess.mAliasName;
             mSnapshot.mRevision = now;
             build(in, mSnapshot);
             mBuilt = true;

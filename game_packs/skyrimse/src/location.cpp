@@ -103,6 +103,28 @@ namespace game_skyrimse
                                 b, nul != nullptr ? static_cast<const char*>(nul) : b + sub.mData.size());
                             break;
                         }
+                        case Content::fourCC("FULL"):
+                            // a 4 byte id into the string tables in a localised plugin, else the text (task 0217)
+                            if (mPlugin.header().isLocalized())
+                            {
+                                if (sub.mData.size() != 4)
+                                {
+                                    ++mOut.mOddSubrecords;
+                                    break;
+                                }
+                                loc.mName.mPresent = true;
+                                loc.mName.mLocalized = true;
+                                loc.mName.mId = le32(sub.mData.data());
+                            }
+                            else
+                            {
+                                const char* b = reinterpret_cast<const char*>(sub.mData.data());
+                                const void* nul = sub.mData.empty() ? nullptr : std::memchr(b, 0, sub.mData.size());
+                                loc.mName.mPresent = true;
+                                loc.mName.mText.assign(
+                                    b, nul != nullptr ? static_cast<const char*>(nul) : b + sub.mData.size());
+                            }
+                            break;
                         case Content::fourCC("PNAM"):
                             if (sub.mData.size() != 4)
                                 ++mOut.mOddSubrecords;
@@ -285,8 +307,10 @@ namespace game_skyrimse
 
     void LocationIndex::add(LocationRecords records)
     {
+        const std::uint32_t plugin = mAdded++;
         for (LocationRecord& l : records.mLocations)
         {
+            l.mPlugin = plugin;
             if (l.mCommon.mId == kNullFormId || l.mCommon.mId == kUnresolvedFormId)
                 continue;
             if (l.mCommon.deleted())

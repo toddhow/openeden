@@ -629,6 +629,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseradiantreal.cpp
     skyrimse/testskyrimseradiantsurvey.cpp
     skyrimse/testskyrimsestoryevents.cpp
+    skyrimse/testskyrimseradiant2.cpp
     skyrimse/testskyrimsescenesave.cpp
     skyrimse/testskyrimsescenes.cpp
     skyrimse/testskyrimseconditionstate.cpp
@@ -743,6 +744,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story_events.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story_state.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/location_conditions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scene.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scene_runner.cpp

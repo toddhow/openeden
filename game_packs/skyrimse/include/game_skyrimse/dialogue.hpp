@@ -287,6 +287,7 @@ namespace game_skyrimse
     /// A stored id the load order cannot resolve matches nothing. NOT thread safe (it holds the current plugin).
     class LocationIndex;
     class QuestVariables;
+    class LocationKeywordData;
     class PlacedRefIndex;
     class PackageIndex;
 
@@ -351,6 +352,9 @@ namespace game_skyrimse
         void setLocations(const LocationIndex* locations) { mLocations = locations; }
         /// The quest scripts' values before any script ran (fn_629). Null: unanswered.
         void setQuestVariables(const QuestVariables* variables) { mQuestVariables = variables; }
+        /// Task 0217: what scripts stored on locations (Location.SetKeywordData); with it fn_606 and fn_651 read it,
+        /// else they answer 0 as before.
+        void setKeywordData(const LocationKeywordData* data) { mKeywordData = data; }
 
         // ---- task 0160: other references, relationships, positions and the current package.
         /// Every placed reference of the load order (placed_refs.hpp). With it, a condition run on another reference
@@ -435,6 +439,8 @@ namespace game_skyrimse
         bool inInterior(conditions::Subject subject) const override;
         bool inLocation(conditions::Subject subject, std::uint32_t location) const override;
         bool locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const override;
+        float keywordDataForLocation(std::uint32_t location, std::uint32_t keyword) const override;
+        float keywordDataForCurrentLocation(conditions::Subject subject, std::uint32_t keyword) const override;
         bool talkedToPlayer(conditions::Subject subject) const override;
         float actorValuePercent(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float questVariable(std::uint32_t quest, const std::string& name) const override;
@@ -520,6 +526,7 @@ namespace game_skyrimse
         mutable std::uint64_t mRandomState = 0;
         const LocationIndex* mLocations = nullptr;
         const QuestVariables* mQuestVariables = nullptr;
+        const LocationKeywordData* mKeywordData = nullptr;
         const PlacedRefIndex* mPlacedRefs = nullptr;
         const PackageIndex* mPackages = nullptr;
         CurrentPackageLookup mCurrentPackage;
