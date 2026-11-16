@@ -13,7 +13,13 @@
 -- `project(x, y, z)`, which returns where a world point is on the screen as fractions of its size, or nil when it is
 -- behind the camera or off the screen.
 --
--- No clip masks, filters or gradients (our RmlUi renderer has none, decision 0015): a frame is nested boxes. Every
+-- Frame art (task 0252): when `env.hasArt()` says the picture files exist (textures/openeden/hud/, made by
+-- tools/hudart/generate.py) the frames, fills and the emblem are drawn with RCSS decorators over those pictures: a bar
+-- frame is a horizontal three-slice (`tiled-horizontal`: a pointed left cap, a centre that repeats, a pointed right
+-- cap), a fill is an `image` gradient strip, the emblem is one `image`. Without them (or without `env.hasArt`) the
+-- plain boxes below are drawn exactly as before.
+--
+-- No clip masks, filters or gradients (our RmlUi renderer has none, decision 0015): the plain frame is nested boxes. Every
 -- time and size below is ours and named. A frame in which nothing visible changed makes no protocol call: widths are
 -- whole pixels and positions whole pixels.
 local M = {}
@@ -35,6 +41,39 @@ M.ACTOR_ABOVE = 26 -- pixels between the point and the top of the bar's name lin
 -- (a share of the whole bar a second)
 M.TRAIL_DELAY = 0.5
 M.TRAIL_RATE = 0.4
+-- the art (tools/hudart/generate.py draws it with the same numbers): a frame is `bar height + 2 * ART_INSET` high and
+-- its pointed end caps are ART_CAP wide (the plain frame's caps are CAP)
+M.ART_CAP = 10
+M.ART_INSET = 4
+M.ART_EMBLEM = 48
+M.ART_DIR = '/textures/openeden/hud/'
+M.ART_FRAME_HEIGHTS = { 24, 20, 22, 14, 11 }
+M.ART_FILLS = { 'red', 'blue', 'green', 'trail' }
+
+-- the decorator strings (RCSS) of the art; the path starts with / so RmlUi does not join it to the document's
+function M.frameDecorator(height)
+  local base = M.ART_DIR .. 'frame_h' .. height
+  return string.format('tiled-horizontal(%s_l.png, %s_c.png, %s_r.png)', base, base, base)
+end
+
+function M.fillDecorator(name)
+  return string.format('image(%sfill_%s.png)', M.ART_DIR, name)
+end
+
+function M.emblemDecorator()
+  return string.format('image(%semblem.png)', M.ART_DIR)
+end
+
+-- every picture the art needs, as paths without the leading slash (what a VFS lookup takes)
+function M.artFiles()
+  local dir = M.ART_DIR:sub(2)
+  local files = { dir .. 'emblem.png' }
+  for _, h in ipairs(M.ART_FRAME_HEIGHTS) do
+    for _, part in ipairs({ 'l', 'c', 'r' }) do files[#files + 1] = string.format('%sframe_h%d_%s.png', dir, h, part) end
+  end
+  for _, f in ipairs(M.ART_FILLS) do files[#files + 1] = string.format('%sfill_%s.png', dir, f) end
+  return files
+end
 
 local FRAME = 'rgb(168, 154, 120)'
 local BACKING = 'rgba(0, 0, 0, 150)' -- alpha is 0 to 255 in RmlUi
@@ -92,6 +131,8 @@ end
 
 function M.create(ui, style, env)
   local self = { built = false, docs = {} }
+  -- decided when the documents are built: whether the frame art is drawn and how wide a frame's end caps are
+  local art, cap = false, M.CAP
 
   -- reactive state: strings and booleans only, so an unchanged frame sets nothing
   local kinds = { 'health', 'magicka', 'stamina' }
@@ -114,15 +155,34 @@ function M.create(ui, style, env)
       fill = ui.Value('0px'), trail = ui.Value('0px'), colour = ui.Value(COLOURS.foe),
       magickaShown = ui.Value(false), staminaShown = ui.Value(false),
       magickaFill = ui.Value('0px'), staminaFill = ui.Value('0px'),
+      fillArt = ui.Value(M.fillDecorator('red')),
       id = nil, trailState = nil,
     }
   end
   local ptrails = {}
   local bossTrailState
 
-  -- a framed bar: dark backing, a pale trail, the fill, an edge above and below and a cap at each end
+  -- a framed bar. Plain: dark backing, a pale trail, the fill, an edge above and below and a cap at each end. Art: one
+  -- three-slice frame picture (backing, border and pointed caps in one), then the trail and the fill as gradient strips
+  -- (`o.fillArt` is a decorator string or a Value of one)
   local function framedBar(o)
-    local w, h, cap = o.width, o.height, M.CAP
+    local w, h = o.width, o.height
+    if art then
+      local total = h + 2 * M.ART_INSET
+      return ui.Stack{
+        class = o.class, visible = o.visible,
+        style = { width = w + 2 * cap, height = total, ['margin-top'] = o.gap or 0 },
+        ui.Frame{ class = 'style-art-frame',
+          style = { position = 'absolute', left = 0, top = 0, width = w + 2 * cap, height = total,
+            decorator = M.frameDecorator(total) } },
+        ui.Frame{ class = o.trailClass,
+          style = { position = 'absolute', left = cap, top = M.ART_INSET, width = o.trail, height = h,
+            decorator = M.fillDecorator('trail') } },
+        ui.Frame{ class = o.fillClass,
+          style = { position = 'absolute', left = cap, top = M.ART_INSET, width = o.fill, height = h,
+            decorator = o.fillArt } },
+      }
+    end
     local function edge(y)
       return ui.Frame{ class = 'style-edge',
         style = { position = 'absolute', left = cap, top = y, width = w, height = 2, ['background-color'] = FRAME } }
@@ -147,6 +207,8 @@ function M.create(ui, style, env)
 
   local function build()
     self.built = true
+    art = type(env.hasArt) == 'function' and env.hasArt() == true
+    cap = art and M.ART_CAP or M.CAP
     self.docs[#self.docs + 1] = ui.Hud{
       name = 'style-player',
       style = { position = 'absolute', left = 24, bottom = 24 },
@@ -157,23 +219,26 @@ function M.create(ui, style, env)
             class = 'style-bar style-bar-' .. k, visible = pshown[k],
             width = M.PLAYER_WIDTH, height = k == 'health' and M.PLAYER_HEIGHT or M.PLAYER_SMALL_HEIGHT, gap = 2,
             fill = pfill[k], trail = ptrail[k], colour = COLOURS[k],
+            fillArt = M.fillDecorator(k == 'health' and 'red' or k == 'magicka' and 'blue' or 'green'),
             fillClass = 'style-fill style-fill-' .. k, trailClass = 'style-trail style-trail-' .. k }
         end
         return ui.Row{
           style = { ['align-items'] = 'flex-end' },
           -- the emblem: a framed square with the level in it
           ui.Stack{ class = 'style-emblem',
-            style = { width = 44, height = 44, ['margin-right'] = 8, ['border-width'] = 2, ['border-color'] = FRAME,
-              ['background-color'] = BACKING },
+            style = art and { width = M.ART_EMBLEM, height = M.ART_EMBLEM, ['margin-right'] = 8,
+                decorator = M.emblemDecorator() }
+              or { width = 44, height = 44, ['margin-right'] = 8, ['border-width'] = 2, ['border-color'] = FRAME,
+                ['background-color'] = BACKING },
             ui.Text{ class = 'style-emblem-level', text = level,
-              style = { ['text-align'] = 'center', ['margin-top'] = 12 } } },
+              style = { ['text-align'] = 'center', ['margin-top'] = art and 14 or 12 } } },
           ui.Column(bars),
         }
       end }
     self.docs[#self.docs + 1] = ui.Hud{
       name = 'style-boss',
-      style = { position = 'absolute', left = '50%', top = M.BOSS_TOP, width = M.BOSS_WIDTH + 2 * M.CAP,
-        ['margin-left'] = -math.floor(M.BOSS_WIDTH / 2) - M.CAP },
+      style = { position = 'absolute', left = '50%', top = M.BOSS_TOP, width = M.BOSS_WIDTH + 2 * cap,
+        ['margin-left'] = -math.floor(M.BOSS_WIDTH / 2) - cap },
       build = function()
         return ui.Column{
           class = ui.Computed(function()
@@ -186,7 +251,7 @@ function M.create(ui, style, env)
             ui.Text{ class = 'style-boss-level', text = bossLevel },
           },
           framedBar{ class = 'style-bar-boss', width = M.BOSS_WIDTH, height = M.BOSS_HEIGHT,
-            fill = bossFill, trail = bossTrail, colour = COLOURS.boss,
+            fill = bossFill, trail = bossTrail, colour = COLOURS.boss, fillArt = M.fillDecorator('red'),
             fillClass = 'style-fill style-fill-boss', trailClass = 'style-trail style-trail-boss' },
         }
       end }
@@ -194,7 +259,7 @@ function M.create(ui, style, env)
       local s = slots[i]
       self.docs[#self.docs + 1] = ui.Hud{
         name = 'style-actor-' .. i,
-        style = { position = 'absolute', left = s.left, top = s.top, width = M.ACTOR_WIDTH + 2 * M.CAP },
+        style = { position = 'absolute', left = s.left, top = s.top, width = M.ACTOR_WIDTH + 2 * cap },
         build = function()
           return ui.Column{
             class = 'style-actor-box style-actor-box-' .. i, visible = s.shown,
@@ -203,14 +268,14 @@ function M.create(ui, style, env)
               ui.Text{ class = 'style-actor-level-' .. i, text = s.level },
             },
             framedBar{ class = 'style-actor-bar', width = M.ACTOR_WIDTH, height = M.ACTOR_HEIGHT,
-              fill = s.fill, trail = s.trail, colour = s.colour,
+              fill = s.fill, trail = s.trail, colour = s.colour, fillArt = s.fillArt,
               fillClass = 'style-fill style-actor-fill-' .. i, trailClass = 'style-trail style-actor-trail-' .. i },
             framedBar{ class = 'style-actor-magicka-' .. i, visible = s.magickaShown, gap = 1,
               width = M.ACTOR_WIDTH, height = M.ACTOR_SMALL_HEIGHT, fill = s.magickaFill, trail = ui.Value('0px'),
-              colour = COLOURS.magicka, fillClass = 'style-fill', trailClass = 'style-trail' },
+              colour = COLOURS.magicka, fillArt = M.fillDecorator('blue'), fillClass = 'style-fill', trailClass = 'style-trail' },
             framedBar{ class = 'style-actor-stamina-' .. i, visible = s.staminaShown, gap = 1,
               width = M.ACTOR_WIDTH, height = M.ACTOR_SMALL_HEIGHT, fill = s.staminaFill, trail = ui.Value('0px'),
-              colour = COLOURS.stamina, fillClass = 'style-fill', trailClass = 'style-trail' },
+              colour = COLOURS.stamina, fillArt = M.fillDecorator('green'), fillClass = 'style-fill', trailClass = 'style-trail' },
           }
         end }
     end
@@ -313,11 +378,13 @@ function M.create(ui, style, env)
       slot.shown:set(true)
       slot.name:set(tostring(w.name))
       slot.level:set(string.format('%d', math.floor(numbers(flat, o + 11))))
-      slot.left:set(string.format('%dpx', math.floor(w.nx * W - M.ACTOR_WIDTH / 2 - M.CAP + 0.5)))
+      slot.left:set(string.format('%dpx', math.floor(w.nx * W - M.ACTOR_WIDTH / 2 - cap + 0.5)))
       slot.top:set(string.format('%dpx', math.floor(w.ny * H - M.ACTOR_ABOVE + 0.5)))
       slot.fill:set(px(f, M.ACTOR_WIDTH))
       slot.trail:set(px(M.stepTrail(slot.trailState, f, now), M.ACTOR_WIDTH))
-      slot.colour:set(numbers(flat, o + 12) ~= 0 and COLOURS.ally or COLOURS.foe)
+      local ally = numbers(flat, o + 12) ~= 0
+      slot.colour:set(ally and COLOURS.ally or COLOURS.foe)
+      slot.fillArt:set(M.fillDecorator(ally and 'green' or 'red'))
       local flags = math.floor(numbers(flat, o + 13))
       slot.magickaShown:set(flags % 2 == 1)
       slot.staminaShown:set(math.floor(flags / 2) % 2 == 1)

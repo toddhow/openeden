@@ -43,6 +43,28 @@ set(BUILTIN_DATA_FILES
     textures/omw_xbox_button_rt.dds
     textures/omw/water_nm.png
 
+    # The Skyrim-style HUD's frame art, drawn by tools/hudart/generate.py (task 0252)
+    textures/openeden/hud/emblem.png
+    textures/openeden/hud/fill_blue.png
+    textures/openeden/hud/fill_green.png
+    textures/openeden/hud/fill_red.png
+    textures/openeden/hud/fill_trail.png
+    textures/openeden/hud/frame_h11_c.png
+    textures/openeden/hud/frame_h11_l.png
+    textures/openeden/hud/frame_h11_r.png
+    textures/openeden/hud/frame_h14_c.png
+    textures/openeden/hud/frame_h14_l.png
+    textures/openeden/hud/frame_h14_r.png
+    textures/openeden/hud/frame_h20_c.png
+    textures/openeden/hud/frame_h20_l.png
+    textures/openeden/hud/frame_h20_r.png
+    textures/openeden/hud/frame_h22_c.png
+    textures/openeden/hud/frame_h22_l.png
+    textures/openeden/hud/frame_h22_r.png
+    textures/openeden/hud/frame_h24_c.png
+    textures/openeden/hud/frame_h24_l.png
+    textures/openeden/hud/frame_h24_r.png
+
     fonts/DejaVuFontLicense.txt
     fonts/DejaVuLGCSansMono.ttf
     fonts/DejaVuLGCSansMono.omwfont

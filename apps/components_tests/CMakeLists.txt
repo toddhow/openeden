@@ -624,6 +624,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
     ui/testuihudstyle.cpp
+    ui/testuihudart.cpp
     ui/testuicombathudcrosshair.cpp
     skyrimse/testskyrimseactormechanics.cpp
     skyrimse/testskyrimseactormechanicsreal.cpp

@@ -12,6 +12,7 @@ local camera = require('openmw.camera')
 local core = require('openmw.core')
 local uiCore = require('openmw.ui')
 local style = require('core.skyrimse.hudstyle')
+local vfs = require('openmw.vfs')
 
 local NEAR = 1          -- units in front of the camera under which a point is behind it
 local MARGIN = 0.08     -- a point this far outside the screen (a fraction of its size) is still drawn
@@ -31,7 +32,15 @@ local env = {
     return nx, ny
   end,
 }
-local hud = require('openeden.hud.skyrimstyle').create(ui, style, env)
+local mod = require('openeden.hud.skyrimstyle')
+-- the frame art (task 0252) is drawn only when every picture is in the VFS; else the plain boxes
+env.hasArt = function()
+  for _, path in ipairs(mod.artFiles()) do
+    if not vfs.fileExists(path) then return false end
+  end
+  return true
+end
+local hud = mod.create(ui, style, env)
 
 return {
   engineHandlers = {
