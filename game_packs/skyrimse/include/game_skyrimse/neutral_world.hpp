@@ -29,6 +29,7 @@
 #include <openeden/game/grass_source.hpp>
 #include <openeden/game/music_source.hpp>
 #include <openeden/game/player_item_source.hpp>
+#include <openeden/game/player_place.hpp>
 #include <openeden/game/scene_speech.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
@@ -171,7 +172,8 @@ namespace game_skyrimse
                                    public openeden::sdk::game::MusicSource,
                                    public openeden::sdk::game::GrassSource,
                                    public openeden::sdk::game::PlayerItemSource,
-                                   public openeden::sdk::game::SceneSpeechSource
+                                   public openeden::sdk::game::SceneSpeechSource,
+                                   public openeden::sdk::game::PlayerPlaceSink
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -400,6 +402,17 @@ namespace game_skyrimse
             mCellBuilt = std::move(cellBuilt);
             mActivated = std::move(activated);
         }
+        /// Task 0211: the core tells where the player stands when it changes (the story manager's "change location").
+        /// Main thread. Empty: nothing is told on.
+        void setPlayerPlaceSink(std::function<void(const openeden::sdk::game::PlayerPlace&)> sink)
+        {
+            mPlaceSink = std::move(sink);
+        }
+        void onPlayerPlace(const openeden::sdk::game::PlayerPlace& place) override
+        {
+            if (mPlaceSink)
+                mPlaceSink(place);
+        }
         /// Task 0181: what a script made of a placement's enabled state (nullopt when it never touched it). A cell built
         /// afterwards comes out with it (WorldObject::initiallyDisabled), so Enable and Disable reach cells that were not
         /// loaded when the script ran. Main thread.
@@ -454,6 +467,7 @@ namespace game_skyrimse
         bool mLockpickingOn = false;
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
+        std::function<void(const openeden::sdk::game::PlayerPlace&)> mPlaceSink; ///< task 0211
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         std::function<bool(openeden::sdk::game::WorldId)> mTaken; ///< task 0208
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.

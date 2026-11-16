@@ -59,6 +59,11 @@ namespace game_skyrimse
 
     bool SceneRunner::start(FormId scene, bool force)
     {
+        return startImpl(scene, force, nullptr);
+    }
+
+    bool SceneRunner::startImpl(FormId scene, bool force, const SceneSaveEntry* resume)
+    {
         const SceneRecord* record = mScenes.scene(scene);
         if (record == nullptr || mPlaying.count(scene) != 0 || !mEnv.questRunning(record->mQuest)
             || mPlaying.size() >= mOptions.mMaxPlaying)
@@ -79,13 +84,15 @@ namespace game_skyrimse
             mEnv.log("SCENE " + hex(scene) + " not started: no actor of it has a reference");
             return false;
         }
-        if (std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
+        // a resumed scene waits for its speakers as a started one does: nobody is loaded yet while a save is loading
+        if (resume == nullptr && std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
         {
             ++mStats.mRefused;
             ++mStats.mNotLoaded;
             return false;
         }
-        if (!force && !record->mConditions.empty() && !mEnv.evaluate(record->mConditions, scene, record->mQuest))
+        if (resume == nullptr && !force && !record->mConditions.empty()
+            && !mEnv.evaluate(record->mConditions, scene, record->mQuest))
         {
             ++mStats.mRefused;
             return false;
@@ -108,10 +115,30 @@ namespace game_skyrimse
                 instance->mHeld.push_back(ref);
         }
         mDone[scene].clear();
+        if (resume != nullptr)
+        {
+            // task 0211: the phase, whether it was entered, and the stage of each action as the save kept them
+            instance->mPhase = resume->mPhase;
+            instance->mEntered = resume->mEntered;
+            for (std::size_t i = 0; i < instance->mActions.size(); ++i)
+            {
+                const std::uint8_t stage = resume->mActions[i];
+                instance->mActions[i].mStage = stage == 2 ? ActionStage::Done
+                    : stage == 1                          ? ActionStage::Running
+                                                          : ActionStage::Waiting;
+                if (stage == 2)
+                    mDone[scene].insert(record->mActions[i].mIndex);
+            }
+        }
         for (const FormId ref : instance->mHeld)
             mEnv.hold(ref, true);
         mPlaying[scene] = std::move(instance);
         ++mStats.mStarted;
+        if (resume != nullptr)
+        {
+            mEnv.log("SCENE " + hex(scene) + " resumes at phase " + std::to_string(resume->mPhase));
+            return true;
+        }
         mEnv.log("SCENE " + hex(scene) + " begins (" + std::to_string(record->mPhases.size()) + " phases, "
             + std::to_string(record->mActions.size()) + " actions)");
         if (record->mVmad && record->mVmad->mHasSceneFragments)
@@ -209,6 +236,146 @@ namespace game_skyrimse
     {
         const auto it = mPlaying.find(scene);
         return it == mPlaying.end() ? -1 : it->second->mPhase;
+    }
+
+    std::size_t SceneRunner::stopAll()
+    {
+        std::vector<FormId> ids;
+        ids.reserve(mPlaying.size());
+        for (const auto& [id, in] : mPlaying)
+            ids.push_back(id);
+        for (const FormId id : ids)
+            finish(id, false);
+        return ids.size();
+    }
+
+    std::vector<SceneSaveEntry> SceneRunner::saveState() const
+    {
+        std::vector<SceneSaveEntry> out;
+        out.reserve(mPlaying.size());
+        for (const auto& [id, in] : mPlaying) // ordered by scene id
+        {
+            SceneSaveEntry entry;
+            entry.mScene = id;
+            entry.mPhase = in->mPhase;
+            entry.mEntered = in->mEntered;
+            entry.mActions.reserve(in->mActions.size());
+            for (const ActionState& a : in->mActions)
+                entry.mActions.push_back(a.mStage == ActionStage::Done ? 2 : a.mStage == ActionStage::Running ? 1 : 0);
+            out.push_back(std::move(entry));
+        }
+        return out;
+    }
+
+    SceneRestoreResult SceneRunner::restoreState(const std::vector<SceneSaveEntry>& entries)
+    {
+        SceneRestoreResult result;
+        for (const SceneSaveEntry& entry : entries)
+        {
+            const SceneRecord* record = mScenes.scene(entry.mScene);
+            const bool fits = record != nullptr && entry.mPhase >= 0
+                && entry.mPhase < static_cast<std::int32_t>(record->mPhases.size())
+                && entry.mActions.size() == record->mActions.size();
+            if (!fits || !startImpl(entry.mScene, true, &entry))
+            {
+                ++result.mDropped;
+                mEnv.log("SCENE " + hex(entry.mScene) + " not resumed");
+                continue;
+            }
+            ++result.mResumed;
+        }
+        return result;
+    }
+
+    namespace
+    {
+        constexpr std::uint32_t kMaxSavedScenes = 64;
+        constexpr std::uint32_t kMaxSavedActions = 4096;
+        constexpr std::int32_t kMaxSavedPhase = 4096;
+
+        void put32(std::vector<std::uint8_t>& out, std::uint32_t v)
+        {
+            for (int i = 0; i < 4; ++i)
+                out.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xFF));
+        }
+    }
+
+    std::vector<std::uint8_t> encodeSceneState(const std::vector<SceneSaveEntry>& entries)
+    {
+        std::vector<std::uint8_t> out;
+        put32(out, static_cast<std::uint32_t>(entries.size()));
+        for (const SceneSaveEntry& e : entries)
+        {
+            put32(out, e.mScene);
+            put32(out, static_cast<std::uint32_t>(e.mPhase));
+            out.push_back(e.mEntered ? 1 : 0);
+            put32(out, static_cast<std::uint32_t>(e.mActions.size()));
+            out.insert(out.end(), e.mActions.begin(), e.mActions.end());
+        }
+        return out;
+    }
+
+    bool decodeSceneState(std::span<const std::uint8_t> bytes, std::vector<SceneSaveEntry>& out, std::string& error)
+    {
+        out.clear();
+        std::size_t at = 0;
+        const auto fail = [&](const std::string& why) {
+            out.clear();
+            error = why + " (byte " + std::to_string(at) + ")";
+            return false;
+        };
+        const auto read32 = [&](std::uint32_t& v) {
+            if (bytes.size() - at < 4)
+                return false;
+            v = 0;
+            for (int i = 0; i < 4; ++i)
+                v |= static_cast<std::uint32_t>(bytes[at + static_cast<std::size_t>(i)]) << (8 * i);
+            at += 4;
+            return true;
+        };
+        std::uint32_t count = 0;
+        if (!read32(count))
+            return fail("the scene state is cut short");
+        if (count > kMaxSavedScenes)
+            return fail("more than " + std::to_string(kMaxSavedScenes) + " scenes");
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            SceneSaveEntry e;
+            std::uint32_t phase = 0, actions = 0;
+            if (!read32(e.mScene) || !read32(phase))
+                return fail("a scene is cut short");
+            e.mPhase = static_cast<std::int32_t>(phase);
+            if (e.mPhase < 0 || e.mPhase > kMaxSavedPhase)
+                return fail("a scene has a phase out of range");
+            if (bytes.size() - at < 1)
+                return fail("a scene is cut short");
+            const std::uint8_t entered = bytes[at++];
+            if (entered > 1)
+                return fail("a scene has a bad entered flag");
+            e.mEntered = entered == 1;
+            if (!read32(actions))
+                return fail("a scene is cut short");
+            if (actions > kMaxSavedActions)
+                return fail("a scene has more than " + std::to_string(kMaxSavedActions) + " actions");
+            if (bytes.size() - at < actions)
+                return fail("a scene claims more actions than the bytes hold");
+            for (std::uint32_t a = 0; a < actions; ++a)
+            {
+                const std::uint8_t stage = bytes[at + a];
+                if (stage > 2)
+                    return fail("an action has a bad stage");
+                e.mActions.push_back(stage);
+            }
+            at += actions;
+            for (const SceneSaveEntry& other : out)
+                if (other.mScene == e.mScene)
+                    return fail("a scene is listed twice");
+            out.push_back(std::move(e));
+        }
+        if (at != bytes.size())
+            return fail("trailing bytes after the last scene");
+        error.clear();
+        return true;
     }
 
     namespace

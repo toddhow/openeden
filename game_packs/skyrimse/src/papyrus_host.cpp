@@ -1985,6 +1985,18 @@ namespace game_skyrimse
         return 1;
     }
 
+    bool PapyrusHost::startQuestForTest(FormId quest, std::int32_t stage)
+    {
+        Impl& m = *mImpl;
+        if (m.mState == nullptr || !m.mState->exists(quest) || m.mState->running(quest) || m.mState->completed(quest))
+            return false;
+        m.startQuest(quest);
+        m.say(false, "Papyrus: quest " + hex(quest) + " started by the test aid");
+        if (stage >= 0)
+            (void)m.setStage(quest, static_cast<std::uint32_t>(stage));
+        return true;
+    }
+
     std::size_t PapyrusHost::raiseStoryEvent(const StoryEvent& event)
     {
         return mImpl->raiseStory(event);

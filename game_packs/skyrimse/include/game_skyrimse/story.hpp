@@ -126,6 +126,8 @@ namespace game_skyrimse
         [[nodiscard]] std::vector<FormId> eventNodes(const std::string& event) const;
         [[nodiscard]] const FormIdResolver& resolverOf(const StoryNode& node) const { return mResolvers[node.mPlugin]; }
         [[nodiscard]] std::size_t nodeCount() const { return mNodes.size(); }
+        /// All node ids, ascending (task 0211: a survey asks which nodes list a quest).
+        [[nodiscard]] std::vector<FormId> allNodeIds() const;
         /// Counts, for the log: nodes by kind.
         [[nodiscard]] std::size_t count(StoryNodeKind kind) const;
 

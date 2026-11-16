@@ -522,6 +522,14 @@ namespace game_skyrimse
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false
         /// when the cell is not known. Main thread.
         [[nodiscard]] bool cellLocation(FormId cell, FormId& location, bool& interior) const;
+        /// Task 0211: the location of a cell the view has indexed (its XLCN, else for an exterior the location whose cell
+        /// list holds its grid square); kNullFormId for none or before the dialogue data is ready. Main thread.
+        [[nodiscard]] FormId locationOfCell(FormId cell) const;
+        /// Task 0211: the location of a grid square of a worldspace (the cell XLCN when the data has the cell, else the
+        /// location lists). Main thread.
+        [[nodiscard]] FormId locationOfGridSquare(FormId world, std::int32_t x, std::int32_t y) const;
+        /// Task 0211: where the player stands, for the alias filler's closest-first rule. Main thread.
+        void setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site);
         [[nodiscard]] std::uint64_t placedRefsBuildMillis() const { return mPlacedRefsMillis.load(); }
 
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
@@ -648,6 +656,8 @@ namespace game_skyrimse
         std::unique_ptr<DialogueState> mDialogue;
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
+        std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
+        static constexpr std::int32_t kLoadedRing = 2; ///< the engine loads the player square and two rings round it
         InfoFragmentSink mInfoFragmentSink; ///< task 0187
         bool mPackageWired = true;
         std::atomic<std::uint64_t> mPlacedRefsMillis{ 0 };

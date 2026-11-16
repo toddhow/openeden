@@ -331,6 +331,9 @@ namespace game_skyrimse
 
         /// Raises an event as a script's SendStoryEvent would; returns how many quests it started.
         std::size_t raiseStoryEvent(const StoryEvent& event);
+        /// Task 0211 (a developer aid, `story test quest`): starts a quest as the story manager would after choosing it
+        /// (aliases filled, scripts attached, start-up stage run). False when the quest is unknown, running or completed.
+        bool startQuestForTest(FormId quest, std::int32_t stage = -1); ///< `stage` >= 0: also sets that stage
 
         /// Task 0187: the fragments of a shown dialogue line. The scripts of the INFO's VMAD are attached to the INFO
         /// (once), their properties set, and the begin fragment function and then the end fragment function are queued

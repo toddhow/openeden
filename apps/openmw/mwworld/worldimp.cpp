@@ -1571,6 +1571,34 @@ namespace MWWorld
         mPhysics->updateAnimatedCollisionShape(ptr);
     }
 
+    // Task 0211: the place the player stands in, for a game pack's story manager. Nothing for a Morrowind cell.
+    void World::notifyNeutralPlayerPlace()
+    {
+        const CellStore* store = getPlayerPtr().getCell();
+        if (store == nullptr || store->getCell() == nullptr)
+            return;
+        const MWWorld::Cell& cell = *store->getCell();
+        openeden::sdk::game::PlayerPlace place;
+        if (cell.isExterior())
+        {
+            const NeutralWorldspace* world = mWorldModel.neutralWorldspace(cell.getWorldSpace());
+            if (world == nullptr)
+                return;
+            place.world = world->mWorld;
+            place.gridX = cell.getGridX();
+            place.gridY = cell.getGridY();
+        }
+        else
+        {
+            const openeden::sdk::game::WorldCell* neutral = store->neutralCell();
+            if (neutral == nullptr)
+                return;
+            place.interior = true;
+            place.cell = neutral->id;
+        }
+        mPhysics->notifyNeutralPlayerPlace(place);
+    }
+
     void World::doPhysics(float duration)
     {
         processDoors(duration);
@@ -1590,6 +1618,7 @@ namespace MWWorld
                 mPhysics->setNeutralClock(pinnedHour >= 0.f ? pinnedHour : now.getHour(), now.getDay());
             }
             mPhysics->setNeutralFocus(getPlayerPtr().getRefData().getPosition().asVec3());
+            notifyNeutralPlayerPlace();
             mPhysics->updateNeutralActors(duration);
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsMoved())
             {

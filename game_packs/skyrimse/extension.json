@@ -281,6 +281,21 @@
       "default": 0
     },
     {
+      "key": "story test event",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "story test delay",
+      "type": "float",
+      "default": 8.0
+    },
+    {
+      "key": "story test quest",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "inventory test items",
       "type": "string",
       "default": ""

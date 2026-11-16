@@ -8,6 +8,7 @@
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/quest_script.hpp"
 #include "game_skyrimse/music.hpp"
+#include "game_skyrimse/story_events.hpp"
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <span>
@@ -933,7 +935,7 @@ namespace game_skyrimse
             world->setPlacedRefs(&raw->mData->mPlacedRefs);
             world->setQuestVariables(raw->mQuestVariables.get());
             static const std::vector<conditions::ExtraFunction> extras = [] {
-                std::vector<conditions::ExtraFunction> all = storyExtraFunctions();
+                std::vector<conditions::ExtraFunction> all = storyAndLocationExtraFunctions(); // task 0211
                 all.insert(all.end(), sceneExtraFunctions().begin(), sceneExtraFunctions().end());
                 return all;
             }();
@@ -946,15 +948,97 @@ namespace game_skyrimse
                     if (const PlacedEntry* entry = raw->mData->mPlacedRefs.find(reference))
                         fillSpeakerCell(speaker, entry->mCell);
                     world->setStoryEvent(nullptr);
+                    world->setSubjectLocation(kNullFormId);
                     world->setSpeaker(speaker);
                     world->setQuestContext(quest.mCommon.mId);
                     world->setPlugin(&raw->mData->mQuests.resolverOf(quest));
                     return raw->mQuestEvaluator.evaluate(alias.mConditions, *world);
                 });
+            // Task 0211: location aliases, the player place and the facts about cells (radiant quests)
+            {
+                QuestAliasFiller::Environment env;
+                env.mLocations = &raw->mData->mLocations;
+                env.mLocationMatcher = [raw, world](const QuestRecord& quest, const QuestAlias& alias, FormId location) {
+                    world->setStoryEvent(nullptr);
+                    world->setSpeaker(DialogueSpeaker());
+                    world->setQuestContext(quest.mCommon.mId);
+                    world->setPlugin(&raw->mData->mQuests.resolverOf(quest));
+                    world->setSubjectLocation(location);
+                    const bool ok = raw->mQuestEvaluator.evaluate(alias.mConditions, *world);
+                    world->setSubjectLocation(kNullFormId);
+                    return ok;
+                };
+                env.mPlayer = [this] { return mPlayerSite ? mPlayerSite() : QuestAliasFiller::PlayerSite(); };
+                env.mCell = [this](FormId cell) {
+                    QuestAliasFiller::CellFacts facts;
+                    const auto it = mCells.find(cell);
+                    if (it == mCells.end())
+                        return facts;
+                    facts.mKnown = true;
+                    facts.mInterior = it->second.mInfo.interior;
+                    facts.mWorld = facts.mInterior ? kNullFormId : static_cast<FormId>(it->second.mInfo.world);
+                    const QuestAliasFiller::PlayerSite site = mPlayerSite ? mPlayerSite() : QuestAliasFiller::PlayerSite();
+                    if (site.mKnown)
+                    {
+                        if (facts.mInterior)
+                            facts.mLoaded = site.mInterior && site.mCell == cell;
+                        else if (!site.mInterior && site.mWorld == facts.mWorld && it->second.mInfo.hasGrid)
+                        {
+                            const auto gx = static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize));
+                            const auto gy = static_cast<std::int32_t>(std::floor(site.mY / QuestAliasFiller::kCellSize));
+                            facts.mLoaded = std::abs(it->second.mInfo.gridX - gx) <= kLoadedRing
+                                && std::abs(it->second.mInfo.gridY - gy) <= kLoadedRing;
+                        }
+                    }
+                    return facts;
+                };
+                raw->mAliasFiller->setEnvironment(std::move(env));
+            }
             raw->mStoryManager = std::make_unique<StoryManager>(raw->mData->mStory, raw->mData->mQuests);
         }
         mDialogue = std::move(state);
         return true;
+    }
+
+    void SkyrimWorldView::setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site)
+    {
+        mPlayerSite = std::move(site);
+    }
+
+    FormId SkyrimWorldView::locationOfCell(FormId cell) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return kNullFormId;
+        const auto it = mCells.find(cell);
+        if (it == mCells.end())
+            return kNullFormId;
+        DialogueSpeaker speaker;
+        fillSpeakerCell(speaker, cell);
+        PlaceQuery place;
+        place.mInterior = it->second.mInfo.interior;
+        place.mCellLocation = speaker.mLocationKnown ? speaker.mLocation : kNullFormId;
+        place.mWorld = static_cast<FormId>(it->second.mInfo.world);
+        place.mX = it->second.mInfo.gridX;
+        place.mY = it->second.mInfo.gridY;
+        return locationOfPlace(place, mDialogue->mData->mLocations);
+    }
+
+    FormId SkyrimWorldView::locationOfGridSquare(FormId world, std::int32_t x, std::int32_t y) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return kNullFormId;
+        PlaceQuery place;
+        place.mWorld = world;
+        place.mX = x;
+        place.mY = y;
+        const auto cell = mCellByGrid.find({ world, x, y });
+        if (cell != mCellByGrid.end())
+        {
+            DialogueSpeaker speaker;
+            fillSpeakerCell(speaker, cell->second);
+            place.mCellLocation = speaker.mLocationKnown ? speaker.mLocation : kNullFormId;
+        }
+        return locationOfPlace(place, mDialogue->mData->mLocations);
     }
 
     void SkyrimWorldView::setInfoFragmentSink(InfoFragmentSink sink)
@@ -1440,11 +1524,13 @@ namespace game_skyrimse
                 [&quests, state, &event](FormId quest) {
                     if (!quests.exists(quest) || quests.running(quest) || quests.completed(quest))
                         return false;
-                    // Task 0194: an ambient (ADIA) quest needs its event aliases to match the pair and runs once a session
-                    // (the hours until reset, RNAM, are not honoured: decision for toddhow)
-                    if (event.mType == "ADIA")
-                        return state->mStoryRan.count(quest) == 0 && state->mAliasFiller->eventAliasesMatch(quest, event);
-                    return true;
+                    // Task 0194: an ambient (ADIA) quest runs once a session (the hours until reset, RNAM, are not
+                    // honoured: decision for toddhow)
+                    if (event.mType == "ADIA" && state->mStoryRan.count(quest) != 0)
+                        return false;
+                    // Task 0211: for every event, a quest starts only when its required aliases of an answered kind fill
+                    // (the event members, a find-matching reference or location, a reference in a location)
+                    return state->mAliasFiller->canStart(quest, quests, &event);
                 });
             if (event.mType == "ADIA")
                 for (const FormId quest : chosen)

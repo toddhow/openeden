@@ -35,6 +35,7 @@
 #include "neutralpathfollower.hpp"
 #include "neutralplanelinks.hpp"
 #include "neutralplayerattack.hpp"
+#include "neutralplayerplace.hpp"
 #include "neutralprocess.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
@@ -245,6 +246,11 @@ namespace MWPhysics
         /// levels` (NeutralProcess: actors far from here step their bodies less often). Main thread; call before
         /// updateNeutralActors. Without a call (or with the setting off) every actor is High: stepped every frame.
         void setNeutralFocus(const vsg::vec3& position);
+
+        /// Task 0211: where the player stands (an interior cell or a grid square of a worldspace) for the game pack's story
+        /// manager. The pack hears of it through openeden::sdk::game::PlayerPlaceSink on its rules, only when the place
+        /// changed (PlayerPlaceFilter). Main thread; call once a frame, before updateNeutralActors.
+        void notifyNeutralPlayerPlace(const openeden::sdk::game::PlayerPlace& place);
 
         /// Task 0154: counters of the last frames for the trace and the cost measurement.
         struct NeutralProcessStats
@@ -657,6 +663,7 @@ namespace MWPhysics
         NeutralProcessStats mNeutralProcessStats;
         vsg::vec3 mNeutralFocus;
         bool mNeutralFocusValid = false;
+        PlayerPlaceFilter mNeutralPlaceFilter; ///< task 0211
         std::uint64_t mNeutralCostFrames = 0; ///< OPENEDEN_NEUTRAL_ACTOR_COST: frames, nanoseconds in the whole update
         std::uint64_t mNeutralCostNs = 0;
         std::uint64_t mNeutralCostPackNs = 0;

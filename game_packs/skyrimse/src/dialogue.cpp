@@ -918,12 +918,38 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::inLocation(conditions::Subject subject, std::uint32_t location) const
     {
         const FormId id = resolve(location);
+        // task 0211: in the story manager the subject is the player, who is where the event says (the location entered,
+        // else the one left)
+        if (subject == kPlayer && mStoryEvent != nullptr && mSpeaker.mBase == kNullFormId)
+        {
+            const FormId at = mStoryEvent->mLocation2 != kNullFormId ? mStoryEvent->mLocation2 : mStoryEvent->mLocation1;
+            return mLocations != nullptr && id != kNullFormId && at != kNullFormId && mLocations->isWithin(at, id);
+        }
         return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown && id != kNullFormId
             && mLocations->isWithin(mSpeaker.mLocation, id);
     }
 
+    FormId SkyrimConditionWorld::resolveLocationForm(std::uint32_t stored) const
+    {
+        return resolve(stored);
+    }
+
+    bool SkyrimConditionWorld::locationHasRefType(FormId location, FormId refType) const
+    {
+        return mLocations != nullptr && mLocations->hasRefType(location, refType);
+    }
+
+    bool SkyrimConditionWorld::locationWithin(FormId location, FormId ancestor) const
+    {
+        return mLocations != nullptr && mLocations->isWithin(location, ancestor);
+    }
+
     bool SkyrimConditionWorld::locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const
     {
+        // task 0211: a candidate location of a location alias
+        if ((subject & 0xFFFFFFFF00000000ull) == kLocationTag)
+            return mLocations != nullptr
+                && mLocations->hasKeyword(static_cast<FormId>(subject & 0xFFFFFFFFull), resolve(keyword));
         return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown
             && mLocations->hasKeyword(mSpeaker.mLocation, resolve(keyword));
     }
@@ -1101,7 +1127,8 @@ namespace game_skyrimse
                 return mSpeaker.mInterior.has_value();
             case 359: // GetInCurrentLoc
             case 562: // LocationHasKeyword
-                return mLocations != nullptr && mSpeaker.mLocationKnown;
+                return mLocations != nullptr
+                    && (mSpeaker.mLocationKnown || mSubjectLocation != kNullFormId || mStoryEvent != nullptr);
             case 640: // GetActorValuePercent: the vitals are full, nothing else is guessed
                 return c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina;
             case 145: // IsTrespassing, GetTrespassWarningLevel, IsBribedbyPlayer, GetCrimeGold*: a game with no crime
@@ -1170,6 +1197,10 @@ namespace game_skyrimse
         switch (runOn)
         {
             case 0:
+                if (mSubjectLocation != kNullFormId) // task 0211: a location alias candidate
+                    return kLocationTag | mSubjectLocation;
+                if (mStoryEvent != nullptr && mSpeaker.mBase == kNullFormId)
+                    return kPlayer; // task 0211: the story manager's subject is the player
                 return mSpeaker.mBase;
             case 1:
                 return kPlayer;

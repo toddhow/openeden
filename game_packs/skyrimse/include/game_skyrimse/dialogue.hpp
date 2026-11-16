@@ -39,6 +39,7 @@
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/speech.hpp>
 #include <game_skyrimse/scene.hpp>
+#include <game_skyrimse/location_conditions.hpp>
 #include <game_skyrimse/story.hpp>
 #include <game_skyrimse/vmad.hpp>
 
@@ -291,7 +292,8 @@ namespace game_skyrimse
 
     class SkyrimConditionWorld final : public conditions::ConditionWorld,
                                        public StoryEventSource,
-                                       public SceneStateSource
+                                       public SceneStateSource,
+                                       public LocationSubjectSource
     {
     public:
         static constexpr conditions::Subject kPlayer = 0x100000007ull; ///< the player (his NPC_ is 0x00000007)
@@ -373,9 +375,17 @@ namespace game_skyrimse
         /// by its base only (a unique actor of an alias that has no single placed reference).
         static constexpr conditions::Subject kPlacedTag = 0x200000000ull;
         static constexpr conditions::Subject kBaseTag = 0x300000000ull;
+        static constexpr conditions::Subject kLocationTag = 0x400000000ull; ///< task 0211: a candidate location
 
         /// Task 0187: the story event the conditions of a story node are evaluated against (fn_576 GetEventData).
         void setStoryEvent(const StoryEvent* event) { mStoryEvent = event; }
+        /// Task 0211: evaluate for a candidate LOCATION (a location alias that finds a match): the conditions that run "on
+        /// subject" ask about this location. kNullFormId (the default) restores the speaker as the subject.
+        void setSubjectLocation(FormId location) { mSubjectLocation = location; }
+        [[nodiscard]] FormId locationSubject() const override { return mSubjectLocation; }
+        [[nodiscard]] FormId resolveLocationForm(std::uint32_t stored) const override;
+        [[nodiscard]] bool locationHasRefType(FormId location, FormId refType) const override;
+        [[nodiscard]] bool locationWithin(FormId location, FormId ancestor) const override;
         /// Task 0194: fn_550 reads the scene runner through this lookup (scene, action index).
         void setSceneActionLookup(std::function<bool(FormId, std::uint32_t)> lookup) { mSceneAction = std::move(lookup); }
         [[nodiscard]] bool sceneActionComplete(FormId scene, std::uint32_t actionIndex) const override
@@ -443,6 +453,7 @@ namespace game_skyrimse
 
     private:
         const StoryEvent* mStoryEvent = nullptr;
+        FormId mSubjectLocation = kNullFormId; ///< task 0211
         std::function<bool(FormId, std::uint32_t)> mSceneAction; ///< task 0194
         // ---- task 0160 helpers
         struct ActorView

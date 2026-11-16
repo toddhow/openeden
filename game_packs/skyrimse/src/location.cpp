@@ -19,6 +19,13 @@ namespace game_skyrimse
             return v;
         }
 
+        std::int16_t le16s(const std::byte* p)
+        {
+            std::int16_t v;
+            std::memcpy(&v, p, 2);
+            return v;
+        }
+
         Content::Error makeError(const std::string& file, std::uint64_t offset, std::uint32_t type, std::string message)
         {
             Content::Error error;
@@ -80,6 +87,11 @@ namespace game_skyrimse
                 loc.mCommon.mFlags = record.mFlags;
                 loc.mCommon.mOffset = record.mOffset;
                 bool tooMany = false;
+                const auto tally = [&](std::size_t entries) {
+                    if (entries > mLimits.mMaxEntries)
+                        tooMany = true;
+                    return !tooMany;
+                };
                 const bool wellFormed = survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
                     switch (sub.mType)
                     {
@@ -111,6 +123,92 @@ namespace game_skyrimse
                             for (std::size_t i = 0; i + 4 <= sub.mData.size(); i += 4)
                                 loc.mKeywords.push_back(resolved(le32(sub.mData.data() + i)));
                             break;
+                        // task 0211: the lists of exterior cells, special and persistent references and unique NPCs; the
+                        // location (L*), actor (A*) and reference (R*) families are merged (see the header)
+                        case Content::fourCC("LCEC"):
+                        case Content::fourCC("ACEC"):
+                        case Content::fourCC("RCEC"):
+                        {
+                            const std::size_t size = sub.mData.size();
+                            if (size < 4 || (size - 4) % 4 != 0)
+                            {
+                                ++mOut.mOddSubrecords;
+                                break;
+                            }
+                            if (!tally((size - 4) / 4))
+                                break;
+                            LocationCells cells;
+                            cells.mWorld = resolved(le32(sub.mData.data()));
+                            for (std::size_t i = 4; i + 4 <= size; i += 4)
+                                cells.mGrids.push_back({ le16s(sub.mData.data() + i), le16s(sub.mData.data() + i + 2) });
+                            loc.mCells.push_back(std::move(cells));
+                            break;
+                        }
+                        case Content::fourCC("LCSR"):
+                        case Content::fourCC("ACSR"):
+                        {
+                            const std::size_t size = sub.mData.size();
+                            if (size % 16 != 0)
+                            {
+                                ++mOut.mOddSubrecords;
+                                break;
+                            }
+                            if (!tally(loc.mSpecialRefs.size() + size / 16))
+                                break;
+                            for (std::size_t i = 0; i + 16 <= size; i += 16)
+                            {
+                                LocationSpecialRef r;
+                                r.mRefType = resolved(le32(sub.mData.data() + i));
+                                r.mRef = resolved(le32(sub.mData.data() + i + 4));
+                                r.mWorld = resolved(le32(sub.mData.data() + i + 8));
+                                r.mGrid = { le16s(sub.mData.data() + i + 12), le16s(sub.mData.data() + i + 14) };
+                                loc.mSpecialRefs.push_back(r);
+                            }
+                            break;
+                        }
+                        case Content::fourCC("LCPR"):
+                        case Content::fourCC("ACPR"):
+                        case Content::fourCC("RCPR"):
+                        {
+                            const std::size_t size = sub.mData.size();
+                            if (size % 12 != 0)
+                            {
+                                ++mOut.mOddSubrecords;
+                                break;
+                            }
+                            if (!tally(loc.mPersistentRefs.size() + size / 12))
+                                break;
+                            for (std::size_t i = 0; i + 12 <= size; i += 12)
+                            {
+                                LocationPersistentRef r;
+                                r.mRef = resolved(le32(sub.mData.data() + i));
+                                r.mWorld = resolved(le32(sub.mData.data() + i + 4));
+                                r.mGrid = { le16s(sub.mData.data() + i + 8), le16s(sub.mData.data() + i + 10) };
+                                loc.mPersistentRefs.push_back(r);
+                            }
+                            break;
+                        }
+                        case Content::fourCC("LCUN"):
+                        case Content::fourCC("ACUN"):
+                        {
+                            const std::size_t size = sub.mData.size();
+                            if (size % 12 != 0)
+                            {
+                                ++mOut.mOddSubrecords;
+                                break;
+                            }
+                            if (!tally(loc.mUniqueNpcs.size() + size / 12))
+                                break;
+                            for (std::size_t i = 0; i + 12 <= size; i += 12)
+                            {
+                                LocationUniqueNpc n;
+                                n.mActor = resolved(le32(sub.mData.data() + i));
+                                n.mRef = resolved(le32(sub.mData.data() + i + 4));
+                                n.mLocation = resolved(le32(sub.mData.data() + i + 8));
+                                loc.mUniqueNpcs.push_back(n);
+                            }
+                            break;
+                        }
                         default:
                             break;
                     }
@@ -122,7 +220,7 @@ namespace game_skyrimse
                 }
                 if (tooMany)
                 {
-                    fail(record, "too many keywords");
+                    fail(record, "too many keywords or list entries");
                     return true;
                 }
                 ++mOut.mCount.mParsed;
@@ -196,6 +294,88 @@ namespace game_skyrimse
             else
                 mLocations[l.mCommon.mId] = std::move(l);
         }
+        mGridsDirty = true;
+    }
+
+    std::vector<FormId> LocationIndex::ids() const
+    {
+        std::vector<FormId> out;
+        out.reserve(mLocations.size());
+        for (const auto& [id, record] : mLocations)
+            out.push_back(id);
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+
+    void LocationIndex::rebuildGrids() const
+    {
+        mGridOwner.clear();
+        // the location with the fewest listed cells owns a square, ties to the lower id: visit in id order so that the
+        // result does not depend on the hash map's order
+        std::map<std::tuple<FormId, std::int32_t, std::int32_t>, std::pair<std::size_t, FormId>> best;
+        for (const FormId id : ids())
+        {
+            const LocationRecord& l = mLocations.at(id);
+            std::size_t total = 0;
+            for (const LocationCells& c : l.mCells)
+                total += c.mGrids.size();
+            for (const LocationCells& c : l.mCells)
+                for (const LocationGrid& g : c.mGrids)
+                {
+                    const auto key = std::make_tuple(c.mWorld, static_cast<std::int32_t>(g.mX), static_cast<std::int32_t>(g.mY));
+                    const auto it = best.find(key);
+                    if (it == best.end() || total < it->second.first)
+                        best[key] = { total, id };
+                }
+        }
+        for (const auto& [key, owner] : best)
+            mGridOwner[key] = owner.second;
+        mGridsDirty = false;
+    }
+
+    FormId LocationIndex::locationOfGrid(FormId world, std::int32_t x, std::int32_t y) const
+    {
+        if (mGridsDirty)
+            rebuildGrids();
+        const auto it = mGridOwner.find({ world, x, y });
+        return it == mGridOwner.end() ? kNullFormId : it->second;
+    }
+
+    bool LocationIndex::gridOf(FormId location, FormId& world, std::int32_t& x, std::int32_t& y) const
+    {
+        const LocationRecord* l = this->location(location);
+        if (l == nullptr)
+            return false;
+        for (const LocationCells& c : l->mCells)
+            if (!c.mGrids.empty())
+            {
+                world = c.mWorld;
+                x = c.mGrids.front().mX;
+                y = c.mGrids.front().mY;
+                return true;
+            }
+        return false;
+    }
+
+    std::vector<LocationSpecialRef> LocationIndex::specialRefsOfType(FormId location, FormId refType) const
+    {
+        std::vector<LocationSpecialRef> out;
+        const LocationRecord* l = this->location(location);
+        if (l == nullptr)
+            return out;
+        for (const LocationSpecialRef& r : l->mSpecialRefs)
+            if (r.mRefType == refType)
+                out.push_back(r);
+        return out;
+    }
+
+    bool LocationIndex::hasRefType(FormId location, FormId refType) const
+    {
+        const LocationRecord* l = this->location(location);
+        if (l == nullptr || refType == kNullFormId)
+            return false;
+        return std::any_of(l->mSpecialRefs.begin(), l->mSpecialRefs.end(),
+            [refType](const LocationSpecialRef& r) { return r.mRefType == refType; });
     }
 
     const LocationRecord* LocationIndex::location(FormId id) const

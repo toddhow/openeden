@@ -1818,6 +1818,17 @@ namespace MWPhysics
         mNeutralFocusValid = std::isfinite(position.x) && std::isfinite(position.y);
     }
 
+    void PhysicsSystem::notifyNeutralPlayerPlace(const openeden::sdk::game::PlayerPlace& place)
+    {
+        if (!mNeutralRulesResolver)
+            return;
+        auto* sink = dynamic_cast<openeden::sdk::game::PlayerPlaceSink*>(mNeutralRulesResolver());
+        if (sink == nullptr)
+            return; // told once the game has rules that want it: the place is kept for then
+        if (mNeutralPlaceFilter.accept(place))
+            sink->onPlayerPlace(place);
+    }
+
     void PhysicsSystem::updateNeutralActors(float dt)
     {
         ++mNeutralFrame;

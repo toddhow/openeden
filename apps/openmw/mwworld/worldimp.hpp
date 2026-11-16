@@ -163,6 +163,9 @@ namespace MWWorld
         void doPhysics(float duration);
         ///< Run physics simulation and modify \a world accordingly.
 
+        /// Task 0211: tells the game pack rules where the player stands (neutral worlds only).
+        void notifyNeutralPlayerPlace();
+
         void updateNavigator();
         // Task 0174 (S5-5): death ragdolls of neutral actors (doPhysics).
         void startNeutralRagdoll(const MWWorld::Ptr& ptr);

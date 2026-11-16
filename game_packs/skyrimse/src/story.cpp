@@ -371,6 +371,16 @@ namespace game_skyrimse
         return out;
     }
 
+    std::vector<FormId> StoryIndex::allNodeIds() const
+    {
+        std::vector<FormId> out;
+        out.reserve(mNodes.size());
+        for (const auto& [id, node] : mNodes)
+            out.push_back(id);
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+
     std::size_t StoryIndex::count(StoryNodeKind kind) const
     {
         std::size_t n = 0;
