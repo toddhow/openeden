@@ -381,6 +381,9 @@ namespace game_skyrimse
         /// `player level`; kStandInPlayerLevel by default).
         void setStandInPlayerLevel(std::uint16_t level) { mStandInPlayerLevel = level; }
         [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
+        /// Task 0212 (`creatures`): creature races are described and fight as creatures. Set before the first actor.
+        void setCreatures(bool on) { mCreatures = on; }
+        [[nodiscard]] bool creatures() const { return mCreatures; }
         /// The speech skill and the gold of the stand-in player the dialogue conditions read (task 0155; the pack
         /// settings `player speech` and `player gold`). Applied when the dialogue runtime is built, the level is
         /// `standInPlayerLevel()` then.
@@ -622,6 +625,7 @@ namespace game_skyrimse
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         bool mStandInFemale = false;
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
+        bool mCreatures = false; ///< task 0212
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold
         bool mHaveProgressionPlayer = false; // task 0200

@@ -345,8 +345,17 @@ namespace MWRender
                 return;
             // The ordinary standing idle of a person (task 0145: `mt_idle` in the male or female folder; the unarmed
             // `h2h_idle` of the first slice is a fighting stance).
-            SkyrimIdle::ClipFuture future = SkyrimIdle::loadIdleAsync(
-                vfs, appearance.skeletonPath, appearance.female ? "female" : "male", SkyrimIdle::sAmbientIdle);
+            // Task 0212: a creature's clips are in its actor folder's animations folder, with no sex folder, under the
+            // names the pack gives (an empty name is the person's).
+            const bool creature = !appearance.animationProject.empty();
+            const std::string_view sex = creature ? std::string_view() : appearance.female ? "female" : "male";
+            const std::string_view idleName
+                = !appearance.idleClip.empty() ? std::string_view(appearance.idleClip) : SkyrimIdle::sAmbientIdle;
+            const std::string_view walkName
+                = !appearance.walkClip.empty() ? std::string_view(appearance.walkClip) : SkyrimLocomotion::sWalkClip;
+            const std::string_view runName
+                = !appearance.runClip.empty() ? std::string_view(appearance.runClip) : SkyrimLocomotion::sRunClip;
+            SkyrimIdle::ClipFuture future = SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, idleName);
             SkyrimIdle::Controller::BoneMap bones;
             anim.animation->bones.forEach([&bones](const std::string& name, Anim::Bone& bone) {
                 if (!bone.path.empty())
@@ -360,18 +369,33 @@ namespace MWRender
             auto addPose = [&]() {
                 auto pose = vsg::ref_ptr<SkyrimPose::Controller>(
                     new SkyrimPose::Controller(vfs, appearance.skeletonPath, appearance.female, bones));
+                pose->setProject(appearance.animationProject); // task 0212: empty for a person
                 anim.addController(pose, anim.transform());
                 anim.keepAlive.push_back(pose);
             };
             if (Settings::game().mNeutralActorLocomotion)
             {
                 // Task 0148: the idle, walk and run cycles blended by the ground speed the physics side reports.
-                const std::string_view sex = appearance.female ? "female" : "male";
+                HavokPack::Gait::Params gait;
+                if (creature)
+                {
+                    // Task 0212: the creature's own speeds and strides; a left foot is not known for an animal, so the
+                    // cycles start at 0.
+                    if (appearance.walkSpeed > 0.f)
+                        gait.mWalkSpeed = appearance.walkSpeed;
+                    if (appearance.runSpeed > 0.f)
+                        gait.mRunSpeed = appearance.runSpeed;
+                    if (appearance.walkStride > 0.f)
+                        gait.mWalkStride = appearance.walkStride;
+                    if (appearance.runStride > 0.f)
+                        gait.mRunStride = appearance.runStride;
+                    gait.mWalkLeftFoot = 0.f;
+                    gait.mRunLeftFoot = 0.f;
+                }
                 auto controller
                     = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(std::move(future),
-                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sWalkClip),
-                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sRunClip), bones,
-                        phase));
+                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, walkName),
+                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, runName), bones, phase, gait));
                 anim.addController(controller, anim.transform());
                 anim.keepAlive.push_back(controller);
                 addPose();

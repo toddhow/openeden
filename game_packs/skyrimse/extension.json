@@ -226,6 +226,11 @@
       "default": false
     },
     {
+      "key": "creatures",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "follower test recruit",
       "type": "string",
       "default": ""

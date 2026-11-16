@@ -2088,6 +2088,12 @@ namespace game_skyrimse
                     if (settings->getBool(kPackId, kCombatTraceKey, false))
                         mCellSource.combat().setSoundTrace(
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                    // Task 0212: creature races animate, collide and fight as creatures (off by default).
+                    if (settings->getBool(kPackId, kCreaturesKey, false))
+                    {
+                        mWorldView.setCreatures(true);
+                        say(openeden::sdk::LogLevel::Info, "creatures: on (the wolf)");
+                    }
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");
                     if (!mCellSource.actorTable().setTestGoto(goer))

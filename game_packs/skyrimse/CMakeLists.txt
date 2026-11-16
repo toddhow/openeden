@@ -67,6 +67,7 @@ openeden_add_game_pack(skyrimse
         src/combat_impact.cpp
         src/combat_sound.cpp
         src/combat_style.cpp
+        src/creatures.cpp
         src/combat_ai.cpp
         src/combat_ai_run.cpp
         src/combat_factions.cpp
@@ -134,6 +135,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/combat_impact.hpp
         include/game_skyrimse/combat_sound.hpp
         include/game_skyrimse/combat_style.hpp
+        include/game_skyrimse/creatures.hpp
         include/game_skyrimse/combat_ai.hpp
         include/game_skyrimse/combat_factions.hpp
         include/game_skyrimse/perks.hpp
@@ -215,6 +217,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_impact.cpp
     src/combat_sound.cpp
     src/combat_style.cpp
+    src/creatures.cpp
     src/combat_ai.cpp
     src/combat_ai_run.cpp
     src/combat_factions.cpp

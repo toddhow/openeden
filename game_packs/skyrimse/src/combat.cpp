@@ -63,6 +63,29 @@ namespace game_skyrimse
         }
     }
 
+    // Task 0212: the wolf's clips, from the profile (creatures.hpp) so the names have one source.
+    SlotTable SlotTable::wolf()
+    {
+        static const Entry sWolfEntries[] = {
+            { ClipSlot::Attack, kWeaponAnimHandToHand, wolfProfile().mAttack },
+            { ClipSlot::PowerAttack, kWeaponAnimHandToHand, wolfProfile().mPower },
+            { ClipSlot::Recoil, kWeaponAnimHandToHand, wolfProfile().mRecoil },
+            { ClipSlot::Stagger, kWeaponAnimHandToHand, wolfProfile().mStagger },
+            { ClipSlot::Death, kWeaponAnimHandToHand, wolfProfile().mDeath },
+        };
+        SlotTable table;
+        table.mEntries = sWolfEntries;
+        table.mCount = std::size(sWolfEntries);
+        return table;
+    }
+
+    std::string_view SkyrimCombat::clipOf(const Fighter& fighter, ClipSlot slot) const
+    {
+        if (fighter.mProfile.mCreature != nullptr)
+            return mWolfSlots.clipFor(slot, kWeaponAnimHandToHand);
+        return mSlots.clipFor(slot, kWeaponAnim1HSword);
+    }
+
     SlotTable SlotTable::humanoid()
     {
         SlotTable table;
@@ -133,6 +156,7 @@ namespace game_skyrimse
     {
         mFighters.reserve(256);
         mBowSlots = SlotTable::bow();
+        mWolfSlots = SlotTable::wolf();
         mMagicSlots = SlotTable::magic();
         mCasts.reserve(kMaxCasts);
         mConcentrations.reserve(kMaxConcentrations);
@@ -1048,7 +1072,7 @@ namespace game_skyrimse
         const ClipSlot slot = kind == AttackKind::Bash ? ClipSlot::Bash
             : power                                    ? ClipSlot::PowerAttack
                                                        : ClipSlot::Attack;
-        const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
+        const std::string_view clip = clipOf(fighter, slot);
         if (clip.empty())
             return;
         openeden::sdk::game::ClipRequest request;
@@ -1442,7 +1466,7 @@ namespace game_skyrimse
                 const bool staggers
                     = bash || broken || (!blocked && causesStagger(result.mStagger, power, mBlockSettings));
                 const ClipSlot slot = blocked ? ClipSlot::BlockHit : staggers ? ClipSlot::Stagger : ClipSlot::Recoil;
-                const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
+                const std::string_view clip = clipOf(victim, slot);
                 if (!clip.empty())
                 {
                     openeden::sdk::game::ClipRequest request;
@@ -1473,7 +1497,10 @@ namespace game_skyrimse
             // The stagger-back clip lays the body down; as a Death-slot clip the core holds its last pose until the
             // ragdoll (stage S5-5) exists. (The table has no Death entry: its test pins that, so the Stagger entry is
             // used.)
-            const std::string_view clip = mSlots.clipFor(ClipSlot::Stagger, kWeaponAnim1HSword);
+            // Task 0212: a creature has a Death clip of its own.
+            std::string_view clip = clipOf(victim, ClipSlot::Death);
+            if (clip.empty())
+                clip = clipOf(victim, ClipSlot::Stagger);
             if (!clip.empty())
             {
                 openeden::sdk::game::ClipRequest request;

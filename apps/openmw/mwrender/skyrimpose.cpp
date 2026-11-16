@@ -59,7 +59,8 @@ namespace MWRender::SkyrimPose
         }
         SkyrimIdle::ClipFuture future
             = SkyrimIdle::loadIdleAsync(mVfs, mSkeleton, perSex ? (mFemale ? "female" : "male") : "", clip);
-        SkyrimClipMeta::MetaFuture metaFuture = SkyrimClipMeta::loadAsync(mVfs, mFemale, std::string(clip), future);
+        SkyrimClipMeta::MetaFuture metaFuture
+            = SkyrimClipMeta::loadAsync(mVfs, mFemale, mProject, std::string(clip), future);
         SkyrimIdle::ClipFuture oldClip; // see setClip: they die after the lock
         SkyrimClipMeta::MetaFuture oldMeta;
         const std::lock_guard lock(mMutex);

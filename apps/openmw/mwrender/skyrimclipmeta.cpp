@@ -35,15 +35,16 @@ namespace MWRender::SkyrimClipMeta
 
         std::mutex sProjectMutex;
 
-        std::shared_ptr<const Project> projectFor(const VFS::Manager& vfs, bool female)
+        std::shared_ptr<const Project> projectFor(const VFS::Manager& vfs, bool female, const std::string& creature)
         {
-            static std::map<bool, std::shared_ptr<const Project>> sCache;
+            // Keyed by the sidecar's name: a person's two projects and every creature's (task 0212).
+            static std::map<std::string, std::shared_ptr<const Project>> sCache;
             const std::lock_guard lock(sProjectMutex);
-            const auto found = sCache.find(female);
+            const std::string name = !creature.empty() ? creature : female ? "defaultfemale" : "defaultmale";
+            const auto found = sCache.find(name);
             if (found != sCache.end())
                 return found->second;
             auto project = std::make_shared<Project>();
-            const std::string name = female ? "defaultfemale" : "defaultmale";
             try
             {
                 project->mProject
@@ -55,7 +56,7 @@ namespace MWRender::SkyrimClipMeta
             {
                 project->mFailure = e.what();
             }
-            sCache.emplace(female, project);
+            sCache.emplace(name, project);
             return project;
         }
     }
@@ -79,14 +80,20 @@ namespace MWRender::SkyrimClipMeta
 
     MetaFuture loadAsync(const VFS::Manager& vfs, bool female, std::string clipStem, SkyrimIdle::ClipFuture clip)
     {
-        return std::async(std::launch::async, [&vfs, female, stem = std::move(clipStem), clip = std::move(clip)] {
+        return loadAsync(vfs, female, std::string(), std::move(clipStem), std::move(clip));
+    }
+
+    MetaFuture loadAsync(const VFS::Manager& vfs, bool female, const std::string& creatureProject,
+        std::string clipStem, SkyrimIdle::ClipFuture clip)
+    {
+        return std::async(std::launch::async, [&vfs, female, creatureProject, stem = std::move(clipStem), clip = std::move(clip)] {
             std::shared_ptr<const HavokPack::ClipMeta> result;
             try
             {
                 const auto decoded = clip.get();
                 if (!decoded)
                     return result;
-                const auto project = projectFor(vfs, female);
+                const auto project = projectFor(vfs, female, creatureProject);
                 if (!project->mFailure.empty())
                     Log(Debug::Warning) << "Skyrim combat clip " << stem
                                         << ": no sidecar events: " << project->mFailure;

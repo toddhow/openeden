@@ -40,6 +40,10 @@ namespace MWRender::SkyrimPose
         /// is in the male/female sub-folder. An empty name switches the pose off (the idle shows again).
         void setClip(std::string_view clip, bool perSex);
 
+        /// Task 0212: the sidecar project of a creature (`wolfproject`); empty (the default) is the person's. Set once,
+        /// before the first clip, on the main thread.
+        void setProject(std::string project) { mProject = std::move(project); }
+
         /// Task 0170 (combat): plays `clip` ONCE (no loop) from the moment it is decoded and holds its last pose until
         /// setClip("") ends it; the events and length of the clip arrive through meta(). Main thread.
         void playOnce(std::string_view clip, bool perSex);
@@ -66,6 +70,7 @@ namespace MWRender::SkyrimPose
     private:
         const VFS::Manager& mVfs;
         std::string mSkeleton;
+        std::string mProject; ///< task 0212
         bool mFemale;
         BoneMap mBones;
 

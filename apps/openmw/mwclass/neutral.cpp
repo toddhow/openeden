@@ -694,7 +694,7 @@ namespace MWClass
                 const char* text = std::getenv("OPENEDEN_NEUTRAL_ACTOR_RAISE"); // developer aid: shows the fall
                 return text != nullptr ? static_cast<float>(std::atof(text)) : 0.f;
             }();
-            physics->addNeutralActor(ptr, appearance.heightScale, raise);
+            physics->addNeutralActor(ptr, appearance.heightScale, raise, appearance.walkSpeed, appearance.runSpeed);
 
             // Task 0154 (stage S7): the pack's numbers and relations for this actor, as a log line (a debug readout:
             // nothing in the engine consumes them yet).

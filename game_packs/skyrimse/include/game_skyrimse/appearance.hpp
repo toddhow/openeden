@@ -6,6 +6,7 @@
 // (sdk/include/openeden/game/actor_appearance.hpp).
 
 #include "game_skyrimse/actors.hpp"
+#include "game_skyrimse/creatures.hpp"
 
 #include <openeden/game/actor_appearance.hpp>
 
@@ -19,6 +20,9 @@ namespace game_skyrimse
         std::uint32_t mMaxParts = 64;
         std::uint32_t mMaxHeadPartDepth = 2; ///< HNAM extra parts followed this deep
         std::size_t mMaxPathBytes = 512;
+        /// Task 0212 (`[extension.skyrimse] creatures`): a creature race gets its own animation fields and capsule, and
+        /// a sex whose skeleton or skin model is empty takes the other sex's. Off: described as before.
+        bool mCreatures = false;
     };
 
     /// The level the leveled lists of an outfit or template are resolved at. A named guess: the data does not say at

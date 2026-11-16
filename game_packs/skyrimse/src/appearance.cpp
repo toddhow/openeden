@@ -92,13 +92,19 @@ namespace game_skyrimse
             error = "the NPC's race is not a known RACE";
             return false;
         }
-        if (!fits(race->skeleton(sex), limits))
+        // Task 0212: a creature race often names one skeleton and one model for both sexes (the field of the other sex
+        // is empty or missing); with `creatures` on the sex that has none takes the other's.
+        const Sex otherSex = sex == Sex::Male ? Sex::Female : Sex::Male;
+        const bool creatureFallback = limits.mCreatures && !fits(race->skeleton(sex), limits);
+        const Sex skeletonSex = creatureFallback ? otherSex : sex;
+        if (!fits(race->skeleton(skeletonSex), limits))
         {
             error = "the race has no skeleton model for this sex";
             return false;
         }
-        out.skeletonPath = race->skeleton(sex);
+        out.skeletonPath = race->skeleton(skeletonSex);
         out.female = sex == Sex::Female;
+        const CreatureProfile* creature = limits.mCreatures ? creatureProfileFor(out.skeletonPath) : nullptr;
 
         // The height: the race's for this sex times the NPC's own (NAM6) of the NPC the traits come from.
         {
@@ -108,6 +114,19 @@ namespace game_skyrimse
             const float scale = raceHeight * own6;
             // A NaN fails both comparisons of std::clamp's order, so test it first.
             out.heightScale = std::isfinite(scale) ? std::clamp(scale, kMinHeightScale, kMaxHeightScale) : 1.0f;
+        }
+        if (creature != nullptr)
+        {
+            // Task 0212: the capsule of an animal is its own size, not a person's times the race height.
+            out.heightScale = creature->mCapsuleHeight / kCreatureReferenceHeight;
+            out.animationProject = std::string(creature->mProject);
+            out.idleClip = std::string(creature->mIdle);
+            out.walkClip = std::string(creature->mWalk);
+            out.runClip = std::string(creature->mRun);
+            out.walkSpeed = creature->mWalkSpeed;
+            out.runSpeed = creature->mRunSpeed;
+            out.walkStride = creature->mWalkStride;
+            out.runStride = creature->mRunStride;
         }
 
         // The outfit first: its slots decide which skin parts are covered.
@@ -133,11 +152,13 @@ namespace game_skyrimse
             for (FormId armatureId : skin->mArmatures)
             {
                 const ArmatureRecord* addon = index.armature(armatureId);
-                if (addon == nullptr || !addon->appliesTo(resolved.mRace) || !fits(addon->model(sex), limits)
-                    || (addon->mSlotMask & covered) != 0)
+                if (addon == nullptr || !addon->appliesTo(resolved.mRace) || (addon->mSlotMask & covered) != 0)
+                    continue;
+                const bool ownModel = fits(addon->model(sex), limits);
+                if (!ownModel && !(limits.mCreatures && fits(addon->model(otherSex), limits)))
                     continue;
                 ActorPart part;
-                part.modelPath = addon->model(sex);
+                part.modelPath = ownModel ? addon->model(sex) : addon->model(otherSex);
                 part.kind = ActorPartKind::Skin;
                 part.slotMask = addon->mSlotMask;
                 out.parts.push_back(std::move(part));

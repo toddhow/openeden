@@ -1157,7 +1157,8 @@ namespace MWPhysics
         mActors.emplace(ptr.mRef, std::move(actor));
     }
 
-    void PhysicsSystem::addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise)
+    void PhysicsSystem::addNeutralActor(
+        const MWWorld::Ptr& ptr, float heightScale, float raise, float walkSpeed, float runSpeed)
     {
         if (getObject(ptr) != nullptr)
             return;
@@ -1181,6 +1182,10 @@ namespace MWPhysics
         entry.mRef = ptr.mRef;
         entry.mStartZ = ptr.getRefData().getPosition().pos[2];
         entry.mFall.mZ = entry.mStartZ;
+        if (std::isfinite(walkSpeed) && walkSpeed > 0.f)
+            entry.mWalkSpeed = walkSpeed;
+        if (std::isfinite(runSpeed) && runSpeed > 0.f)
+            entry.mRunSpeed = runSpeed;
         mNeutralActors.push_back(entry);
         // Reserved here so that a frame that moves every actor does not allocate.
         mNeutralMoved.reserve(mNeutralActors.size());
@@ -1649,8 +1654,10 @@ namespace MWPhysics
         if (entry == nullptr)
             return;
         entry->mRequest = {};
-        const float speed
+        const float coreSpeed
             = goal.speed == openeden::sdk::game::ActorSpeed::Run ? NeutralPath::kRunSpeed : NeutralPath::kWalkSpeed;
+        const float ownSpeed = goal.speed == openeden::sdk::game::ActorSpeed::Run ? entry->mRunSpeed : entry->mWalkSpeed;
+        const float speed = ownSpeed > 0.f ? ownSpeed : coreSpeed; // task 0212: a creature's own speeds
         const vsg::vec3 target(static_cast<float>(goal.x), static_cast<float>(goal.y), static_cast<float>(goal.z));
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
         if (trace)

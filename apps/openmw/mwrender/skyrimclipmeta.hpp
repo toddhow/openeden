@@ -31,6 +31,11 @@ namespace MWRender::SkyrimClipMeta
     /// holds null when the clip failed to decode. Never throws; `vfs` must outlive the worker.
     [[nodiscard]] MetaFuture loadAsync(
         const VFS::Manager& vfs, bool female, std::string clipStem, SkyrimIdle::ClipFuture clip);
+
+    /// Task 0212: the same for a creature (or any project by name): the sidecars are `animationdata/<project>.txt` and
+    /// `animationdata/boundanims/anims_<project>.txt` (`wolfproject`). An empty `project` is the person's, by `female`.
+    [[nodiscard]] MetaFuture loadAsync(const VFS::Manager& vfs, bool female, const std::string& project,
+        std::string clipStem, SkyrimIdle::ClipFuture clip);
 }
 
 #endif

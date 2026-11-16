@@ -564,6 +564,9 @@ namespace game_skyrimse
             // Task 0179: what the perk conditions ask about. PRKR follows the template's "spell list" use flag
             // (RECALLED-VERIFY: the flag that covers it).
             out.mRace = resolved.mRace;
+            if (mCreatures)
+                if (const RaceRecord* creatureRace = mActorIndex->race(resolved.mRace))
+                    out.mCreature = creatureProfileFor(creatureRace->skeleton(out.mFemale ? Sex::Female : Sex::Male));
             if (const ActorNpc* source = mActorIndex->npc(resolved.mSpellsFrom))
             {
                 out.mPerks = source->mPerks;
@@ -651,7 +654,9 @@ namespace game_skyrimse
             const FileSource* files = mFiles;
             probe.mExists = [files](const std::string& path) { return files->exists(path); };
         }
-        return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, {}, &probe);
+        AppearanceLimits limits;
+        limits.mCreatures = mCreatures; // task 0212
+        return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, limits, &probe);
     }
 
     // ---- actor numbers and relations (task 0154, stage S7) ---------------------------------------------------------

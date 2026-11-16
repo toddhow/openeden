@@ -22,6 +22,7 @@
 #include <game_skyrimse/combat_factions.hpp>
 #include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_stats.hpp>
+#include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/magic.hpp>
 #include <game_skyrimse/progression.hpp>
 
@@ -240,6 +241,9 @@ namespace game_skyrimse
         FormId mBodyMaterial = kNullFormId;
         FormId mUnarmedImpactSet = kNullFormId;
         AiProfile mAi; ///< task 0190: AIDT, the combat style and the relation to the player
+        /// Task 0212: the creature profile of the race (null for a person and with the setting off): its clips are the
+        /// fighter's attack, reaction and death clips. Not owned (static).
+        const CreatureProfile* mCreature = nullptr;
     };
 
     /// The bow draw speed of a fighter: bowDrawSpeed(weapon speed, test bonus), times the WeaponSpeedMult ability when
@@ -369,6 +373,11 @@ namespace game_skyrimse
         /// Skyrim - Animations.bsa (actors\character\animations\1hm_blockidle.hkx). A separate table so that humanoid()
         /// keeps its seven entries.
         [[nodiscard]] static SlotTable guard();
+
+        /// Task 0212: the wolf's clips (CreatureProfile of the wolf, animation type 0 = no weapon): Attack, PowerAttack,
+        /// Recoil, Stagger and Death. Clip names are the sidecar's generator names, which equal the files' (VERIFIED
+        /// for these five in animationdata/wolfproject.txt).
+        [[nodiscard]] static SlotTable wolf();
 
         /// Number of (slot, weapon type) entries.
         [[nodiscard]] std::size_t size() const { return mCount; }
@@ -863,6 +872,7 @@ namespace game_skyrimse
         }
 
         SlotTable mSlots;
+        SlotTable mWolfSlots; ///< task 0212
         CombatData* mData = nullptr;
         CombatSettings mCombatSettings;
         BlockSettings mBlockSettings;
@@ -882,6 +892,8 @@ namespace game_skyrimse
         std::vector<ArmourPiece> mBasePieces;
         void applyPlayerEquipment();
         [[nodiscard]] const WeaponRecord* weaponFor(const Fighter& fighter) const;
+        /// Task 0212: the clip of a slot for this fighter: a creature's own, else the humanoid one-handed table.
+        [[nodiscard]] std::string_view clipOf(const Fighter& fighter, openeden::sdk::game::ClipSlot slot) const;
         void applyPlayerHeal(openeden::sdk::game::CombatRequestWriter& writer);
         // Task 0200
         SkillUseHook mSkillHook;

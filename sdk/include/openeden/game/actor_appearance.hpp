@@ -17,14 +17,15 @@
 // 1.0 by tests). A pack that does not implement it simply draws no actors. Plain values only: no engine, renderer,
 // Jolt or Qt type.
 //
-// Version policy: DRAFT 0.3 (0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135:
-// ActorAppearance::heightScale, a trailing field the core only reads). Additive changes (a new trailing virtual with a
+// Version policy: DRAFT 0.4 (0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135:
+// ActorAppearance::heightScale, a trailing field the core only reads; 0.4, task 0212: the creature fields at the end of
+// ActorAppearance, which a consumer only reads and which are all empty or 0 for a person). Additive changes (a new trailing virtual with a
 // default meaning "not supported", a new trailing field of ActorPart or ActorAppearance that a consumer only reads)
 // raise the minor number; anything else raises the major number. Threading: main thread only, like WorldCellSource.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorAppearanceVersion{ 0, 3 };
+    inline constexpr Version kActorAppearanceVersion{ 0, 4 };
 
     enum class ActorPartKind : std::uint8_t
     {
@@ -61,6 +62,23 @@ namespace openeden::sdk::game
         /// collision capsule from it (task 0135, decision 0017 N5-3). Finite and positive; a pack clamps what the data
         /// holds. Added in 0.3.
         float heightScale = 1.0f;
+
+        // ---- Added in 0.4 (task 0212): the animation of a creature. All empty or 0 for a person, and the core then
+        // plays what it always did (the `male` / `female` folder clips `mt_idle`, `mt_walkforward`, `mt_runforward` of
+        // the humanoid project). A creature's clips are in the actor folder's own animations folder, with no sex folder.
+        /// The animation project that holds the clips' sidecar (events, root motion), the file stem under
+        /// `animationdata/` (`wolfproject`). Empty: the humanoid `defaultmale` / `defaultfemale`.
+        std::string animationProject;
+        /// Clip file names without extension: the standing loop, the walk and the run cycles. Empty: the humanoid ones.
+        std::string idleClip;
+        std::string walkClip;
+        std::string runClip;
+        /// Units a second the creature walks and runs at, and the distance one cycle of each clip covers by its own
+        /// root motion (what makes the feet stand still on the ground). 0: the core's own numbers.
+        float walkSpeed = 0.f;
+        float runSpeed = 0.f;
+        float walkStride = 0.f;
+        float runStride = 0.f;
 
         friend bool operator==(const ActorAppearance&, const ActorAppearance&) = default;
     };

@@ -206,7 +206,8 @@ namespace MWPhysics
         /// is an Object, not an Actor: nothing about it needs CreatureStats. `raise` lifts the feet that many units
         /// above the placement first (a developer aid that shows the fall). Main thread only. Does nothing when the
         /// object already has a body or the shape cannot be made.
-        void addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f);
+        void addNeutralActor(
+            const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f, float walkSpeed = 0.f, float runSpeed = 0.f);
 
         /// Task 0135: one frame of the neutral actors: those not yet on the floor are stood on it
         /// (NeutralActor::stepFall, a ray cast down per actor), those that are grounded and have a movement request are
@@ -649,6 +650,8 @@ namespace MWPhysics
             ActorRagdollHandle mRagdoll;
             bool mCorpseDone = false;
             std::uint32_t mCorpseFrames = 0;
+            float mWalkSpeed = 0.f; ///< task 0212: a creature's own walk and run speeds, 0 for the core's
+            float mRunSpeed = 0.f;
         };
         NeutralProcess::Config mNeutralProcessConfig;
         NeutralProcessStats mNeutralProcessStats;
