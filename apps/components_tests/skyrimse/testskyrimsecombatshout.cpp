@@ -465,7 +465,9 @@ namespace
         update();
         SkyrimCombat::FighterView untouched;
         if (mCombat.fighterView(CombatSubject::of(mB), untouched)) // a fighter nothing has touched may not exist yet
+        {
             EXPECT_FLOAT_EQ(untouched.mHealth, 50.f);
+        }
         EXPECT_TRUE(mWriter.mDamage.empty());
         updates(200);
         shout(12);

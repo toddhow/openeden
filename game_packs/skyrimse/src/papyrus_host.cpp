@@ -1039,21 +1039,21 @@ namespace game_skyrimse
                             + " is in another cell: not done (an object stays in its own cell)");
                     return NativeResult{};
                 }
-                const double position[3] = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2),
+                const double newPosition[3] = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2),
                     where[2] + argNumber(c, 3) };
                 // abMatchRotation: the target's angles, when this host knows them
                 std::array<double, 3> angles{};
                 const bool turn = argNumber(c, 4) != 0.0 && anglesOf(target, angles);
-                moveReference(self, position, turn ? &angles : nullptr);
+                moveReference(self, newPosition, turn ? &angles : nullptr);
                 return NativeResult{};
             });
             reg("ObjectReference", "SetPosition", false, [this](const NativeCall& c) {
                 const FormId self = formOf(c.self);
                 if (self != 0)
                 {
-                    const double position[3] = { argNumber(c, 0), argNumber(c, 1), argNumber(c, 2) };
-                    if (std::isfinite(position[0]) && std::isfinite(position[1]) && std::isfinite(position[2]))
-                        moveReference(self, position, nullptr);
+                    const double newPosition[3] = { argNumber(c, 0), argNumber(c, 1), argNumber(c, 2) };
+                    if (std::isfinite(newPosition[0]) && std::isfinite(newPosition[1]) && std::isfinite(newPosition[2]))
+                        moveReference(self, newPosition, nullptr);
                 }
                 return NativeResult{};
             });

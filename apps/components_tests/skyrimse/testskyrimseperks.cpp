@@ -735,9 +735,9 @@ namespace
         SpellRecord& spell = lib.mSpells[0x700];
         spell.mHasData = true;
         spell.mType = SpellRecord::kTypeAbility;
-        spell.mEffects = { { 0x800, 1.3f, 0, 0 }, { 0x801, 5.f, 0, 0 } };
-        lib.mEffects[0x800] = { {}, true, 0, 0, 85 };
-        lib.mEffects[0x801] = { {}, true, 0, 4, 39 }; // archetype 4 is not a value modifier
+        spell.mEffects = { { 0x800, 1.3f, 0, 0, 0, {} }, { 0x801, 5.f, 0, 0, 0, {} } };
+        { MagicEffectRecord e; e.mHasData = true; e.mPrimaryValue = 85; lib.mEffects[0x800] = e; }
+        { MagicEffectRecord e; e.mHasData = true; e.mArchetype = 4; e.mPrimaryValue = 39; lib.mEffects[0x801] = e; } // archetype 4 is not a value modifier
         std::vector<FormId> spells;
         collectPerkAbilities(lib, std::vector<FormId>{ kPerk1 }, spells);
         ASSERT_EQ(spells.size(), 1u);

@@ -6,20 +6,13 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
 namespace
 {
     using MWWorld::NeutralFades;
-
-    const NeutralFades::Update* find(const std::vector<NeutralFades::Update>& updates, std::uint32_t placement)
-    {
-        for (const NeutralFades::Update& u : updates)
-            if (u.mPlacement == placement)
-                return &u;
-        return nullptr;
-    }
 
     TEST(NeutralFade, aFadeOutFallsInAStraightLineAndFinishesAtZero)
     {

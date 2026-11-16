@@ -115,16 +115,6 @@ namespace
             index.addLeveledLists(full.mLeveledLists);
             parsed.push_back(std::move(full));
         }
-        const auto folderOf = [&](FormId npcId) -> std::string {
-            const ActorNpc* n = index.npc(npcId);
-            if (n == nullptr)
-                return "?";
-            ActorIndex::Resolved resolved;
-            if (index.resolve(npcId, 1, 0, resolved) != ActorIndex::ResolveStatus::Ok)
-                return "?";
-            const RaceRecord* r = index.race(resolved.mRace);
-            return r != nullptr ? lower(r->skeleton(Sex::Male)) : "?";
-        };
         // Which creature kinds an NPC placement can become (the templates pick by the placement's number), and the
         // placements whose base is a leveled list itself.
         std::map<std::string, int> printed, leveledBases;

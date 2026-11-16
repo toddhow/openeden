@@ -2,6 +2,7 @@
 #define OPENEDEN_APPS_OPENMW_MWBASE_EXTENSIONMANAGER_H
 
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>

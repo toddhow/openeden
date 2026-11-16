@@ -373,8 +373,8 @@ namespace
         SpellRecord& spell = mData.mPerks.mSpells[0x700];
         spell.mHasData = true;
         spell.mType = SpellRecord::kTypeAbility;
-        spell.mEffects = { { 0x800, 50.f, 0, 0 } };
-        mData.mPerks.mEffects[0x800] = { {}, true, 0, 0, 39 };
+        spell.mEffects = { { 0x800, 50.f, 0, 0, 0, {} } };
+        { MagicEffectRecord e; e.mHasData = true; e.mPrimaryValue = 39; mData.mPerks.mEffects[0x800] = e; }
         mData.mProfiles[kVictimBase].mPerks = { kAbilityPerk };
         start();
         swing(CombatSubject::of(mA), { hitOnVictim() });
