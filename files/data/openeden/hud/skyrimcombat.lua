@@ -63,7 +63,7 @@ function M.create(ui, combat)
       end }
     self.docs[#self.docs + 1] = ui.Hud{
       name = 'combat-enemy',
-      style = { position = 'absolute', left = '50%', top = 28, width = ENEMY_WIDTH, ['margin-left'] = -math.floor(ENEMY_WIDTH / 2) },
+      style = { position = 'absolute', left = '50%', top = 56, width = ENEMY_WIDTH, ['margin-left'] = -math.floor(ENEMY_WIDTH / 2) },
       build = function()
         return ui.Column{
           class = 'combat-enemy-box',

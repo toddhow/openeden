@@ -184,6 +184,7 @@ namespace game_skyrimse
         PlacedRefIndex mPlacedRefs; ///< task 0160
         StoryIndex mStory; ///< task 0187: the story manager's nodes
         SceneIndex mScenes; ///< task 0194
+        map::MarkerIndex mMapMarkers; ///< task 0201: empty unless the pack asked for them
         QuestVmadIndex mQuestVmads; ///< task 0176: scripts, fragments and alias scripts of every quest
         std::uint64_t mPlacedRefsMillis = 0; ///< the part of the build that read references (task 0160)
     };
@@ -686,7 +687,8 @@ namespace game_skyrimse
     // ---- conversations (task 0141, M-S4 slice 1) -----------------------------------------------------------------
 
     std::unique_ptr<SkyrimWorldView::DialogueData> SkyrimWorldView::buildDialogueData(
-        const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order)
+        const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
+        bool mapMarkers)
     {
         auto data = std::make_unique<DialogueData>();
         const DialogueLimits dialogueLimits;
@@ -707,6 +709,7 @@ namespace game_skyrimse
                 data->mQuests.add(QuestRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mPackages.add(PackageRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mLocations.add(LocationRecords());
+                data->mMapMarkers.add(map::MarkerRecords());
                 data->mQuestScripts.add(QuestScriptRecords());
                 data->mQuestVmads.add(QuestVmadRecords());
                 data->mStory.add(StoryRecords(), FormIdResolver(Content::Header(), name, order));
@@ -743,10 +746,17 @@ namespace game_skyrimse
             PlacedRefRecords placed;
             (void)parsePlacedRefs(*file, order, placedLimits, placed);
             data->mPlacedRefs.add(std::move(placed));
+            {
+                map::MarkerRecords markers; // task 0201
+                if (mapMarkers)
+                    (void)map::parseMarkers(*file, order, map::MarkerLimits(), markers);
+                data->mMapMarkers.add(std::move(markers));
+            }
             placedTime += std::chrono::steady_clock::now() - placedStart;
         }
         const auto finishStart = std::chrono::steady_clock::now();
         data->mPlacedRefs.finish();
+        data->mMapMarkers.finish();
         placedTime += std::chrono::steady_clock::now() - finishStart;
         data->mPlacedRefsMillis
             = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(placedTime).count());
@@ -760,8 +770,9 @@ namespace game_skyrimse
         std::vector<std::pair<std::filesystem::path, std::string>> plugins;
         for (const PluginData& plugin : mPlugins)
             plugins.emplace_back(plugin.mPath, plugin.mName);
-        mDialogueThread = std::thread([this, plugins = std::move(plugins), order = mOrder]() {
-            std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order);
+        const bool mapMarkers = mWantMapMarkers;
+        mDialogueThread = std::thread([this, plugins = std::move(plugins), order = mOrder, mapMarkers]() {
+            std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers);
             mPrefetched = std::move(data);
             mDialogueReady.store(true);
         });
@@ -786,7 +797,7 @@ namespace game_skyrimse
             std::vector<std::pair<std::filesystem::path, std::string>> plugins;
             for (const PluginData& plugin : mPlugins)
                 plugins.emplace_back(plugin.mPath, plugin.mName);
-            state->mData = buildDialogueData(plugins, mOrder);
+            state->mData = buildDialogueData(plugins, mOrder, mWantMapMarkers);
         }
         DialogueState* raw = state.get();
         raw->mResolver = [this, raw](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
@@ -1291,6 +1302,24 @@ namespace game_skyrimse
         mCurrentPackageLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
+    }
+
+    bool SkyrimWorldView::mapAccess(MapAccess& out)
+    {
+        if (!ready() || mDialogue == nullptr || mDialogue->mData == nullptr)
+            return false;
+        const DialogueData* data = mDialogue->mData.get();
+        out.mMarkers = &data->mMapMarkers;
+        out.mPlaced = &data->mPlacedRefs;
+        out.mCellWorld = [this](FormId cell, FormId& world, bool& interior) {
+            const auto it = mCells.find(cell);
+            if (it == mCells.end())
+                return false;
+            interior = it->second.mInfo.interior;
+            world = static_cast<FormId>(it->second.mInfo.world);
+            return true;
+        };
+        return true;
     }
 
     bool SkyrimWorldView::papyrusAccess(PapyrusAccess& out)

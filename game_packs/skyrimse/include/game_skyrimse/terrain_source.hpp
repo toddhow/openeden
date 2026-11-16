@@ -101,6 +101,16 @@ namespace game_skyrimse
             openeden::sdk::game::GrassCell& out, std::string& error, const GrassPlacementOptions& options) const;
         [[nodiscard]] const GrassTables& grassTables() const { return mGrassTables; }
 
+        /// Task 0201: the land of the world map. The world whose land draws (the world itself, else the first parent
+        /// that lends its land), and the grid extent of its cells. False for an unknown world or one with no land.
+        [[nodiscard]] bool landExtent(openeden::sdk::game::WorldId world, openeden::sdk::game::WorldId& landWorld,
+            std::int32_t& minX, std::int32_t& minY, std::int32_t& maxX, std::int32_t& maxY) const;
+        /// One row (grid y) of the world map, one packed 0xRRGGBB pixel per cell of minX .. minX + width - 1 and -1 for
+        /// a cell with no land: the cell's vertex colours (their mean) lit by the slope of its heights from the north
+        /// west, or the water colour when the cell's water surface is above the mean height.
+        [[nodiscard]] bool mapRow(openeden::sdk::game::WorldId landWorld, std::int32_t y, std::int32_t minX,
+            std::int32_t width, std::vector<std::int32_t>& out) const;
+
         [[nodiscard]] Stats stats() const { return mStats; }
         [[nodiscard]] const std::vector<Content::Error>& errors() const { return mErrors; }
 

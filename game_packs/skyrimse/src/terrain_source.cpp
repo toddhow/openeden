@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <sstream>
 
 namespace game_skyrimse
@@ -316,6 +317,104 @@ namespace game_skyrimse
         {
             out.present = true;
             out.height = height;
+        }
+        return true;
+    }
+
+    bool SkyrimTerrainIndex::landExtent(sdk::WorldId world, sdk::WorldId& landWorld, std::int32_t& minX,
+        std::int32_t& minY, std::int32_t& maxX, std::int32_t& maxY) const
+    {
+        // The widest land is the topmost ancestor that has any (WhiterunWorld has 7 cells of its own and borrows
+        // Tamriel's, which the world map must show as a whole).
+        FormId best = kNullFormId;
+        FormId current = world;
+        for (int hops = 0; hops < 8 && current != kNullFormId; ++hops)
+        {
+            const auto first = mLands.lower_bound(LandKey{ current, std::numeric_limits<std::int32_t>::min(),
+                std::numeric_limits<std::int32_t>::min() });
+            if (first != mLands.end() && std::get<0>(first->first) == current)
+                best = current;
+            const auto w = mWorlds.find(current);
+            if (w == mWorlds.end())
+                break;
+            current = w->second.mParent;
+        }
+        if (best == kNullFormId)
+            return false;
+        bool any = false;
+        for (auto it = mLands.lower_bound(LandKey{ best, std::numeric_limits<std::int32_t>::min(),
+                 std::numeric_limits<std::int32_t>::min() });
+             it != mLands.end() && std::get<0>(it->first) == best; ++it)
+        {
+            const std::int32_t x = std::get<1>(it->first);
+            const std::int32_t y = std::get<2>(it->first);
+            minX = any ? std::min(minX, x) : x;
+            maxX = any ? std::max(maxX, x) : x;
+            minY = any ? std::min(minY, y) : y;
+            maxY = any ? std::max(maxY, y) : y;
+            any = true;
+        }
+        landWorld = best;
+        return any;
+    }
+
+    bool SkyrimTerrainIndex::mapRow(sdk::WorldId landWorld, std::int32_t y, std::int32_t minX, std::int32_t width,
+        std::vector<std::int32_t>& out) const
+    {
+        out.clear();
+        if (width <= 0 || width > 4096)
+            return false;
+        for (std::int32_t x = minX; x < minX + width; ++x)
+        {
+            sdk::TerrainCell cell;
+            std::string error;
+            if (buildTerrain(landWorld, x, y, cell, error) != sdk::TerrainResult::Built || !cell.hasHeights
+                || cell.heights.empty())
+            {
+                out.push_back(-1);
+                continue;
+            }
+            const std::uint32_t n = cell.vertsPerSide;
+            double meanHeight = 0.0;
+            for (const float h : cell.heights)
+                meanHeight += h;
+            meanHeight /= static_cast<double>(cell.heights.size());
+            double r = 150, g = 140, b = 110; // the colour of a cell with no vertex colours
+            if (cell.hasColours && cell.colours.size() >= static_cast<std::size_t>(n) * n * 3)
+            {
+                r = g = b = 0;
+                for (std::size_t i = 0; i < static_cast<std::size_t>(n) * n; ++i)
+                {
+                    r += cell.colours[i * 3];
+                    g += cell.colours[i * 3 + 1];
+                    b += cell.colours[i * 3 + 2];
+                }
+                const double count = static_cast<double>(n) * n;
+                r /= count;
+                g /= count;
+                b /= count;
+            }
+            // the slope toward the north west light: rows go north, columns east (land.hpp)
+            double shade = 1.0;
+            if (n > 1)
+            {
+                const double dx = (cell.heights[n / 2 * n + n - 1] - cell.heights[n / 2 * n]) / (n - 1);
+                const double dy = (cell.heights[(n - 1) * n + n / 2] - cell.heights[n / 2]) / (n - 1);
+                shade = std::clamp(1.0 + (dx - dy) / 220.0, 0.55, 1.35);
+            }
+            sdk::CellWater water;
+            const bool wet = cellWater(landWorld, x, y, water) && water.present && water.height > meanHeight;
+            if (wet)
+            {
+                r = 42;
+                g = 84;
+                b = 130;
+                shade = 1.0;
+            }
+            const auto channel = [&](double v) {
+                return static_cast<std::int32_t>(std::clamp(v * shade, 0.0, 255.0));
+            };
+            out.push_back((channel(r) << 16) | (channel(g) << 8) | channel(b));
         }
         return true;
     }

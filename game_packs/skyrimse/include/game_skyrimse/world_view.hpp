@@ -25,6 +25,7 @@
 #include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/barter.hpp>
 #include <game_skyrimse/furniture.hpp>
+#include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
@@ -445,6 +446,19 @@ namespace game_skyrimse
         /// The speech skill of the stand-in player (the pack setting `player speech`).
         [[nodiscard]] std::uint8_t standInPlayerSpeech() const { return mStandInSpeech; }
 
+        // ---- task 0201 (map and compass): the pack's own hooks, one pair
+        /// Asks the dialogue worker to read the map markers too (before the worker starts: set it in the pack's
+        /// start()). Costs one more walk of each plugin.
+        void setWantMapMarkers(bool want) { mWantMapMarkers = want; }
+        struct MapAccess
+        {
+            const map::MarkerIndex* mMarkers = nullptr;
+            const PlacedRefIndex* mPlaced = nullptr;
+            std::function<bool(FormId cell, FormId& world, bool& interior)> mCellWorld;
+        };
+        /// True once the dialogue data (and so the markers) is read; never waits. Main thread.
+        [[nodiscard]] bool mapAccess(MapAccess& out);
+
         // ---- task 0176 (Papyrus wiring)
         /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
         /// call and never waits: false means "ask again next frame"). Main thread.
@@ -598,7 +612,9 @@ namespace game_skyrimse
         bool ensureDialogue();
         void startDialoguePrefetch();
         [[nodiscard]] static std::unique_ptr<DialogueData> buildDialogueData(
-            const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order);
+            const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
+            bool mapMarkers);
+        bool mWantMapMarkers = false; ///< task 0201: read the map markers with the dialogue data
         std::thread mDialogueThread; ///< reads the conversation records after the first actor was described
         std::unique_ptr<DialogueData> mPrefetched; ///< the thread's result; valid once mDialogueReady is set
         std::atomic<bool> mDialogueReady{ false };

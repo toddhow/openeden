@@ -30,6 +30,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimseinventorywindows.cpp
     ui/testskyrimsebarterwindows.cpp
     ui/testskyrimsejournalwindows.cpp
+    ui/testskyrimsemapwindows.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testuiqueue.cpp
     ui/testuireactive.cpp
@@ -608,6 +609,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseinventoryequipreal.cpp
     skyrimse/testskyrimseinventoryreal.cpp
     skyrimse/testskyrimsejournal.cpp
+    skyrimse/testskyrimsemap.cpp
     skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
@@ -682,6 +684,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/journal.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map_markers.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scene.cpp

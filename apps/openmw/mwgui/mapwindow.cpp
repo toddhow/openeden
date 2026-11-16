@@ -32,12 +32,12 @@
 #include "../mwrender/worldmap.hpp"
 
 #include "confirmationdialog.hpp"
+#include "localmapcell.hpp"
 
 #include <numeric>
 
 namespace
 {
-    const int cellSize = Constants::CellSizeInUnits;
     constexpr float speed = 1.08f; // the zoom speed, it should be greater than 1
 
     // Task skyext: the worldspace the exterior map shows: the player's, so a neutral game's map asks for its own cells
@@ -278,12 +278,13 @@ namespace MWGui
 
         if (!mInterior)
         {
-            ESM::ExteriorCellLocation cellPos = ESM::positionToExteriorCellLocation(worldX, worldY);
+            // Task 0201: the cell size of the current worldspace, not Morrowind's (8192) for all
+            const LocalMapCell cellPos = localMapCellOf(worldX, worldY, mCellSize);
             cellIndex.x = cellPos.mX;
             cellIndex.y = cellPos.mY;
 
-            nX = (worldX - cellSize * cellIndex.x) / cellSize;
-            nY = (worldY - cellSize * cellIndex.y) / cellSize;
+            nX = cellPos.mNX;
+            nY = cellPos.mNY;
         }
         else
             mLocalMapRender->worldToInteriorMapPosition({ worldX, worldY }, nX, nY, cellIndex.x, cellIndex.y);
@@ -480,7 +481,7 @@ namespace MWGui
 
             mCompass->setPosition(pos);
         }
-        vsg::vec2 curPos((cellX + nx) * cellSize, (cellY + ny) * cellSize);
+        vsg::vec2 curPos((cellX + nx) * mCellSize, (cellY + ny) * mCellSize);
         if (vsg::length2(curPos - mCurPos) > 0.001)
         {
             mCurPos = curPos;
@@ -995,8 +996,8 @@ namespace MWGui
         }
         else
         {
-            worldPos.x = (x + nX) * cellSize;
-            worldPos.y = (y + nY) * cellSize;
+            worldPos.x = (x + nX) * mCellSize;
+            worldPos.y = (y + nY) * mCellSize;
         }
 
         mEditingMarker.mWorldX = worldPos.x;

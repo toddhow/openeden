@@ -226,6 +226,11 @@
       "default": false
     },
     {
+      "key": "map",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "journal test quests",
       "type": "int",
       "default": 0

@@ -22,6 +22,8 @@ openeden_add_game_pack(skyrimse
         src/barter.cpp
         src/barter_service.cpp
         src/journal.cpp
+        src/map.cpp
+        src/map_markers.cpp
         src/quest_script.cpp
         src/story.cpp
         src/scene.cpp
@@ -86,6 +88,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/barter.hpp
         include/game_skyrimse/barter_service.hpp
         include/game_skyrimse/journal.hpp
+        include/game_skyrimse/map.hpp
+        include/game_skyrimse/map_markers.hpp
         include/game_skyrimse/quest_script.hpp
         include/game_skyrimse/vmad.hpp
         include/game_skyrimse/papyrus_host.hpp
@@ -151,6 +155,7 @@ add_library(game_skyrimse_world STATIC
     src/speech.cpp
     src/location.cpp
     src/placed_refs.cpp
+    src/map_markers.cpp
     src/quest_script.cpp
     src/story.cpp
     src/scene.cpp

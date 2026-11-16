@@ -1061,6 +1061,13 @@ namespace MWGui
         mHud->setCellName(name);
         auto cellCommon = cell->getCell();
 
+        // Task 0201: the local maps place their markers by the worldspace's cell size
+        const float cellSize = cellCommon->isExterior()
+            ? static_cast<float>(ESM::getCellSize(cellCommon->getWorldSpace()))
+            : static_cast<float>(Constants::CellSizeInUnits);
+        mMap->setCellSize(cellSize);
+        mHud->setCellSize(cellSize);
+
         mMap->requestMapRender(cell);
 
         if (cellCommon->isExterior())

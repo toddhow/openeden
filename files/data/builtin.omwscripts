@@ -52,3 +52,6 @@ PLAYER REQUIRES=core.skyrimse.papyrus>=1.0: scripts/openeden/skyrimse/papyrus_pl
 # Skyrim SE skills and perks (task 0200); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills_global.lua
 PLAYER REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills_player.lua
+# Skyrim SE compass and world map (task 0201); started only when the session's game pack has the namespace
+GLOBAL REQUIRES=core.skyrimse.map>=1.0: scripts/openeden/skyrimse/map_global.lua
+PLAYER REQUIRES=core.skyrimse.map>=1.0: scripts/openeden/skyrimse/map_player.lua

@@ -146,6 +146,8 @@ set(BUILTIN_DATA_FILES
     openeden/skyrimse/barter_windows.lua
     openeden/skyrimse/journal_windows.lua
     openeden/skyrimse/skills_windows.lua
+    openeden/skyrimse/compass.lua
+    openeden/skyrimse/worldmap.lua
 
     builtin.omwscripts
 
@@ -190,6 +192,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/papyrus_player.lua
     scripts/openeden/skyrimse/skills_player.lua
     scripts/openeden/skyrimse/skills_global.lua
+    scripts/openeden/skyrimse/map_global.lua
+    scripts/openeden/skyrimse/map_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua
     scripts/omw/input/settings.lua

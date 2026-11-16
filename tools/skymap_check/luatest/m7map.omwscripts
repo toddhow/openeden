@@ -1,0 +1,3 @@
+GLOBAL: scripts/m7map/global.lua
+MENU: scripts/m7map/menu.lua
+PLAYER: scripts/m7map/shot.lua

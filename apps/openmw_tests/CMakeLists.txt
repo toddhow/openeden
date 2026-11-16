@@ -99,6 +99,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testswitches.cpp
     mwrender/testextentsync.cpp
     mwrender/testmapdepthrange.cpp
+    mwgui/testlocalmapcell.cpp
     mwrender/testpartcontrollers.cpp
     mwrender/testpartclocks.cpp
     mwrender/testactorautoplay.cpp

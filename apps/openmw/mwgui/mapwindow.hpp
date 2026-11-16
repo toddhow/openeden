@@ -74,6 +74,11 @@ namespace MWGui
         void requestMapRender(const MWWorld::CellStore* cell);
         void setPlayerDir(const float x, const float y);
         void setPlayerPos(int cellX, int cellY, const float nx, const float ny);
+        /// Task 0201: the side of an exterior cell of the current worldspace (8192 for Morrowind's, 4096 for Skyrim's).
+        void setCellSize(float units)
+        {
+            mCellSize = units > 0.f ? units : static_cast<float>(Constants::CellSizeInUnits);
+        }
 
         void onFrame(float dt);
 
@@ -109,6 +114,7 @@ namespace MWGui
 
         int mCurX, mCurY; // the position of the active cell on the global map (in cell coords)
         bool mHasALastActiveCell = false;
+        float mCellSize = static_cast<float>(Constants::CellSizeInUnits);
         vsg::vec2 mCurPos; // the position of the player in the world (in cell coords)
 
         bool mInterior;

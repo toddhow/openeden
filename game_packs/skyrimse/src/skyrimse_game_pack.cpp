@@ -6,6 +6,7 @@
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
+#include "game_skyrimse/map.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -762,6 +763,8 @@ namespace game_skyrimse
                     wirePapyrusWorld(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
                     startJournal(host, logger);
+                    // Task 0201: the compass and world map's bindings, off unless [extension.skyrimse] map.
+                    startMap(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1003,6 +1006,93 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "JOURNAL the journal is on");
+            }
+
+            // Task 0201: the map markers, the discovered state (a save chunk), the quest targets and the namespace
+            // skyrimse.map. The markers are read by the dialogue worker (one more walk of each plugin), so the flag
+            // must be set before the worker starts.
+            void startMap(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "map", false))
+                    return;
+                mWorldView.setWantMapMarkers(true);
+                map::Hooks hooks;
+                hooks.mAccess = [this](map::Access& out) {
+                    SkyrimWorldView::MapAccess markers;
+                    SkyrimWorldView::PapyrusAccess quests;
+                    if (!mWorldView.mapAccess(markers) || !mWorldView.papyrusAccess(quests))
+                        return false;
+                    out.mMarkers = markers.mMarkers;
+                    out.mPlaced = markers.mPlaced;
+                    out.mCellWorld = markers.mCellWorld;
+                    out.mQuests = quests.mQuests;
+                    out.mState = quests.mState;
+                    out.mText = quests.mText;
+                    out.mParentOf = [this](FormId world) {
+                        const SkyrimTerrainIndex* terrain = mWorldView.terrainIndex();
+                        openeden::sdk::game::WorldSpaceInfo info;
+                        return terrain != nullptr && terrain->worldInfo(world, info) ? static_cast<FormId>(info.parent)
+                                                                                    : kNullFormId;
+                    };
+                    out.mLandBounds = [this](FormId world, std::int32_t& minX, std::int32_t& minY, std::int32_t& width,
+                                          std::int32_t& height) {
+                        const SkyrimTerrainIndex* terrain = mWorldView.terrainIndex();
+                        std::int32_t maxX = 0, maxY = 0;
+                        openeden::sdk::game::WorldId landWorld = 0;
+                        if (terrain == nullptr || !terrain->landExtent(world, landWorld, minX, minY, maxX, maxY))
+                            return false;
+                        width = maxX - minX + 1;
+                        height = maxY - minY + 1;
+                        return true;
+                    };
+                    out.mLandRow = [this](FormId world, std::int32_t row, std::vector<std::int32_t>& pixels) {
+                        const SkyrimTerrainIndex* terrain = mWorldView.terrainIndex();
+                        std::int32_t minX = 0, minY = 0, maxX = 0, maxY = 0;
+                        openeden::sdk::game::WorldId landWorld = 0;
+                        if (terrain == nullptr || !terrain->landExtent(world, landWorld, minX, minY, maxX, maxY)
+                            || row < 0 || row > maxY - minY)
+                            return false;
+                        return terrain->mapRow(landWorld, minY + row, minX,
+                            std::min<std::int32_t>(maxX - minX + 1, static_cast<std::int32_t>(map::kPageSize)),
+                            pixels);
+                    };
+                    return true;
+                };
+                hooks.mObjective = [this](FormId quest, std::uint16_t index) {
+                    if (mPapyrus == nullptr)
+                        return journal::ObjectiveFlags();
+                    const PapyrusHost::ObjectiveState s = mPapyrus->host().objectiveState(quest, index);
+                    return journal::ObjectiveFlags{ s.mDisplayed, s.mCompleted };
+                };
+                hooks.mObjectiveRevision
+                    = [this] { return mPapyrus != nullptr ? mPapyrus->host().objectiveRevision() : std::uint64_t(0); };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mMap = std::make_unique<map::MapService>(std::move(hooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mMap->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the map bindings were refused: " + declared.message);
+                }
+                mMapChunk = std::make_unique<map::MapChunk>(mMap->discovery());
+                mMapChunk->setRefusalSink([logger](const std::string& reason) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Error, "the map chunk is refused: " + reason);
+                });
+                mMapChunk->setRestoredSink([logger](const std::string& what) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, "MAP " + what);
+                });
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(*mMapChunk) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the map chunk was not registered");
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "MAP the map and compass are on");
             }
 
             // Task 0182: the inventory service (item table, model, save chunk) and the namespace skyrimse.inventory.
@@ -1610,6 +1700,8 @@ namespace game_skyrimse
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;
             std::uint64_t mProgressionPushed = 0;
+            std::unique_ptr<map::MapService> mMap; // task 0201; refers to the world view
+            std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184

@@ -1,0 +1,7 @@
+# tools/skymap_check (task 0201): with framerate limit 60 (frames follow real time, the pack needs about 25 s to read its data)
+# opens the world map at frame 3600 (the player stands at the last stop), takes a picture and leaves with Escape.
+3600 key m down
+3602 key m up
+3800 shot
+3810 key Escape down
+3812 key Escape up
