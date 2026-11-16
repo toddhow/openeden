@@ -2,6 +2,7 @@
 // Gated: skipped unless OPENEDEN_SKYRIMSE_DATA names the game's Data folder. Prints the numbers of the first-slice
 // spells (lines SKYRIMSE-MAGIC, game numbers only) and checks the layouts the magic runtime reads.
 #include <game_skyrimse/combat_stats.hpp>
+#include <game_skyrimse/magic.hpp>
 #include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/records.hpp>
 
@@ -143,14 +144,12 @@ namespace
                   << cast[0] << "/" << cast[1] << "/" << cast[2] << " delivery self/touch/aimed/actor/location "
                   << delivery[0] << "/" << delivery[1] << "/" << delivery[2] << "/" << delivery[3] << "/"
                   << delivery[4] << " spells whose effects are all of the supported archetypes "
-                  << spellsFullySupported << "
-";
+                  << spellsFullySupported << "\n";
         std::cout << "SKYRIMSE-MAGIC archetype uses";
         for (int i = 0; i < 64; ++i)
             if (byArchetype[i] != 0)
                 std::cout << " " << i << ":" << byArchetype[i];
-        std::cout << "
-";
+        std::cout << "\n";
         EXPECT_GT(spells, 1000u);
         EXPECT_EQ(withData, spells); // every SPEL has a 36 byte SPIT
         EXPECT_EQ(unresolved, 0u);

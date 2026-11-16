@@ -469,7 +469,9 @@ namespace
         update();
         SkyrimCombat::FighterView victim;
         if (mCombat.fighterView(CombatSubject::of(mB), victim))
+        {
             EXPECT_FLOAT_EQ(victim.mHealth, 50.f);
+        }
         EXPECT_TRUE(mWriter.mDamage.empty());
         EXPECT_EQ(mCombat.spellShotsRemembered(), 0u);
     }
@@ -556,6 +558,32 @@ namespace
         updates(4);
         EXPECT_FLOAT_EQ(mWriter.mPlayerState.health, health);
         EXPECT_FLOAT_EQ(100.f - viewP().mMagicka, spent);
+    }
+
+    TEST_F(CombatMagic, aHeldSpellThatIsReleasedBeforeItGoesNeverStartsAndCostsNothing)
+    {
+        start();
+        mWriter.mPlayerState.health = 40.f;
+        ASSERT_TRUE(mCombat.setTestPlayerSpell("Healing"));
+        mCombat.onPlayerAttackEdge(true);
+        update(); // the cast begins; the spell would go 0.367 seconds later
+        mCombat.onPlayerAttackEdge(false);
+        updates(8);
+        EXPECT_EQ(mCombat.concentrationsHeld(), 0u);
+        EXPECT_EQ(mCombat.castsWaiting(), 0u);
+        EXPECT_FLOAT_EQ(viewP().mMagicka, 100.f);
+        EXPECT_FLOAT_EQ(mWriter.mPlayerState.health, 40.f);
+    }
+
+    TEST_F(CombatMagic, aFireAndForgetSpellStillGoesWhenTheControlIsReleasedAtOnce)
+    {
+        start();
+        ASSERT_TRUE(mCombat.setTestPlayerSpell("Firebolt"));
+        mCombat.onPlayerAttackEdge(true);
+        update();
+        mCombat.onPlayerAttackEdge(false);
+        updates(4);
+        EXPECT_EQ(mWriter.mLaunches.size(), 1u); // a tap fires it
     }
 
     TEST_F(CombatMagic, healingNeverRaisesHealthAboveTheMaximum)

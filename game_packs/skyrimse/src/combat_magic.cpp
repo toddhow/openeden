@@ -890,6 +890,11 @@ namespace game_skyrimse
             }
             mPlayerCastHeld = false;
             mPlayerCastWanted = false;
+            // A held spell that is let go of before it goes never starts (a fire and forget spell still goes: a tap).
+            std::erase_if(mCasts, [](const Cast& c) {
+                return c.mCaster.player && c.mHeldByKey && c.mSpell != nullptr
+                    && c.mSpell->mCastType == MagicCast::Concentration;
+            });
             for (std::size_t i = mConcentrations.size(); i > 0; --i)
                 if (mConcentrations[i - 1].mCaster.player && mConcentrations[i - 1].mHeldByKey)
                     endConcentration(i - 1, "released");

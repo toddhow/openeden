@@ -21,9 +21,10 @@
 
 namespace game_skyrimse
 {
-    /// MGEF DATA +64 (VERIFIED by the data for these: ValueModifier 0 on Firebolt's damage, Dual 5 on Frostbite and
-    /// Sparks, Demoralize 7 on the Intense Flames effect, AccumulateMagnitude 32 on WardConcSelf0, Stagger 33, Peak 34
-    /// on ShieldConcSelf; Absorb 4 is from the archetype histogram of note 0056 and not looked at in a record).
+    /// MGEF DATA +64 (VERIFIED by the data: ValueModifier 0 on Firebolt's damage, Dual 5 on Frostbite and Sparks,
+    /// Demoralize 7 on the Intense Flames effect, AccumulateMagnitude 32 on WardConcSelf0, Stagger 33, Peak 34 on
+    /// ShieldConcSelf, and the counts of SkyrimMagicRealData over every spell effect equal the histogram of note 0056:
+    /// 603 ValueModifier, 205 Dual, 139 Stagger, 127 Absorb, 500 Peak; what Absorb DOES is RECALLED-VERIFY).
     namespace MagicArchetype
     {
         inline constexpr std::uint32_t ValueModifier = 0, Absorb = 4, Dual = 5, Demoralize = 7,

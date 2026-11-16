@@ -40,7 +40,8 @@ namespace game_skyrimse
     inline constexpr std::size_t kMaxHudNameBytes = 64;
     /// Actors whose names the HUD remembers; beyond it a new actor is shown with no name.
     inline constexpr std::size_t kMaxHudActors = 4096;
-    /// There is no magicka system until spells (S5-8): the bar shows the stand-in player's full magicka (ours).
+    /// The bar shows the player's real magicka (task 0186) when it has a maximum; without one it shows this full
+    /// stand-in (ours).
     inline constexpr float kHudMagickaStandIn = 100.f;
     /// Numbers `hud()` returns, in this order: player health, health maximum, magicka, magicka maximum, stamina,
     /// stamina maximum, enemy shown (0 or 1), enemy health, enemy health maximum, enemy dead (0 or 1).
