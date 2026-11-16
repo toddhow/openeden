@@ -101,6 +101,25 @@ namespace MWPhysics
             mClock = openeden::sdk::game::ActorClock{};
     }
 
+    void NeutralActorBridge::setPlayerPosition(bool valid, double x, double y, double z)
+    {
+        mPlayerValid = valid && std::isfinite(x) && std::isfinite(y) && std::isfinite(z);
+        mPlayerX = mPlayerValid ? x : 0.0;
+        mPlayerY = mPlayerValid ? y : 0.0;
+        mPlayerZ = mPlayerValid ? z : 0.0;
+    }
+
+    bool NeutralActorBridge::Writer::playerPosition(double& x, double& y, double& z) const
+    {
+        // A read: only while update() runs (the sink is set), no counters.
+        if (mSink == nullptr || !mBridge.mPlayerValid)
+            return false;
+        x = mBridge.mPlayerX;
+        y = mBridge.mPlayerY;
+        z = mBridge.mPlayerZ;
+        return true;
+    }
+
     void NeutralActorBridge::update(ActorRules* rules, float seconds, NeutralRequestSink& sink)
     {
         if (rules == nullptr || mEntries.empty())

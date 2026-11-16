@@ -1809,6 +1809,7 @@ namespace MWPhysics
         static const bool costTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_COST") != nullptr;
         const auto costStart = costTrace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
         // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
+        mNeutralBridge.setPlayerPosition(mNeutralFocusValid, mNeutralFocus.x, mNeutralFocus.y, mNeutralFocus.z);
         if (mNeutralBridge.size() != 0 && mNeutralRulesResolver)
             mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
         // Task 0170: the combat hooks run right after the actor rules (clip events first, then combatUpdate).

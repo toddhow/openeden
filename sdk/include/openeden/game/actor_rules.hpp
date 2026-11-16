@@ -33,7 +33,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorRulesVersion{ 0, 5 };
+    inline constexpr Version kActorRulesVersion{ 0, 6 };
 
     struct ActorHandle
     {
@@ -197,6 +197,16 @@ namespace openeden::sdk::game
         virtual bool actorPosition(ActorHandle handle, double& x, double& y, double& z) const
         {
             (void)handle;
+            (void)x;
+            (void)y;
+            (void)z;
+            return false;
+        }
+
+        /// (0.6) Where the player stands now (game units, the feet): the target of a follower. False when the core has no
+        /// player position (a test, a session with no player). The default refuses. Valid during update() only.
+        virtual bool playerPosition(double& x, double& y, double& z) const
+        {
             (void)x;
             (void)y;
             (void)z;

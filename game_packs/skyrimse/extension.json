@@ -171,6 +171,16 @@
       "default": false
     },
     {
+      "key": "follower test recruit",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "follower test dismiss after",
+      "type": "int",
+      "default": 0
+    },
+    {
       "key": "inventory",
       "type": "bool",
       "default": false

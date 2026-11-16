@@ -22,6 +22,7 @@
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
+#include <openeden/game/follower_rules.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/grass_source.hpp>
 #include <openeden/game/player_item_source.hpp>
@@ -156,6 +157,7 @@ namespace game_skyrimse
                                    public openeden::sdk::game::DialogueSource,
                                    public openeden::sdk::game::DisplayNameSource,
                                    public openeden::sdk::game::ActorRules,
+                                   public openeden::sdk::game::FollowerRules,
                                    public openeden::sdk::game::CombatRules,
                                    public openeden::sdk::game::CellWaterSource,
                                    public openeden::sdk::game::WeatherSource,
@@ -256,6 +258,20 @@ namespace game_skyrimse
             mActors.onGoalFinished(handle, result);
         }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
+        /// Followers (task 0196): answered by the actor table (the package brain keeps who follows).
+        [[nodiscard]] std::size_t followers(openeden::sdk::game::WorldId* out, std::size_t capacity) const override
+        {
+            return mActors.followers(out, capacity);
+        }
+        [[nodiscard]] bool isFollower(openeden::sdk::game::WorldId reference) const override
+        {
+            return mActors.isFollower(reference);
+        }
+        void onFollowerCarried(openeden::sdk::game::WorldId reference) override { mActors.onFollowerCarried(reference); }
+        [[nodiscard]] openeden::sdk::game::WorldId homeCell(openeden::sdk::game::WorldId reference) const override
+        {
+            return mActors.homeCell(reference);
+        }
         /// Combat hooks (task 0168, stage S5-0): the pack's skeleton, which refuses and counts; nothing calls it yet.
         void onClipEvent(const openeden::sdk::game::ClipEvent& event) override { mCombat.onClipEvent(event); }
         void onSweepResult(openeden::sdk::game::CombatSubject subject, std::uint32_t token,

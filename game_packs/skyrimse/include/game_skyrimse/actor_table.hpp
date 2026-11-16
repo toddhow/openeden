@@ -9,16 +9,21 @@
 // No engine, renderer, Jolt, Qt or OSG type. Main thread only. update() allocates nothing once the table is built
 // (the rows live in a std::map, which allocates only on add).
 
+#include <game_skyrimse/follower.hpp>
 #include <game_skyrimse/package_brain.hpp>
 
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/follower_rules.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace game_skyrimse
 {
@@ -54,7 +59,7 @@ namespace game_skyrimse
     inline constexpr float kPaceSpeed = 40.f;
     inline constexpr float kPaceHalfPeriodSeconds = 3.f;
 
-    class SkyrimActorTable final : public openeden::sdk::game::ActorRules
+    class SkyrimActorTable final : public openeden::sdk::game::ActorRules, public openeden::sdk::game::FollowerRules
     {
     public:
         struct Stats
@@ -113,6 +118,35 @@ namespace game_skyrimse
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override;
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override;
 
+        // Task 0196 (followers). They need the package brain (`actor packages`): without it every call is refused.
+        /// The test rule `[extension.skyrimse] follower test recruit = <editor id>[,<editor id>...]`: actors with a
+        /// matching editor id follow the player as soon as they appear. Empty switches it off. False for a bad list.
+        bool setTestFollowers(std::string_view list);
+        /// `follower test dismiss after = <seconds>`: the test followers are dismissed this many seconds of frame time
+        /// after the first one appeared (0 never).
+        void setTestDismissAfter(float seconds) { mTestDismissAfter = seconds > 0.f ? seconds : 0.f; }
+        /// Recruit or dismiss the actor of this placement (the real path: the DialogueFollower alias, or a test).
+        bool recruit(openeden::sdk::game::WorldId reference);
+        bool dismiss(openeden::sdk::game::WorldId reference);
+        /// Replaces the set of followers (a loaded save). False (nothing changed) when there is no brain.
+        bool restoreFollowers(const std::vector<FollowerEntry>& entries);
+        [[nodiscard]] std::vector<openeden::sdk::game::WorldId> followerIds() const;
+        /// The followers with their home cells (what the save chunk keeps).
+        [[nodiscard]] std::vector<FollowerEntry> followerEntries() const;
+        /// How the table finds the cell a placement lives in (the pack gives it the world view's placement index). A
+        /// home restored from a save wins over the lookup.
+        void setHomeLookup(std::function<openeden::sdk::game::WorldId(openeden::sdk::game::WorldId)> lookup)
+        {
+            mHomeLookup = std::move(lookup);
+        }
+        [[nodiscard]] openeden::sdk::game::WorldId homeCell(openeden::sdk::game::WorldId reference) const override;
+
+        // FollowerRules
+        [[nodiscard]] std::size_t followers(openeden::sdk::game::WorldId* out, std::size_t capacity) const override;
+        [[nodiscard]] bool isFollower(openeden::sdk::game::WorldId reference) const override;
+        void onFollowerCarried(openeden::sdk::game::WorldId reference) override { ++mCarried; (void)reference; }
+        [[nodiscard]] std::uint64_t carried() const { return mCarried; }
+
         [[nodiscard]] std::size_t size() const { return mRows.size(); }
         [[nodiscard]] std::size_t pacers() const { return mPacers; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -140,6 +174,14 @@ namespace game_skyrimse
         std::size_t mPacers = 0;
         Stats mStats;
         std::unique_ptr<PackageBrain> mBrain;
+        std::set<std::string> mTestFollowerNames; ///< lower case editor ids (task 0196)
+        float mTestDismissAfter = 0.f;
+        float mTestFollowClock = -1.f; ///< seconds since the first test follower appeared; negative: none yet
+        bool mTestDismissed = false;
+        std::set<openeden::sdk::game::WorldId> mTestFollowerRefs;
+        std::function<openeden::sdk::game::WorldId(openeden::sdk::game::WorldId)> mHomeLookup;
+        mutable std::map<openeden::sdk::game::WorldId, openeden::sdk::game::WorldId> mHomes;
+        std::uint64_t mCarried = 0;
     };
 }
 

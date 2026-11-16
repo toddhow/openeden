@@ -254,6 +254,9 @@ namespace game_skyrimse
         };
         [[nodiscard]] ObjectiveState objectiveState(FormId quest, std::uint32_t objective) const;
         [[nodiscard]] std::uint64_t objectiveRevision() const;
+        /// Task 0196 (followers): the reference a script forced into an alias (ReferenceAlias.ForceRefTo), 0 when none
+        /// or after Clear. Read only; the pack polls the DialogueFollower alias with it.
+        [[nodiscard]] FormId forcedAlias(FormId quest, std::uint32_t alias) const;
 
         /// Whether Actor.AddSpell recorded the spell for the actor (recorded only: no effect).
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;

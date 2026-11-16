@@ -42,6 +42,7 @@
 #include "../mwworld/neutraldialogue.hpp"
 #include "../mwworld/neutraldisplayname.hpp"
 #include "../mwworld/neutraldoor.hpp"
+#include "../mwworld/neutralfollowers.hpp"
 #include "../mwworld/neutralinventory.hpp"
 #include "../mwworld/neutrallock.hpp"
 #include "../mwworld/neutralstore.hpp"
@@ -130,6 +131,37 @@ namespace MWClass
             explicit RefusalAction(std::string key)
                 : MWWorld::Action(false)
                 , mKey(std::move(key))
+            {
+            }
+        };
+
+        // Task 0196 (followers): a teleport that takes the player's followers with him. The followers are collected
+        // and moved when the action runs (they may have moved since it was made), just before the player goes.
+        class TeleportWithFollowersAction final : public MWWorld::Action
+        {
+            std::string mGameId;
+            ESM::RefId mCellId;
+            MWWorld::CellStore* mDestination;
+            ESM::Position mArrival;
+
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor == MWMechanics::getPlayer())
+                {
+                    const std::vector<MWWorld::Ptr> followers = MWWorld::collectNeutralFollowers(mGameId, actor);
+                    (void)MWWorld::carryNeutralFollowers(mGameId, followers, *mDestination, mArrival);
+                }
+                MWWorld::ActionTeleport(mCellId, mArrival, false).execute(actor);
+            }
+
+        public:
+            TeleportWithFollowersAction(
+                std::string gameId, const ESM::RefId& cellId, MWWorld::CellStore& destination, const ESM::Position& arrival)
+                : MWWorld::Action(true)
+                , mGameId(std::move(gameId))
+                , mCellId(cellId)
+                , mDestination(&destination)
+                , mArrival(arrival)
             {
             }
         };
@@ -406,6 +438,9 @@ namespace MWClass
             case MWWorld::NeutralDoorOutcome::Teleport:
                 // No followers: a neutral session has none (task 0115, open question 9). No door sound: Skyrim's are
                 // sound descriptor records the pack does not decode.
+                if (Settings::game().mNeutralActors)
+                    return std::make_unique<TeleportWithFollowersAction>(
+                        cell->neutralGameId(), destination->getCell()->getId(), *destination, decision.mArrival);
                 return std::make_unique<MWWorld::ActionTeleport>(
                     destination->getCell()->getId(), decision.mArrival, false);
             case MWWorld::NeutralDoorOutcome::Locked:

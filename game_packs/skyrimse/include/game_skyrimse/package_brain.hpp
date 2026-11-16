@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,16 @@ namespace game_skyrimse
     inline constexpr double kFollowStandOff = 140.0;
     /// How often a follower looks again where its target is.
     inline constexpr float kFollowRepathSeconds = 1.5f;
+
+    /// Task 0196 (followers): a follower of the PLAYER looks again where the player is this often; it keeps within
+    /// kFollowDistance (the stage S6f value) of the player and runs when the player is farther than kFollowerRunDistance.
+    /// Estimates.
+    inline constexpr float kFollowerRepathSeconds = 0.75f;
+    /// After a leg towards the player failed (no path, blocked) a follower waits this long before it asks again.
+    inline constexpr float kFollowerRetrySeconds = 3.f;
+    inline constexpr double kFollowerRunDistance = 700.0;
+    /// A goal already out is replaced when the player's spot has moved this far from the goal's.
+    inline constexpr double kFollowerGoalSlack = 320.0;
 
     /// The speed a package walks at (stage S6f): Run when the package sets its own speed (PKDT flag bit 13,
     /// `kPreferredSpeedFlag`) and the byte is 1 (jog) or 2 (run), else Walk. There is no jog clip (task 0148 has walk
@@ -216,6 +227,12 @@ namespace game_skyrimse
             std::uint64_t mResumes = 0; ///< actors a finished conversation set back on their package
             std::uint64_t mEnters = 0; ///< sit-downs and lie-downs played with a clip and its motion
             std::uint64_t mExits = 0; ///< get-ups played with a clip and its motion
+            // Task 0196 (followers)
+            std::uint64_t mFollowerLegs = 0; ///< goals issued towards the player
+            std::uint64_t mFollowerRuns = 0; ///< of those, at the run speed
+            std::uint64_t mFollowerRecruits = 0; ///< setFollowPlayer(true) calls that changed something
+            std::uint64_t mFollowerDismissals = 0; ///< setFollowPlayer(false) calls that changed something
+            std::uint64_t mFollowerNoPlayer = 0; ///< a repath skipped because the core gave no player position
         };
 
         enum class Phase : std::uint8_t
@@ -273,6 +290,18 @@ namespace game_skyrimse
         /// True when the actor can talk: not in a sleeping pose and no get-up clip playing (unknown actor: true).
         [[nodiscard]] bool readyToTalk(openeden::sdk::game::WorldId reference) const;
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+
+        /// Task 0196 (followers): makes the actor of this placement follow the player (or stops it). A follower ignores
+        /// its packages, keeps within kFollowDistance of the player (the core's ActorRequestWriter::playerPosition) and
+        /// is still the follower when the core removes and adds it again (a door carried it to another cell): the
+        /// placement id is kept here, not the actor. Dismissing hands it back to its packages. True when the set of
+        /// followers changed. An unknown placement is remembered and applied when the actor appears.
+        bool setFollowPlayer(openeden::sdk::game::WorldId reference, bool follow);
+        [[nodiscard]] bool followsPlayer(openeden::sdk::game::WorldId reference) const
+        {
+            return mFollowRefs.count(reference) != 0;
+        }
+        [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& followerRefs() const { return mFollowRefs; }
 
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -336,6 +365,10 @@ namespace game_skyrimse
             const PackageRecord* mDeferred = nullptr; ///< the package to start when the get-up ends
             bool mHasDeferred = false;
             bool mAfterExitPause = false; ///< after the get-up a wanderer pauses (the timer ran out), else is Done
+            // Task 0196
+            bool mFollowPlayer = false; ///< the actor follows the player (set from mFollowRefs)
+            bool mFollowEntered = false; ///< enterFollowPlayer ran for this actor
+            float mFollowPlayerTimer = 0.f;
         };
 
         void evaluate(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
@@ -360,6 +393,11 @@ namespace game_skyrimse
         void beginFollow(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void runFollow(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
         void handleTalk(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        // Task 0196 (followers): these are the only functions of the brain that know about followers (besides the
+        // branch at the top of update() and the lines in onActorAdded).
+        void enterFollowPlayer(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void leaveFollowPlayer(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void runFollowPlayer(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
         void beginUse(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void runClip(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
         [[nodiscard]] static bool needsWakeToTalk(const Actor& actor);
@@ -370,6 +408,7 @@ namespace game_skyrimse
         Options mOptions;
         std::map<openeden::sdk::game::WorldId, Actor> mActors;
         FurnitureSource* mFurniture = nullptr;
+        std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
         std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it
         std::vector<FurnitureSlot> mScratch;
         Stats mStats;

@@ -103,6 +103,11 @@ echo "return { hostile = ${MANY_HOSTILE:-8}, duels = ${MANY_DUELS:-0}, park = ${
 [ "$SHOT" = n5wake ] && echo "content=n5wake.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S6f: "n5follow" follows three actors with the camera, one picture a second (luatest/scripts/n5/followglobal.lua; use at least 40000 frames).
 [ "$SHOT" = n5follow ] && echo "content=n5follow.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0196 (followers): "n7follow" stands the player at F7_STAND, lets the pack recruit the actor (the test settings in SETTINGS_EXTRA), walks him to F7_LEG1, uses
+# the Mare's front door and walks on in Whiterun (luatest/scripts/n7f/global.lua; simulation time, so use OPENEDEN_FIXED_FRAME_TIME and at least 6000 frames).
+[ "$SHOT" = n7follow ] && echo "content=n7follow.omwscripts" >> "$WORK/config/openmw.cfg"
+mkdir -p "$WORK/luatest/scripts/n7f"
+echo "return { tag = '${F7_TAG:-b108144}', start = ${F7_START:-8}, stand = { ${F7_STAND:--60, -180, 72, 0} }, leg1 = { ${F7_LEG1:-100, -500, 72} }, rest = ${F7_REST:-6}, doorStand = { ${F7_DOORSTAND:--128, -1000, 72, 3.1416} }, doorBase = 'skyrimse:b152263', doorNear = { -128, -1152, 120 }, outsideWait = ${F7_OUTSIDE:-8}, mode = '${F7_MODE:-run}', awayAt = ${F7_AWAYAT:-14}, away = ${F7_AWAY:-1500}, leg2 = { ${F7_LEG2:-400, 0} } }" > "$WORK/luatest/scripts/n7f/followcfg.lua"
 # Task 0157: "skyreach" runs path queries with several agent sizes between the Mare's ground floor, stairs and beds (NAV lines).
 [ "$SHOT" = skyreach ] && echo "content=skyreach.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0148: "n5loco" is "n5goto" with a picture every 0.2 s (use at least 2400 frames; also set [Game] neutral actor locomotion).
@@ -186,7 +191,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

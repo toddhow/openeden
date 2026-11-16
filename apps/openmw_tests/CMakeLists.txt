@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutrallightreal.cpp
     mwworld/testneutralcellstore.cpp
     mwworld/testneutraldoor.cpp
+    mwworld/testneutralfollowers.cpp
     mwworld/testneutraldoornav.cpp
     mwworld/testneutralrotation.cpp
     mwworld/testneutralnavigation.cpp

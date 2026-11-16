@@ -128,6 +128,11 @@ namespace MWPhysics
         /// day is negative is stored as invalid.
         void setClock(const openeden::sdk::game::ActorClock& clock);
 
+        /// Task 0196 (followers): where the player stands, read by the pack through
+        /// ActorRequestWriter::playerPosition() during update(). Set by the caller before each update(); a value that
+        /// is not finite makes the position invalid (the writer then refuses).
+        void setPlayerPosition(bool valid, double x, double y, double z);
+
         [[nodiscard]] std::size_t size() const { return mEntries.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
@@ -166,6 +171,7 @@ namespace MWPhysics
                 openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
             bool actorPosition(openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
+            bool playerPosition(double& x, double& y, double& z) const override;
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 
         private:
@@ -186,6 +192,10 @@ namespace MWPhysics
         std::uint32_t mNextSession = 1;
         Stats mStats;
         openeden::sdk::game::ActorClock mClock;
+        bool mPlayerValid = false;
+        double mPlayerX = 0.0;
+        double mPlayerY = 0.0;
+        double mPlayerZ = 0.0;
         Writer mWriter;
     };
 }

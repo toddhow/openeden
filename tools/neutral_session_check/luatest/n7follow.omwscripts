@@ -1,0 +1,3 @@
+PLAYER: scripts/n5/shot.lua
+GLOBAL: scripts/n7f/global.lua
+MENU: scripts/n7f/menu.lua

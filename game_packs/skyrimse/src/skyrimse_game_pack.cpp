@@ -437,6 +437,7 @@ namespace game_skyrimse
                 registrar.registerPhaseCallback(openeden::sdk::Phase::GameSimulation, [this](float dt) {
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
+                    syncFollowerAlias();
                     if (mInventory != nullptr)
                     {
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
@@ -445,6 +446,23 @@ namespace game_skyrimse
                         syncEquipment();
                     }
                 });
+            }
+
+            // Task 0196: the game's own recruit path. A script (DialogueFollowerScript) forces the follower into the
+            // DialogueFollower quest's alias 0 and clears it to dismiss; the pack follows the alias.
+            void syncFollowerAlias()
+            {
+                if (mPapyrus == nullptr)
+                    return;
+                const std::uint32_t now = mPapyrus->host().forcedAlias(kFollowerQuestId, kFollowerAliasId);
+                const FollowerAliasChange change = followerAliasChange(mFollowerAliasSeen, now);
+                if (change.mDismiss == 0 && change.mRecruit == 0)
+                    return;
+                mFollowerAliasSeen = now;
+                if (change.mDismiss != 0)
+                    (void)mCellSource.actorTable().dismiss(change.mDismiss);
+                if (change.mRecruit != 0)
+                    (void)mCellSource.actorTable().recruit(change.mRecruit);
             }
 
             bool resolve(const openeden::sdk::ServiceLocator&) override { return true; }
@@ -1008,6 +1026,32 @@ namespace game_skyrimse
                         mCellSource.actorTable().enablePackages(mWorldView, PackageBrain::Options().mSeed, &mWorldView,
                             settings->getBool(kPackId, kActorSleepSnapKey, true));
                         say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
+                        // Task 0196: followers need the package brain.
+                        const std::string recruits = settings->getString(kPackId, kFollowerTestRecruitKey, "");
+                        if (!mCellSource.actorTable().setTestFollowers(recruits))
+                            say(openeden::sdk::LogLevel::Warning,
+                                "the setting '" + std::string(kFollowerTestRecruitKey)
+                                    + "' is not a short list of editor ids; the test recruit is off");
+                        else if (!recruits.empty())
+                            say(openeden::sdk::LogLevel::Info, "follower test recruit: " + recruits);
+                        mCellSource.actorTable().setTestDismissAfter(
+                            static_cast<float>(settings->getInt(kPackId, kFollowerTestDismissKey, 0)));
+                        mCellSource.actorTable().setHomeLookup([this](openeden::sdk::game::WorldId reference) {
+                            const PlacedRefIndex* placed = mWorldView.placedRefs();
+                            const PlacedEntry* entry = placed != nullptr ? placed->find(reference) : nullptr;
+                            return entry != nullptr ? static_cast<openeden::sdk::game::WorldId>(entry->mCell)
+                                                    : openeden::sdk::game::kNoWorldId;
+                        });
+                        mFollowerChunk = std::make_unique<FollowerChunk>(
+                            [this] { return mCellSource.actorTable().followerEntries(); },
+                            [this](const std::vector<FollowerEntry>& entries) {
+                                return mCellSource.actorTable().restoreFollowers(entries);
+                            });
+                        if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                        {
+                            if (!chunks->registerHandler(*mFollowerChunk))
+                                say(openeden::sdk::LogLevel::Warning, "the followers chunk was not registered");
+                        }
                         // Task 0160: GetIsCurrentPackage and GetOffersServicesNow in a conversation ask the brain
                         mWorldView.setCurrentPackageLookup([this](FormId reference) -> std::optional<FormId> {
                             const PackageBrain* brain = mCellSource.actorTable().packageBrain();
@@ -1108,6 +1152,8 @@ namespace game_skyrimse
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<barter::BarterService> mBarter; // task 0189; refers to the inventory and the world view
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
+            std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
+            std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
             bool mEquipPending = false;
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source

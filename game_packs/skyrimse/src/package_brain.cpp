@@ -200,6 +200,7 @@ namespace game_skyrimse
         actor.mHeading = info.heading;
         actor.mRng = mOptions.mSeed ^ (static_cast<std::uint64_t>(info.handle.reference) * 0x9E3779B97F4A7C15ull);
         (void)splitmix(actor.mRng); // scramble the seed once
+        actor.mFollowPlayer = mFollowRefs.count(info.handle.reference) != 0; // task 0196: still a follower after a door
         mActors[info.handle.reference] = std::move(actor);
         ++mStats.mActorsAdded;
     }
@@ -279,10 +280,15 @@ namespace game_skyrimse
         {
             if (result == sdkgame::GoalResult::Arrived)
                 ++mStats.mArrived;
-            else if (result == sdkgame::GoalResult::NoPath)
-                ++mStats.mNoPath;
             else
-                ++mStats.mBlocked;
+            {
+                if (result == sdkgame::GoalResult::NoPath)
+                    ++mStats.mNoPath;
+                else
+                    ++mStats.mBlocked;
+                if (actor.mFollowPlayer)
+                    actor.mFollowPlayerTimer = kFollowerRetrySeconds; // task 0196: do not ask every repath
+            }
             actor.mPhase = Phase::Following;
             return;
         }
@@ -601,6 +607,103 @@ namespace game_skyrimse
             ++mStats.mFollowLegs;
             actor.mPhase = Phase::Following;
         }
+    }
+
+    bool PackageBrain::setFollowPlayer(sdkgame::WorldId reference, bool follow)
+    {
+        if (reference == sdkgame::kNoWorldId)
+            return false;
+        const bool changed = follow ? mFollowRefs.insert(reference).second : mFollowRefs.erase(reference) != 0;
+        if (!changed)
+            return false;
+        if (follow)
+            ++mStats.mFollowerRecruits;
+        else
+            ++mStats.mFollowerDismissals;
+        const auto it = mActors.find(reference);
+        if (it != mActors.end())
+            it->second.mFollowPlayer = follow; // the actor's own state changes at the next update(), where a writer exists
+        return true;
+    }
+
+    void PackageBrain::enterFollowPlayer(Actor& actor, sdkgame::ActorRequestWriter& writer)
+    {
+        actor.mHasDeferred = false;
+        actor.mDeferred = nullptr;
+        actor.mWoken = false;
+        actor.mToFurniture = false;
+        actor.mToPatrol = false;
+        actor.mToFollow = true; // the goal result handler of a follow leg only sets the phase back
+        actor.mFollowTimer = 0.f;
+        actor.mFollowPlayerTimer = 0.f;
+        actor.mActive = nullptr;
+        if (actor.mGoalOut)
+        {
+            if (!writer.cancelGoal(actor.mHandle))
+                ++mStats.mWritesRefused;
+            actor.mGoalOut = false;
+        }
+        if (actor.mSeated || actor.mHasSlot)
+            (void)standUp(actor, writer, true); // a get-up clip, when there is one, plays out in update()
+        actor.mPhase = Phase::Following;
+    }
+
+    void PackageBrain::leaveFollowPlayer(Actor& actor, sdkgame::ActorRequestWriter& writer)
+    {
+        if (actor.mGoalOut)
+        {
+            if (!writer.cancelGoal(actor.mHandle))
+                ++mStats.mWritesRefused;
+            actor.mGoalOut = false;
+        }
+        actor.mToFollow = false;
+        actor.mPhase = Phase::Waiting;
+        actor.mHomeX = actor.mX; // a dismissed follower stays where it is: its packages anchor here
+        actor.mHomeY = actor.mY;
+        actor.mHomeZ = actor.mZ;
+        actor.mActive = nullptr;
+        actor.mEvaluatedOnce = false;
+        actor.mSinceEval = 0.f;
+    }
+
+    void PackageBrain::runFollowPlayer(Actor& actor, float seconds, sdkgame::ActorRequestWriter& writer)
+    {
+        actor.mFollowPlayerTimer -= seconds;
+        if (actor.mFollowPlayerTimer > 0.f)
+            return;
+        actor.mFollowPlayerTimer = kFollowerRepathSeconds;
+        double px = 0, py = 0, pz = 0;
+        if (!writer.playerPosition(px, py, pz))
+        {
+            ++mStats.mFollowerNoPlayer;
+            return;
+        }
+        double sx = actor.mX, sy = actor.mY, sz = actor.mZ;
+        (void)writer.actorPosition(actor.mHandle, sx, sy, sz);
+        actor.mX = sx;
+        actor.mY = sy;
+        actor.mZ = sz;
+        const double d = distance2d(px, py, sx, sy);
+        if (d <= kFollowDistance)
+            return; // near enough: a goal still out is left to finish
+        const double ux = (sx - px) / d;
+        const double uy = (sy - py) / d;
+        const double gx = px + ux * kFollowStandOff;
+        const double gy = py + uy * kFollowStandOff;
+        if (actor.mGoalOut && distance2d(gx, gy, actor.mGoalX, actor.mGoalY) < kFollowerGoalSlack)
+            return; // the goal out still leads to where the player is
+        const sdkgame::ActorSpeed speed
+            = d > kFollowerRunDistance ? sdkgame::ActorSpeed::Run : sdkgame::ActorSpeed::Walk;
+        actor.mToAnchor = false;
+        actor.mToFollow = true;
+        goTo(actor, gx, gy, pz, writer, speed);
+        if (actor.mGoalOut)
+        {
+            ++mStats.mFollowerLegs;
+            if (speed == sdkgame::ActorSpeed::Run)
+                ++mStats.mFollowerRuns;
+        }
+        actor.mPhase = Phase::Following;
     }
 
     void PackageBrain::handleTalk(Actor& actor, sdkgame::ActorRequestWriter& writer)
@@ -1033,6 +1136,25 @@ namespace game_skyrimse
             }
             if (actor.mTalkRequest != 0)
                 handleTalk(actor, writer);
+            // Task 0196: a follower of the player does not evaluate packages; a get-up clip still plays out.
+            if (actor.mFollowPlayer && !actor.mFollowEntered)
+            {
+                actor.mFollowEntered = true;
+                enterFollowPlayer(actor, writer);
+            }
+            else if (!actor.mFollowPlayer && actor.mFollowEntered)
+            {
+                actor.mFollowEntered = false;
+                leaveFollowPlayer(actor, writer);
+            }
+            if (actor.mFollowPlayer)
+            {
+                if (actor.mEntering || actor.mExiting)
+                    run(actor, seconds, writer);
+                else if (!actor.mTalking)
+                    runFollowPlayer(actor, seconds, writer);
+                continue;
+            }
             actor.mSinceEval += seconds;
             if (!actor.mTalking && !actor.mExiting
                 && (!actor.mEvaluatedOnce || actor.mSinceEval >= mOptions.mReevaluateSeconds))

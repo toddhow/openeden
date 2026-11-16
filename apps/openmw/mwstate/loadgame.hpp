@@ -21,6 +21,7 @@
 #include "../mwscript/globalscripts.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/esmstore.hpp"
+#include "../mwworld/neutralfollowers.hpp"
 #include "../mwworld/neutralsave.hpp"
 #include "../mwworld/scene.hpp"
 #include "../mwworld/worldmodel.hpp"
@@ -354,6 +355,9 @@ namespace MWState
                 if (!MWBase::Environment::get().getExtensionManager()->restoreGamePackSave(gamePackChunks, reason))
                     throw std::runtime_error(reason);
                 gamePackChunks.clear();
+                // Task 0196: the followers the pack restored are brought to the player (actors are not in the neutral
+                // save: they are rebuilt where the pack placed them).
+                (void)MWWorld::restoreNeutralFollowers();
             }
 
             state = StateManager::State_Running;

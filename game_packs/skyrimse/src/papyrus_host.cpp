@@ -1712,6 +1712,12 @@ namespace game_skyrimse
         return mImpl->mObjectiveRevision;
     }
 
+    FormId PapyrusHost::forcedAlias(FormId quest, std::uint32_t alias) const
+    {
+        const auto found = mImpl->mAliasForced.find({ quest, alias });
+        return found != mImpl->mAliasForced.end() ? found->second : 0;
+    }
+
     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const
     {
         return mImpl->mSpells.count({ actor, spell }) != 0;

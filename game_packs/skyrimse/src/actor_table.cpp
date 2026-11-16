@@ -142,6 +142,15 @@ namespace game_skyrimse
             return;
         if (mBrain)
             mBrain->onActorAdded(info);
+        if (mBrain && !mTestFollowerNames.empty() && mTestFollowerNames.count(lowerAscii(info.editorId)) != 0
+            && !mTestDismissed)
+        {
+            // Task 0196: the test rule recruits an actor the moment it appears.
+            mTestFollowerRefs.insert(info.handle.reference);
+            (void)mBrain->setFollowPlayer(info.handle.reference, true);
+            if (mTestFollowClock < 0.f)
+                mTestFollowClock = 0.f;
+        }
         Row row;
         row.mHandle = info.handle;
         row.mBase = info.base;
@@ -166,6 +175,114 @@ namespace game_skyrimse
         ++mStats.mAdded;
     }
 
+    bool SkyrimActorTable::setTestFollowers(std::string_view list)
+    {
+        mTestFollowerNames.clear();
+        std::size_t begin = 0;
+        while (begin <= list.size())
+        {
+            std::size_t end = list.find(',', begin);
+            if (end == std::string_view::npos)
+                end = list.size();
+            std::string_view name = list.substr(begin, end - begin);
+            while (!name.empty() && name.front() == ' ')
+                name.remove_prefix(1);
+            while (!name.empty() && name.back() == ' ')
+                name.remove_suffix(1);
+            if (!name.empty())
+            {
+                if (name.size() > kMaxActorTestWalkName || mTestFollowerNames.size() >= kMaxFollowers)
+                {
+                    mTestFollowerNames.clear();
+                    return false;
+                }
+                mTestFollowerNames.insert(lowerAscii(name));
+            }
+            begin = end + 1;
+        }
+        return true;
+    }
+
+    bool SkyrimActorTable::recruit(openeden::sdk::game::WorldId reference)
+    {
+        if (!mBrain || mBrain->followerRefs().size() >= kMaxFollowers)
+            return false;
+        return mBrain->setFollowPlayer(reference, true);
+    }
+
+    bool SkyrimActorTable::dismiss(openeden::sdk::game::WorldId reference)
+    {
+        return mBrain && mBrain->setFollowPlayer(reference, false);
+    }
+
+    openeden::sdk::game::WorldId SkyrimActorTable::homeCell(openeden::sdk::game::WorldId reference) const
+    {
+        const auto found = mHomes.find(reference);
+        if (found != mHomes.end() && found->second != openeden::sdk::game::kNoWorldId)
+            return found->second;
+        if (!mHomeLookup)
+            return openeden::sdk::game::kNoWorldId;
+        const openeden::sdk::game::WorldId home = mHomeLookup(reference);
+        if (home != openeden::sdk::game::kNoWorldId)
+            mHomes[reference] = home;
+        return home;
+    }
+
+    std::vector<FollowerEntry> SkyrimActorTable::followerEntries() const
+    {
+        std::vector<FollowerEntry> out;
+        for (const openeden::sdk::game::WorldId id : followerIds())
+            out.push_back({ id, homeCell(id) });
+        return out;
+    }
+
+    bool SkyrimActorTable::restoreFollowers(const std::vector<FollowerEntry>& entries)
+    {
+        if (!mBrain)
+            return false;
+        std::vector<openeden::sdk::game::WorldId> ids;
+        for (const FollowerEntry& e : entries)
+        {
+            ids.push_back(e.mId);
+            if (e.mHome != openeden::sdk::game::kNoWorldId)
+                mHomes[e.mId] = e.mHome;
+        }
+        const std::set<openeden::sdk::game::WorldId> wanted(ids.begin(), ids.end());
+        const std::set<openeden::sdk::game::WorldId> current = mBrain->followerRefs();
+        for (const auto id : current)
+            if (wanted.count(id) == 0)
+                (void)mBrain->setFollowPlayer(id, false);
+        for (const auto id : wanted)
+            (void)mBrain->setFollowPlayer(id, true);
+        return true;
+    }
+
+    std::vector<openeden::sdk::game::WorldId> SkyrimActorTable::followerIds() const
+    {
+        if (!mBrain)
+            return {};
+        return std::vector<openeden::sdk::game::WorldId>(mBrain->followerRefs().begin(), mBrain->followerRefs().end());
+    }
+
+    std::size_t SkyrimActorTable::followers(openeden::sdk::game::WorldId* out, std::size_t capacity) const
+    {
+        if (!mBrain)
+            return 0;
+        std::size_t n = 0;
+        for (const auto id : mBrain->followerRefs())
+        {
+            if (out != nullptr && n < capacity)
+                out[n] = id;
+            ++n;
+        }
+        return n;
+    }
+
+    bool SkyrimActorTable::isFollower(openeden::sdk::game::WorldId reference) const
+    {
+        return mBrain && mBrain->followsPlayer(reference);
+    }
+
     void SkyrimActorTable::onActorRemoved(openeden::sdk::game::ActorHandle handle)
     {
         if (mBrain)
@@ -185,6 +302,16 @@ namespace game_skyrimse
     {
         if (mBrain)
             mBrain->update(seconds, writer);
+        if (mTestFollowClock >= 0.f && mTestDismissAfter > 0.f && !mTestDismissed && mBrain)
+        {
+            mTestFollowClock += seconds;
+            if (mTestFollowClock >= mTestDismissAfter)
+            {
+                mTestDismissed = true;
+                for (const auto id : mTestFollowerRefs)
+                    (void)mBrain->setFollowPlayer(id, false);
+            }
+        }
         if (mPacers == 0 && mGoers == 0)
             return;
         for (auto it = mRows.begin(); it != mRows.end();)
