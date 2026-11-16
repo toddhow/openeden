@@ -117,8 +117,9 @@ namespace game_skyrimse
         /// subtype by priority, the first INFO that passes (a Random one chosen by `pick`), its text, voice and script
         /// fragments. Like sceneLine it leaves an open conversation alone (speaker, voice type and the conversation
         /// flags are kept); say-once is shared with the conversations. False when no INFO passes.
+        /// Task 0243: `speakerIsVictim`: the speaker is the victim of the crime it remarks on (IsActorAVictim).
         [[nodiscard]] bool barkLine(std::string_view subtype, const DialogueSpeaker& speaker, std::uint32_t pick,
-            openeden::sdk::game::DialogueTurn& out);
+            openeden::sdk::game::DialogueTurn& out, bool speakerIsVictim = false);
 
         /// Turns voice on: `probe` says which files exist. Without it no turn has voice.
         /// Task 0187: where the script fragments of a shown response go. Without a sink they are not run (counted in
@@ -183,6 +184,14 @@ namespace game_skyrimse
         void nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void offerTopics(openeden::sdk::game::DialogueTurn& out);
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
+        /// Task 0243 (barkLine's helpers; none changes a conversation). Has the INFO a response with text? No side
+        /// effect. Has it a voice file for the speaker (always true with no probe)? The probe's counts are restored.
+        [[nodiscard]] bool hasResponseText(const DialogInfo& info) const;
+        [[nodiscard]] bool hasVoiceFile(const DialogInfo& info);
+        /// The INFO a bark of `subtype` takes: `selectInfo`'s rules over the topics of the subtype by priority, except
+        /// that an INFO with no response text, or none with a voice file, is not a candidate. Nothing is marked said
+        /// and no fragment runs: the caller runs `fillTurn` on the one returned.
+        [[nodiscard]] const DialogInfo* selectBarkInfo(std::string_view subtype, std::uint32_t pick);
 
         DialogueTagSources mTagSources;
         const ActorIndex& mActors;

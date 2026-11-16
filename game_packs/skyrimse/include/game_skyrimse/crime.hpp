@@ -305,6 +305,9 @@ namespace game_skyrimse::crime
         /// the pack makes the witness speak. Unset (the default): nothing is told. Main thread, inside update().
         using WitnessHook = std::function<void(Kind crime, openeden::sdk::game::ActorHandle witness)>;
         void setWitnessHook(WitnessHook hook) { mWitnessHook = std::move(hook); }
+        /// Task 0243: during a witness hook call, the victim of the crime being judged (an assault, a murder, a caught
+        /// pickpocket); a handle with reference 0 when it has none (a theft, a trespass).
+        [[nodiscard]] openeden::sdk::game::ActorHandle witnessVictim() const { return mWitnessVictim; }
 
         [[nodiscard]] State state() const { return mState; }
         [[nodiscard]] FormId offerFaction() const { return mFaction; }
@@ -365,6 +368,7 @@ namespace game_skyrimse::crime
         std::uint32_t mRevision = 0;
         std::function<bool(std::uint32_t)> mDetected; ///< task 0227
         WitnessHook mWitnessHook; ///< task 0235
+        openeden::sdk::game::ActorHandle mWitnessVictim; ///< task 0243: set only while the hook runs
     };
 
     /// The outermost wrapper of the combat chain (task 0204): it tells the crime system of every damage report and

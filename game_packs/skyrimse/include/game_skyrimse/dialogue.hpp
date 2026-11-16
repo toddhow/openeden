@@ -326,6 +326,10 @@ namespace game_skyrimse
         /// Task 0228: the speaker's level (the bribe cost is a gold sum per level); 0 when unknown.
         [[nodiscard]] std::uint16_t speakerLevel() const;
         void setCurrentWeather(FormId weather) { mWeather = weather; }
+        /// Task 0243: the actor (its base record) that is the victim of the crime being remarked on: IsActorAVictim
+        /// (fn_314) is true for the subject with this base. Told by a bark about a caught pickpocket or an assault, for
+        /// the speaker that is the victim; kNullFormId (the default) when no crime is under way.
+        void setCrimeVictim(FormId base) { mCrimeVictim.store(base, std::memory_order_relaxed); }
         /// Task 0235: the player's stance, told once a frame by the pack when barks are on: sneaking, and what is drawn
         /// (0 nothing, 1 a weapon, 2 a spell; anything else counts as nothing). IsSneaking, IsWeaponOut and
         /// IsWeaponMagicOut answer for the player from it; never told (the default): nobody sneaks, nothing is drawn.
@@ -475,6 +479,7 @@ namespace game_skyrimse
         // task 0160
         bool isDisabled(conditions::Subject subject) const override;
         bool isSneaking(conditions::Subject subject) const override;
+        conditions::Subject crimeVictim() const override; // task 0243
         bool weaponOrMagicOut(conditions::Subject subject) const override;
         float weaponOutState(conditions::Subject subject) const override;
         bool isEquipped(conditions::Subject subject, std::uint32_t object) const override;
@@ -565,6 +570,7 @@ namespace game_skyrimse
         {
             return isSpeaker(subject) || (mPlayer != nullptr && subject == kPlayer);
         }
+        std::atomic<FormId> mCrimeVictim{ kNullFormId }; // task 0243
         std::atomic<bool> mPlayerSneaking{ false }; // task 0235
         std::atomic<std::uint8_t> mPlayerDrawState{ 0 };
         mutable bool mStatsKnown = false;

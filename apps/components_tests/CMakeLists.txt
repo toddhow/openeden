@@ -654,6 +654,10 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsebarksreal.cpp
     skyrimse/testskyrimsebarkreactionsreal.cpp
     skyrimse/testskyrimsebarkreactions.cpp
+    skyrimse/testskyrimsebarkselectionreal.cpp
+    skyrimse/testskyrimsebarkselection.cpp
+    skyrimse/testskyrimsebarkbackoff.cpp
+    skyrimse/testskyrimsebarkvictim.cpp
     skyrimse/testskyrimsecrimewitness.cpp
     skyrimse/testskyrimsesneaknotice.cpp
     skyrimse/testskyrimsestancecond.cpp

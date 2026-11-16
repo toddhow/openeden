@@ -1987,7 +1987,8 @@ namespace game_skyrimse
             line.mVoice = turn.voice;
             return true;
         };
-        out.mBark = [this, state, data](std::string_view subtype, FormId reference, std::uint32_t pick, SceneLine& line) {
+        out.mBark = [this, state, data](
+                        std::string_view subtype, FormId reference, std::uint32_t pick, bool speakerIsVictim, SceneLine& line) {
             const PlacedEntry* entry = data->mPlacedRefs.find(reference);
             if (entry == nullptr)
                 return false;
@@ -1997,7 +1998,7 @@ namespace game_skyrimse
             fillSpeakerCell(speaker, entry->mCell);
             speaker.mCell = entry->mCell;
             sdkgame::DialogueTurn turn;
-            if (!state->mRuntime->barkLine(subtype, speaker, pick, turn))
+            if (!state->mRuntime->barkLine(subtype, speaker, pick, turn, speakerIsVictim))
                 return false;
             line.mText = turn.text;
             line.mVoice = turn.voice;

@@ -68,6 +68,7 @@ CFG
 [ "$SHOT" = n5talk ] && echo "content=n5talk.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0146: "n5lip" stands before Hulda, talks to her and takes a picture of her face every quarter second (use at least 6000 frames).
 [ "$SHOT" = n5lip ] && echo "content=n5lip.omwscripts" >> "$WORK/config/openmw.cfg"
+echo "return { place = ${LIP_PLACE:-6}, activate = ${LIP_ACTIVATE:-9} }" > "$WORK/luatest/scripts/n5/lipcfg.lua" # task 0243
 # Task 0135: "n5body" walks the player into each neutral actor of the Bannered Mare (use at least 3600 frames).
 [ "$SHOT" = n5body ] && echo "content=n5body.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5bodydraw ] && echo "content=n5bodydraw.omwscripts" >> "$WORK/config/openmw.cfg"

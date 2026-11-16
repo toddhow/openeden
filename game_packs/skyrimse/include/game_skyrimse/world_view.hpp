@@ -196,7 +196,9 @@ namespace game_skyrimse
             std::function<bool(FormId topic, FormId speakerReference, std::uint32_t pick, SceneLine& out)> mLine;
             /// task 0231: the line an actor says unprompted for a DIAL subtype ("HELO", "ATCK" ...), see
             /// DialogueRuntime::barkLine; main thread
-            std::function<bool(std::string_view subtype, FormId speakerReference, std::uint32_t pick, SceneLine& out)>
+            /// task 0243: `speakerIsVictim`: the speaker is the victim of the crime it remarks on
+            std::function<bool(std::string_view subtype, FormId speakerReference, std::uint32_t pick,
+                bool speakerIsVictim, SceneLine& out)>
                 mBark;
             /// task 0235: the player's stance (sneaking, what is drawn: 0 nothing, 1 weapon, 2 spell) for the
             /// conditions of the dialogue runtime; main thread

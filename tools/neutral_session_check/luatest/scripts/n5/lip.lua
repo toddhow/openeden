@@ -11,6 +11,10 @@ local EYE = 108 -- camera height above her feet
 local PITCH = 0.12
 local SHOT_EVERY = 0.25
 local SHOT_UNTIL = 16
+-- Task 0243: LIP_PLACE and LIP_ACTIVATE (seconds of real time, default 6 and 9) are written to lipcfg.lua by check.sh: with the
+-- dialogue data read about 25 s after start, a bark or conversation run places the player later.
+local cfg = require('scripts.n5.lipcfg')
+local PLACE_AT, ACTIVATE_AT = cfg.place or 6, cfg.activate or 9
 local start, placed, activated, lastShot = nil, false, false, nil
 
 local function nearest(cell)
@@ -33,7 +37,7 @@ return {
             if player == nil then return end
             start = start or core.getRealTime()
             local t = core.getRealTime() - start
-            if not placed and t >= 6 then
+            if not placed and t >= PLACE_AT then
                 placed = true
                 local cx, cy = -50 - A[1], -450 - A[2]
                 local len = math.sqrt(cx * cx + cy * cy)
@@ -42,7 +46,7 @@ return {
                 player:sendEvent('N5Cam', { position = util.vector3(px, py, A[3] + EYE), yaw = yaw, pitch = PITCH })
                 print('N5T placed at ' .. string.format('%.1f', t))
             end
-            if placed and not activated and t >= 9 then
+            if placed and not activated and t >= ACTIVATE_AT then
                 activated = true
                 local obj = nearest(player.cell)
                 if obj then
@@ -51,7 +55,7 @@ return {
                     lastShot = t
                 end
             end
-            if activated and lastShot and t - lastShot >= SHOT_EVERY and t < 9 + SHOT_UNTIL then
+            if activated and lastShot and t - lastShot >= SHOT_EVERY and t < ACTIVATE_AT + SHOT_UNTIL then
                 lastShot = t
                 player:sendEvent('N5Shot')
                 print('N5T shot at ' .. string.format('%.2f', t))

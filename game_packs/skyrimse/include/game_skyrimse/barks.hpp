@@ -33,6 +33,11 @@ namespace game_skyrimse
     class SettingsTable;
 }
 
+namespace game_skyrimse::crime
+{
+    enum class Kind : std::uint8_t;
+}
+
 namespace game_skyrimse::barks
 {
     enum class Kind : std::uint8_t
@@ -53,9 +58,15 @@ namespace game_skyrimse::barks
         Trespass, ///< TRES
         Murder, ///< MURD (task 0235)
         Notice, ///< NOTA: an actor began to suspect a sneaking player (task 0235)
+        Pickpocket, ///< PICN: a pickpocket try the victim caught and did not answer with a fight (task 0243)
+        PickpocketCombat, ///< PICC: the same, answered with a fight (task 0243; nothing raises it yet)
         Count
     };
     inline constexpr std::size_t kKindCount = static_cast<std::size_t>(Kind::Count);
+
+    /// The reaction kind a witness of this crime speaks from (task 0243): theft STEA, assault ASSA, murder MURD,
+    /// trespass TRES, a caught pickpocket PICN.
+    [[nodiscard]] Kind kindOfCrime(crime::Kind crime);
 
     /// The DIAL subtype (SNAM, four characters) a kind speaks from; empty for Count.
     [[nodiscard]] std::string_view subtypeOf(Kind kind);
@@ -94,6 +105,9 @@ namespace game_skyrimse::barks
         /// After any combat bark no other combat bark starts for this long (seconds): keeps a crowd from shouting
         /// over itself.
         float mCombatGap = 0.75f;
+        /// A blow cry or taunt that finds no line (or whose line is refused) is not asked for again for this long
+        /// (seconds; task 0243, OURS: it used to ask on every update while its timer was due).
+        float mNoLineGap = 5.f;
         /// How long a line is assumed to last: max(mMinSpeech, characters * mSecondsPerChar), plus mVoicePadding.
         float mSecondsPerChar = 0.07f;
         float mMinSpeech = 1.5f;
@@ -162,7 +176,9 @@ namespace game_skyrimse::barks
         /// A combat event, queued and handled by the next update (which has the player's place). Safe to call from
         /// inside the combat update. `kind` is one of Engage, EngageAlerted, Hit, Flee, Death, Lost, Calm, or a
         /// reaction (Assault, Steal, Trespass); the periodic kinds (Attack, Taunt) and Hello and Idle come from update.
-        void onEvent(Kind kind, std::uint64_t reference);
+        /// Task 0243: `subjectIsVictim`: the actor is the victim of the crime it remarks on; `speakerIsVictim()` says so
+        /// while the line is being chosen (IsActorAVictim).
+        void onEvent(Kind kind, std::uint64_t reference, bool subjectIsVictim = false);
 
         /// Advances the clock by `seconds`, handles the queued events and starts at most one calm bark and, for
         /// engaged actors whose timer is due, combat barks. `havePlayer` false: no distance rule can be answered, so
@@ -177,6 +193,9 @@ namespace game_skyrimse::barks
         /// `sneaking`: the player is sneaking; an actor does not greet a sneaking player (its hello waits until he
         /// stands up), but its idle lines, some of which are written for a sneaking player, still run.
         void onPlayerStance(bool weaponDrawn, bool sneaking = false);
+
+        /// True while `Hooks::mChoose` runs for an event whose actor is the victim of the crime (task 0243).
+        [[nodiscard]] bool speakerIsVictim() const { return mVictimNow; }
 
         [[nodiscard]] float clock() const { return mClock; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -208,13 +227,14 @@ namespace game_skyrimse::barks
         {
             Kind mKind;
             std::uint64_t mReference;
+            bool mVictim = false; ///< task 0243
         };
 
         [[nodiscard]] std::uint64_t mix(std::uint64_t reference, std::uint32_t counter, Kind kind) const;
         [[nodiscard]] float draw(std::uint64_t reference, State& state, Kind kind, float low, float high) const;
         /// Chooses and plays a line; false (counted) when none, none with voice, or refused. On success the actor is
         /// busy until the line is over.
-        bool trySpeak(Kind kind, std::uint64_t reference, State& state);
+        bool trySpeak(Kind kind, std::uint64_t reference, State& state, bool victim = false);
 
         Settings mSettings;
         Hooks mHooks;
@@ -224,6 +244,7 @@ namespace game_skyrimse::barks
         bool mPlayerDrawn = false; ///< the last stance told
         bool mStanceEdge = false; ///< the weapon was drawn since the last update
         bool mPlayerSneaking = false; ///< the player is sneaking: no hello
+        bool mVictimNow = false;
         float mCalmFree = 0.f; ///< no calm bark starts before this
         float mCombatFree = 0.f; ///< no combat bark starts before this
         float mHelloFree = 0.f; ///< no hello starts before this (fAIGreetingTimer after the last)

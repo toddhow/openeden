@@ -523,6 +523,8 @@ namespace game_skyrimse::crime
             ++mRevision;
         }
         if (mWitnessHook)
+        {
+            mWitnessVictim = crime.mVictim;
             for (const ActorHandle& witness : witnesses)
             {
                 try
@@ -534,6 +536,8 @@ namespace game_skyrimse::crime
                     // a hook that throws changes nothing about the crime
                 }
             }
+            mWitnessVictim = ActorHandle();
+        }
         return true;
     }
 

@@ -1,6 +1,7 @@
 #include "game_skyrimse/barks.hpp"
 
 #include <game_skyrimse/combat_stats.hpp>
+#include <game_skyrimse/crime.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -34,6 +35,8 @@ namespace game_skyrimse::barks
             { "TRES", "trespass", true },
             { "MURD", "murder", true },
             { "NOTA", "notice", false },
+            { "PICN", "pickpocket", true },
+            { "PICC", "pickpocket-combat", true },
         };
 
         constexpr int kReactionTries = 6; ///< lines tried for a reaction whose picks have no voice file (task 0235)
@@ -55,6 +58,24 @@ namespace game_skyrimse::barks
         {
             return a->mReference < b->mReference;
         }
+    }
+
+    Kind kindOfCrime(crime::Kind crime)
+    {
+        switch (crime)
+        {
+            case crime::Kind::Theft:
+                return Kind::Steal;
+            case crime::Kind::Assault:
+                return Kind::Assault;
+            case crime::Kind::Murder:
+                return Kind::Murder;
+            case crime::Kind::Trespass:
+                return Kind::Trespass;
+            case crime::Kind::Pickpocket:
+                return Kind::Pickpocket;
+        }
+        return Kind::Steal;
     }
 
     std::string_view subtypeOf(Kind kind)
@@ -100,7 +121,7 @@ namespace game_skyrimse::barks
         return mEngaged.count(reference) != 0;
     }
 
-    void BarkSystem::onEvent(Kind kind, std::uint64_t reference)
+    void BarkSystem::onEvent(Kind kind, std::uint64_t reference, bool subjectIsVictim)
     {
         if (kind >= Kind::Count || kind == Kind::Hello || kind == Kind::Idle || kind == Kind::Attack
             || kind == Kind::Taunt)
@@ -110,7 +131,7 @@ namespace game_skyrimse::barks
             ++mStats.mEventsDropped;
             return;
         }
-        mQueue.push_back({ kind, reference });
+        mQueue.push_back({ kind, reference, subjectIsVictim });
     }
 
     void BarkSystem::onPlayerStance(bool weaponDrawn, bool sneaking)
@@ -136,14 +157,25 @@ namespace game_skyrimse::barks
         return low + static_cast<float>(u) * (high - low);
     }
 
-    bool BarkSystem::trySpeak(Kind kind, std::uint64_t reference, State& state)
+    bool BarkSystem::trySpeak(Kind kind, std::uint64_t reference, State& state, bool victim)
     {
+        struct VictimScope
+        {
+            bool& mFlag;
+            VictimScope(bool& flag, bool now)
+                : mFlag(flag)
+            {
+                mFlag = now;
+            }
+            ~VictimScope() { mFlag = false; }
+        } victimScope(mVictimNow, victim);
         Line line;
         // A reaction is said now or never, and many of the lines written for it have no voice file for this actor's
         // voice type, so it tries a few lines; the calm barks and the periodic fight cries retry on their own (the
         // fight cries every update while their timer is due: no trace line for those).
         const bool reaction = kind == Kind::Notice || kind == Kind::Steal || kind == Kind::Assault
-            || kind == Kind::Trespass || kind == Kind::Murder;
+            || kind == Kind::Trespass || kind == Kind::Murder || kind == Kind::Pickpocket
+            || kind == Kind::PickpocketCombat;
         // Task 0235: a reaction that cannot be said leaves a line in the trace.
         const bool tracing = reaction && static_cast<bool>(mHooks.mTrace);
         const int tries = reaction ? kReactionTries : 1;
@@ -153,6 +185,10 @@ namespace game_skyrimse::barks
             line = Line();
             if (!mHooks.mChoose || !mHooks.mChoose(kind, reference, pick, line))
             {
+                // Task 0243: a line gated by a random roll (GetRandomPercent) may pass on another pick, so a reaction
+                // asks again; it is counted and traced once, when the last try fails
+                if (mHooks.mChoose && attempt + 1 < tries)
+                    continue;
                 ++mStats.mNoLine;
                 if (tracing)
                     mHooks.mTrace("BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference)
@@ -284,8 +320,10 @@ namespace game_skyrimse::barks
                 case Kind::Steal:
                 case Kind::Trespass:
                 case Kind::Murder:
+                case Kind::Pickpocket:
+                case Kind::PickpocketCombat:
                     if (canShout(actor, state, false))
-                        (void)trySpeak(event.mKind, event.mReference, state);
+                        (void)trySpeak(event.mKind, event.mReference, state, event.mVictim);
                     break;
                 case Kind::Notice:
                     // Task 0235: "What was that?": not for an actor that is fighting, and not again within the gap.
@@ -311,15 +349,18 @@ namespace game_skyrimse::barks
             {
                 if (!heard)
                     engaged.mNextTaunt = nextTaunt(reference, state);
-                else if (canShout(actor, state, false) && trySpeak(Kind::Taunt, reference, state))
-                    engaged.mNextTaunt = nextTaunt(reference, state);
+                else if (canShout(actor, state, false))
+                    // Task 0243: a cry that finds no line (or is refused) waits mNoLineGap, not the next update
+                    engaged.mNextTaunt = trySpeak(Kind::Taunt, reference, state) ? nextTaunt(reference, state)
+                                                                                  : mClock + mSettings.mNoLineGap;
             }
             if (mClock >= engaged.mNextAttack)
             {
                 if (!heard)
                     engaged.mNextAttack = nextAttack(reference, state);
-                else if (canShout(actor, state, false) && trySpeak(Kind::Attack, reference, state))
-                    engaged.mNextAttack = nextAttack(reference, state);
+                else if (canShout(actor, state, false))
+                    engaged.mNextAttack = trySpeak(Kind::Attack, reference, state) ? nextAttack(reference, state)
+                                                                                    : mClock + mSettings.mNoLineGap;
             }
         }
 

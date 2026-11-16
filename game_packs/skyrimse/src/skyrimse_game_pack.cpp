@@ -2804,7 +2804,8 @@ namespace game_skyrimse
                         mBarkLine = access.mBark;
                     }
                     SceneLine line;
-                    if (!mBarkLine(barks::subtypeOf(kind), static_cast<FormId>(reference), pick, line))
+                    if (!mBarkLine(barks::subtypeOf(kind), static_cast<FormId>(reference), pick,
+                            mBarks->speakerIsVictim(), line))
                         return false;
                     out.mText = std::move(line.mText);
                     out.mVoice = std::move(line.mVoice);
@@ -2828,24 +2829,11 @@ namespace game_skyrimse
                 if (mCrime != nullptr)
                     mCrime->system().setWitnessHook(
                         [this](crime::Kind crime, openeden::sdk::game::ActorHandle witness) {
-                            barks::Kind kind = barks::Kind::Steal;
-                            switch (crime)
-                            {
-                                case crime::Kind::Theft:
-                                case crime::Kind::Pickpocket:
-                                    kind = barks::Kind::Steal;
-                                    break;
-                                case crime::Kind::Assault:
-                                    kind = barks::Kind::Assault;
-                                    break;
-                                case crime::Kind::Murder:
-                                    kind = barks::Kind::Murder;
-                                    break;
-                                case crime::Kind::Trespass:
-                                    kind = barks::Kind::Trespass;
-                                    break;
-                            }
-                            mBarks->onEvent(kind, static_cast<std::uint64_t>(witness.reference));
+                            const barks::Kind kind = barks::kindOfCrime(crime);
+                            // Task 0243: the witness that is the victim (a caught pickpocket, an assault)
+                            const openeden::sdk::game::ActorHandle victim = mCrime->system().witnessVictim();
+                            const bool isVictim = victim.reference != 0 && victim.reference == witness.reference;
+                            mBarks->onEvent(kind, static_cast<std::uint64_t>(witness.reference), isVictim);
                         });
                 // Task 0235: the player's stance reaches the conditions of the bark lines (a drawn weapon, sneaking)
                 // and a drawn weapon or spell near an actor makes it say a hello again.
@@ -3920,7 +3908,7 @@ namespace game_skyrimse
             std::unique_ptr<sneak::SneakSystem> mSneak; // task 0227; refers to the cell source, inventory, progression
             std::unique_ptr<sneak::SneakBindings> mSneakBindings;
             std::unique_ptr<barks::BarkSystem> mBarks; // task 0231; refers to the cell source and the world view
-            std::function<bool(std::string_view, FormId, std::uint32_t, SceneLine&)> mBarkLine; // from papyrusAccess
+            std::function<bool(std::string_view, FormId, std::uint32_t, bool, SceneLine&)> mBarkLine; // from papyrusAccess
             std::function<void(bool, std::uint8_t)> mBarkStance; // task 0235, from papyrusAccess
             bool mBarkSubtitles = true;
             bool mBarkConfigured = false;

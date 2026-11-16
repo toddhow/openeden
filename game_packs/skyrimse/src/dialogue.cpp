@@ -1676,6 +1676,12 @@ namespace game_skyrimse
         return subject == kPlayer && mPlayerSneaking.load(std::memory_order_relaxed);
     }
 
+    conditions::Subject SkyrimConditionWorld::crimeVictim() const
+    {
+        // Task 0243: the bark of a witness that is the victim; no crime is under way otherwise
+        return static_cast<conditions::Subject>(mCrimeVictim.load(std::memory_order_relaxed));
+    }
+
     bool SkyrimConditionWorld::weaponOrMagicOut(conditions::Subject subject) const
     {
         const std::uint8_t drawn = mPlayerDrawState.load(std::memory_order_relaxed);

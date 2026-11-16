@@ -279,8 +279,100 @@ namespace game_skyrimse
         return found;
     }
 
-    bool DialogueRuntime::barkLine(
-        std::string_view subtype, const DialogueSpeaker& speaker, std::uint32_t pick, openeden::sdk::game::DialogueTurn& out)
+    bool DialogueRuntime::hasResponseText(const DialogInfo& info) const
+    {
+        for (const DialogResponse& response : info.mResponses)
+        {
+            const std::string line = response.mText.mPresent && !response.mText.mLocalized
+                ? response.mText.mText
+                : mResolver(response.mText, info.mPlugin, StringTableKind::IlStrings);
+            if (!line.empty())
+                return true;
+        }
+        return false;
+    }
+
+    bool DialogueRuntime::hasVoiceFile(const DialogInfo& info)
+    {
+        if (!mVoiceProbe)
+            return true;
+        const Stats saved = mStats;
+        openeden::sdk::game::DialogueTurn scratch;
+        nameVoice(info, scratch);
+        mStats = saved;
+        return !scratch.voice.empty();
+    }
+
+    const DialogInfo* DialogueRuntime::selectBarkInfo(std::string_view subtype, std::uint32_t pick)
+    {
+        // The rules of selectInfo (dialogue.cpp) with the skip of task 0243 after the conditions; kept here so that the
+        // shared selection, which conversations use, is not touched.
+        std::vector<FormId> ids = mDialogue.topicIds(std::string(subtype));
+        std::stable_sort(ids.begin(), ids.end(),
+            [&](FormId a, FormId b) { return mDialogue.topic(a)->mPriority > mDialogue.topic(b)->mPriority; });
+        const SelectionOptions opts = options(pick);
+        conditions::Evaluator eval;
+        for (const FormId topicId : ids)
+        {
+            const DialogTopic* topic = mDialogue.topic(topicId);
+            std::vector<const DialogInfo*> randoms;
+            const DialogInfo* chosen = nullptr;
+            for (const DialogInfo* info : mDialogue.infosOf(topicId))
+            {
+                const FormId quest
+                    = info->mQuest != kNullFormId ? info->mQuest : (topic != nullptr ? topic->mQuest : kNullFormId);
+                if (opts.mQuestRunning && quest != kNullFormId && !opts.mQuestRunning(quest))
+                    continue;
+                if ((info->mFlags & InfoFlags::SayOnce) != 0 && opts.mSaid && opts.mSaid(info->mCommon.mId))
+                    continue;
+                if (info->mSpeaker != kNullFormId && info->mSpeaker != mSpeaker.mBase)
+                    continue;
+                if (!info->mConditionsOk)
+                    continue;
+                mWorld.setQuestContext(quest);
+                if (opts.mQuests != nullptr)
+                {
+                    if (const QuestRecord* record = opts.mQuests->quest(quest))
+                    {
+                        if (!record->mConditionsOk)
+                            continue;
+                        if (!record->mConditions.empty())
+                        {
+                            mWorld.setPlugin(&opts.mQuests->resolverOf(*record));
+                            const bool questPass = eval.evaluate(record->mConditions, mWorld);
+                            mWorld.setPlugin(nullptr);
+                            if (!questPass)
+                                continue;
+                        }
+                    }
+                }
+                mWorld.setPlugin(&mDialogue.resolverOf(*info));
+                const bool pass = eval.evaluate(info->mConditions, mWorld);
+                mWorld.setPlugin(nullptr);
+                if (!pass)
+                    continue;
+                if (!hasResponseText(*info) || !hasVoiceFile(*info))
+                    continue;
+                if (chosen == nullptr)
+                {
+                    chosen = info;
+                    if ((info->mFlags & InfoFlags::Random) == 0)
+                        break;
+                }
+                if ((info->mFlags & InfoFlags::Random) != 0)
+                    randoms.push_back(info);
+            }
+            mWorld.setQuestContext(kNullFormId);
+            if (!randoms.empty())
+                chosen = randoms[opts.mPick % randoms.size()];
+            if (chosen != nullptr)
+                return chosen;
+        }
+        return nullptr;
+    }
+
+    bool DialogueRuntime::barkLine(std::string_view subtype, const DialogueSpeaker& speaker, std::uint32_t pick,
+        openeden::sdk::game::DialogueTurn& out, bool speakerIsVictim)
     {
         out = {};
         const DialogueSpeaker savedSpeaker = mSpeaker;
@@ -291,10 +383,13 @@ namespace game_skyrimse
         // GetRandomPercent and the like draw from a generator seeded by the placement and the pick.
         mWorld.setRandomSeed(
             (speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase) ^ (std::uint64_t(pick) << 32));
-        const Selection s = pickFromTopics(mDialogue, std::string(subtype), mWorld, mSpeaker, options(pick));
-        const bool found = s.mInfo != nullptr;
+        // Task 0243: an INFO with no response text or no voice file is not a bark line and is not marked said
+        mWorld.setCrimeVictim(speakerIsVictim ? speaker.mBase : kNullFormId);
+        const DialogInfo* const info = selectBarkInfo(subtype, pick);
+        mWorld.setCrimeVictim(kNullFormId);
+        const bool found = info != nullptr;
         if (found)
-            fillTurn(*s.mInfo, out);
+            fillTurn(*info, out);
         mSpeaker = savedSpeaker;
         mVoiceType = savedVoice;
         mWorld.setSpeaker(savedSpeaker);
