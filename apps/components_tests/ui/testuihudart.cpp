@@ -222,7 +222,9 @@ namespace
                 const int height = std::atoi(name.c_str() + name.find("frame_h") + 7);
                 EXPECT_EQ(h, height) << name;
                 if (name[name.size() - 5] != 'c')
+                {
                     EXPECT_EQ(w, get<int>("mod.ART_CAP")) << name;
+                }
             }
             if (name.find("emblem") != std::string::npos)
             {
