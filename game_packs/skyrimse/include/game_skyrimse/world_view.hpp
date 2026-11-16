@@ -368,6 +368,21 @@ namespace game_skyrimse
         /// `placedRefsBuildMillis()`.
         [[nodiscard]] const PlacedRefIndex* placedRefs() const;
 
+        // ---- task 0184 (equip, use, gold)
+        /// A WEAP by form id. False while the combat records are not read (ask again; the combat update starts that
+        /// read); true with `out` null for an id that is no weapon. Main thread.
+        [[nodiscard]] bool lookupWeapon(FormId id, const WeaponRecord*& out);
+        /// The armour piece a worn ARMO gives the armour rating (rating, slots, type, keywords), false when the id is
+        /// no armour. Reads the actor index like describeActor (main thread).
+        [[nodiscard]] bool armourPieceById(FormId id, ArmourPiece& out);
+        /// How much health an effect of a potion restores at once: its magnitude when the effect is a value modifier
+        /// on Health that is neither hostile nor detrimental and lasts no time, else 0 (also while the records are
+        /// not read). RECALLED-VERIFY: the flag bits and 24 as the Health actor value.
+        [[nodiscard]] float healthOfEffect(FormId effect, float magnitude, std::uint32_t duration);
+        /// Where the player's gold comes from (the inventory's Gold001) for the speech and bribe checks; empty: the
+        /// stand-in's. Applied when the dialogue runtime is built (set it before the first conversation).
+        void setPlayerGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
+
         // ---- task 0182 (inventory)
         /// What the inventory reader needs, copied out once the index is built (false before: ask again, nothing
         /// waits). `leveled` gets every plugin's leveled lists in load order (the reader keeps the later one).
@@ -491,6 +506,7 @@ namespace game_skyrimse
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold
+        std::function<float()> mGoldSource; // task 0184
         bool ensureActorIndex();
         std::unique_ptr<CombatIndex> mCombatIndex; ///< WEAP, RACE combat fields and GMSTs of every plugin (task 0171)
         // Review fix of task 0171: the combat records (and the actor records, when nothing else has read them yet) are

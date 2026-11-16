@@ -45,6 +45,8 @@ namespace game_skyrimse::inventory
             return z ^ (z >> 31);
         }
 
+        constexpr std::size_t kMaxItemEffects = 16; // task 0184: effects read from one ALCH
+
         class Parser final : public Content::Visitor
         {
         public:
@@ -140,6 +142,7 @@ namespace game_skyrimse::inventory
                 item.mId = id;
                 item.mCategory = *category;
                 bool haveData = false;
+                bool effectFilled = true;
                 std::optional<std::int32_t> enitValue;
                 const bool ok = survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
                     if (sub.mType == Content::fourCC("DATA"))
@@ -150,6 +153,32 @@ namespace game_skyrimse::inventory
                             enitValue = static_cast<std::int32_t>(le32(sub.mData.data()));
                         else
                             ++mOut.mOddSubrecords;
+                    }
+                    else if (sub.mType == Content::fourCC("EFID") && type == Content::fourCC("ALCH"))
+                    {
+                        // Task 0184: one effect per EFID, its numbers follow in the EFIT.
+                        if (sub.mData.size() != 4)
+                            ++mOut.mOddSubrecords;
+                        else if (item.mEffects.size() < kMaxItemEffects)
+                        {
+                            ItemEffect effect;
+                            effect.mEffect = resolved(le32(sub.mData.data()));
+                            item.mEffects.push_back(effect);
+                            effectFilled = false;
+                        }
+                    }
+                    else if (sub.mType == Content::fourCC("EFIT") && type == Content::fourCC("ALCH"))
+                    {
+                        if (sub.mData.size() != 12 || item.mEffects.empty() || effectFilled)
+                            ++mOut.mOddSubrecords;
+                        else
+                        {
+                            ItemEffect& effect = item.mEffects.back();
+                            effect.mMagnitude = lef(sub.mData.data());
+                            effect.mArea = le32(sub.mData.data() + 4);
+                            effect.mDuration = le32(sub.mData.data() + 8);
+                            effectFilled = true;
+                        }
                     }
                 });
                 if (!ok)
@@ -486,7 +515,9 @@ namespace game_skyrimse::inventory
     {
         mOwners.clear();
         mTouched.clear();
+        mEquipped.clear();
         mRevision = 0;
+        ++mEquipmentRevision;
     }
 
     void InventoryModel::setPlayer(std::vector<Stack> stacks)
@@ -496,6 +527,7 @@ namespace game_skyrimse::inventory
         player.clear();
         for (const Stack& s : stacks)
             player[s.mItem] = s.mCount;
+        ++mEquipmentRevision; // task 0184
         ++mRevision;
     }
 
@@ -575,7 +607,11 @@ namespace game_skyrimse::inventory
         target += count;
         have->second -= count;
         if (have->second == 0)
+        {
             src->second.erase(have);
+            if (from == kPlayerOwner && unequipRaw(item))
+                ++mEquipmentRevision; // task 0184: the last one left the player's hands
+        }
         mTouched.insert(from);
         mTouched.insert(to);
         ++mRevision;
@@ -677,7 +713,239 @@ namespace game_skyrimse::inventory
         }
         mOwners = std::move(owners);
         mTouched = std::move(touched);
+        ++mEquipmentRevision; // task 0184
         ++mRevision;
+        return true;
+    }
+
+    bool parseStackList(std::string_view text, std::vector<Stack>& out)
+    {
+        const auto trim = [](std::string_view v) {
+            while (!v.empty() && (v.front() == ' ' || v.front() == '\t'))
+                v.remove_prefix(1);
+            while (!v.empty() && (v.back() == ' ' || v.back() == '\t'))
+                v.remove_suffix(1);
+            return v;
+        };
+        const auto number = [](std::string_view v, int base, std::uint64_t& value) {
+            if (v.empty() || v.size() > (base == 16 ? 8u : 7u))
+                return false;
+            value = 0;
+            for (const char c : v)
+            {
+                int digit;
+                if (c >= '0' && c <= '9')
+                    digit = c - '0';
+                else if (base == 16 && c >= 'a' && c <= 'f')
+                    digit = c - 'a' + 10;
+                else if (base == 16 && c >= 'A' && c <= 'F')
+                    digit = c - 'A' + 10;
+                else
+                    return false;
+                value = value * static_cast<std::uint64_t>(base) + static_cast<std::uint64_t>(digit);
+            }
+            return true;
+        };
+        std::vector<Stack> parsed;
+        text = trim(text);
+        while (!text.empty())
+        {
+            const std::size_t comma = text.find(',');
+            std::string_view entry = trim(text.substr(0, comma));
+            text = comma == std::string_view::npos ? std::string_view() : trim(text.substr(comma + 1));
+            if (comma != std::string_view::npos && text.empty())
+                return false; // a trailing comma
+            const std::size_t colon = entry.find(':');
+            std::uint64_t id = 0, count = 1;
+            if (!number(trim(entry.substr(0, colon)), 16, id) || id == 0)
+                return false;
+            if (colon != std::string_view::npos
+                && (!number(trim(entry.substr(colon + 1)), 10, count) || count < 1 || count > kMaxStackCount))
+                return false;
+            if (parsed.size() >= 64)
+                return false;
+            parsed.push_back({ static_cast<FormId>(id), static_cast<std::int32_t>(count) });
+        }
+        out = std::move(parsed);
+        return true;
+    }
+
+    // ---- task 0184: equipped items
+    std::string_view equipStatusName(EquipStatus status)
+    {
+        switch (status)
+        {
+            case EquipStatus::Ok:
+                return "ok";
+            case EquipStatus::NotHeld:
+                return "not held";
+            case EquipStatus::NotEquippable:
+                return "not equippable";
+            case EquipStatus::NotEquipped:
+                return "not equipped";
+        }
+        return "?";
+    }
+
+    EquipStatus InventoryModel::equip(FormId item, const EquipInfo& info)
+    {
+        if (info.mKind != EquipKind::Weapon && info.mKind != EquipKind::Armor)
+            return EquipStatus::NotEquippable;
+        if (count(kPlayerOwner, item) < 1)
+            return EquipStatus::NotHeld;
+        const auto same = std::find_if(
+            mEquipped.begin(), mEquipped.end(), [&](const EquippedItem& e) { return e.mItem == item; });
+        if (same != mEquipped.end() && same->mKind == info.mKind && same->mSlotMask == info.mSlotMask)
+            return EquipStatus::Ok; // already so: nothing changes
+        // what this replaces: the equipped weapon, or every armour whose slots overlap
+        std::erase_if(mEquipped, [&](const EquippedItem& e) {
+            if (e.mItem == item)
+                return true;
+            if (info.mKind == EquipKind::Weapon)
+                return e.mKind == EquipKind::Weapon;
+            return e.mKind == EquipKind::Armor && (e.mSlotMask & info.mSlotMask) != 0;
+        });
+        if (mEquipped.size() >= kMaxEquipped)
+            return EquipStatus::NotEquippable;
+        mEquipped.push_back({ item, info.mKind, info.mSlotMask });
+        std::sort(mEquipped.begin(), mEquipped.end(),
+            [](const EquippedItem& a, const EquippedItem& b) { return a.mItem < b.mItem; });
+        ++mEquipmentRevision;
+        ++mRevision;
+        return EquipStatus::Ok;
+    }
+
+    EquipStatus InventoryModel::unequip(FormId item)
+    {
+        const auto it
+            = std::find_if(mEquipped.begin(), mEquipped.end(), [&](const EquippedItem& e) { return e.mItem == item; });
+        if (it == mEquipped.end())
+            return EquipStatus::NotEquipped;
+        mEquipped.erase(it);
+        ++mEquipmentRevision;
+        ++mRevision;
+        return EquipStatus::Ok;
+    }
+
+    bool InventoryModel::isEquipped(FormId item) const
+    {
+        return std::any_of(mEquipped.begin(), mEquipped.end(), [&](const EquippedItem& e) { return e.mItem == item; })
+            && count(kPlayerOwner, item) >= 1;
+    }
+
+    std::vector<EquippedItem> InventoryModel::equipped() const
+    {
+        std::vector<EquippedItem> out;
+        for (const EquippedItem& e : mEquipped)
+            if (count(kPlayerOwner, e.mItem) >= 1)
+                out.push_back(e);
+        return out;
+    }
+
+    bool InventoryModel::unequipRaw(FormId item)
+    {
+        const std::size_t before = mEquipped.size();
+        std::erase_if(mEquipped, [&](const EquippedItem& e) { return e.mItem == item; });
+        return mEquipped.size() != before;
+    }
+
+    TransferStatus InventoryModel::consume(std::uint64_t owner, FormId item, std::int32_t count)
+    {
+        const auto it = mOwners.find(owner);
+        if (it == mOwners.end())
+            return TransferStatus::UnknownOwner;
+        if (count <= 0 || count > kMaxStackCount)
+            return TransferStatus::BadCount;
+        const auto have = it->second.find(item);
+        if (have == it->second.end() || have->second < count)
+            return TransferStatus::NotEnough;
+        have->second -= count;
+        if (have->second == 0)
+        {
+            it->second.erase(have);
+            if (owner == kPlayerOwner && unequipRaw(item))
+                ++mEquipmentRevision;
+        }
+        mTouched.insert(owner);
+        ++mRevision;
+        return TransferStatus::Ok;
+    }
+
+    void InventoryModel::setEquipped(std::vector<EquippedItem> items)
+    {
+        std::vector<EquippedItem> kept;
+        for (const EquippedItem& e : items)
+        {
+            if ((e.mKind != EquipKind::Weapon && e.mKind != EquipKind::Armor) || e.mItem == kNullFormId
+                || kept.size() >= kMaxEquipped
+                || std::any_of(kept.begin(), kept.end(), [&](const EquippedItem& k) { return k.mItem == e.mItem; }))
+                continue;
+            kept.push_back(e);
+        }
+        std::sort(
+            kept.begin(), kept.end(), [](const EquippedItem& a, const EquippedItem& b) { return a.mItem < b.mItem; });
+        mEquipped = std::move(kept);
+        ++mEquipmentRevision;
+        ++mRevision;
+    }
+
+    void EquipmentChunk::write(openeden::sdk::ChunkWriter& writer)
+    {
+        const std::vector<EquippedItem> items = mModel.equipped();
+        writer.writeValue(static_cast<std::uint32_t>(items.size()));
+        for (const EquippedItem& e : items)
+        {
+            writer.writeValue(static_cast<std::uint32_t>(e.mItem));
+            writer.writeValue(static_cast<std::uint8_t>(e.mKind));
+            writer.writeValue(static_cast<std::uint32_t>(e.mSlotMask));
+        }
+    }
+
+    bool EquipmentChunk::read(openeden::sdk::ChunkReader& reader, std::uint32_t version)
+    {
+        mRefusal.clear();
+        const auto refuse = [&](const std::string& why) {
+            mRefusal = why;
+            if (mSink)
+                mSink(why);
+            return false;
+        };
+        if (version != kVersion)
+            return refuse("the equipment chunk has version " + std::to_string(version));
+        constexpr std::uint8_t kWeaponByte = static_cast<std::uint8_t>(EquipKind::Weapon);
+        constexpr std::uint8_t kArmorByte = static_cast<std::uint8_t>(EquipKind::Armor);
+        std::uint32_t n = 0;
+        if (!reader.readValue(n) || n > InventoryModel::kMaxEquipped
+            || static_cast<std::uint64_t>(n) * 9 != reader.remaining())
+            return refuse("the equipment count is damaged");
+        std::vector<EquippedItem> items;
+        std::uint32_t weapons = 0;
+        std::uint32_t usedSlots = 0;
+        std::uint64_t previous = 0;
+        for (std::uint32_t i = 0; i < n; ++i)
+        {
+            std::uint32_t item = 0, mask = 0;
+            std::uint8_t kind = 0;
+            if (!reader.readValue(item) || !reader.readValue(kind) || !reader.readValue(mask) || item == 0
+                || (i > 0 && item <= previous))
+                return refuse("an equipped item is damaged");
+            previous = item;
+            if (kind != kWeaponByte && kind != kArmorByte)
+                return refuse("an equipped item has an unknown kind");
+            if (kind == kWeaponByte)
+            {
+                if (++weapons > 1)
+                    return refuse("two weapons are equipped");
+            }
+            else
+            {
+                if ((usedSlots & mask) != 0)
+                    return refuse("two armour pieces share a slot");
+                usedSlots |= mask;
+            }
+            items.push_back({ static_cast<FormId>(item), static_cast<EquipKind>(kind), mask });
+        }
+        mModel.setEquipped(std::move(items));
         return true;
     }
 

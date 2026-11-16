@@ -191,6 +191,87 @@ namespace game_skyrimse
         return true;
     }
 
+    // ---- task 0184: what the player wields and wears, and a potion's health
+    void SkyrimCombat::setPlayerEquipment(PlayerEquipment equipment)
+    {
+        mEquip = std::move(equipment);
+        mEquipDirty = true;
+        applyPlayerEquipment();
+    }
+
+    bool SkyrimCombat::queuePlayerHeal(float amount)
+    {
+        if (mData == nullptr || !std::isfinite(amount) || amount <= 0.f)
+            return false;
+        mPendingHeal += std::min(amount, kMaxPlayerHeal);
+        return true;
+    }
+
+    float SkyrimCombat::playerMitigationPercent() const
+    {
+        const Fighter* player = find(CombatSubject::ofPlayer());
+        return player != nullptr && player->mReady && player->mHasProfile ? player->mProfile.mMitigationPercent : 0.f;
+    }
+
+    // The player's armour: the pieces equipped (armourOf with the stand-in's skills), else the stand-in's own number.
+    // Applied when the player's data is read and whenever the equipment changes.
+    void SkyrimCombat::applyPlayerEquipment()
+    {
+        Fighter* player = find(CombatSubject::ofPlayer());
+        if (player == nullptr || !player->mReady || !player->mHasProfile)
+            return; // ready() applies it when the profile is fetched
+        mEquipDirty = false;
+        if (mEquip.mPieces.empty())
+        {
+            player->mProfile.mMitigationPercent = mBaseMitigation;
+            player->mProfile.mPieces = mBasePieces;
+            return;
+        }
+        if (!mHaveSettings)
+            loadSettings();
+        const ArmourResult armour = armourOf(mEquip.mPieces, player->mProfile.mSkills, mCombatSettings);
+        player->mProfile.mMitigationPercent = armour.mMitigationPercent;
+        player->mProfile.mPieces = mEquip.mPieces;
+        trace("COMBAT player armour " + std::to_string(mEquip.mPieces.size()) + " pieces: rating " + fmt(armour.mRating)
+            + " takes " + fmt(armour.mMitigationPercent) + "% off");
+    }
+
+    // The weapon a fighter swings: the player's equipped melee weapon, else the test weapon (as before).
+    const WeaponRecord* SkyrimCombat::weaponFor(const Fighter& fighter) const
+    {
+        if (fighter.mSubject.player && mEquip.mWeapon != nullptr && mEquip.mWeapon->isMelee())
+            return mEquip.mWeapon;
+        return mWeapon;
+    }
+
+    // A queued heal reaches the engine's health: a report that takes none off and sets the health after it. It waits
+    // while the engine has no health for the player.
+    void SkyrimCombat::applyPlayerHeal(openeden::sdk::game::CombatRequestWriter& writer)
+    {
+        if (!(mPendingHeal > 0.f))
+            return;
+        openeden::sdk::game::SubjectState state;
+        if (!writer.subjectState(CombatSubject::ofPlayer(), state) || !(state.healthMax > 0.f))
+            return;
+        openeden::sdk::game::DamageReport report;
+        report.attackerIsPlayer = true;
+        report.victimIsPlayer = true;
+        report.amount = 0.f;
+        report.healthMax = state.healthMax;
+        report.healthAfter = std::clamp(state.health + mPendingHeal, 0.f, state.healthMax);
+        report.x = state.x;
+        report.y = state.y;
+        report.z = state.z;
+        if (writer.reportDamage(report))
+        {
+            if (Fighter* player = find(CombatSubject::ofPlayer()))
+                player->mHealth = report.healthAfter;
+            trace("COMBAT heal player +" + fmt(mPendingHeal) + " health " + fmt(state.health) + " -> "
+                + fmt(report.healthAfter) + " of " + fmt(state.healthMax));
+        }
+        mPendingHeal = 0.f; // applied, or refused for good by the engine
+    }
+
     void SkyrimCombat::setTestPowerEvery(int n)
     {
         mPowerEvery = n > 0 ? n : 0;
@@ -574,9 +655,16 @@ namespace game_skyrimse
             fighter.mReady = true;
             fighter.mHasProfile = fighter.mSubject.player ? true : mData->fighter(fighter.mBase, fighter.mProfile);
             if (fighter.mSubject.player)
+            {
                 fighter.mProfile = mData->playerFighter();
+                mBaseMitigation = fighter.mProfile.mMitigationPercent; // task 0184: the stand-in's, to restore
+                mBasePieces = fighter.mProfile.mPieces;
+                mBaseMitigationKnown = true;
+            }
             fighter.mHealth = fighter.mProfile.mHealthMax;
             fighter.mStamina = fighter.mProfile.mStaminaMax;
+            if (fighter.mSubject.player && mEquipDirty)
+                applyPlayerEquipment();
             preparePerks(fighter);
         }
         return fighter.mHasProfile;
@@ -949,12 +1037,13 @@ namespace game_skyrimse
             }
             return;
         }
+        const WeaponRecord* const swung = weaponFor(*attacker); // task 0184
         MeleeInput input;
-        input.mWeapon = mWeapon;
+        input.mWeapon = swung;
         input.mUnarmedDamage = attacker->mProfile.mUnarmedDamage;
         input.mPowerAttack = hit.mPower;
-        if (mWeapon != nullptr && mWeapon->skillSlot() < attacker->mProfile.mSkills.size())
-            input.mAttackerSkill = attacker->mProfile.mSkills[mWeapon->skillSlot()];
+        if (swung != nullptr && swung->skillSlot() < attacker->mProfile.mSkills.size())
+            input.mAttackerSkill = attacker->mProfile.mSkills[swung->skillSlot()];
         const MeleeHit cost = computeMeleeHit(input, mCombatSettings);
         float staminaCost = hit.mBash ? bashStaminaCost(mBlockSettings) : cost.mStaminaCost;
         if (hit.mPower && !hit.mBash && perksMatter(*attacker) && mData->perkLibrary() != nullptr)
@@ -991,7 +1080,7 @@ namespace game_skyrimse
         request.y = where.y;
         request.z = where.z;
         request.heading = where.heading;
-        request.reach = meleeReachUnits(mWeapon, attacker->mProfile.mUnarmedReach, mCombatSettings);
+        request.reach = meleeReachUnits(swung, attacker->mProfile.mUnarmedReach, mCombatSettings);
         request.halfAngle = kStrikeHalfAngle;
         request.heightBelow = kSweepHeightBelow;
         request.heightAbove = kSweepHeightAbove;
@@ -1009,13 +1098,14 @@ namespace game_skyrimse
     void SkyrimCombat::applyHit(CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
         const SweepHit& hit, Fighter& victim, const MeleeHit* preset)
     {
+        const WeaponRecord* const swung = weaponFor(attacker); // task 0184
         MeleeInput input;
-        input.mWeapon = mWeapon;
+        input.mWeapon = swung;
         input.mUnarmedDamage = attacker.mProfile.mUnarmedDamage;
         input.mPowerAttack = power;
         input.mTargetMitigationPercent = victim.mProfile.mMitigationPercent;
-        if (mWeapon != nullptr && mWeapon->skillSlot() < attacker.mProfile.mSkills.size())
-            input.mAttackerSkill = attacker.mProfile.mSkills[mWeapon->skillSlot()];
+        if (swung != nullptr && swung->skillSlot() < attacker.mProfile.mSkills.size())
+            input.mAttackerSkill = attacker.mProfile.mSkills[swung->skillSlot()];
         MeleeHit result = preset != nullptr ? *preset : computeMeleeHit(input, mCombatSettings);
         if (!bash)
             applyPerksToHit(attacker, victim, power, result);
@@ -1448,6 +1538,7 @@ namespace game_skyrimse
             // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
+            applyPlayerHeal(writer); // task 0184
             // Results cast last frame, then the hits the clips reached since.
             for (const SweepDelivery& delivery : mDeliveries)
                 resolveSweep(writer, delivery);

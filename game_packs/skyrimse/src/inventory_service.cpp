@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <chrono>
 #include <cstdio>
 
@@ -128,6 +129,7 @@ namespace game_skyrimse::inventory
         : mImpl(std::make_unique<Impl>())
         , mHooks(std::move(hooks))
         , mChunk(mModel)
+        , mEquipmentChunk(mModel)
         , mLevel(level)
     {
         std::vector<Stack> start;
@@ -220,10 +222,105 @@ namespace game_skyrimse::inventory
         ResolveReport report;
         std::vector<Stack> stacks = resolveContents(entries, mTable, contentsSeed(owner), mLevel, &report);
         if (mHooks.mLog)
+        {
+            std::string list; // the first stacks, for a person reading the log (task 0184)
+            for (std::size_t i = 0; i < stacks.size() && i < 12; ++i)
+                list += (i == 0 ? " [" : " ") + formatId(stacks[i].mItem) + "x" + std::to_string(stacks[i].mCount);
             mHooks.mLog("INV open " + std::string(kind) + " " + formatId(owner) + " base " + formatId(base) + ": "
-                + std::to_string(stacks.size()) + " stacks, " + std::to_string(report.mUnknownForms)
-                + " unknown forms");
+                + std::to_string(stacks.size()) + " stacks, " + std::to_string(report.mUnknownForms) + " unknown forms"
+                + (list.empty() ? "" : list + "]"));
+        }
         return mModel.ensureOwner(owner, std::move(stacks));
+    }
+
+    // ---- task 0184: equip and use
+    EquipInfo InventoryService::equipInfoOf(FormId item) const
+    {
+        const ItemStat* stat = mTable.item(item);
+        if (stat == nullptr)
+            return {};
+        switch (stat->mCategory)
+        {
+            case Category::Weapon:
+                return { EquipKind::Weapon, 0 };
+            case Category::Potion:
+                return { EquipKind::Potion, 0 };
+            case Category::Armor:
+            {
+                // The slots come from the armour records (a hook); an answer is remembered, a failure is asked again.
+                const auto cached = mArmourInfo.find(item);
+                if (cached != mArmourInfo.end())
+                    return cached->second;
+                EquipInfo asked;
+                if (mHooks.mEquipInfo && mHooks.mEquipInfo(item, asked) && asked.mKind == EquipKind::Armor)
+                {
+                    mArmourInfo[item] = asked;
+                    return asked;
+                }
+                return { EquipKind::Armor, 0x4 }; // the body slot while the records cannot say; asked again next time
+            }
+            default:
+                return {};
+        }
+    }
+
+    EquipStatus InventoryService::equip(FormId item)
+    {
+        const EquipStatus status = mModel.equip(item, equipInfoOf(item));
+        if (status != EquipStatus::Ok && mHooks.mLog)
+            mHooks.mLog("INV equip " + formatId(item) + " refused: " + std::string(equipStatusName(status)));
+        else if (mHooks.mLog)
+            mHooks.mLog("INV equip " + formatId(item) + ": ok, " + std::to_string(mModel.equipped().size())
+                + " equipped");
+        return status;
+    }
+
+    EquipStatus InventoryService::unequip(FormId item)
+    {
+        const EquipStatus status = mModel.unequip(item);
+        if (mHooks.mLog)
+            mHooks.mLog("INV unequip " + formatId(item) + ": " + std::string(equipStatusName(status)));
+        return status;
+    }
+
+    float InventoryService::healthOf(FormId item) const
+    {
+        const ItemStat* stat = mTable.item(item);
+        if (stat == nullptr || !mHooks.mHealthOf)
+            return 0.f;
+        double total = 0.0;
+        for (const ItemEffect& effect : stat->mEffects)
+        {
+            const float amount = mHooks.mHealthOf(effect.mEffect, effect.mMagnitude, effect.mDuration);
+            if (std::isfinite(amount) && amount > 0.f)
+                total += amount;
+        }
+        return static_cast<float>(std::min(total, 1.0e6));
+    }
+
+    InventoryService::UseStatus InventoryService::use(FormId item)
+    {
+        const auto refuse = [&](UseStatus status, const char* why) {
+            if (mHooks.mLog)
+                mHooks.mLog("INV use " + formatId(item) + " refused: " + why);
+            return status;
+        };
+        if (!mReady)
+            return refuse(UseStatus::NotReady, "the item table is not built");
+        if (mModel.count(kPlayerOwner, item) < 1)
+            return refuse(UseStatus::NotHeld, "not held");
+        if (equipInfoOf(item).mKind != EquipKind::Potion)
+            return refuse(UseStatus::NotUsable, "not a potion");
+        const float health = healthOf(item);
+        if (!(health > 0.f))
+            return refuse(UseStatus::NoHealing, "no instant health effect");
+        if (!mHooks.mApplyHealth || !mHooks.mApplyHealth(health))
+            return refuse(UseStatus::Refused, "the health cannot be applied now");
+        const TransferStatus consumed = mModel.consume(kPlayerOwner, item, 1);
+        if (mHooks.mLog)
+            mHooks.mLog("INV use " + formatId(item) + ": health +" + std::to_string(health) + ", "
+                + std::string(transferStatusName(consumed)) + ", revision " + std::to_string(mModel.revision()));
+        return UseStatus::Ok;
     }
 
     openeden::sdk::DeclareResult InventoryService::declare(openeden::sdk::BindingsService& service)
@@ -394,6 +491,39 @@ namespace game_skyrimse::inventory
             r.value = number(kBaseCarryWeight);
             return r;
         });
+        // ---- task 0184 (version 1.1)
+        add("equipped", s1, true, BindingType::Bool, BindingAccess::Read,
+            [self, itemOf](std::span<const BindingValue> a) {
+                FormId item = 0;
+                if (!itemOf(a[0], item))
+                    return fail(BindingStatus::BadArgument, "not an item id");
+                BindingResult r = ok();
+                r.value = boolean(self->mModel.isEquipped(item));
+                return r;
+            });
+        add("use_kind", s1, true, kStr, BindingAccess::Read, [self, &m, itemOf](std::span<const BindingValue> a) {
+            FormId item = 0;
+            if (!itemOf(a[0], item))
+                return fail(BindingStatus::BadArgument, "not an item id");
+            switch (self->equipInfoOf(item).mKind)
+            {
+                case EquipKind::Weapon:
+                    m.mText = "weapon";
+                    break;
+                case EquipKind::Armor:
+                    m.mText = "armor";
+                    break;
+                case EquipKind::Potion:
+                    m.mText = "potion";
+                    break;
+                default:
+                    m.mText.clear();
+                    break;
+            }
+            BindingResult r = ok();
+            r.value = text(m.mText);
+            return r;
+        });
         // ---- Mutate: no result; a refusal is logged
         add("open", s3, false, BindingType::Bool, BindingAccess::Mutate, [self](std::span<const BindingValue> a) {
             std::uint64_t o = 0, b = 0;
@@ -408,6 +538,23 @@ namespace game_skyrimse::inventory
                     + " (not ready or unknown)");
             return ok();
         });
+        const auto mutateItem = [&](std::string_view name, std::function<void(InventoryService&, FormId)> act) {
+            add(name, s1, false, BindingType::Bool, BindingAccess::Mutate,
+                [self, itemOf, act = std::move(act)](std::span<const BindingValue> a) {
+                    FormId item = 0;
+                    if (!itemOf(a[0], item))
+                    {
+                        if (self->mHooks.mLog)
+                            self->mHooks.mLog("INV item call refused: bad id");
+                        return ok();
+                    }
+                    act(*self, item);
+                    return ok();
+                });
+        };
+        mutateItem("equip", [](InventoryService& s, FormId item) { (void)s.equip(item); });
+        mutateItem("unequip", [](InventoryService& s, FormId item) { (void)s.unequip(item); });
+        mutateItem("use", [](InventoryService& s, FormId item) { (void)s.use(item); });
         add("transfer", transferParams, false, BindingType::Bool, BindingAccess::Mutate,
             [self, owner, itemOf](std::span<const BindingValue> a) {
                 std::uint64_t from = 0, to = 0;
@@ -441,7 +588,7 @@ namespace game_skyrimse::inventory
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = "skyrimse.inventory";
-        ns.version = { 1, 0 };
+        ns.version = { 1, 1 };
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

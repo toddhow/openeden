@@ -7,6 +7,9 @@
 --   env.transfer(from, to, item, count)   asks the pack to move items (a global script runs the Mutate call)
 --   env.takeAll(from, to)
 --   env.close()   leaves the interface mode (the host script's job)
+--   env.equip(item), env.unequip(item), env.use(item)   (task 0184) optional: ask the pack to wield or wear an item,
+--                 take it off, or drink a potion. A package without `equipped` and `use_kind` (version 1.0) gets no
+--                 such buttons.
 -- Ids are text: an item is 8 hex digits, an owner is 'player' or the placement's hex id.
 --
 -- Rows are keyed by item id AND count, so a changed count makes a new row (a List row is built once).
@@ -16,20 +19,29 @@ local M = {}
 local ROW_HEIGHT = 22
 local LIST_HEIGHT = 440
 local WINDOW_WIDTH = 400
-local BUTTON_ALL_WIDTH = 44
+local BUTTON_ALL_WIDTH = 40
+local BUTTON_USE_WIDTH = 62
+local NAME_WIDTH = 180
+local DETAIL_WIDTH = 84
 
-local function rows(inv, owner)
+-- `withUse` rows (the player's) also carry what the extra button does and whether the item is worn.
+local function rows(inv, owner, withUse)
   local out = {}
+  local canUse = withUse and inv.use_kind ~= nil
   for i, id in ipairs(inv.items(owner)) do
     local count = inv.count(owner, id)
+    local useKind = canUse and inv.use_kind(id) or ''
+    local equipped = canUse and inv.equipped ~= nil and inv.equipped(id) or false
     out[i] = {
       id = id,
-      key = id .. ':' .. count,
+      key = id .. ':' .. count .. (equipped and ':e' or ''),
       count = count,
       name = inv.name(id),
       category = inv.category(id),
       weight = inv.weight(id),
       value = inv.value(id),
+      useKind = useKind,
+      equipped = equipped,
     }
   end
   return out
@@ -37,7 +49,15 @@ end
 
 local function rowLabel(r)
   local count = r.count > 1 and string.format('  x%d', r.count) or ''
-  return string.format('%s%s', r.name, count)
+  local worn = r.equipped and ' [E]' or ''
+  return string.format('%s%s%s', r.name, worn, count)
+end
+
+-- The label of the extra button of a row, nil when it has none.
+local function useLabel(r)
+  if r.useKind == 'potion' then return 'Use' end
+  if r.useKind == 'weapon' or r.useKind == 'armor' then return r.equipped and 'Unequip' or 'Equip' end
+  return nil
 end
 
 local function detail(r)
@@ -62,7 +82,7 @@ function M.create(env)
 
   local function refresh()
     lastRevision = inv.revision()
-    playerRows:set(rows(inv, 'player'))
+    playerRows:set(rows(inv, 'player', true))
     weightText:set(string.format('Weight %.1f / %d', inv.carried(), inv.capacity()))
     goldText:set(string.format('Gold %d', inv.count('player', inv.gold_item())))
     if openOwner then
@@ -72,7 +92,17 @@ function M.create(env)
     end
   end
 
-  local function makeList(valueRows, onTake, onTakeAll, label)
+  local function onUse(r)
+    if r.useKind == 'potion' then
+      if env.use then env.use(r.id) end
+    elseif r.equipped then
+      if env.unequip then env.unequip(r.id) end
+    else
+      if env.equip then env.equip(r.id) end
+    end
+  end
+
+  local function makeList(valueRows, onTake, onTakeAll, label, withUse)
     return ui.List{
       items = valueRows,
       key = function(r) return r.key end,
@@ -80,13 +110,19 @@ function M.create(env)
       height = LIST_HEIGHT,
       width = WINDOW_WIDTH - 24,
       render = function(r)
-        return ui.Row{
-          ui.Button{ text = rowLabel(r), class = 'item-name', style = { width = 220 },
+        local children = {
+          ui.Button{ text = rowLabel(r), class = 'item-name', style = { width = NAME_WIDTH },
             onClick = function() onTake(r) end },
-          ui.Text{ text = detail(r), class = 'item-detail', style = { width = 90 } },
+          ui.Text{ text = detail(r), class = 'item-detail', style = { width = DETAIL_WIDTH } },
           ui.Button{ text = label, class = 'item-all', style = { width = BUTTON_ALL_WIDTH },
             onClick = function() onTakeAll(r) end },
         }
+        local extra = withUse and useLabel(r) or nil
+        if extra then
+          children[#children + 1] = ui.Button{ text = extra, class = 'item-use',
+            style = { width = BUTTON_USE_WIDTH }, onClick = function() onUse(r) end }
+        end
+        return ui.Row(children)
       end,
     }
   end
@@ -102,7 +138,7 @@ function M.create(env)
           makeList(playerRows,
             function(r) if openOwner then env.transfer('player', openOwner, r.id, 1) end end,
             function(r) if openOwner then env.transfer('player', openOwner, r.id, r.count) end end,
-            'Put'),
+            'Put', true),
         }
       end }
   end

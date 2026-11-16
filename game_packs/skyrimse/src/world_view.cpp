@@ -689,6 +689,8 @@ namespace game_skyrimse
             player.mGold = mStandInGold;
             player.mFemale = mStandInFemale;
             raw->mRuntime->setPlayer(player);
+            if (mGoldSource)
+                raw->mRuntime->setGoldSource(mGoldSource); // task 0184
             // Task 0156: locations, and the quest scripts' values before any script ran (the .pex through the VFS).
             raw->mRuntime->setLocations(&raw->mData->mLocations);
             if (mFiles != nullptr)
@@ -1896,6 +1898,40 @@ namespace game_skyrimse
         }
         order = mOrder;
         return true;
+    }
+
+    bool SkyrimWorldView::lookupWeapon(FormId id, const WeaponRecord*& out)
+    {
+        out = nullptr;
+        if (mCombatIndex == nullptr)
+            return false;
+        out = mCombatIndex->weapon(id);
+        return true;
+    }
+
+    bool SkyrimWorldView::armourPieceById(FormId id, ArmourPiece& out)
+    {
+        if (!awaitIndex() || !ensureActorIndex())
+            return false;
+        const ArmorExtra* armor = mActorIndex->armor(id);
+        if (armor == nullptr)
+            return false;
+        out = { static_cast<float>(armor->mRating) / 100.f, armor->mSlotMask, armor->mArmorType, id,
+            armor->mKeywords };
+        return true;
+    }
+
+    float SkyrimWorldView::healthOfEffect(FormId effect, float magnitude, std::uint32_t duration)
+    {
+        constexpr std::int32_t kHealthValue = 24; // the Health actor value (RECALLED-VERIFY)
+        constexpr std::uint32_t kHostile = 0x1, kDetrimental = 0x4; // MGEF DATA flags (RECALLED-VERIFY)
+        if (mCombatIndex == nullptr || duration != 0 || !(magnitude > 0.f))
+            return 0.f;
+        const MagicEffectRecord* record = mCombatIndex->magicEffect(effect);
+        if (record == nullptr || !record->mHasData || record->mArchetype != 0 || record->mPrimaryValue != kHealthValue
+            || (record->mFlags & (kHostile | kDetrimental)) != 0)
+            return 0.f;
+        return magnitude;
     }
 
     bool SkyrimWorldView::npcInventory(FormId base, std::vector<InventoryEntry>& out)

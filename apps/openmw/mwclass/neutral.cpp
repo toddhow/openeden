@@ -16,6 +16,7 @@
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
+#include <openeden/game/player_item_source.hpp>
 
 #include <vsg/maths/quat.h>
 
@@ -217,6 +218,7 @@ namespace MWClass
             std::uint64_t mPlacement;
             std::uint64_t mBase;
             std::string mName;
+            std::string mKind;
 
             void executeImp(const MWWorld::Ptr& actor) override
             {
@@ -224,9 +226,9 @@ namespace MWClass
                     return;
                 std::vector<MWBase::LuaManager::ExtensionEventField> fields;
                 for (const MWWorld::NeutralInventoryEventField& f :
-                    MWWorld::neutralInventoryEventFields(mPlacement, mBase, "container", mName))
+                    MWWorld::neutralInventoryEventFields(mPlacement, mBase, mKind, mName))
                     fields.push_back({ f.mName, f.mText });
-                Log(Debug::Info) << "NINV container " << MWWorld::neutralHexId(mPlacement) << " base "
+                Log(Debug::Info) << "NINV " << mKind << " " << MWWorld::neutralHexId(mPlacement) << " base "
                                  << MWWorld::neutralHexId(mBase) << " '" << mName << "' opened";
                 MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
                     std::string(MWWorld::kNeutralInventoryEvent), fields);
@@ -234,11 +236,12 @@ namespace MWClass
 
         public:
             OpenInventoryAction(const MWWorld::Ptr& target, std::uint64_t placement, std::uint64_t base,
-                std::string name)
+                std::string name, std::string kind = "container")
                 : MWWorld::Action(false, target)
                 , mPlacement(placement)
                 , mBase(base)
                 , mName(std::move(name))
+                , mKind(std::move(kind))
             {
             }
         };
@@ -270,6 +273,19 @@ namespace MWClass
     std::unique_ptr<MWWorld::Action> Neutral::activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const
     {
         const MWWorld::NeutralBase& base = baseOf(ptr);
+        // Task 0184: a dead actor is searched, not talked to (only with [Game] neutral inventory; the pack's combat
+        // rules told the engine it died).
+        if (base.mKind == ObjectKind::Actor && actor == MWMechanics::getPlayer()
+            && Settings::game().mNeutralInventory.get())
+        {
+            const MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem();
+            const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            const bool dead = physics != nullptr && physics->isNeutralActorDead(ptr);
+            if (placement != std::nullopt
+                && MWWorld::decideNeutralLoot(base.mKind, true, true, dead) == MWWorld::NeutralInventoryDecision::Open)
+                return std::make_unique<OpenInventoryAction>(
+                    ptr, *placement, base.mBase, std::string(getName(ptr)), "actor");
+        }
         // Task 0141: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
         // same setting that draws them, and only by the player).
         if (base.mKind == ObjectKind::Actor && Settings::game().mNeutralActors && actor == MWMechanics::getPlayer())
@@ -284,6 +300,23 @@ namespace MWClass
         if (object == nullptr)
             return MWWorld::Class::activate(ptr, actor);
 
+        // Task 0184: a key in the pack's inventory (with [Game] neutral inventory) opens a lock as one from the ring
+        // does.
+        const auto keyHeld = [&](const std::string& gameIdOf, openeden::sdk::game::WorldId key) {
+            std::function<bool(openeden::sdk::game::WorldId)> inventory;
+            if (Settings::game().mNeutralInventory.get())
+            {
+                MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+                NeutralWorld::NeutralWorldStore* store
+                    = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+                if (auto* items = dynamic_cast<openeden::sdk::game::PlayerItemSource*>(
+                        store != nullptr ? store->source(gameIdOf) : nullptr))
+                    inventory = [items](openeden::sdk::game::WorldId item) { return items->playerHasItem(item); };
+            }
+            return MWWorld::neutralKeyHeld(key,
+                [&](openeden::sdk::game::WorldId k) { return MWWorld::neutralLockState().hasKey(gameIdOf, k); },
+                inventory);
+        };
         // Task 0128: a lock is opened by its key (the session's key ring) or refused; an opened lock stays open for the
         // session. Lock picking is not applied (Morrowind's rules read Morrowind GMSTs and skills). Only the player
         // is judged here: a door still refuses anybody else below.
@@ -294,7 +327,7 @@ namespace MWClass
             const std::string& gameId = cell->neutralGameId();
             const MWWorld::NeutralLockOutcome lockOutcome
                 = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(), locks.isUnlocked(gameId, *placement),
-                    [&](openeden::sdk::game::WorldId key) { return locks.hasKey(gameId, key); });
+                    [&](openeden::sdk::game::WorldId key) { return keyHeld(gameId, key); });
             if (doorTraceWanted() && object->lock)
                 Log(Debug::Info) << "NLOCK " << *placement << " in " << cell->getCell()->getDescription()
                                  << ": locked=" << object->lock->locked << " key " << object->lock->key << " level "

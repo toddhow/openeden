@@ -30,6 +30,10 @@ view = windows.create{
     core.sendGlobalEvent('SkyrimInventoryTakeAll', { from = from, to = to })
   end,
   close = leave,
+  -- task 0184: wielding, wearing and drinking are Mutate calls, so the global script runs them
+  equip = function(item) core.sendGlobalEvent('SkyrimInventoryEquip', { item = item }) end,
+  unequip = function(item) core.sendGlobalEvent('SkyrimInventoryUnequip', { item = item }) end,
+  use = function(item) core.sendGlobalEvent('SkyrimInventoryUse', { item = item }) end,
 }
 
 local function show(owner, title)

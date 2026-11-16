@@ -24,6 +24,7 @@
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/grass_source.hpp>
+#include <openeden/game/player_item_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -158,7 +159,8 @@ namespace game_skyrimse
                                    public openeden::sdk::game::CombatRules,
                                    public openeden::sdk::game::CellWaterSource,
                                    public openeden::sdk::game::WeatherSource,
-                                   public openeden::sdk::game::GrassSource
+                                   public openeden::sdk::game::GrassSource,
+                                   public openeden::sdk::game::PlayerItemSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -175,6 +177,13 @@ namespace game_skyrimse
         }
 
         std::string_view gameId() const override { return "skyrimse"; }
+        /// Task 0184: whether the player holds an item, from the inventory (the game pack gives the lookup when the
+        /// inventory is on); false without one.
+        void setPlayerItemLookup(std::function<bool(FormId)> lookup) { mPlayerItems = std::move(lookup); }
+        bool playerHasItem(openeden::sdk::game::WorldId item) const override
+        {
+            return mPlayerItems && item <= 0xFFFFFFFFull && mPlayerItems(static_cast<FormId>(item));
+        }
         /// Task 0150: forwards to the view's DisplayNameSource.
         std::string displayNameOf(openeden::sdk::game::WorldId base) override;
         std::size_t cellCount() const override { return mView.cellCount(); }
@@ -305,6 +314,7 @@ namespace game_skyrimse
         SkyrimActorTable mActors;
         SkyrimCombat mCombat;
         CombatHud mHud;
+        std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;

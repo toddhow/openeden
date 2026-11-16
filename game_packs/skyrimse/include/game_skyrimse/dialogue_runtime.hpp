@@ -91,6 +91,9 @@ namespace game_skyrimse
             mWorld.setPlayer(&mPlayer);
         }
         [[nodiscard]] const PlayerStandIn& player() const { return mPlayer; }
+        /// Task 0184: the player's gold from the inventory (see SkyrimConditionWorld::setGoldSource); empty: the
+        /// stand-in's.
+        void setGoldSource(std::function<float()> source) { mWorld.setGoldSource(std::move(source)); }
 
         /// Locations (LCTN) and the quest scripts' initial values (task 0156); both must outlive the runtime. Without
         /// them fn_359, fn_562 and fn_629 stay unanswered.

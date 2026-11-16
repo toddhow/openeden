@@ -800,16 +800,27 @@ namespace game_skyrimse
         return isSpeaker(subject) && speakerStats() ? static_cast<float>(mStats.level) : 0.f;
     }
 
+    // Task 0184: the inventory's gold when a source is set (read at the moment of the check), else the stand-in's.
+    float SkyrimConditionWorld::playerGold() const
+    {
+        if (mGoldSource)
+        {
+            const float gold = mGoldSource();
+            return std::isfinite(gold) && gold > 0.f ? gold : 0.f;
+        }
+        return mPlayer != nullptr ? mPlayer->mGold : 0.f;
+    }
+
     float SkyrimConditionWorld::goldOf(conditions::Subject subject) const
     {
-        return mPlayer != nullptr && subject == kPlayer ? mPlayer->mGold : 0.f;
+        return mPlayer != nullptr && subject == kPlayer ? playerGold() : 0.f;
     }
 
     float SkyrimConditionWorld::itemCount(conditions::Subject subject, std::uint32_t item) const
     {
         constexpr FormId kGold001 = 0x0000000F;
         if (mPlayer != nullptr && subject == kPlayer)
-            return resolve(item) == kGold001 ? mPlayer->mGold : 0.f;
+            return resolve(item) == kGold001 ? playerGold() : 0.f;
         ActorView view;
         if (!viewOf(subject, view))
             return 0.f;
@@ -893,7 +904,7 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::playerCanBribe(conditions::Subject subject) const
     {
         return mPlayer != nullptr && isSpeaker(subject) && speakerStats()
-            && bribeSucceeds(mPlayer->mGold, mStats.level);
+            && bribeSucceeds(playerGold(), mStats.level);
     }
 
     FormId SkyrimConditionWorld::resolve(std::uint32_t stored) const

@@ -69,6 +69,31 @@ namespace game_skyrimse
         /// The category of a record type (fourCC), nullopt for a type that is not an item.
         [[nodiscard]] std::optional<Category> categoryOfType(std::uint32_t recordType);
 
+        /// Task 0184: what an item can be used as by the player.
+        enum class EquipKind : std::uint8_t
+        {
+            None,
+            Weapon, ///< one at a time (the right hand)
+            Armor, ///< replaces every equipped piece whose slot mask overlaps
+            Potion, ///< used, not worn
+        };
+
+        struct EquipInfo
+        {
+            EquipKind mKind = EquipKind::None;
+            std::uint32_t mSlotMask = 0; ///< BOD2 slots of an armour; 0 for a weapon
+            friend bool operator==(const EquipInfo&, const EquipInfo&) = default;
+        };
+
+        /// One effect of an ALCH record (EFID + EFIT: magnitude f32, area u32, duration u32).
+        struct ItemEffect
+        {
+            FormId mEffect = kNullFormId;
+            float mMagnitude = 0.f;
+            std::uint32_t mArea = 0;
+            std::uint32_t mDuration = 0;
+        };
+
         struct ItemStat
         {
             FormId mId = kNullFormId;
@@ -76,6 +101,7 @@ namespace game_skyrimse
             std::int32_t mValue = 0;
             float mWeight = 0.f;
             bool mDecoded = false; ///< false when the DATA subrecord was missing or of an unexpected size
+            std::vector<ItemEffect> mEffects; ///< task 0184: ALCH only
         };
 
         struct ContainerStat
@@ -166,6 +192,12 @@ namespace game_skyrimse
         /// Sorts by item id and merges equal items (a count that would pass kMaxStackCount is cut).
         void normalise(std::vector<Stack>& stacks);
 
+        /// Task 0184 (a test aid, the pack setting `inventory test items`): "0008715f,00012eb7:2" is a list of
+        /// stacks, each a form id in hexadecimal (1 to 8 digits) and an optional count after a colon (default 1, 1 to
+        /// kMaxStackCount). At most 64 entries. False, with `out` untouched, for any malformed entry; blanks around
+        /// entries are ignored and an empty text is an empty list.
+        [[nodiscard]] bool parseStackList(std::string_view text, std::vector<Stack>& out);
+
         inline constexpr std::uint64_t kPlayerOwner = 0;
         /// The form id of Gold001 as a load-order id when Skyrim.esm is first in the order (it always is).
         inline constexpr FormId kGoldItem = 0x0000000F;
@@ -181,6 +213,24 @@ namespace game_skyrimse
             NotEnough, ///< the source holds fewer
         };
         [[nodiscard]] std::string_view transferStatusName(TransferStatus status);
+
+        /// Task 0184: the player's worn or wielded item.
+        struct EquippedItem
+        {
+            FormId mItem = kNullFormId;
+            EquipKind mKind = EquipKind::None;
+            std::uint32_t mSlotMask = 0;
+            friend bool operator==(const EquippedItem&, const EquippedItem&) = default;
+        };
+
+        enum class EquipStatus : std::uint8_t
+        {
+            Ok,
+            NotHeld, ///< the player holds none of it
+            NotEquippable, ///< a potion, a misc item, or a kind of None
+            NotEquipped, ///< unequip of an item that is not equipped
+        };
+        [[nodiscard]] std::string_view equipStatusName(EquipStatus status);
 
         class InventoryModel
         {
@@ -206,6 +256,24 @@ namespace game_skyrimse
             [[nodiscard]] std::size_t ownerCount() const { return mOwners.size(); }
             [[nodiscard]] std::size_t touchedCount() const { return mTouched.size(); }
 
+            /// Task 0184: the player's equipped items. A weapon replaces the equipped weapon; an armour replaces every
+            /// equipped piece whose slot mask overlaps its own. `equipped()` lists only items the player still holds,
+            /// sorted by item id. Every change moves the revision.
+            [[nodiscard]] EquipStatus equip(FormId item, const EquipInfo& info);
+            [[nodiscard]] EquipStatus unequip(FormId item);
+            [[nodiscard]] bool isEquipped(FormId item) const;
+            [[nodiscard]] std::vector<EquippedItem> equipped() const;
+            /// Removes `count` of `item` from `owner` (a potion that was drunk). Same statuses as transfer.
+            [[nodiscard]] TransferStatus consume(std::uint64_t owner, FormId item, std::int32_t count);
+            /// Replaces the equipped list (a restore); no check against holdings (a read may come before the
+            /// inventory's own). Duplicate items keep the first.
+            void setEquipped(std::vector<EquippedItem> items);
+            [[nodiscard]] std::size_t equippedRawCount() const { return mEquipped.size(); }
+            /// Moves only when what the player wears or wields may have changed (an equip, an unequip, a transfer or
+            /// a consume that took the last of an equipped item, a restore); a poll compares one number.
+            [[nodiscard]] std::uint32_t equipmentRevision() const { return mEquipmentRevision; }
+            static constexpr std::size_t kMaxEquipped = 64;
+
             /// The save form (see InventoryChunk): written canonically; a read that is damaged changes nothing.
             void write(openeden::sdk::ChunkWriter& writer) const;
             [[nodiscard]] bool read(openeden::sdk::ChunkReader& reader, std::string& error);
@@ -214,8 +282,11 @@ namespace game_skyrimse
             void clear();
 
         private:
+            bool unequipRaw(FormId item);
             std::map<std::uint64_t, std::map<FormId, std::int32_t>> mOwners;
             std::set<std::uint64_t> mTouched; ///< owners that have had a transfer (the player is always saved)
+            std::vector<EquippedItem> mEquipped; ///< task 0184
+            std::uint32_t mEquipmentRevision = 0;
             std::uint32_t mRevision = 0;
         };
 
@@ -245,6 +316,32 @@ namespace game_skyrimse
             InventoryModel& mModel;
             std::function<void(const std::string&)> mSink;
             std::function<void(const std::string&)> mRestored;
+            std::string mRefusal;
+        };
+
+        /// Task 0184: the pack's save chunk "equipment" (version 1): u32 count (at most kMaxEquipped), then for each
+        /// (item u32, kind u8 of Weapon, Armor, slot mask u32). The inventory chunk is untouched. A damaged chunk
+        /// changes nothing.
+        class EquipmentChunk final : public openeden::sdk::SaveChunkHandler
+        {
+        public:
+            static constexpr std::uint32_t kVersion = 1;
+            static constexpr std::string_view kName = "equipment";
+            explicit EquipmentChunk(InventoryModel& model)
+                : mModel(model)
+            {
+            }
+            void setRefusalSink(std::function<void(const std::string&)> sink) { mSink = std::move(sink); }
+            [[nodiscard]] const std::string& refusal() const { return mRefusal; }
+
+            std::string_view chunkName() const override { return kName; }
+            std::uint32_t chunkVersion() const override { return kVersion; }
+            void write(openeden::sdk::ChunkWriter& writer) override;
+            bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override;
+
+        private:
+            InventoryModel& mModel;
+            std::function<void(const std::string&)> mSink;
             std::string mRefusal;
         };
     }

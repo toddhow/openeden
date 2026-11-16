@@ -126,6 +126,11 @@
       "default": 0
     },
     {
+      "key": "inventory test items",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "papyrus",
       "type": "bool",
       "default": false

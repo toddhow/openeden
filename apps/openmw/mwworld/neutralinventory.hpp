@@ -2,6 +2,7 @@
 #define OPENMW_MWWORLD_NEUTRALINVENTORY_H
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -30,6 +31,17 @@ namespace MWWorld
 
     [[nodiscard]] NeutralInventoryDecision decideNeutralInventory(
         openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn);
+
+    /// Task 0184: a dead actor the player activates opens the loot window (the pack's `actor` owner) instead of a
+    /// conversation. Only the player, only a dead Actor, only with the setting on.
+    [[nodiscard]] NeutralInventoryDecision decideNeutralLoot(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead);
+
+    /// Task 0184: a lock's key is held when the session's key ring has it or the pack's inventory does (the optional
+    /// lookup may be empty). Key 0 is no key. The inventory is only asked when the ring says no.
+    [[nodiscard]] bool neutralKeyHeld(openeden::sdk::game::WorldId key,
+        const std::function<bool(openeden::sdk::game::WorldId)>& keyRing,
+        const std::function<bool(openeden::sdk::game::WorldId)>& inventory);
 
     /// An id as lower-case hex of at least 8 digits (the form the pack's bindings read).
     [[nodiscard]] std::string neutralHexId(std::uint64_t id);

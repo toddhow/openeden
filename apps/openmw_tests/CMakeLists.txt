@@ -51,6 +51,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutraldoorreal.cpp
     mwworld/testneutrallock.cpp
     mwworld/testneutralinventory.cpp
+    mwworld/testneutralloot.cpp
     mwworld/testneutralsave.cpp
     mwworld/testneutralsaveworld.cpp
     mwworld/testneutralsafety.cpp

@@ -367,6 +367,11 @@ namespace MWPhysics
             mNeutralPlayerDamage = std::move(damage);
         }
         [[nodiscard]] const NeutralCombatBridge::Stats& neutralCombatStats() const { return mNeutralCombat.stats(); }
+        /// Task 0184: the pack reported this neutral actor dead (a corpse the player may search).
+        [[nodiscard]] bool isNeutralActorDead(const MWWorld::Ptr& ptr) const
+        {
+            return mNeutralCombat.isDeadByKey(ptr.mRef);
+        }
 
         /// Tells the pack about a neutral actor that already has a body (addNeutralActor): `reference` is the
         /// placement id and `base` the base id in the pack's terms. Does nothing without a body, a resolver or rules.

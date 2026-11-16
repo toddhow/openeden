@@ -398,7 +398,10 @@ namespace game_skyrimse
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
                     if (mInventory != nullptr)
+                    {
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
+                        syncEquipment();
+                    }
                 });
             }
 
@@ -608,9 +611,56 @@ namespace game_skyrimse
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
+                // Task 0184: the armour's slots, the potion's health and the heal itself.
+                hooks.mEquipInfo = [this](FormId item, inventory::EquipInfo& out) {
+                    ArmourPiece piece;
+                    if (!mWorldView.armourPieceById(item, piece))
+                        return false;
+                    out = { inventory::EquipKind::Armor, piece.mSlotMask };
+                    return true;
+                };
+                hooks.mHealthOf = [this](FormId effect, float magnitude, std::uint32_t duration) {
+                    return mWorldView.healthOfEffect(effect, magnitude, duration);
+                };
+                hooks.mApplyHealth = [this](float amount) {
+                    // the combat rules must run (the engine's health is written through them)
+                    return mCellSource.combat().updates() > 0 && mCellSource.combat().queuePlayerHeal(amount);
+                };
                 const int gold = settings->getInt(kPackId, kPlayerGoldKey, static_cast<int>(kStandInGold));
                 mInventory = std::make_unique<inventory::InventoryService>(
                     std::move(hooks), gold >= 0 ? static_cast<float>(gold) : kStandInGold, kStandInPlayerLevel);
+                // Task 0184 (a test aid, empty by default): items the player starts with, as hexadecimal form ids.
+                const std::string startItems = settings->getString(kPackId, "inventory test items", "");
+                std::vector<inventory::Stack> extra;
+                if (!startItems.empty())
+                {
+                    if (!inventory::parseStackList(startItems, extra))
+                    {
+                        extra.clear();
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Warning,
+                                "the setting 'inventory test items' is not a list of hexadecimal ids with counts; the "
+                                "player starts with no extra items");
+                    }
+                    else
+                    {
+                        std::vector<inventory::Stack> stacks = mInventory->model().stacks(inventory::kPlayerOwner);
+                        stacks.insert(stacks.end(), extra.begin(), extra.end());
+                        mInventory->model().setPlayer(std::move(stacks));
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "INV the player starts with " + std::to_string(extra.size()) + " extra stacks");
+                    }
+                }
+                // Task 0184: the speech and bribe checks read the inventory's gold, and a key in it opens a lock.
+                mWorldView.setPlayerGoldSource([this]() -> float {
+                    return mInventory != nullptr
+                        ? static_cast<float>(mInventory->model().count(inventory::kPlayerOwner, inventory::kGoldItem))
+                        : 0.f;
+                });
+                mCellSource.setPlayerItemLookup([this](FormId item) {
+                    return mInventory != nullptr && mInventory->model().count(inventory::kPlayerOwner, item) > 0;
+                });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
                     const openeden::sdk::DeclareResult declared = mInventory->declare(*bindings);
@@ -630,9 +680,48 @@ namespace game_skyrimse
                     });
                     if (!chunks->registerHandler(mInventory->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the inventory chunk was not registered");
+                    mInventory->equipmentChunk().setRefusalSink([logger](const std::string& reason) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Error, "the save is refused: " + reason);
+                    });
+                    if (!chunks->registerHandler(mInventory->equipmentChunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the equipment chunk was not registered");
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "INV the inventory is on");
+            }
+
+            // Task 0184: what the player wields and wears reaches the combat rules whenever it changes. A weapon whose
+            // record is not read yet (the combat records load on a worker) is looked up again next frame.
+            void syncEquipment()
+            {
+                const std::uint32_t revision = mInventory->model().equipmentRevision();
+                if (revision == mEquipSynced && !mEquipPending)
+                    return;
+                SkyrimCombat::PlayerEquipment equipment;
+                bool pending = false;
+                for (const inventory::EquippedItem& worn : mInventory->model().equipped())
+                {
+                    if (worn.mKind == inventory::EquipKind::Weapon)
+                    {
+                        const WeaponRecord* weapon = nullptr;
+                        if (!mWorldView.lookupWeapon(worn.mItem, weapon))
+                            pending = true;
+                        else
+                            equipment.mWeapon = weapon;
+                    }
+                    else
+                    {
+                        ArmourPiece piece;
+                        if (mWorldView.armourPieceById(worn.mItem, piece))
+                            equipment.mPieces.push_back(std::move(piece));
+                    }
+                }
+                mEquipPending = pending;
+                if (pending)
+                    return;
+                mEquipSynced = revision;
+                mCellSource.combat().setPlayerEquipment(std::move(equipment));
             }
 
             // Task 0177 (neutral saves): the save chunk that ties a save to the load order it was made with.
@@ -910,6 +999,8 @@ namespace game_skyrimse
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
+            std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
+            bool mEquipPending = false;
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; last: refers to mPapyrus
         };

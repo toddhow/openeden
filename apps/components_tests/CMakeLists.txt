@@ -29,6 +29,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testuilist.cpp
     ui/testskyrimseinventorywindows.cpp
     ui/testskyrimsejournalwindows.cpp
+    ui/testskyrimseinventoryequipwindows.cpp
     ui/testuiqueue.cpp
     ui/testuireactive.cpp
     ui/testuiupdatehook.cpp
@@ -542,6 +543,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatslots.cpp
     skyrimse/testskyrimsecombatmelee.cpp
     skyrimse/testskyrimsecombatblock.cpp
+    skyrimse/testskyrimsecombatequip.cpp
+    skyrimse/testskyrimsegoldkeys.cpp
     skyrimse/testskyrimsecombatdeterminism.cpp
     skyrimse/testskyrimsecombatreview.cpp
     skyrimse/testskyrimsecombatindex.cpp
@@ -581,6 +584,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseplacedrefsreal.cpp
     skyrimse/testskyrimseinventory.cpp
     skyrimse/testskyrimseinventorybindings.cpp
+    skyrimse/testskyrimseinventoryequip.cpp
+    skyrimse/testskyrimseinventoryequipreal.cpp
     skyrimse/testskyrimseinventoryreal.cpp
     skyrimse/testskyrimsejournal.cpp
     skyrimse/testskyrimsespeechreal.cpp

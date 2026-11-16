@@ -1,7 +1,7 @@
 # Task: Skyrim inventory and container UI (milestone M-S6)
 
-Status: BUILT for containers and the player's inventory (Windows only, not pushed); dead-NPC loot is designed and NOT built
-(see stage 6). toddhow chose "Inventory and container UI" for M-S6 on 2026-11-15.
+Status: BUILT for containers and the player's inventory (Windows only, not pushed); dead-NPC loot, equip, use, keys and gold
+were built afterwards in task 0184. toddhow chose "Inventory and container UI" for M-S6 on 2026-11-15.
 Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.17 (gameplay rules: inventory, items), 4.24 (UI), M-S6
 row; decision 0017 (neutral actors and items), decision 0015 (UI system), task 0097 (script bindings), task 0177 (saves).
 Goal: in a Skyrim neutral session the player has an inventory window; activating a container opens a container window

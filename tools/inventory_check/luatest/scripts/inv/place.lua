@@ -1,7 +1,9 @@
 -- tools/inventory_check (task 0182): stands the player a short way in front of a container of the Bannered Mare, FACING
 -- it, at the update number the config names (a frame count, not a clock, so the runs are equal), and logs where it
 -- stands. The activation, the clicks and the screenshots come from OPENEDEN_RMLUI_INPUT_SCRIPT through the real input
--- path. Config: scripts/inv/cfg.lua written by check.sh: { base, near = {x,y,z}, from = {x,y}, dist, frame }.
+-- path. Config: scripts/inv/cfg.lua written by check.sh: { base, near = {x,y,z}, from = {x,y}, dist, frame, owner, item }
+-- (owner and item: the stacks the save and load phases print, worn: the item whose equipped flag they print; the wardrobe, its boots and
+-- the same boots by default).
 local world = require('openmw.world')
 local util = require('openmw.util')
 local storage = require('openmw.storage')
@@ -29,27 +31,37 @@ return {
             local player = world.players[1]
             if player == nil then return end
             updates = updates + 1
+            if updates % 300 == 0 then print('N6INV tick ' .. updates) end -- task 0184: lines to follow the update number by
             if phase == 'save' and updates == cfg.saveAt then
-                print(string.format('N6INV state boots player=%d container=%d revision=%d', inv.count('player', '00086993'), inv.count('000c8fcd', '00086993'), inv.revision()))
+                print(string.format('N6INV state boots player=%d container=%d revision=%d worn=%s', inv.count('player', cfg.item), inv.count(cfg.owner, cfg.item), inv.revision(), tostring(inv.equipped(cfg.worn))))
                 storage.globalSection('N6INV'):set('saveNow', true)
             end
             if phase == 'load' then
                 if updates == 300 then
-                    print(string.format('N6INV loaded state boots player=%d container=%d gold=%d known=%s revision=%d', inv.count('player', '00086993'), inv.count('000c8fcd', '00086993'), inv.count('player', '0000000f'), tostring(inv.known('000c8fcd')), inv.revision()))
+                    print(string.format('N6INV loaded state boots player=%d container=%d gold=%d known=%s revision=%d worn=%s', inv.count('player', cfg.item), inv.count(cfg.owner, cfg.item), inv.count('player', '0000000f'), tostring(inv.known(cfg.owner)), inv.revision(), tostring(inv.equipped(cfg.worn))))
                 end
                 return
             end
+            -- placement 1 at cfg.frame, an optional placement 2 (task 0184: a second actor to strike with a looted weapon) at
+            -- cfg.frame2 beside cfg.base2 (the east side of it when cfg.from2 is not given)
+            local function place(base, near, from, dist, label)
+                local obj, d = nearest(player.cell, base, near)
+                if obj == nil then print('N6INV target not found'); return end
+                local p = obj.position
+                local fx, fy = (from and from[1]) or (p.x + 100), (from and from[2]) or p.y
+                local cx, cy = fx - p.x, fy - p.y
+                local len = math.sqrt(cx * cx + cy * cy)
+                local px, py = p.x + cx / len * dist, p.y + cy / len * dist
+                local yaw = math.atan2(p.x - px, p.y - py)
+                print(string.format('N6INV target%s %s at %.0f,%.0f,%.0f (%.0f from the spot), placed at update %d', label, tostring(obj.recordId), p.x, p.y, p.z, d, updates))
+                player:teleport(player.cell, util.vector3(px, py, p.z), { onGround = true, rotation = util.transform.rotateZ(yaw) })
+            end
+            if cfg.base2 ~= '' and updates == cfg.frame2 then
+                place(cfg.base2, cfg.near2, cfg.from2, cfg.dist2, '2')
+            end
             if placed or updates < cfg.frame then return end
             placed = true
-            local obj, d = nearest(player.cell, cfg.base, cfg.near)
-            if obj == nil then print('N6INV target not found'); return end
-            local p = obj.position
-            local cx, cy = cfg.from[1] - p.x, cfg.from[2] - p.y
-            local len = math.sqrt(cx * cx + cy * cy)
-            local px, py = p.x + cx / len * cfg.dist, p.y + cy / len * cfg.dist
-            local yaw = math.atan2(p.x - px, p.y - py)
-            print(string.format('N6INV target %s at %.0f,%.0f,%.0f (%.0f from the spot), placed at update %d', tostring(obj.recordId), p.x, p.y, p.z, d, updates))
-            player:teleport(player.cell, util.vector3(px, py, p.z), { onGround = true, rotation = util.transform.rotateZ(yaw) })
+            place(cfg.base, cfg.near, cfg.from, cfg.dist, '')
         end,
     },
 }

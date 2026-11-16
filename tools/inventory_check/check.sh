@@ -9,7 +9,7 @@
 #
 # env: INPUT (the input script, required), BASE_ID (the container's record id, "skyrimse:b<decimal base>"), NEAR ("x,y,z"
 #      of the container), FROM ("x,y": the side the player stands on), DIST (default 120), PLACE (update number, 600),
-#      SETTINGS_EXTRA (more settings text), WIDTH and HEIGHT (default 1280 and 720). <work dir> must be under
+#      OWNER and ITEM (hex ids the save and load phases print the counts of, default the wardrobe and its boots), SETTINGS_EXTRA (more settings text), WIDTH and HEIGHT (default 1280 and 720). <work dir> must be under
 #      I:/Projects/OpenEden-work.
 set -e
 export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
@@ -29,7 +29,7 @@ fi
 cp -r "$HERE/luatest/." "$WORK/luatest/"
 IFS=',' read -r nx ny nz <<< "${NEAR:-0,0,0}"
 IFS=',' read -r fx fy <<< "${FROM:-0,0}"
-echo "return { base = '${BASE_ID:-}', near = { $nx, $ny, $nz }, from = { $fx, $fy }, dist = ${DIST:-120}, frame = ${PLACE:-600}, saveAt = ${SAVEAT:-1800} }" > "$WORK/luatest/scripts/inv/cfg.lua"
+echo "return { base = '${BASE_ID:-}', near = { $nx, $ny, $nz }, from = { $fx, $fy }, dist = ${DIST:-120}, frame = ${PLACE:-600}, saveAt = ${SAVEAT:-1800}, base2 = '${BASE2:-}', near2 = { ${NEAR2:-0,0,0} }, from2 = nil, dist2 = ${DIST2:-100}, frame2 = ${PLACE2:-0}, owner = '${OWNER:-000c8fcd}', item = '${ITEM:-00086993}', worn = '${WORN:-00086993}' }" > "$WORK/luatest/scripts/inv/cfg.lua"
 echo "return '${PHASE:-none}'" > "$WORK/luatest/scripts/inv/phase.lua"
 B=$(native "$BUILD")
 grep -vE '^(content|data-local|resources|extension|user-data|config)=|vfs-mw|worldobjects_check|omwscripts' "$BASE/openmw.cfg" > "$WORK/config/openmw.cfg"

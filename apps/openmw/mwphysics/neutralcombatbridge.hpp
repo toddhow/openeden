@@ -235,6 +235,10 @@ namespace MWPhysics
         /// True once the pack reported the actor dead.
         [[nodiscard]] bool isDead(openeden::sdk::game::ActorHandle actor) const;
 
+        /// Task 0184: true once the pack reported dead the actor registered under `key` (the physics system's key of a
+        /// neutral actor); false for an unknown key. The activation of a corpse asks this.
+        [[nodiscard]] bool isDeadByKey(const void* key) const;
+
         /// Forgets every clip without telling anybody (shutdown).
         void clear();
 

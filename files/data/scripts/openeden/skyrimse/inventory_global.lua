@@ -28,5 +28,15 @@ return {
     SkyrimInventoryTakeAll = function(data)
       inv.take_all(data.from, data.to)
     end,
+    -- task 0184 (the pack's version 1.1 functions)
+    SkyrimInventoryEquip = function(data)
+      inv.equip(data.item)
+    end,
+    SkyrimInventoryUnequip = function(data)
+      inv.unequip(data.item)
+    end,
+    SkyrimInventoryUse = function(data)
+      inv.use(data.item)
+    end,
   },
 }

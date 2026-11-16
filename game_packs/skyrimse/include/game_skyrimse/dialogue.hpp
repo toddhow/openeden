@@ -295,6 +295,10 @@ namespace game_skyrimse
             mPlayer = player;
             mStatsKnown = false;
         }
+        /// Task 0184: where the player's gold comes from when the inventory is on. With a source set, GetGold, the gold
+        /// count of GetItemCount and the bribe check read it (at the moment of the check; a negative or non-finite
+        /// answer is 0); without one (the default) they read the stand-in's gold, as before.
+        void setGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
         /// The voice type (VTYP) of the speaker given to `setSpeaker`: the traits record's VTCK (after templates), else
         /// the race's voice type for its sex; kNullFormId when none (task 0143).
         [[nodiscard]] FormId speakerVoiceType() const;
@@ -461,6 +465,8 @@ namespace game_skyrimse
         const QuestState* mQuestState = nullptr;
         FormId mContextQuest = kNullFormId;
         const PlayerStandIn* mPlayer = nullptr;
+        std::function<float()> mGoldSource; // task 0184
+        [[nodiscard]] float playerGold() const;
         bool mConversationKnown = false;
         bool mConversationOpen = false;
         bool mTalked = false;

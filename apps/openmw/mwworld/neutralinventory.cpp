@@ -12,6 +12,25 @@ namespace MWWorld
         return NeutralInventoryDecision::Open;
     }
 
+    NeutralInventoryDecision decideNeutralLoot(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead)
+    {
+        if (!settingOn || !byPlayer || !dead || kind != openeden::sdk::game::ObjectKind::Actor)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
+    bool neutralKeyHeld(openeden::sdk::game::WorldId key,
+        const std::function<bool(openeden::sdk::game::WorldId)>& keyRing,
+        const std::function<bool(openeden::sdk::game::WorldId)>& inventory)
+    {
+        if (key == 0)
+            return false;
+        if (keyRing && keyRing(key))
+            return true;
+        return inventory && inventory(key);
+    }
+
     std::string neutralHexId(std::uint64_t id)
     {
         char buffer[24];

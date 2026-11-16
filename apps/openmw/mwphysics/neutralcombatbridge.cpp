@@ -173,6 +173,12 @@ namespace MWPhysics
         }
     }
 
+    bool NeutralCombatBridge::isDeadByKey(const void* key) const
+    {
+        const openeden::sdk::game::ActorHandle handle = mActors.handleOf(key);
+        return handle.valid() && isDead(handle);
+    }
+
     bool NeutralCombatBridge::isDead(ActorHandle actor) const
     {
         const auto it = std::lower_bound(mDead.begin(), mDead.end(), actor, handleBefore);

@@ -119,6 +119,9 @@ namespace game_skyrimse
     /// result it dropped, for an attacker that had gone for instance, must not hold a table slot for ever).
     inline constexpr std::size_t kSweepAnswerUpdates = 2;
 
+    /// Task 0184: the most health one potion queues (a hostile number is data).
+    inline constexpr float kMaxPlayerHeal = 100000.f;
+
     /// Seconds before the first test swing and between two (the 1HM_AttackRight clip lasts 1.3 s).
     inline constexpr float kTestSwingFirstDelay = 3.f;
     inline constexpr float kTestSwingPeriod = 4.f;
@@ -293,6 +296,23 @@ namespace game_skyrimse
         void setTestPlayerBow(float holdSeconds);
         void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override;
         void onPlayerAttackEdge(bool pressed) override;
+        /// Task 0184: what the PLAYER wields and wears, from the inventory. A melee weapon replaces the test weapon for
+        /// the player's own swings (reach, stamina, damage and skill); the pieces give the player's armour rating
+        /// through armourOf with the stand-in's skills. An empty value (no weapon, no pieces) is "nothing equipped":
+        /// every number is then the one the test settings and the stand-in give, as before. A weapon that is not a
+        /// melee weapon is ignored by the melee rule. NPCs keep the test weapon.
+        struct PlayerEquipment
+        {
+            const WeaponRecord* mWeapon = nullptr; ///< valid as long as the data
+            std::vector<ArmourPiece> mPieces;
+        };
+        void setPlayerEquipment(PlayerEquipment equipment);
+        /// Task 0184: restores `amount` health to the player at the next update, through the engine's own health (a
+        /// DamageReport that takes none off). False when there are no combat data: nothing is queued then.
+        bool queuePlayerHeal(float amount);
+        /// The player's armour percent as the next hit sees it (0 until the player's data is read).
+        [[nodiscard]] float playerMitigationPercent() const;
+
         /// Called with one line per combat decision (`COMBAT ...`), when set. Main thread.
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
         /// Where a warning goes (the host's log); a warning is also traced.
@@ -446,6 +466,16 @@ namespace game_skyrimse
         std::vector<openeden::sdk::game::ActorHandle> mBlockers;
         const WeaponRecord* mWeapon = nullptr;
         bool mWeaponLooked = false;
+        // Task 0184
+        PlayerEquipment mEquip;
+        bool mEquipDirty = false;
+        float mPendingHeal = 0.f;
+        float mBaseMitigation = 0.f; ///< the stand-in's, kept so that unequipping restores it
+        bool mBaseMitigationKnown = false;
+        std::vector<ArmourPiece> mBasePieces;
+        void applyPlayerEquipment();
+        [[nodiscard]] const WeaponRecord* weaponFor(const Fighter& fighter) const;
+        void applyPlayerHeal(openeden::sdk::game::CombatRequestWriter& writer);
         std::string mTestWeapon; ///< lower case
         std::string mTestHostile; ///< lower case
         std::string mTestSwing; ///< lower case
