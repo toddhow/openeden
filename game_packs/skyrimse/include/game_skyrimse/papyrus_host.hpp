@@ -260,6 +260,12 @@ namespace game_skyrimse
             (void)request;
             return {};
         }
+        /// Task 0261: Cell.SetFactionOwner / SetActorOwner: the cell's owner (a faction or an NPC_ base) is now `owner`.
+        virtual bool setCellOwner(FormId cell, FormId owner)
+        {
+            (void)cell, (void)owner;
+            return false;
+        }
         /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
         virtual bool addItem(FormId owner, FormId item, std::int32_t count)
         {
@@ -483,6 +489,14 @@ namespace game_skyrimse
         /// Task 0187: the story manager. `Keyword.SendStoryEvent` and `raiseStoryEvent` call it and start the quests it
         /// returns (state, scripts, start up stage fragment, aliases).
         void setStoryEventSink(StoryEventSink sink);
+        /// Task 0261: does the log entry `entry` of `stage` of `quest` apply now? A stage's fragment (VMAD, "StageIndex")
+        /// is that log entry's: it runs only when the entry's conditions hold. Without it every fragment of the stage
+        /// runs, as before.
+        using StageEntryCheck = std::function<bool(FormId quest, std::uint32_t stage, std::int32_t entry)>;
+        void setStageEntryCheck(StageEntryCheck check);
+        /// Task 0261: the live value of a number or bool variable of a script attached to `form` (by the name the
+        /// condition's CIS2 string gives); nullopt when no instance of it has one.
+        [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;
         /// Task 0194: the scene runner. Not owned; null: the Scene natives answer false and quests start no scenes.
         void setSceneControl(SceneControl* control);
         /// Task 0198: the world natives' reach (see PapyrusWorldHooks). Not owned; null: those natives are tolerant.

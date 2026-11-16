@@ -1283,6 +1283,7 @@ namespace game_skyrimse
         if (mCrimeSourceSet)
             raw->mRuntime->setCrimeSource(mCrimeSource); // task 0258
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
+        raw->mRuntime->setRankMinusOneMembers(mRankMinusOneMembers); // task 0261
         // Task 0187: aliases and the story manager
         if (mInfoFragmentSink)
             raw->mRuntime->setFragmentSink(mInfoFragmentSink);
@@ -1881,6 +1882,13 @@ namespace game_skyrimse
             mDialogue->mRuntime->setFollowerOverlay(overlay);
     }
 
+    void SkyrimWorldView::setRankMinusOneMembers(std::set<FormId> factions)
+    {
+        mRankMinusOneMembers = factions;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setRankMinusOneMembers(std::move(factions));
+    }
+
     void SkyrimWorldView::setOpenServices(bool on)
     {
         mOpenServices = on;
@@ -2158,6 +2166,16 @@ namespace game_skyrimse
         };
         out.mSetStance = [state](bool sneaking, std::uint8_t drawState) {
             state->mRuntime->setPlayerStance(sneaking, drawState);
+        };
+        out.mQuestConditions = [state, data](const std::vector<survey::Ctda>& list, FormId quest) {
+            const QuestRecord* record = data->mQuests.quest(quest);
+            if (record == nullptr)
+                return true;
+            return state->mRuntime->evaluateQuestConditions(list, quest, data->mQuests.resolverOf(*record));
+        };
+        out.mSetLiveQuestVariable = [state](SkyrimConditionWorld::LiveQuestVariable source) {
+            state->mRuntime->setLiveQuestVariable(source);
+            state->mQuestWorld->setLiveQuestVariable(std::move(source)); // task 0261: the story and alias worlds too
         };
         out.mStory = [state](const StoryEvent& event) {
             state->mStoryEvent = event;
@@ -3599,6 +3617,21 @@ namespace game_skyrimse
         return it->second;
     }
 
+    FormId SkyrimWorldView::cellOfPlacement(FormId placement) const
+    {
+        const PlacedRefIndex* refs = placedRefs();
+        const PlacedEntry* entry = refs != nullptr && placement != kNullFormId ? refs->find(placement) : nullptr;
+        return entry != nullptr ? entry->mCell : kNullFormId;
+    }
+
+    FormId SkyrimWorldView::cellIdByEditorId(std::string_view editorId)
+    {
+        if (!awaitIndex())
+            return kNullFormId;
+        const auto it = mCellByEditorId.find(lowerAscii(editorId));
+        return it == mCellByEditorId.end() ? kNullFormId : it->second;
+    }
+
     bool SkyrimWorldView::plantOf(FormId base, HarvestData& out, std::string& name)
     {
         if (base == kNullFormId || base == kUnresolvedFormId || !awaitIndex())
@@ -3695,6 +3728,8 @@ namespace game_skyrimse
     {
         if (form == kNullFormId || form == kUnresolvedFormId || !awaitIndex())
             return {};
+        if (mCells.find(form) != mCells.end())
+            return "Cell"; // task 0261: HousePurchaseScript's `cell` properties
         const auto it = mBases.find(form);
         if (it == mBases.end() || it->second.mTable != BaseTable::Model)
             return {};

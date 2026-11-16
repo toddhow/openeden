@@ -198,11 +198,23 @@ namespace game_skyrimse
         [[nodiscard]] const QuestState& quests() const { return mState; }
         /// Task 0176: the Papyrus host changes the quest state the conversations read.
         [[nodiscard]] QuestState& questsMutable() { return mState; }
+        /// Task 0261: a script's live value of a quest variable wins over the script's initial one in the conditions.
+        void setLiveQuestVariable(SkyrimConditionWorld::LiveQuestVariable source)
+        {
+            mWorld.setLiveQuestVariable(std::move(source));
+        }
+        void setRankMinusOneMembers(std::set<FormId> factions) { mWorld.setRankMinusOneMembers(std::move(factions)); }
+        /// Task 0261: do the conditions of a quest's log entry hold now? The subject is the player (the last speaker
+        /// stands for his place: the conversation world's location); `resolver` resolves the stored form ids.
+        [[nodiscard]] bool evaluateQuestConditions(
+            const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver);
 
     private:
         void fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void offerTopics(openeden::sdk::game::DialogueTurn& out);
+        /// Task 0261: the INFO whose responses an INFO gives: itself, or the INFO named by its DNAM when it has none.
+        [[nodiscard]] const DialogInfo& responderOf(const DialogInfo& info) const;
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
         /// Task 0258: the link-to topics (TCLT) of `from` that have an INFO passing now, as the turn's choices.
         void offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out);
@@ -236,6 +248,8 @@ namespace game_skyrimse
         DialogueSpeaker mSpeaker;
         std::set<FormId> mSaid;
         std::set<FormId> mOffered;
+        /// Task 0261: the topics the last response linked to (TCLT): the next list offers only those that pass.
+        std::vector<FormId> mChoices;
         bool mOpen = false;
         Stats mStats;
     };

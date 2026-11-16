@@ -57,6 +57,7 @@ namespace game_skyrimse
         std::function<bool(FormId reference, bool enabled, float fadeSeconds)> setObjectEnabled;
         std::function<bool(FormId reference, const ObjectMoveRequest& request)> moveObject;
         std::function<ObjectPlaceResult(const ObjectPlaceRequest& request)> placeObject;
+        std::function<bool(FormId cell, FormId owner)> setCellOwner; ///< task 0261
     };
 
     class PackWorldHooks final : public PapyrusWorldHooks
@@ -102,6 +103,7 @@ namespace game_skyrimse
         {
             return mEnv.placeObject ? mEnv.placeObject(request) : ObjectPlaceResult{};
         }
+        bool setCellOwner(FormId cell, FormId owner) override { return mEnv.setCellOwner && mEnv.setCellOwner(cell, owner); }
         bool teachWord(FormId word) override { return mEnv.teachWord && mEnv.teachWord(word); }
         bool unlockWord(FormId word) override { return mEnv.unlockWord && mEnv.unlockWord(word); }
         bool isWordUnlocked(FormId word) override { return mEnv.isWordUnlocked && mEnv.isWordUnlocked(word); }

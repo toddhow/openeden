@@ -1,0 +1,2 @@
+GLOBAL: scripts/hse/global.lua
+MENU: scripts/hse/menu.lua

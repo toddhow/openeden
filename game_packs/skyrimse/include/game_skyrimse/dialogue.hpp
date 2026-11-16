@@ -102,6 +102,14 @@ namespace game_skyrimse
         std::uint32_t mPlugin = 0; ///< index into DialogueIndex's plugins: the plugin whose record won
     };
 
+    /// Task 0261: a DLBR record (a branch of dialogue): its starting topic (SNAM) and flags (DNAM: 1 top-level).
+    struct DialogBranch
+    {
+        RecordCommon mCommon;
+        FormId mStartTopic = kNullFormId;
+        std::uint32_t mFlags = 0;
+    };
+
     struct DialogResponse
     {
         std::uint32_t mEmotionType = 0;
@@ -124,6 +132,9 @@ namespace game_skyrimse
         LString mPrompt; ///< RNAM
         std::vector<DialogResponse> mResponses;
         std::vector<FormId> mLinksTo; ///< TCLT
+        /// Task 0261: DNAM, the INFO whose responses (text and voice) this INFO shares (xEdit: "Shared Info"); 0 when
+        /// it has none. The purchase lines of the Hearthfires houses give their replies this way.
+        FormId mSharedInfo = kNullFormId;
         std::vector<survey::Ctda> mConditions; ///< as stored (plugin-local form ids), see DialogueIndex::resolverOf
         bool mHasScript = false; ///< a VMAD subrecord is present (script fragments, not run; task 0141)
         /// The name of the INFO's fragment script ("TIF__" plus 8 hex digits, the fileName of the VMAD fragment
@@ -179,6 +190,7 @@ namespace game_skyrimse
         std::string mName;
         std::vector<DialogTopic> mTopics;
         std::vector<DialogInfo> mInfos;
+        std::vector<DialogBranch> mBranches; ///< task 0261
         std::vector<GlobalValue> mGlobals;
         std::vector<FormListRecord> mFormLists;
         std::vector<VoiceTypeRecord> mVoiceTypes;
@@ -215,6 +227,11 @@ namespace game_skyrimse
         /// Task 0187: the INFO with this id when it has a parsed VMAD (script fragments); null for any other id.
         [[nodiscard]] const DialogInfo* scriptedInfo(FormId id) const;
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
+        /// Task 0261: any INFO by id (the topic is found through a map of all of them); null when unknown or deleted.
+        [[nodiscard]] const DialogInfo* findInfo(FormId id) const;
+        /// Task 0261: false for a topic that sits in a branch (BNAM) whose starting topic is another one: such a topic is
+        /// only reached through the TCLT choices of an INFO, never from the list of topics. True for every other topic.
+        [[nodiscard]] bool isBranchStart(FormId topic) const;
 
         /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
         /// folder of this plugin, named with that id. Nullopt when no plugin of the index owns the id.
@@ -262,6 +279,8 @@ namespace game_skyrimse
         std::unordered_map<FormId, DialogTopic> mTopics;
         std::unordered_map<FormId, Slot> mSlots;
         std::unordered_map<FormId, FormId> mScriptedInfos; ///< INFO id -> its topic (INFOs with a parsed VMAD only)
+        std::unordered_map<FormId, FormId> mInfoTopic; ///< task 0261: every INFO id -> its topic
+        std::unordered_map<FormId, FormId> mBranchStart; ///< task 0261: DLBR id -> its starting topic
         std::unordered_map<FormId, GlobalValue> mGlobals;
         std::unordered_map<FormId, FormListRecord> mFormLists;
         std::size_t mInfoCount = 0;
@@ -379,6 +398,13 @@ namespace game_skyrimse
         void setLocations(const LocationIndex* locations) { mLocations = locations; }
         /// The quest scripts' values before any script ran (fn_629). Null: unanswered.
         void setQuestVariables(const QuestVariables* variables) { mQuestVariables = variables; }
+        /// Task 0261: factions whose members listed with rank -1 (stored byte 255) ARE members for GetInFaction. The data
+        /// lists all 13 stewards in JobStewardFaction that way and the steward's lines test GetInFaction == 1, while the
+        /// hirelings' CurrentFollowerFaction at -1 is a placeholder (task 0239); the rule is per faction.
+        void setRankMinusOneMembers(std::set<FormId> factions) { mRankMinusOneMembers = std::move(factions); }
+        /// Task 0261: a script's LIVE value of a quest variable (nullopt: none, the initial value is read). Main thread.
+        using LiveQuestVariable = std::function<std::optional<float>(FormId quest, const std::string& name)>;
+        void setLiveQuestVariable(LiveQuestVariable source) { mLiveQuestVariable = std::move(source); }
         /// Task 0217: what scripts stored on locations (Location.SetKeywordData); with it fn_606 and fn_651 read it,
         /// else they answer 0 as before.
         void setKeywordData(const LocationKeywordData* data) { mKeywordData = data; }
@@ -580,6 +606,8 @@ namespace game_skyrimse
         mutable std::uint64_t mRandomState = 0;
         const LocationIndex* mLocations = nullptr;
         const QuestVariables* mQuestVariables = nullptr;
+        LiveQuestVariable mLiveQuestVariable; ///< task 0261
+        std::set<FormId> mRankMinusOneMembers; ///< task 0261
         const LocationKeywordData* mKeywordData = nullptr;
         const PlacedRefIndex* mPlacedRefs = nullptr;
         const PackageIndex* mPackages = nullptr;

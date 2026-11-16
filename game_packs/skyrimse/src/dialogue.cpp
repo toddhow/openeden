@@ -110,6 +110,7 @@ namespace game_skyrimse
                     case Content::fourCC("GLOB"):
                     case Content::fourCC("FLST"):
                     case Content::fourCC("VTYP"):
+                    case Content::fourCC("DLBR"): // task 0261
                         break;
                     default:
                         return true;
@@ -165,6 +166,9 @@ namespace game_skyrimse
                         break;
                     case Content::fourCC("VTYP"):
                         ok = readVoiceType(record, bytes);
+                        break;
+                    case Content::fourCC("DLBR"):
+                        ok = readBranch(record, bytes);
                         break;
                     default:
                         ok = readFormList(record, bytes);
@@ -397,6 +401,8 @@ namespace game_skyrimse
                             return true;
                         case Content::fourCC("RNAM"):
                             return lstring(type, data, info.mPrompt);
+                        case Content::fourCC("DNAM"): // task 0261: the shared info
+                            return formField(type, data, info.mSharedInfo);
                         case Content::fourCC("TCLT"):
                             if (data.size() != 4)
                             {
@@ -456,6 +462,35 @@ namespace game_skyrimse
                 info.mConditions = std::move(conditions);
                 mOut.mInfos.push_back(std::move(info));
                 return true;
+            }
+
+            // Task 0261: a DLBR record: the starting topic (SNAM) and the flags (DNAM).
+            bool readBranch(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                DialogBranch branch;
+                branch.mCommon = common(record);
+                const bool ok = walkSubs(bytes, [&](std::uint32_t type, std::span<const std::byte> data) {
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            return zstring(type, data, branch.mCommon.mEditorId);
+                        case Content::fourCC("SNAM"):
+                            return formField(type, data, branch.mStartTopic);
+                        case Content::fourCC("DNAM"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            branch.mFlags = readLe<std::uint32_t>(data.data());
+                            return true;
+                        default:
+                            return true;
+                    }
+                });
+                if (ok)
+                    mOut.mBranches.push_back(std::move(branch));
+                return ok;
             }
 
             bool readGlobal(const Content::RawRecord& record, std::span<const std::byte> bytes)
@@ -633,6 +668,7 @@ namespace game_skyrimse
             if (!usable(info.mCommon.mId) || !usable(info.mTopic))
                 continue;
             Slot& slot = mSlots[info.mTopic];
+            mInfoTopic[info.mCommon.mId] = info.mTopic; // task 0261
             const auto it = slot.mByInfo.find(info.mCommon.mId);
             const bool deleted = info.mCommon.deleted();
             info.mPlugin = plugin;
@@ -655,6 +691,15 @@ namespace game_skyrimse
             slot.mByInfo[info.mCommon.mId] = slot.mList.size();
             slot.mList.push_back(std::move(info));
             slot.mAlive.push_back(true);
+        }
+        for (const DialogBranch& b : records.mBranches) // task 0261
+        {
+            if (!usable(b.mCommon.mId))
+                continue;
+            if (b.mCommon.deleted())
+                mBranchStart.erase(b.mCommon.mId);
+            else
+                mBranchStart[b.mCommon.mId] = b.mStartTopic;
         }
         for (GlobalValue& g : records.mGlobals)
         {
@@ -693,6 +738,29 @@ namespace game_skyrimse
             return nullptr;
         const DialogInfo& info = slot->second.mList[at->second];
         return info.mVmad != nullptr ? &info : nullptr;
+    }
+
+    const DialogInfo* DialogueIndex::findInfo(FormId id) const
+    {
+        const auto topic = mInfoTopic.find(id);
+        if (topic == mInfoTopic.end())
+            return nullptr;
+        const auto slot = mSlots.find(topic->second);
+        if (slot == mSlots.end())
+            return nullptr;
+        const auto at = slot->second.mByInfo.find(id);
+        if (at == slot->second.mByInfo.end() || !slot->second.mAlive[at->second])
+            return nullptr;
+        return &slot->second.mList[at->second];
+    }
+
+    bool DialogueIndex::isBranchStart(FormId topicId) const
+    {
+        const DialogTopic* t = topic(topicId);
+        if (t == nullptr || t->mBranch == kNullFormId)
+            return true;
+        const auto branch = mBranchStart.find(t->mBranch);
+        return branch == mBranchStart.end() || branch->second == kNullFormId || branch->second == topicId;
     }
 
     std::optional<DialogueIndex::VoiceOrigin> DialogueIndex::voiceOriginOf(const DialogInfo& info) const
@@ -1072,6 +1140,9 @@ namespace game_skyrimse
 
     float SkyrimConditionWorld::questVariable(std::uint32_t quest, const std::string& name) const
     {
+        if (mLiveQuestVariable) // task 0261: what the running script holds wins
+            if (const std::optional<float> live = mLiveQuestVariable(resolve(quest), name))
+                return *live;
         if (mQuestVariables == nullptr)
             return 0.f;
         const QuestVariableValue v = mQuestVariables->value(resolve(quest), name);
@@ -1200,6 +1271,8 @@ namespace game_skyrimse
                 return mPlayer != nullptr;
             case 629:
             { // GetVMQuestVariable: the script's value before any script ran
+                if (mLiveQuestVariable && mLiveQuestVariable(resolve(c.mParam1), c.mString2))
+                    return true; // task 0261
                 if (mQuestVariables == nullptr)
                     return false;
                 return mQuestVariables->value(resolve(c.mParam1), c.mString2).mKnown;
@@ -1430,7 +1503,9 @@ namespace game_skyrimse
         // listed in CurrentFollowerFaction and CurrentHireling that way until they are hired (GetInFaction needs
         // rank 0 or more)
         return std::any_of(r->mFactions.begin(), r->mFactions.end(),
-            [&](const FactionMembership& f) { return f.mFaction == id && f.mRank >= 0; });
+            [&](const FactionMembership& f) {
+                return f.mFaction == id && (f.mRank >= 0 || mRankMinusOneMembers.count(id) != 0); // task 0261
+            });
     }
 
     float SkyrimConditionWorld::factionRank(conditions::Subject subject, std::uint32_t faction) const

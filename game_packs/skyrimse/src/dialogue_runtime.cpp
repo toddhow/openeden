@@ -81,8 +81,31 @@ namespace game_skyrimse
         return journal::expandTags(text, hooks, std::string_view());
     }
 
-    void DialogueRuntime::nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out)
+    const DialogInfo& DialogueRuntime::responderOf(const DialogInfo& info) const
     {
+        if (!info.mResponses.empty() || info.mSharedInfo == kNullFormId || info.mSharedInfo == kUnresolvedFormId)
+            return info;
+        const DialogInfo* shared = mDialogue.findInfo(info.mSharedInfo);
+        return shared != nullptr && shared != &info && !shared->mResponses.empty() ? *shared : info;
+    }
+
+    bool DialogueRuntime::evaluateQuestConditions(
+        const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver)
+    {
+        if (list.empty())
+            return true;
+        conditions::Evaluator eval;
+        mWorld.setQuestContext(quest);
+        mWorld.setPlugin(&resolver);
+        const bool pass = eval.evaluate(list, mWorld);
+        mWorld.setPlugin(nullptr);
+        mWorld.setQuestContext(kNullFormId);
+        return pass;
+    }
+
+    void DialogueRuntime::nameVoice(const DialogInfo& asked, openeden::sdk::game::DialogueTurn& out)
+    {
+        const DialogInfo& info = responderOf(asked); // task 0261: a shared info's files carry its own id
         const DialogTopic* topic = mDialogue.topic(info.mTopic);
         // The file name is made from the topic's quest (the INFO's own QNAM is not used: SETTLED BY DATA, task 0143).
         const FormId questId = topic != nullptr && topic->mQuest != kNullFormId ? topic->mQuest : info.mQuest;
@@ -137,15 +160,16 @@ namespace game_skyrimse
     {
         out.text.clear();
         out.voice.clear();
+        const DialogInfo& responder = responderOf(info); // task 0261: responses may be shared
         const DialogTopic* ownTopic = mDialogue.topic(info.mTopic);
         const FormId topicQuest = ownTopic != nullptr && ownTopic->mQuest != kNullFormId ? ownTopic->mQuest : info.mQuest;
         if (mVoiceProbe)
             nameVoice(info, out);
-        for (const DialogResponse& response : info.mResponses)
+        for (const DialogResponse& response : responder.mResponses)
         {
             std::string line = response.mText.mPresent && !response.mText.mLocalized
                 ? response.mText.mText
-                : mResolver(response.mText, info.mPlugin, StringTableKind::IlStrings);
+                : mResolver(response.mText, responder.mPlugin, StringTableKind::IlStrings);
             if (line.empty())
                 continue;
             line = expandText(line, topicQuest);
@@ -211,10 +235,34 @@ namespace game_skyrimse
         out.topics.clear();
         mOffered.clear();
         const SelectionOptions opts = options(0);
-        for (FormId id : mDialogue.topicIds())
+        // Task 0261: after a response that links to topics (TCLT) the menu is those of them that pass; when none does
+        // it is the normal list. A topic that sits in a branch as a member, not its start, is only ever a choice.
+        std::vector<FormId> candidates = mDialogue.topicIds();
+        bool choices = false;
+        if (!mChoices.empty())
+        {
+            std::vector<FormId> linked;
+            for (const FormId id : mChoices)
+            {
+                const DialogTopic* topic = mDialogue.topic(id);
+                if (topic != nullptr && topic->mCategory == TopicCategory::Topic && topic->mName.mPresent
+                    && selectInfo(mDialogue, id, mWorld, mSpeaker, opts).mInfo != nullptr)
+                    linked.push_back(id);
+            }
+            if (!linked.empty())
+            {
+                candidates = std::move(linked);
+                choices = true;
+            }
+            else
+                mChoices.clear();
+        }
+        for (FormId id : candidates)
         {
             const DialogTopic* topic = mDialogue.topic(id);
             if (topic == nullptr || topic->mCategory != TopicCategory::Topic || !topic->mName.mPresent)
+                continue;
+            if (!choices && !mDialogue.isBranchStart(id))
                 continue;
             const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, opts);
             if (s.mInfo == nullptr)
@@ -264,6 +312,7 @@ namespace game_skyrimse
             return false;
         }
         fillTurn(*greeting.mInfo, out);
+        mChoices = greeting.mInfo->mLinksTo; // task 0261
         // The speaker's own name (FULL of the NPC_); empty when the record has none, then the caller uses its own.
         if (const ActorNpc* npc = mActors.npc(speaker.mBase); npc != nullptr && npc->mName.mPresent)
             out.speakerName = npc->mName.mLocalized ? mResolver(npc->mName, npc->mPlugin, StringTableKind::Strings)
@@ -294,8 +343,9 @@ namespace game_skyrimse
         return found;
     }
 
-    bool DialogueRuntime::hasResponseText(const DialogInfo& info) const
+    bool DialogueRuntime::hasResponseText(const DialogInfo& asked) const
     {
+        const DialogInfo& info = responderOf(asked); // task 0261
         for (const DialogResponse& response : info.mResponses)
         {
             const std::string line = response.mText.mPresent && !response.mText.mLocalized
@@ -464,6 +514,7 @@ namespace game_skyrimse
             return false;
         }
         fillTurn(*s.mInfo, out);
+        mChoices = s.mInfo->mLinksTo; // task 0261: the next menu is what this response links to (offerTopics)
         // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its own
         // ends the talk, as the game closes a forced dialogue when nothing is left to choose
         if (mLinkMode && !out.endsConversation && !s.mInfo->mLinksTo.empty())
@@ -476,6 +527,7 @@ namespace game_skyrimse
             out.endsConversation = true;
         if (out.endsConversation)
         {
+            mChoices.clear();
             mOpen = false;
             mLinkMode = false;
             out.topics.clear();
@@ -573,6 +625,7 @@ namespace game_skyrimse
 
     void DialogueRuntime::end()
     {
+        mChoices.clear();
         mOpen = false;
         mWorld.setConversationOpen(false);
         mOffered.clear();

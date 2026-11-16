@@ -488,6 +488,8 @@ namespace game_skyrimse
             {
                 if (fragment.mStage != stage)
                     continue;
+                if (mStageEntryCheck && !mStageEntryCheck(quest, stage, fragment.mLogEntry))
+                    continue; // task 0261: the log entry's conditions do not hold (HousePurchase: the hold)
                 const InstanceId instance = findInstance(quest, fragment.mScript);
                 if (instance == 0)
                     continue;
@@ -1593,6 +1595,17 @@ namespace game_skyrimse
                 }
                 return NativeResult{};
             });
+            // Task 0261: the owner of a cell (HousePurchaseScript.PurchaseHouse: SetFactionOwner(PlayerFaction)); the
+            // pack's house ledger keeps it. Game.IncrementStat is a statistic nobody here reads.
+            for (const char* name : { "SetFactionOwner", "SetActorOwner" })
+                reg("Cell", name, false, [this](const NativeCall& c) {
+                    const FormId cell = formOf(c.self);
+                    const FormId owner = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                    if (mHooks != nullptr && cell != 0 && owner != 0)
+                        (void)mHooks->setCellOwner(cell, owner);
+                    return NativeResult{};
+                });
+            reg("Game", "IncrementStat", true, [](const NativeCall&) { return NativeResult{}; });
             reg("ObjectReference", "GetItemCount", false, [this](const NativeCall& c) {
                 const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 const std::int32_t held = mHooks != nullptr ? mHooks->itemCount(formOf(c.self), item) : -1;
@@ -1795,6 +1808,7 @@ namespace game_skyrimse
         bool mPreloaded = false;
         SceneControl* mScenes = nullptr; ///< task 0194
         StoryEventSink mStorySink; ///< task 0187
+        StageEntryCheck mStageEntryCheck; ///< task 0261
         bool mStarted = false;
         bool mInTick = false;
         double mTime = 0.0;
@@ -2604,6 +2618,11 @@ namespace game_skyrimse
         mImpl->mFiller = filler;
     }
 
+    void PapyrusHost::setStageEntryCheck(StageEntryCheck check)
+    {
+        mImpl->mStageEntryCheck = std::move(check);
+    }
+
     void PapyrusHost::setStoryEventSink(StoryEventSink sink)
     {
         mImpl->mStorySink = std::move(sink);
@@ -3189,6 +3208,27 @@ namespace game_skyrimse
             default:
                 return std::nullopt;
         }
+    }
+
+    std::optional<double> PapyrusHost::anyNumberVariable(FormId form, std::string_view name) const
+    {
+        for (const InstanceId instance : mImpl->instancesOf(form))
+        {
+            const auto value = variableOf(*mImpl, instance, name);
+            if (!value)
+                continue;
+            switch (value->kind)
+            {
+                case PapyrusKind::Int:
+                case PapyrusKind::Bool:
+                    return static_cast<double>(value->integer);
+                case PapyrusKind::Float:
+                    return static_cast<double>(value->number);
+                default:
+                    break;
+            }
+        }
+        return std::nullopt;
     }
 
     std::optional<std::string> PapyrusHost::stringVariable(

@@ -63,6 +63,7 @@ openeden_add_game_pack(skyrimse
         src/actor_table.cpp
         src/follower.cpp
         src/follower_state.cpp
+        src/houses.cpp
         src/combat.cpp
         src/combat_crowd.cpp
         src/combat_gear.cpp
@@ -286,6 +287,7 @@ add_library(game_skyrimse_world STATIC
     src/actor_table.cpp
     src/follower.cpp
     src/follower_state.cpp
+    src/houses.cpp
     src/combat.cpp
     src/combat_crowd.cpp
     src/combat_gear.cpp

@@ -23,6 +23,7 @@
 #include "game_skyrimse/stones.hpp"
 #include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/vampirism.hpp" // task 0260
+#include "game_skyrimse/houses.hpp"
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
@@ -365,6 +366,7 @@ namespace game_skyrimse
                 processPlace();
                 updateWordWalls(); // task 0256
                 raiseTestEvent();
+                applyHouses(); // task 0261
                 drainStory();
                 mHost.tick(dt);
                 if (mScenes != nullptr)
@@ -486,6 +488,17 @@ namespace game_skyrimse
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
 
+            // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold (HousePurchase:
+            // the player is in the hold), a quest variable a script holds wins in the conversation's conditions (the
+            // steward stops offering what the player owns), and the quest of the offers is started (no script does).
+            // `permission` is the test aid: the Whiterun jarls like the player.
+            void enableHouses(bool permission, FollowerState* ranks)
+            {
+                mHouses = true;
+                mHousesPermission = permission;
+                mFollowers = ranks;
+            }
+
         private:
             static constexpr double kSummarySeconds = 10.0;
             static constexpr std::size_t kMaxPending = 4096;
@@ -508,6 +521,26 @@ namespace game_skyrimse
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
                 mHost.setStoryEventSink(access.mStory);
+                if (mHouses && access.mQuestConditions)
+                {
+                    const QuestIndex* quests = access.mQuests;
+                    const auto conditions = access.mQuestConditions;
+                    mHost.setStageEntryCheck([quests, conditions](FormId quest, std::uint32_t stage, std::int32_t entry) {
+                        const QuestRecord* record = quests->quest(quest);
+                        if (record == nullptr || entry < 0)
+                            return true;
+                        for (const QuestStage& s : record->mStages)
+                            if (s.mIndex == stage)
+                                return static_cast<std::size_t>(entry) >= s.mEntries.size()
+                                    || conditions(s.mEntries[static_cast<std::size_t>(entry)].mConditions, quest);
+                        return true;
+                    });
+                }
+                if (mHouses && access.mSetLiveQuestVariable)
+                    access.mSetLiveQuestVariable([this](FormId quest, const std::string& name) -> std::optional<float> {
+                        const std::optional<double> live = mHost.anyNumberVariable(quest, name);
+                        return live ? std::optional<float>(static_cast<float>(*live)) : std::nullopt;
+                    });
                 if (mLogStoryFills) // task 0217: the aliases of every quest the story manager started, with their names
                     mHost.setStoryStarted([this, access](FormId quest, const StoryEvent& event) {
                         const QuestRecord* record = access.mQuests->quest(quest);
@@ -742,6 +775,32 @@ namespace game_skyrimse
                 }
                 if (!mTestQuests.empty())
                     mTestEventDelay = std::isfinite(delay) && delay >= 0.0 ? delay : 0.0;
+            }
+
+            // Task 0261 (once, when the host runs): the offers' quest starts and the test aid gives the permission
+            void applyHouses()
+            {
+                if (!mHouses || mHousesApplied || mFollowers == nullptr || !mHost.started())
+                    return;
+                mHousesApplied = true;
+                say(openeden::sdk::LogLevel::Info,
+                    std::string("HOUSES the quest of the house offers ")
+                        + (mHost.startQuestForTest(houses::kHousePurchaseQuest) ? "started" : "was refused"));
+                if (!mHousesPermission)
+                    return;
+                const PlacedRefIndex* placed = mView.placedRefs();
+                if (placed == nullptr)
+                    return;
+                std::size_t given = 0;
+                for (const FormId base : { houses::kWhiterunJarlBase, houses::kWhiterunSonsJarlBase })
+                {
+                    const PlacedRefIndex::Range range = placed->byBase(base);
+                    for (const PlacedEntry* const* it = range.mBegin; it != range.mEnd; ++it)
+                        if (mFollowers->setRelationshipRank((*it)->mId, kPapyrusPlayerReference, 2))
+                            ++given;
+                }
+                say(openeden::sdk::LogLevel::Info,
+                    "HOUSES test permission: " + std::to_string(given) + " jarls are the player's friends");
             }
 
             void raiseTestEvent()
@@ -1045,6 +1104,10 @@ namespace game_skyrimse
             double mAmbientNext = kAmbientFirstSeconds;
             std::uint64_t mAmbientEvents = 0;
             bool mStarted = false;
+            bool mHouses = false; ///< task 0261
+            bool mHousesPermission = false;
+            bool mHousesApplied = false;
+            FollowerState* mFollowers = nullptr;
             std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
             std::optional<std::vector<std::uint8_t>> mPendingRestore;
             openeden::sdk::game::WorldSourceService* mSources;
@@ -1433,9 +1496,45 @@ namespace game_skyrimse
                                 return driver->host().globalSetByScript(global, value);
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
+                            if (settings->getBool(kPackId, houses::kHousesKey, false)) // task 0261
+                            {
+                                mHousesOn = true;
+                                mWorldView.setRankMinusOneMembers({ houses::kJobStewardFaction });
+                                mPapyrus->enableHouses(
+                                    settings->getBool(kPackId, houses::kHousesTestPermissionKey, false), &mFollowerState);
+                                mHousesChunk = std::make_unique<houses::HousesChunk>(
+                                    [this] { return mHouses.data(); },
+                                    [this, logger](const std::map<FormId, FormId>& data) {
+                                        const bool ok = mHouses.restore(data);
+                                        if (ok && logger != nullptr)
+                                            logger->log(openeden::sdk::LogLevel::Info,
+                                                "HOUSES restored " + std::to_string(data.size()) + " owned cells");
+                                        return ok;
+                                    });
+                                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                                    if (!chunks->registerHandler(*mHousesChunk) && logger != nullptr)
+                                        logger->log(openeden::sdk::LogLevel::Warning, "the houses chunk was not registered");
+                                if (logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Info, "HOUSES bought houses are on");
+                            }
                             mCellSource.setEnableOverrideLookup(
-                                [driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
-                                    return driver->host().enableOverride(static_cast<FormId>(reference));
+                                [this, driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
+                                    if (const std::optional<bool> own
+                                        = driver->host().enableOverride(static_cast<FormId>(reference)))
+                                        return own;
+                                    // Task 0261: the furnishings of a house are enabled by their enable parent (XESP),
+                                    // a marker the purchase's script enables: a cell built after follows its parent's state
+                                    if (!mHousesOn)
+                                        return std::nullopt;
+                                    const PlacedRefIndex* placed = mWorldView.placedRefs();
+                                    const PlacedEntry* entry
+                                        = placed != nullptr ? placed->find(static_cast<FormId>(reference)) : nullptr;
+                                    if (entry == nullptr || entry->mEnableParent == kNullFormId)
+                                        return std::nullopt;
+                                    const std::optional<bool> parent = driver->host().enableOverride(entry->mEnableParent);
+                                    if (!parent)
+                                        return std::nullopt;
+                                    return (entry->mFlags & PlacedFlags::EnableOpposite) != 0 ? !*parent : *parent;
                                 });
                             // Task 0202: a cell built after a script moved one of its objects has it already there
                             mCellSource.setMoveOverrideLookup(
@@ -1730,6 +1829,14 @@ namespace game_skyrimse
                 };
                 env.placeObject = [this](const ObjectPlaceRequest& request) {
                     return mPapyrus != nullptr ? mPapyrus->placeObject(request) : ObjectPlaceResult{};
+                };
+                env.setCellOwner = [this, logger](FormId cell, FormId owner) {
+                    if (!mHousesOn || !mHouses.setCellOwner(cell, owner))
+                        return false;
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "HOUSES cell " + hexOf(cell) + " is now owned by " + hexOf(owner));
+                    return true;
                 };
                 env.teachWord = [this](FormId word) { return mShouts != nullptr && mShouts->teachWord(word); };
                 env.unlockWord = [this](FormId word) { return mShouts != nullptr && mShouts->unlockWord(word); };
@@ -2442,14 +2549,12 @@ namespace game_skyrimse
                     if (!mWorldView.furnitureIsBed(static_cast<FormId>(base)))
                         return rest::BedState::NotABed;
                     bool owned = false;
-                    const auto owner = mWorldView.ownerOfPlacement(static_cast<FormId>(placement));
+                    // task 0261: the owner is the bed's own or, when it has none, the one a script gave its cell
+                    const FormId who = effectiveOwnerOfPlacement(static_cast<FormId>(placement));
                     // task 0219: a rented room's bed is the player's while the rental lasts
                     const bool rented = mServices != nullptr && mServices->isRented(static_cast<FormId>(placement));
-                    if (owner && owner->owner != openeden::sdk::game::kNoWorldId && !ignoreOwner && !rented)
-                    {
-                        const FormId who = static_cast<FormId>(owner->owner);
+                    if (who != kNullFormId && !ignoreOwner && !rented)
                         owned = !(who == crime::kPlayerNpcId || who == kPlayerFactionId);
-                    }
                     return rest::bedStateOf(true, owned);
                 };
                 hooks.mApply = [this](double seconds, int, bool) {
@@ -3101,15 +3206,16 @@ namespace game_skyrimse
                 };
                 // Task 0213: trespass reads the CELL records (owner, public flag) and the owner of a bed placement.
                 hooks.mCellAccess = [this](const std::string& editorId, crime::CellAccess& out) {
-                    return mWorldView.cellAccessByName(editorId, out);
+                    if (!mWorldView.cellAccessByName(editorId, out))
+                        return false;
+                    if (mHousesOn) // task 0261: a bought house is the player's
+                        mHouses.applyToAccess(mWorldView.cellIdByEditorId(editorId), out);
+                    return true;
                 };
                 hooks.mPlacementOwner = [this](FormId placement) {
                     if (mServices != nullptr && mServices->isRented(placement))
                         return crime::kPlayerNpcId; // task 0219: a rented room's bed is the player's
-                    const auto owner = mWorldView.ownerOfPlacement(placement);
-                    return owner && owner->owner != openeden::sdk::game::kNoWorldId
-                        ? static_cast<FormId>(owner->owner)
-                        : kNullFormId;
+                    return effectiveOwnerOfPlacement(placement);
                 };
                 hooks.mLog = [this, logger](const std::string& line) {
                     if (logger != nullptr)
@@ -3454,10 +3560,9 @@ namespace game_skyrimse
             {
                 if (mCrime == nullptr)
                     return;
-                const auto owner = mWorldView.ownerOfPlacement(static_cast<FormId>(placement));
-                if (!owner || owner->owner == openeden::sdk::game::kNoWorldId)
+                const FormId who = effectiveOwnerOfPlacement(static_cast<FormId>(placement)); // task 0261
+                if (who == kNullFormId)
                     return;
-                const FormId who = static_cast<FormId>(owner->owner);
                 // Things of the player: the Player NPC_ (form id 7) and the player faction.
                 if (who == crime::kPlayerNpcId || who == kPlayerFactionId)
                     return;
@@ -4637,6 +4742,20 @@ namespace game_skyrimse
             std::unique_ptr<DeathKeeper> mDeathKeeper; // task 0254; refers to the ledger and the cell source
             std::unique_ptr<DeathsChunk> mDeathsChunk; // task 0254; refers to the ledger and the keeper
             FollowerState mFollowerState; // task 0239: what the follower scripts changed
+            houses::Ledger mHouses; // task 0261: who owns a cell now (a script's SetFactionOwner)
+            std::unique_ptr<houses::HousesChunk> mHousesChunk;
+            bool mHousesOn = false;
+            /// task 0261: the owner of a placement as the theft, bed and trespass rules see it
+            [[nodiscard]] FormId effectiveOwnerOfPlacement(FormId placement) const
+            {
+                FormId own = kNullFormId;
+                if (const auto owner = mWorldView.ownerOfPlacement(placement))
+                    if (owner->owner != openeden::sdk::game::kNoWorldId)
+                        own = static_cast<FormId>(owner->owner);
+                if (!mHousesOn)
+                    return own;
+                return mHouses.effectiveOwner(own, mWorldView.cellOfPlacement(placement));
+            }
             std::unique_ptr<FollowerStateChunk> mFollowerStateChunk; // task 0239; refers to mFollowerState
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             openeden::sdk::Logger* mFollowerLogger = nullptr; // task 0239: where the recruit and dismiss lines go

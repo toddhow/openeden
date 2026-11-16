@@ -65,6 +65,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -209,6 +210,11 @@ namespace game_skyrimse
             /// task 0235: the player's stance (sneaking, what is drawn: 0 nothing, 1 weapon, 2 spell) for the
             /// conditions of the dialogue runtime; main thread
             std::function<void(bool sneaking, std::uint8_t drawState)> mSetStance;
+            /// task 0261: do the conditions of a quest's log entry hold now (the conversation runtime's world: the last
+            /// speaker stands for the player's place); main thread
+            std::function<bool(const std::vector<survey::Ctda>& list, FormId quest)> mQuestConditions;
+            /// task 0261: a script's live value of a quest variable wins in the conversation's conditions; main thread
+            std::function<void(SkyrimConditionWorld::LiveQuestVariable)> mSetLiveQuestVariable;
             std::function<void(std::function<bool(FormId scene, std::uint32_t action)>)> mSetSceneLookup;
             std::function<const PackageRecord*(FormId package)> mPackage;
             /// the base form of a placed reference (0 when unknown)
@@ -557,6 +563,8 @@ namespace game_skyrimse
         /// Can the guard placed as `reference` (of base `base`) open the forced greeting now? False while the dialogue
         /// data is not built yet (nothing blocks the main thread).
         [[nodiscard]] bool forcedGreetingAvailable(FormId base, FormId reference, std::string* why = nullptr);
+        /// Task 0261: see SkyrimConditionWorld::setRankMinusOneMembers.
+        void setRankMinusOneMembers(std::set<FormId> factions);
         // ---- task 0219 (training, rooms)
         /// Training and renting are named "open:<name>" in the conversation (set before the first conversation or
         /// any time after).
@@ -578,6 +586,10 @@ namespace game_skyrimse
         /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every cell
         /// loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
         [[nodiscard]] std::optional<openeden::sdk::game::OwnerComponent> ownerOfPlacement(FormId placement) const;
+        /// Task 0261: the cell a placed reference stands in (0 when unknown: the placed-reference table is not ready, or
+        /// the reference is a created one), and a cell's form id by its editor id (0 when unknown). Main thread.
+        [[nodiscard]] FormId cellOfPlacement(FormId placement) const;
+        [[nodiscard]] FormId cellIdByEditorId(std::string_view editorId);
         /// Task 0221: the harvest data of a FLOR or TREE base that names an ingredient, and its name (the FULL, else
         /// the editor id); false for any other base or before the index is built. Main thread.
         [[nodiscard]] bool plantOf(FormId base, HarvestData& out, std::string& name);
@@ -884,6 +896,7 @@ namespace game_skyrimse
         bool mCrimeSourceSet = false;
         FormId mForcedReference = kNullFormId; ///< the open conversation is the forced one with this actor
         bool mOpenServices = false; ///< task 0219
+        std::set<FormId> mRankMinusOneMembers; ///< task 0261
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)
         LocationKeywordData mKeywordData; ///< task 0217

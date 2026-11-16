@@ -599,6 +599,16 @@
       "key": "vampirism test stage",
       "type": "int",
       "default": 0
+    },
+    {
+      "key": "houses",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "houses test permission",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"
