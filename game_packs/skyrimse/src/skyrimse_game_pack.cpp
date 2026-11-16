@@ -1918,6 +1918,9 @@ namespace game_skyrimse
                 }
                 if (const openeden::sdk::SettingsService* settings = host.getSettingsService())
                 {
+                    // Task 0209 (music): off unless the setting is true; the seed picks tracks (no clock).
+                    mCellSource.setMusic(settings->getBool(kPackId, "music", false),
+                        static_cast<std::uint64_t>(std::max(0, settings->getInt(kPackId, "music seed", 1))));
                     // Task 0135 stage S3: the test rule of the actor hooks, off unless the setting names an editor id.
                     const std::string walker = settings->getString(kPackId, kActorTestWalkKey, "");
                     if (!mCellSource.actorTable().setTestWalk(walker))

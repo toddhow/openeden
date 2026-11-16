@@ -308,6 +308,9 @@ namespace MWSound
         // Can not interrupt scripted music by built-in playlists
         if (mMusicType == MusicType::MWScript && type != MusicType::MWScript)
             return;
+        // Task 0209: the neutral world's director owns the channel once it has played something in this session.
+        if (mMusicType == MusicType::Neutral && type != MusicType::Neutral)
+            return;
 
         mMusicType = type;
         advanceMusic(filename, fade);
@@ -1093,7 +1096,7 @@ namespace MWSound
                 streamMusicFull(mNextMusic);
                 mNextMusic = VFS::Path::Normalized();
             }
-            else
+            else if (mMusicType != MusicType::Neutral)
                 mMusicType = MusicType::Normal;
         }
         else

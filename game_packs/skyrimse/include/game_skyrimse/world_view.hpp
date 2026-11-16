@@ -27,6 +27,7 @@
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/map_markers.hpp>
+#include <game_skyrimse/music_data.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
@@ -129,6 +130,7 @@ namespace game_skyrimse
                                   public openeden::sdk::game::DialogueSource,
                                   public openeden::sdk::game::DisplayNameSource,
                                   public openeden::sdk::game::WeatherSource,
+                                  public music::MusicDataSource,
                                   public PackageSource,
                                   public FurnitureSource,
                                   public CombatData
@@ -530,6 +532,10 @@ namespace game_skyrimse
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
         bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
 
+        // ---- music (task 0209): the runtime reads the music records of every plugin on a worker ----
+        music::MusicRuntime* musicRuntime() override;
+        bool musicFileExists(const std::string& vfsPath) override;
+
     private:
         struct PluginData
         {
@@ -599,6 +605,7 @@ namespace game_skyrimse
 
         Options mOptions;
         const FileSource* mFiles = nullptr;
+        std::unique_ptr<music::MusicRuntime> mMusic; ///< task 0209; created by the first musicRuntime() call
         std::unique_ptr<WeatherIndex> mWeatherIndex; ///< built by the first weather ask; null before
         std::unique_ptr<WeatherTable> mWeatherTable; ///< over mWeatherIndex
         std::function<bool(const std::string&)> mWeatherProbe; ///< does a texture exist (set with the table)

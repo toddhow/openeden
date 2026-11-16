@@ -106,7 +106,7 @@ add_openmw_dir (mwworld
     actionequip timestamp actionalchemy cellstore actionapply actioneat
     store esmstore fallback actionrepair actionsoulgem livecellref actiondoor
     contentloader esmloader actiontrap cellreflist cellref weather projectilemanager
-    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid itemhandles craftingrules gamerules doordestination neutralprojection neutralstore neutralstub neutralcell neutrallight neutraldoor neutralstart neutrallock neutralweather neutralweathersound neutralphysicswater neutralnavigation neutraldialogue neutraldisplayname neutralprojectiles neutralsave neutralinventory neutralfollowers neutralscenespeech
+    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid itemhandles craftingrules gamerules doordestination neutralprojection neutralstore neutralstub neutralcell neutrallight neutraldoor neutralstart neutrallock neutralweather neutralweathersound neutralphysicswater neutralnavigation neutraldialogue neutraldisplayname neutralprojectiles neutralsave neutralinventory neutralfollowers neutralscenespeech neutralmusic neutralmusicdriver
     )
 
 add_openmw_dir (mwphysics

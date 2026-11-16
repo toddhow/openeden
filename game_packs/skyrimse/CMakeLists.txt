@@ -41,6 +41,7 @@ openeden_add_game_pack(skyrimse
         src/worldspace.cpp
         src/weather.cpp
         src/weather_source.cpp
+        src/music.cpp
         src/terrain_source.cpp
         src/world_view.cpp
         src/neutral_world.cpp
@@ -186,6 +187,7 @@ add_library(game_skyrimse_world STATIC
     src/worldspace.cpp
     src/weather.cpp
     src/weather_source.cpp
+    src/music.cpp
     src/terrain_source.cpp
     src/world_view.cpp
     src/neutral_world.cpp

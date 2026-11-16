@@ -160,7 +160,8 @@ namespace MWLua
 
         api["stopMusic"] = []() {
             MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
-            if (sndMgr->getMusicType() == MWSound::MusicType::MWScript)
+            if (sndMgr->getMusicType() == MWSound::MusicType::MWScript
+                || sndMgr->getMusicType() == MWSound::MusicType::Neutral) // task 0209: the game pack's music is not stopped by a script
                 return;
 
             sndMgr->stopMusic();

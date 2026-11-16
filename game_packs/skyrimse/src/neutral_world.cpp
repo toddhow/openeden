@@ -1,4 +1,5 @@
 #include <game_skyrimse/neutral_world.hpp>
+#include <game_skyrimse/music.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -548,5 +549,46 @@ namespace game_skyrimse
             return false;
         }
         return source->weatherListForCell(cell, out);
+    }
+
+    // ---- music (task 0209) ----
+
+    namespace
+    {
+        music::MusicRuntime* musicRuntimeOf(openeden::sdk::game::WorldView& view)
+        {
+            auto* data = dynamic_cast<music::MusicDataSource*>(&view);
+            return data != nullptr ? data->musicRuntime() : nullptr;
+        }
+    }
+
+    bool SkyrimCellSource::musicReady()
+    {
+        if (!mMusicOn)
+            return false;
+        const music::MusicRuntime* runtime = musicRuntimeOf(mView);
+        return runtime != nullptr && runtime->ready();
+    }
+
+    bool SkyrimCellSource::musicType(
+        const openeden::sdk::game::MusicContext& context, openeden::sdk::game::MusicTypeDescription& out)
+    {
+        music::MusicRuntime* runtime = mMusicOn ? musicRuntimeOf(mView) : nullptr;
+        if (runtime == nullptr || context.cell > 0xFFFFFFFFull)
+            return false;
+        return runtime->type(static_cast<FormId>(context.cell), mCombat.playerInCombat(), out);
+    }
+
+    bool SkyrimCellSource::musicPlan(openeden::sdk::game::WorldId typeId,
+        const openeden::sdk::game::MusicContext& context, openeden::sdk::game::MusicPlan& out)
+    {
+        music::MusicRuntime* runtime = mMusicOn ? musicRuntimeOf(mView) : nullptr;
+        auto* data = dynamic_cast<music::MusicDataSource*>(&mView);
+        if (runtime == nullptr || data == nullptr || typeId > 0xFFFFFFFFull)
+            return false;
+        music::ConditionFacts facts;
+        facts.mGameHour = context.gameHour;
+        return runtime->plan(static_cast<FormId>(typeId), facts, mMusicSeed, context.pick,
+            [data](const std::string& path) { return data->musicFileExists(path); }, out);
     }
 }

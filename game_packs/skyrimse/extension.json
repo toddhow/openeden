@@ -26,6 +26,16 @@
       "default": false
     },
     {
+      "key": "music",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "music seed",
+      "type": "int",
+      "default": 1
+    },
+    {
       "key": "crime test guard",
       "type": "string",
       "default": ""

@@ -36,6 +36,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutraltalkwait.cpp
     mwworld/testneutralweather.cpp
     mwworld/testneutralweathersound.cpp
+    mwworld/testneutralmusic.cpp
     mwworld/testweatherparams.cpp
     mwworld/testneutralcell.cpp
     mwworld/testneutrallight.cpp

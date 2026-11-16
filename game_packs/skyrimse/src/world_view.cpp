@@ -7,6 +7,7 @@
 #include "game_skyrimse/location.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/quest_script.hpp"
+#include "game_skyrimse/music.hpp"
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
@@ -1603,6 +1604,27 @@ namespace game_skyrimse
     {
         out = {};
         return ensureWeather() && mWeatherTable->listForCell(static_cast<FormId>(cell), out);
+    }
+
+    music::MusicRuntime* SkyrimWorldView::musicRuntime()
+    {
+        if (mMusic == nullptr)
+        {
+            if (!awaitIndex() || mPlugins.empty())
+                return nullptr;
+            std::vector<std::filesystem::path> paths;
+            paths.reserve(mPlugins.size());
+            for (const PluginData& plugin : mPlugins)
+                paths.push_back(plugin.mPath);
+            mMusic = std::make_unique<music::MusicRuntime>(std::move(paths), mOrder);
+            mMusic->start();
+        }
+        return mMusic.get();
+    }
+
+    bool SkyrimWorldView::musicFileExists(const std::string& vfsPath)
+    {
+        return mFiles != nullptr && mFiles->exists(vfsPath);
     }
 
     // ---- the worker -------------------------------------------------------------------------------------------------

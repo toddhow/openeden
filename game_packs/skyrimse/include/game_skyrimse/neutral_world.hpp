@@ -27,6 +27,7 @@
 #include <openeden/game/follower_rules.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/grass_source.hpp>
+#include <openeden/game/music_source.hpp>
 #include <openeden/game/player_item_source.hpp>
 #include <openeden/game/scene_speech.hpp>
 #include <openeden/game/weather_source.hpp>
@@ -167,6 +168,7 @@ namespace game_skyrimse
                                    public openeden::sdk::game::CombatRules,
                                    public openeden::sdk::game::CellWaterSource,
                                    public openeden::sdk::game::WeatherSource,
+                                   public openeden::sdk::game::MusicSource,
                                    public openeden::sdk::game::GrassSource,
                                    public openeden::sdk::game::PlayerItemSource,
                                    public openeden::sdk::game::SceneSpeechSource
@@ -419,6 +421,20 @@ namespace game_skyrimse
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
         bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
 
+        /// Task 0209 (music, M-S7): off unless the pack setting `music` is true (setMusic); the data comes from the
+        /// view's MusicRuntime (a worker reads the records) and "the player is in a fight" from the combat rules.
+        void setMusic(bool enabled, std::uint64_t seed)
+        {
+            mMusicOn = enabled;
+            mMusicSeed = seed;
+        }
+        bool musicEnabled() override { return mMusicOn; }
+        bool musicReady() override;
+        bool musicType(const openeden::sdk::game::MusicContext& context,
+            openeden::sdk::game::MusicTypeDescription& out) override;
+        bool musicPlan(openeden::sdk::game::WorldId typeId, const openeden::sdk::game::MusicContext& context,
+            openeden::sdk::game::MusicPlan& out) override;
+
     private:
         [[nodiscard]] const SkyrimTerrainIndex* terrain() const;
         openeden::sdk::game::WorldView& mView;
@@ -427,6 +443,8 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         SkyrimCombat mCombat;
+        bool mMusicOn = false; ///< task 0209
+        std::uint64_t mMusicSeed = 1;
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198

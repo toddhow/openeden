@@ -241,6 +241,14 @@ namespace game_skyrimse
         return a != nullptr ? a->mState.mMode : AiMode::Calm;
     }
 
+    bool SkyrimCombat::playerInCombat() const
+    {
+        for (const AiActor& a : mAiActors)
+            if (a.mTarget.player && !a.mGiveUp)
+                return true;
+        return false;
+    }
+
     bool SkyrimCombat::aiGuardUp(ActorHandle handle) const
     {
         const AiActor* a = aiFind(handle);

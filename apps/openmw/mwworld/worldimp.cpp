@@ -48,6 +48,7 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include "neutraldialogue.hpp"
+#include "neutralmusicdriver.hpp"
 #include "neutralscenespeech.hpp"
 #include "neutralprojectiles.hpp"
 #include "neutralnavigation.hpp"
@@ -534,6 +535,9 @@ namespace MWWorld
         mWorldScene->clear();
         mWorldModel.clear();
         mNeutralSaveBytes.clear();
+        // Task 0209: nothing of the music is saved; a new or loaded game starts a fresh director.
+        mNeutralMusic.reset();
+        mNeutralMusicTried = false;
 
         mStore.clearDynamic();
 
@@ -1948,6 +1952,8 @@ namespace MWWorld
             Misc::LoadTrace::Scope trace("world.weather");
             updateWeather(duration, paused);
         }
+        if (!paused)
+            updateNeutralMusic(duration);
         {
             Misc::LoadTrace::Scope trace("world.navigator.update");
             updateNavigator();
@@ -1992,6 +1998,19 @@ namespace MWWorld
             mNavigator->wait(DetourNavigator::WaitConditionType::requiredTilesPresent, &dummy);
             mWorldScene->resetCellLoaded();
         }
+    }
+
+    void World::updateNeutralMusic(float duration)
+    {
+        // Task 0209: with [Game] neutral world and a game pack whose music is on, the pack's music type for the
+        // player's place; otherwise nothing is made and nothing runs (the check is one bool).
+        if (!mNeutralMusicTried)
+        {
+            mNeutralMusicTried = true;
+            mNeutralMusic = NeutralMusicDriver::make();
+        }
+        if (mNeutralMusic)
+            mNeutralMusic->update(duration, getPlayerPtr(), getTimeStamp().getHour());
     }
 
     void World::updatePhysics(float duration, bool paused)

@@ -659,6 +659,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsegrassvariation.cpp
     skyrimse/testskyrimsegrassreal.cpp
     skyrimse/testskyrimseweather.cpp
+    skyrimse/testskyrimsemusic.cpp
     skyrimse/testskyrimseweathersource.cpp
     skyrimse/testskyrimseweathersound.cpp
     skyrimse/testskyrimseweatherreal.cpp
@@ -724,6 +725,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/weather.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/weather_source.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/music.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/terrain_source.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp

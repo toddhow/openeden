@@ -547,6 +547,8 @@ namespace game_skyrimse
         /// The target of an engaged AI actor (the player when it is not engaged).
         [[nodiscard]] openeden::sdk::game::CombatSubject aiTargetOf(openeden::sdk::game::ActorHandle handle) const;
         [[nodiscard]] std::size_t aiEngagedCount() const { return mAiActors.size(); }
+        /// Task 0209 (music): is an engaged AI fighter that has not given up fighting the player?
+        [[nodiscard]] bool playerInCombat() const;
         [[nodiscard]] bool combatAi() const { return mAiOn; }
         /// Appends the movement the AI wants since the last drain, in order, and empties its queue.
         void drainAiMoves(std::vector<AiMoveIntent>& out);

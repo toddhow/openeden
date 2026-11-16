@@ -37,7 +37,10 @@ namespace MWSound
     enum class MusicType
     {
         Normal,
-        MWScript
+        MWScript,
+        /// Task 0209: a game pack's own music (the neutral world's director). While it is the type, a Normal call from
+        /// a script cannot take the music channel over and a script's stop is ignored.
+        Neutral
     };
 
     class Sound;
