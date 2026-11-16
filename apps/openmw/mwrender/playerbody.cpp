@@ -13,6 +13,8 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/extensionmanager.hpp"
+#include "../mwmechanics/creaturestats.hpp"
+#include "../mwworld/class.hpp"
 #include "../mwworld/ptr.hpp"
 
 #include "scene.hpp"
@@ -24,6 +26,18 @@ namespace MWRender
     {
         // A source is looked for this often while none was found (a session of another game, or the pack not up yet).
         constexpr std::uint32_t kLookupPeriodFrames = 60;
+
+        // Task 0247: the player's draw state (MWMechanics::DrawState: 0 nothing, 1 weapon, 2 spell). The stub player is
+        // an actor whose stats the Lua stance control (F) writes; 0 for anything else.
+        std::uint8_t playerDrawState(const MWWorld::Ptr& player)
+        {
+            if (player.isEmpty() || !player.getClass().isActor())
+                return 0;
+            return static_cast<std::uint8_t>(player.getClass().getCreatureStats(player).getDrawState());
+        }
+
+        // A first-person clip that has not started this long after it was asked for is not waited for.
+        constexpr float kUnequipStartSeconds = 3.f;
     }
 
     PlayerBody::PlayerBody(Scene& scene)
@@ -129,7 +143,7 @@ namespace MWRender
     }
 
     void PlayerBody::rebuildArms(openeden::sdk::game::PlayerBodySource& source, const MWWorld::Ptr& player,
-        std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken)
+        std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken, std::uint8_t drawState)
     {
         openeden::sdk::game::ActorAppearance appearance;
         std::string error;
@@ -168,6 +182,19 @@ namespace MWRender
             if (auto* controller = dynamic_cast<SkyrimFirstPerson::ArmsController*>(kept.get()))
                 mArmsController = vsg::ref_ptr<SkyrimFirstPerson::ArmsController>(controller);
         mArmsWeaponType = appearance.heldWeaponType;
+        // A new body does not play the draw clip of what was already drawn.
+        mArmsDrawState = drawState;
+        mUnequip = 0;
+        if (mArmsController)
+        {
+            // Decode the clips the hands will ask for now, so that F does not wait for a read.
+            using namespace SkyrimFirstPerson;
+            for (const std::string_view name : { idleClipFor(mArmsWeaponType, Stance::Sheathed),
+                     idleClipFor(mArmsWeaponType, Stance::Weapon), idleClipFor(mArmsWeaponType, Stance::Spell),
+                     equipClipFor(mArmsWeaponType, Stance::Weapon), unequipClipFor(mArmsWeaponType, Stance::Weapon),
+                     equipClipFor(mArmsWeaponType, Stance::Spell), unequipClipFor(mArmsWeaponType, Stance::Spell) })
+                mArmsController->prefetch(name);
+        }
         mArms = std::move(arms);
         mArmsSwing.adopt(swingToken);
         mArmsCast.adopt(castToken);
@@ -190,8 +217,9 @@ namespace MWRender
         openeden::sdk::game::PlayerBodyState state;
         if (!source->playerBody(state) || !state.firstPerson)
             return;
+        const std::uint8_t drawState = playerDrawState(player);
         if (mArmsGate.wants(state.revision))
-            rebuildArms(*source, player, state.revision, state.swingToken, state.castToken);
+            rebuildArms(*source, player, state.revision, state.swingToken, state.castToken, drawState);
         if (!mArms)
             return;
 
@@ -200,23 +228,56 @@ namespace MWRender
         // A swing or a cast plays once; the weapon (or the spell hand) stays up for a while after it, as an NPC's.
         if (mArmsController)
         {
+            // F draws and sheathes: the hands play the raise or lower clip of what was drawn (a swing or a cast in the
+            // same frame replaces it, below). Sheathing ends every hold of the old stance.
+            if (drawState != mArmsDrawState)
+            {
+                const std::string_view clip
+                    = SkyrimFirstPerson::drawTransitionClip(mArmsWeaponType, mArmsDrawState, drawState);
+                if (!clip.empty())
+                {
+                    mArmsController->playOnce(clip);
+                    Log(Debug::Info) << "PLAYERBODY first person draw state " << int(mArmsDrawState) << " -> "
+                                     << int(drawState) << " clip " << clip;
+                }
+                mUnequip = mArmsDrawState == SkyrimFirstPerson::kDrawWeapon && drawState == SkyrimFirstPerson::kDrawNothing
+                        && !clip.empty()
+                    ? 1
+                    : 0;
+                mUnequipSince = mArmsClock;
+                if (drawState == SkyrimFirstPerson::kDrawNothing)
+                {
+                    mWeaponUntil = -1.f;
+                    mSpellUntil = -1.f;
+                }
+                mArmsDrawState = drawState;
+            }
             if (mArmsSwing.poll(state.swingToken) && !state.swingClip.empty())
             {
+                mUnequip = 0;
                 mArmsController->playOnce(state.swingClip);
                 mWeaponUntil = mArmsClock + SkyrimHeldGear::kDrawnHoldSeconds;
-                SkyrimHeldGear::noteCombat(mArms->keepAlive);
                 Log(Debug::Info) << "PLAYERBODY first person swing " << state.swingToken << " clip " << state.swingClip;
             }
             if (mArmsCast.poll(state.castToken) && !state.castClip.empty())
             {
+                mUnequip = 0;
                 mArmsController->playOnce(state.castClip);
                 mSpellUntil = mArmsClock + SkyrimHeldGear::kDrawnHoldSeconds;
                 Log(Debug::Info) << "PLAYERBODY first person cast " << state.castToken << " clip " << state.castClip;
             }
-            const SkyrimFirstPerson::Stance stance = mArmsClock < mSpellUntil ? SkyrimFirstPerson::Stance::Spell
-                : mArmsClock < mWeaponUntil                                    ? SkyrimFirstPerson::Stance::Weapon
-                                                                                : SkyrimFirstPerson::Stance::Sheathed;
+            const SkyrimFirstPerson::Stance stance = SkyrimFirstPerson::stanceFor(
+                drawState, mArmsClock < mWeaponUntil, mArmsClock < mSpellUntil);
             mArmsController->setIdle(SkyrimFirstPerson::idleClipFor(mArmsWeaponType, stance));
+            // The weapon is in the hand while drawn and until the unequip clip that puts it away is over.
+            if (mUnequip == 1 && mArmsController->playingOnce())
+                mUnequip = 2;
+            else if (mUnequip == 2 && !mArmsController->playingOnce())
+                mUnequip = 0;
+            else if (mUnequip == 1 && mArmsClock - mUnequipSince > kUnequipStartSeconds)
+                mUnequip = 0;
+            SkyrimHeldGear::setDrawn(
+                mArms->keepAlive, SkyrimFirstPerson::weaponInHand(stance, mUnequip != 0));
         }
 
         // The arms turn with the view about the rig's camera node, which stands at the eye.

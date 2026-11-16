@@ -4,6 +4,7 @@
 #include <future>
 #include <map>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #include <components/animation/controller.hpp>
@@ -26,6 +27,8 @@ namespace MWRender::SkyrimFirstPerson
             std::shared_ptr<const HavokPack::BoundClip> mClip;
             std::vector<vsg::ref_ptr<Anim::Transform>> mTargets;
             std::vector<HavokPack::Transform> mScratch;
+            std::vector<HavokPack::Transform> mScratchFrom; ///< when the clip is the one a fade comes from
+            std::unordered_map<const Anim::Transform*, std::size_t> mTrackOf; ///< bone -> track, for the fade
             bool mResolved = false; ///< the future was read (mClip may be null: the clip failed)
         };
     }
@@ -79,6 +82,10 @@ namespace MWRender::SkyrimFirstPerson
                 }
             }
             slot.mScratch.resize(slot.mTargets.size());
+            slot.mScratchFrom.resize(slot.mTargets.size());
+            for (std::size_t i = 0; i < slot.mTargets.size(); ++i)
+                if (slot.mTargets[i])
+                    slot.mTrackOf.emplace(slot.mTargets[i].get(), i);
             if (bound == 0)
                 slot.mClip.reset(); // a clip of another skeleton
         }
@@ -124,6 +131,21 @@ namespace MWRender::SkyrimFirstPerson
         mImpl->mTimeline.playOnce(clip);
     }
 
+    void ArmsController::prefetch(std::string_view name)
+    {
+        const std::string clip = armsClipName(name);
+        if (clip.empty())
+            return;
+        const std::lock_guard lock(mImpl->mMutex);
+        mImpl->ensure(clip);
+    }
+
+    bool ArmsController::playingOnce() const
+    {
+        const std::lock_guard lock(mImpl->mMutex);
+        return mImpl->mTimeline.playingOnce();
+    }
+
     std::string ArmsController::current() const
     {
         const std::lock_guard lock(mImpl->mMutex);
@@ -148,8 +170,39 @@ namespace MWRender::SkyrimFirstPerson
         Misc::LoadTrace::Scope trace("skyrimfirstperson.run");
         impl.mLastClip = frame.clip;
         HavokPack::samplePose(*slot.mClip, frame.time, slot.mScratch);
+
+        // Task 0247: a cross-fade with the clip the arms come from, bone by bone (a bone the old clip does not move
+        // takes the new pose as it is). Only when that clip has decoded; otherwise the cut it replaces.
+        Slot* from = nullptr;
+        if (frame.blend < 1.f && !frame.from.empty())
+        {
+            const auto fromIt = impl.mSlots.find(frame.from);
+            if (fromIt != impl.mSlots.end())
+            {
+                impl.resolve(fromIt->second);
+                if (fromIt->second.mClip)
+                {
+                    from = &fromIt->second;
+                    HavokPack::samplePose(*from->mClip, frame.fromTime, from->mScratchFrom);
+                }
+            }
+        }
         for (std::size_t i = 0; i < slot.mTargets.size(); ++i)
-            if (slot.mTargets[i])
-                SkyrimIdle::apply(slot.mScratch[i], *slot.mTargets[i]);
+        {
+            if (!slot.mTargets[i])
+                continue;
+            if (from != nullptr)
+            {
+                const auto track = from->mTrackOf.find(slot.mTargets[i].get());
+                if (track != from->mTrackOf.end())
+                {
+                    SkyrimIdle::apply(
+                        blendTransform(from->mScratchFrom[track->second], slot.mScratch[i], frame.blend),
+                        *slot.mTargets[i]);
+                    continue;
+                }
+            }
+            SkyrimIdle::apply(slot.mScratch[i], *slot.mTargets[i]);
+        }
     }
 }

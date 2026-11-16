@@ -117,7 +117,7 @@ echo "return { start = ${AI_START:-0.3}, dist = ${AI_DIST:-300}, every = ${AI_EV
 [ "$SHOT" = pbody ] && echo "content=pbody.omwscripts" >> "$WORK/config/openmw.cfg"
 mkdir -p "$WORK/luatest/scripts/pbody"
 items=""; IFS=',' read -ra ids <<< "${PB_ITEMS:-}"; for i in "${ids[@]}"; do [ -n "$i" ] && items="$items'$i',"; done
-echo "return { swingAt = ${PB_SWING_AT:-9}, hour = ${PB_HOUR:-nil}, plan = '${PB_PLAN:-full}', items = { $items }, frontDistance = ${PB_FRONT:-230}, frontHeight = ${PB_FRONT_H:-90}, sideDistance = ${PB_SIDE:-260}, sideHeight = ${PB_SIDE_H:-100} }" > "$WORK/luatest/scripts/pbody/cfg.lua"
+echo "return { swingAt = ${PB_SWING_AT:-9}, hour = ${PB_HOUR:-nil}, plan = '${PB_PLAN:-full}', items = { $items }, frontDistance = ${PB_FRONT:-230}, frontHeight = ${PB_FRONT_H:-90}, sideDistance = ${PB_SIDE:-260}, sideHeight = ${PB_SIDE_H:-100}, bursts = { ${PB_BURSTS:-} }, swingStep = ${PB_STEP:-0.1}, swingCount = ${PB_COUNT:-30}, pitch = ${PB_PITCH:-0.6}, race = ${PB_RACE:-nil}, female = ${PB_FEMALE:-false}, raceAt = ${PB_RACE_AT:-2.0}, drawAt = ${PB_DRAW_AT:-4.0} }" > "$WORK/luatest/scripts/pbody/cfg.lua"
 echo "return { start = ${GEAR_START:-2}, dist = ${GEAR_DIST:-130}, every = ${GEAR_EVERY:-0.5}, maxShots = ${GEAR_SHOTS:-40}, target = '${GEAR_TARGET:-skyrimse:b1048812}', create = '${GEAR_CREATE:-}', hour = ${GEAR_HOUR:-nil}, cam = { ${GEAR_CAM:-0, -300, 120} } }" > "$WORK/luatest/scripts/n5/gearcfg.lua"
 # Task 0204 (crime): "n8crime" stands the player N8_DIST (default 100) units east of the witness N8_TARGET (default b80803, Hulda) and commits the crime of N8_MODE
 # (theft from the owned container N8_PLACEMENT/N8_BASE at N8_T seconds; assault is the pack setting combat test player swing); N8_CHOICE (pay, jail, resist or empty)

@@ -16,6 +16,7 @@
 // Threads: main thread, or one animation thread: a Timeline belongs to one controller. No allocation per call except
 // the clip names of Timeline::Frame (a std::string copy; short names stay in the small buffer).
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -29,6 +30,8 @@
 #include <components/animation/controller.hpp>
 #include <components/animation/transform.hpp>
 #include <components/vfs/manager.hpp>
+
+#include <components/havokpack/skeleton.hpp>
 
 #include "skyrimidle.hpp"
 
@@ -104,6 +107,152 @@ namespace MWRender::SkyrimFirstPerson
         return "h2h_idle";
     }
 
+    /// Task 0247. The time the arms cross-fade between two clips (a cut would pop): OURS, not read from the game.
+    inline constexpr float kBlendSeconds = 0.15f;
+
+    /// MWMechanics::DrawState as the engine numbers it: 0 nothing, 1 weapon, 2 spell.
+    inline constexpr std::uint8_t kDrawNothing = 0;
+    inline constexpr std::uint8_t kDrawWeapon = 1;
+    inline constexpr std::uint8_t kDrawSpell = 2;
+
+    /// The first-person clip that raises the hands for `stance`: a weapon's own equip clip (the fists when there is
+    /// no weapon or the type is unknown), `mrh_equip` for a spell hand. Empty for Sheathed. The names are those of
+    /// `_1stperson/animations` in Skyrim - Animations.bsa (VERIFIED in the archive listing: 1hm_equip, dag_equip,
+    /// axe_equip, mac_equip, 2hc_equip, 2hw_equip, bow_equip, h2h_equip, mrh_equip). `weaponType` is the pack's
+    /// animation type (heldWeaponType); 7 is a bow, which no pack gives the arms yet.
+    [[nodiscard]] inline std::string_view equipClipFor(std::uint8_t weaponType, Stance stance)
+    {
+        if (stance == Stance::Sheathed)
+            return {};
+        if (stance == Stance::Spell)
+            return "mrh_equip";
+        switch (weaponType)
+        {
+            case 1:
+                return "1hm_equip";
+            case 2:
+                return "dag_equip";
+            case 3:
+                return "axe_equip";
+            case 4:
+                return "mac_equip";
+            case 5:
+                return "2hc_equip";
+            case 6:
+                return "2hw_equip";
+            case 7:
+                return "bow_equip";
+            default:
+                return "h2h_equip";
+        }
+    }
+
+    /// The first-person clip that lowers them again (the same names with `unequip`).
+    [[nodiscard]] inline std::string_view unequipClipFor(std::uint8_t weaponType, Stance stance)
+    {
+        if (stance == Stance::Sheathed)
+            return {};
+        if (stance == Stance::Spell)
+            return "mrh_unequip";
+        switch (weaponType)
+        {
+            case 1:
+                return "1hm_unequip";
+            case 2:
+                return "dag_unequip";
+            case 3:
+                return "axe_unequip";
+            case 4:
+                return "mac_unequip";
+            case 5:
+                return "2hc_unequip";
+            case 6:
+                return "2hw_unequip";
+            case 7:
+                return "bow_unequip";
+            default:
+                return "h2h_unequip";
+        }
+    }
+
+    namespace Detail
+    {
+        /// A draw state above 2 is read as nothing.
+        [[nodiscard]] constexpr std::uint8_t normaliseDraw(std::uint8_t state)
+        {
+            return state == kDrawWeapon || state == kDrawSpell ? state : kDrawNothing;
+        }
+    }
+
+    /// The clip a change of the engine's draw state plays: raising the weapon hand or the spell hand when something
+    /// is drawn (also when it changes from one to the other), lowering what was drawn when nothing is. Empty for no
+    /// change.
+    [[nodiscard]] inline std::string_view drawTransitionClip(std::uint8_t weaponType, std::uint8_t from, std::uint8_t to)
+    {
+        from = Detail::normaliseDraw(from);
+        to = Detail::normaliseDraw(to);
+        if (from == to)
+            return {};
+        if (to == kDrawWeapon)
+            return equipClipFor(weaponType, Stance::Weapon);
+        if (to == kDrawSpell)
+            return equipClipFor(weaponType, Stance::Spell);
+        return unequipClipFor(weaponType, from == kDrawSpell ? Stance::Spell : Stance::Weapon);
+    }
+
+    /// The stance of the hands. The engine's draw state decides (F draws and sheathes); the holds after a swing or a
+    /// cast only cover a player who has not drawn (an attack works without drawing in this build, as before this
+    /// task), a spell hold winning over a weapon hold as it did.
+    [[nodiscard]] inline Stance stanceFor(std::uint8_t drawState, bool swingHold, bool castHold)
+    {
+        drawState = Detail::normaliseDraw(drawState);
+        if (drawState == kDrawWeapon)
+            return Stance::Weapon;
+        if (drawState == kDrawSpell)
+            return Stance::Spell;
+        if (castHold)
+            return Stance::Spell;
+        return swingHold ? Stance::Weapon : Stance::Sheathed;
+    }
+
+    /// True while the weapon model is in the hand: the weapon stance, or the unequip clip that puts it away still
+    /// playing.
+    [[nodiscard]] inline bool weaponInHand(Stance stance, bool unequipPlaying)
+    {
+        return stance == Stance::Weapon || unequipPlaying;
+    }
+
+    /// The pose between two poses of one bone: the translation and scale are mixed linearly, the rotation by the
+    /// normalised linear mix of the quaternions along the short way. `weight` is 0 for `a` and 1 for `b` (clamped).
+    [[nodiscard]] inline HavokPack::Transform blendTransform(
+        const HavokPack::Transform& a, const HavokPack::Transform& b, float weight)
+    {
+        const float w = std::isfinite(weight) ? std::clamp(weight, 0.f, 1.f) : 1.f;
+        HavokPack::Transform out;
+        for (int i = 0; i < 3; ++i)
+        {
+            out.mTranslation[i] = a.mTranslation[i] + (b.mTranslation[i] - a.mTranslation[i]) * w;
+            out.mScale[i] = a.mScale[i] + (b.mScale[i] - a.mScale[i]) * w;
+        }
+        float dot = 0.f;
+        for (int i = 0; i < 4; ++i)
+            dot += a.mRotation[i] * b.mRotation[i];
+        const float sign = dot < 0.f ? -1.f : 1.f;
+        float length = 0.f;
+        for (int i = 0; i < 4; ++i)
+        {
+            out.mRotation[i] = a.mRotation[i] * (1.f - w) + b.mRotation[i] * sign * w;
+            length += out.mRotation[i] * out.mRotation[i];
+        }
+        length = std::sqrt(length);
+        if (length > 1e-6f)
+            for (float& c : out.mRotation)
+                c /= length;
+        else
+            out.mRotation = b.mRotation;
+        return out;
+    }
+
     /// The clips of one first-person actor on a clock. `now` is the controller's own clock (seconds, never going down).
     class Timeline
     {
@@ -113,7 +262,15 @@ namespace MWRender::SkyrimFirstPerson
             std::string clip; ///< the clip to show
             float time = 0.f; ///< seconds into it (the caller loops an idle)
             bool once = false; ///< a one-shot clip (a swing or cast), not the loop
+            // Task 0247: while the arms cross-fade, the clip they come from, at its own time, and the weight of `clip`
+            // (0 at the switch, 1 when it is over; `from` is empty when there is no fade).
+            std::string from;
+            float fromTime = 0.f;
+            float blend = 1.f;
         };
+
+        /// True while a one-shot clip is playing (decoded and started, not over), as of the last pick.
+        [[nodiscard]] bool playingOnce() const { return mState == OnceState::Playing; }
 
         /// The loop clip. A change restarts it at the next pick.
         void setIdle(std::string_view name)
@@ -133,8 +290,62 @@ namespace MWRender::SkyrimFirstPerson
 
         /// What to show at `now`. `duration(name)` answers the length of a clip in seconds, kNotReady while it is
         /// decoding and 0 when it failed (a clip that failed or that is not ready for kLoadTimeoutSeconds is dropped).
+        /// Task 0247: when the clip shown changes (a one-shot starts or is over, the loop is replaced) the answer also
+        /// names the clip it comes from, at the time it would have reached, for kBlendSeconds (Frame::from, fromTime,
+        /// blend). A one-shot clip that is the source is held at its last pose, a loop keeps running.
         template <class DurationFn>
         Frame pick(float now, DurationFn&& duration)
+        {
+            Frame frame = pickClip(now, duration);
+            const float start = now - frame.time;
+            if (mShown.valid
+                && (frame.clip != mShown.clip || frame.once != mShown.once
+                    || (frame.once && std::fabs(start - mShown.start) > kSameStartEpsilon)))
+            {
+                mFrom = mShown;
+                mFading = true;
+                mFadeStart = now;
+            }
+            mShown = { frame.clip, start, frame.once, true };
+            if (mFading)
+            {
+                const float w = (now - mFadeStart) / kBlendSeconds;
+                if (!(w < 1.f) || !mFrom.valid)
+                    mFading = false;
+                else
+                {
+                    frame.from = mFrom.clip;
+                    float t = now - mFrom.start;
+                    if (mFrom.once)
+                    {
+                        const float length = duration(mFrom.clip);
+                        if (length > 0.f)
+                            t = std::min(t, length);
+                    }
+                    frame.fromTime = std::max(t, 0.f);
+                    frame.blend = std::max(w, 0.f);
+                }
+            }
+            return frame;
+        }
+
+    private:
+        struct Segment
+        {
+            std::string clip;
+            float start = 0.f; ///< the time at which the clip's own time was 0
+            bool once = false;
+            bool valid = false;
+        };
+        static constexpr float kSameStartEpsilon = 1.0e-4f;
+
+        Segment mShown; ///< what the last pick showed
+        Segment mFrom; ///< what the arms fade from
+        bool mFading = false;
+        float mFadeStart = 0.f;
+
+        template <class DurationFn>
+        Frame pickClip(float now, DurationFn&& duration)
         {
             if (mState != OnceState::None)
             {
@@ -165,7 +376,6 @@ namespace MWRender::SkyrimFirstPerson
             return { mIdle, now - mIdleStart, false };
         }
 
-    private:
         enum class OnceState : std::uint8_t
         {
             None,
@@ -211,6 +421,11 @@ namespace MWRender::SkyrimFirstPerson
         void setIdle(std::string_view name);
         /// A swing or a cast: plays once, then the loop comes back.
         void playOnce(std::string_view name);
+        /// Task 0247: starts decoding a clip now so that it is ready when it is asked for (the draw, sheathe, idle and
+        /// swing clips of the weapon in the hand). A name armsClipName refuses is ignored.
+        void prefetch(std::string_view name);
+        /// True while a one-shot clip (a swing, a cast, a draw or sheathe) is playing, as of the last frame.
+        [[nodiscard]] bool playingOnce() const;
         /// The clip written last (empty before the first), for the trace.
         [[nodiscard]] std::string current() const;
 

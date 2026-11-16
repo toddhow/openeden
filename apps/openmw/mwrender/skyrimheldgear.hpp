@@ -56,12 +56,17 @@ namespace MWRender::SkyrimHeldGear
     public:
         /// A combat clip started (any thread). The next update() draws the weapon.
         void note() noexcept { mPending.store(true, std::memory_order_release); }
+        /// Task 0247: the first-person arms say whether the weapon is in the hand (any thread). While forced, the
+        /// answer is that and a note changes nothing; `unforce` goes back to the clock (which has no hold left).
+        void force(bool drawn) noexcept { mForced.store(drawn ? 1 : 0, std::memory_order_release); }
+        void unforce() noexcept { mForced.store(-1, std::memory_order_release); }
         /// The state at `now` (seconds on the animation's clock, which never goes down within one actor; a value below
         /// the last one is a restarted clock and the hold carries over). True: drawn.
         [[nodiscard]] bool update(float now) noexcept;
 
     private:
         std::atomic<bool> mPending{ false };
+        std::atomic<int> mForced{ -1 }; ///< -1 the clock decides, 0 sheathed, 1 drawn (task 0247)
         float mUntil = -1.0e30f;
         float mLast = -1.0e30f;
     };
@@ -73,6 +78,8 @@ namespace MWRender::SkyrimHeldGear
         Controller(vsg::ref_ptr<vsg::Switch> sheathed, vsg::ref_ptr<vsg::Switch> drawn);
 
         void note() noexcept { mClock.note(); }
+        void force(bool drawn) noexcept { mClock.force(drawn); }
+        void unforce() noexcept { mClock.unforce(); }
         /// The last state the controller set (for tests and the trace).
         [[nodiscard]] bool drawn() const noexcept { return mShownDrawn.load(std::memory_order_relaxed); }
 
@@ -103,6 +110,11 @@ namespace MWRender::SkyrimHeldGear
 
     /// A combat clip started on the actor: draw the weapon. Finds the controller in `keepAlive`; a no-op without one.
     void noteCombat(const std::vector<vsg::ref_ptr<vsg::Object>>& keepAlive);
+
+    /// Task 0247: the first-person arms decide whether the weapon is in the hand (the engine's draw state, the draw
+    /// and sheathe clips) instead of the clock: true forces the drawn copy, false the sheathed one. Finds the
+    /// controller in `keepAlive`; a no-op without one.
+    void setDrawn(const std::vector<vsg::ref_ptr<vsg::Object>>& keepAlive, bool drawn);
 }
 
 #endif

@@ -97,7 +97,7 @@ namespace MWRender
 
         // ---- Task 0245: the first-person arms
         void rebuildArms(openeden::sdk::game::PlayerBodySource& source, const MWWorld::Ptr& player,
-            std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken);
+            std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken, std::uint8_t drawState);
         std::unique_ptr<MWAnim::ObjectAnimation> mArms;
         vsg::ref_ptr<SkyrimFirstPerson::ArmsController> mArmsController;
         std::vector<vsg::ref_ptr<const Anim::Transform>> mArmsCameraPath;
@@ -111,6 +111,12 @@ namespace MWRender
         float mSpellUntil = -1.f;
         std::uint32_t mArmsBuilds = 0;
         int mTraceSecond = -1;
+        // Task 0247: the engine's draw state the arms last answered (F draws and sheathes), and the putting away of a
+        // weapon: 0 none, 1 the unequip clip was asked for and has not started, 2 it is playing (the weapon stays in
+        // the hand until it is over).
+        std::uint8_t mArmsDrawState = 0;
+        std::uint8_t mUnequip = 0;
+        float mUnequipSince = 0.f;
     };
 }
 

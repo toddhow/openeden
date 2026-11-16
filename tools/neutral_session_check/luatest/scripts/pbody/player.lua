@@ -8,6 +8,8 @@ local core = require('openmw.core')
 local debug = require('openmw.debug')
 local self = require('openmw.self')
 local util = require('openmw.util')
+local types = require('openmw.types')
+local realSteps, realStart = nil, nil
 
 local cfg = require('scripts.pbody.cfg')
 
@@ -66,16 +68,49 @@ local function setup()
     if cfg.plan == 'fp' then
         -- task 0245: the first-person arms. The camera stays in first person all the time.
         at(1.0, function() debug.takeScreenshot(); print('PBODY shot fp idle') end)
-        at(2.0, function() pitchImpulse = 0.6 end)
+        at(2.0, function() pitchImpulse = cfg.pitch or 0.6 end)
         at(2.6, function() debug.takeScreenshot(); print('PBODY shot fp looking') end)
-        at(3.0, function() pitchImpulse = -0.6 end)
+        at(3.0, function() pitchImpulse = -(cfg.pitch or 0.6) end)
         at(4.0, function()
             for _, id in ipairs(cfg.items) do core.sendGlobalEvent('SkyrimInventoryEquip', { item = id }) end
             print('PBODY equip ' .. table.concat(cfg.items, ','))
         end)
         at(6.0, function() debug.takeScreenshot(); print('PBODY shot fp equipped') end)
         -- swings: the real attack key (OPENEDEN_RMLUI_INPUT_SCRIPT) or the pack's test rule; a picture every 0.1 s
-        for i = 0, 29 do at(cfg.swingAt + 0.1 * i, function() debug.takeScreenshot(); print('PBODY shot fp swing ' .. i) end) end
+        for i = 0, (cfg.swingCount or 30) - 1 do at(cfg.swingAt + (cfg.swingStep or 0.1) * i, function() debug.takeScreenshot(); print('PBODY shot fp swing ' .. i) end) end
+        return
+    end
+    if cfg.plan == 'fp2' then
+        -- task 0247: draw, sheathe and blends. The keys (F, the attack) come from OPENEDEN_RMLUI_INPUT_SCRIPT at frame 60 x t.
+        -- The view looks a little down all the time so that the hands show once they are up.
+        at(0.3, function() pitchImpulse = cfg.pitch or 0.3 end)
+        at(1.0, function()
+            for _, id in ipairs(cfg.items) do core.sendGlobalEvent('SkyrimInventoryEquip', { item = id }) end
+            print('PBODY equip ' .. table.concat(cfg.items, ','))
+        end)
+        if cfg.race then
+            -- task 0247: a race through the character service (task 0225): the same requests its window makes. The
+            -- window pauses the world (simulation time stands still), so these run on real time (see onFrame).
+            realSteps = {
+                { t = cfg.raceAt or 2.0, fn = function() core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'race', index = cfg.race }) end },
+                { t = (cfg.raceAt or 2.0) + 0.3, fn = function() core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'female', value = cfg.female == true }) end },
+                { t = (cfg.raceAt or 2.0) + 1.0, fn = function() core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'finish' }); print('PBODY character finished') end },
+            }
+            -- the creation window holds the interface mode; closing it as its Done button does
+            realSteps[#realSteps + 1] = { t = (cfg.raceAt or 2.0) + 1.6, fn = function()
+                local ok, I = pcall(require, 'openmw.interfaces')
+                if ok and I.UI then I.UI.setMode(); print('PBODY mode cleared') end
+            end }
+            -- F, as the stance control does it, a few simulation seconds after the world runs again
+            at(cfg.drawAt or 4.0, function() types.Actor.setStance(self, types.Actor.STANCE.Weapon); print('PBODY stance weapon') end)
+        end
+        at(2.0, function() debug.takeScreenshot(); print('PBODY shot fp2 sheathed') end)
+        -- bursts of pictures (cfg.swingCount of them, cfg.swingStep seconds apart) from the times in cfg.bursts
+        for b, t0 in ipairs(cfg.bursts or {}) do
+            for i = 0, (cfg.swingCount or 18) - 1 do
+                at(t0 + (cfg.swingStep or 0.1) * i, function() debug.takeScreenshot(); print('PBODY shot fp2 burst ' .. b .. ' ' .. i) end)
+            end
+        end
         return
     end
     local f0 = dir()
@@ -124,6 +159,13 @@ return {
                 setup()
             end
             local t = now - start
+            if realSteps then
+                realStart = realStart or core.getRealTime()
+                local rt = core.getRealTime() - realStart
+                for _, step in ipairs(realSteps) do
+                    if not step.done and rt >= step.t then step.done = true; step.fn() end
+                end
+            end
             self.controls.movement = drive.move
             self.controls.run = drive.run
             self.controls.pitchChange = pitchImpulse

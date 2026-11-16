@@ -90,6 +90,13 @@ namespace MWRender::SkyrimHeldGear
         if (now < mLast) // a restarted clock: keep what is left of the hold
             mUntil = std::min(mUntil - mLast + now, now + kDrawnHoldSeconds);
         mLast = now;
+        const int forced = mForced.load(std::memory_order_acquire);
+        if (forced >= 0)
+        {
+            mPending.store(false, std::memory_order_relaxed); // a combat clip does not draw it while it is forced
+            mUntil = -1.0e30f;
+            return forced == 1;
+        }
         if (mPending.exchange(false, std::memory_order_acq_rel))
             mUntil = now + kDrawnHoldSeconds;
         return now < mUntil;
@@ -178,6 +185,16 @@ namespace MWRender::SkyrimHeldGear
             else
                 note(error);
         }
+    }
+
+    void setDrawn(const std::vector<vsg::ref_ptr<vsg::Object>>& keepAlive, bool drawn)
+    {
+        for (const vsg::ref_ptr<vsg::Object>& kept : keepAlive)
+            if (auto* controller = dynamic_cast<Controller*>(kept.get()))
+            {
+                controller->force(drawn);
+                return;
+            }
     }
 
     void noteCombat(const std::vector<vsg::ref_ptr<vsg::Object>>& keepAlive)
