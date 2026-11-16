@@ -40,6 +40,9 @@ namespace MWPhysics
     /// How often the debug scenario writes the ragdoll's status to the log (about two seconds at 60 steps a second).
     constexpr unsigned cProgressLogSteps = 120;
 
+    /// Task 0195: how often (in steps) a live ragdoll is checked for having settled (every body asleep).
+    constexpr unsigned cSettleCheckSteps = 10;
+
     struct RagdollStatus
     {
         bool present = false; // a ragdoll exists
@@ -109,8 +112,19 @@ namespace MWPhysics
 
         bool hasActor(ActorRagdollHandle handle) const;
 
-        /// Number of ragdolls of actors that exist now.
+        /// Number of actor ragdoll handles that exist now (live and frozen).
         std::size_t actorRagdollCount() const;
+
+        /// Task 0195. Ragdolls that hold Jolt bodies now (at most cMaxActorRagdolls).
+        std::size_t liveActorRagdollCount() const;
+
+        /// Task 0195. True for a settled corpse whose slot went to a new death: its handle stays valid, readActor gives
+        /// its last pose, it holds no Jolt body.
+        bool isActorFrozen(ActorRagdollHandle handle) const;
+
+        /// Task 0195. The step at which a live ragdoll was first seen with every body asleep (checked every
+        /// cSettleCheckSteps steps), or cNotSettled. For a frozen or stale handle also cNotSettled.
+        std::uint64_t actorSettledStep(ActorRagdollHandle handle) const;
 
         /// The rig bone each body follows ("Pelvis", "LeftUpperArm", ...), in body order: the same for every actor
         /// ragdoll. Empty before the first spawn.
@@ -131,10 +145,13 @@ namespace MWPhysics
 
         explicit RagdollHost(float unitsPerMeter);
 
+        /// A slot holds the Jolt bodies of one live ragdoll and names its entry (task 0195).
         struct ActorSlot
         {
             bool mUsed = false;
             std::uint32_t mGeneration = 0;
+            std::uint32_t mEntry = ~0u; // the entry (handle) this slot's ragdoll belongs to
+            std::uint64_t mSettledStep = cNotSettled; // first step seen with every body asleep; reset when seen awake
             double mSpawnZ = 0.0;
             unsigned mSteps = 0; // physics steps since the spawn (counted only while the trace is on)
             bool mSettledLogged = false;
@@ -143,12 +160,38 @@ namespace MWPhysics
             mutable std::vector<opas::physics::BodyState> mStates;
         };
 
+        /// One handle's identity (task 0195). Live: it names a slot. Frozen: the settled corpse's slot went to a new
+        /// death, no Jolt body remains and the last pose is kept here.
+        struct ActorEntry
+        {
+            bool mUsed = false;
+            bool mFrozen = false;
+            std::uint32_t mGeneration = 0;
+            std::uint32_t mSlot = ~0u; // while live
+            std::size_t mFrozenBodies = 0;
+            double mFrozenLowestZ = 0.0;
+            double mFrozenHighestZ = 0.0;
+            std::array<RagdollBoneState, cMaxFrozenBones> mFrozenStates;
+        };
+
         bool loadRigAndProfile(std::string* error);
         void summarize(const std::vector<opas::physics::BodyState>& states, RagdollStatus& result) const;
         // The two places game units and meters meet in this class.
         double metres(double units) const { return units / static_cast<double>(mUnitsPerMeter); }
         double fromMetres(double meters) const { return meters * static_cast<double>(mUnitsPerMeter); }
+        // Destroys the slot's Jolt ragdoll and frees the slot; the entry is not touched.
+        void destroySlotBodies(ActorSlot& slot);
+        // destroySlotBodies, and the slot's entry is freed too (its handle goes stale).
         void clearActorSlot(ActorSlot& slot);
+        // The entry of a valid handle, or nullptr.
+        const ActorEntry* entryOf(ActorRagdollHandle handle) const;
+        // The live slot of a valid handle, or nullptr (also for a frozen entry).
+        const ActorSlot* liveSlotOf(ActorRagdollHandle handle) const;
+        // Task 0195: the settled slot to give to a new death (smallest settle step, then lowest slot), or the table
+        // size if no ragdoll is asleep now. Reads the bodies of the candidates; no allocation.
+        std::size_t findSettledSlot();
+        // Task 0195: keeps the slot's ragdoll as a frozen pose in its entry and frees the slot's bodies.
+        void freezeSlot(std::size_t slotIndex);
         // Task 0106, second slice (2): the shift (metres) that moves a ragdoll built from `rig` at `rootWorld` out of
         // the static world, found with a bounded number of collision queries. Zero when nothing touches it or it
         // cannot be freed within cMaxStartShiftMetres.
@@ -163,6 +206,8 @@ namespace MWPhysics
         std::vector<std::string> mActorBodyBones;
         std::vector<JPH::RefConst<JPH::Shape>> mActorShapes; // one per rig body, for the start placement queries
         std::array<ActorSlot, cMaxActorRagdolls> mActorSlots;
+        std::array<ActorEntry, cMaxActorRagdollEntries> mActorEntries;
+        std::uint64_t mStepCounter = 0; // endStep calls, for the settle checks
         unsigned mActorStepCounter = 0;
         unsigned mActorTraceCounter = 0;
         double mSpawnZ = 0.0;

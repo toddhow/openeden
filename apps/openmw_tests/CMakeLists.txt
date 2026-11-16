@@ -213,6 +213,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp
+    mwphysics/testragdollslotreuse.cpp
     mwphysics/testactorragdollpose.cpp
     mwphysics/testactorragdollplacement.cpp
 

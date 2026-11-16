@@ -11,6 +11,16 @@ namespace MWPhysics
     /// Task 0106: how many actor ragdolls (dead NPCs) the host holds at once, besides the debug ragdoll.
     constexpr std::size_t cMaxActorRagdolls = 8;
 
+    /// Task 0195: how many actor ragdoll handles exist at once. At most cMaxActorRagdolls of them hold Jolt bodies; the
+    /// others are frozen poses of settled corpses whose slot went to a new death.
+    constexpr std::size_t cMaxActorRagdollEntries = 256;
+
+    /// Task 0195: bones a frozen pose can hold (the rig has 16 bodies).
+    constexpr std::size_t cMaxFrozenBones = 32;
+
+    /// actorSettledStep's answer for a ragdoll that is not (yet) settled.
+    constexpr std::uint64_t cNotSettled = ~std::uint64_t{ 0 };
+
     /// Names one actor ragdoll. A handle outlives its ragdoll: every call with a stale one fails.
     struct ActorRagdollHandle
     {

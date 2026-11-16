@@ -188,7 +188,7 @@ namespace MWPhysics
             clearActorSlot(slot);
     }
 
-    void RagdollHost::clearActorSlot(ActorSlot& slot)
+    void RagdollHost::destroySlotBodies(ActorSlot& slot)
     {
         if (!slot.mUsed)
             return;
@@ -197,8 +197,79 @@ namespace MWPhysics
         slot.mRagdoll.reset();
         slot.mBodyIds.clear();
         slot.mUsed = false;
+        slot.mEntry = ~0u;
+        slot.mSettledStep = cNotSettled;
         // A handle made before this point never matches again.
         ++slot.mGeneration;
+    }
+
+    void RagdollHost::clearActorSlot(ActorSlot& slot)
+    {
+        if (!slot.mUsed)
+            return;
+        if (slot.mEntry < mActorEntries.size())
+        {
+            ActorEntry& entry = mActorEntries[slot.mEntry];
+            entry.mUsed = false;
+            entry.mFrozen = false;
+            entry.mSlot = ~0u;
+            ++entry.mGeneration;
+        }
+        destroySlotBodies(slot);
+    }
+
+    const RagdollHost::ActorEntry* RagdollHost::entryOf(ActorRagdollHandle handle) const
+    {
+        if (handle.mIndex >= mActorEntries.size())
+            return nullptr;
+        const ActorEntry& entry = mActorEntries[handle.mIndex];
+        return entry.mUsed && entry.mGeneration == handle.mGeneration ? &entry : nullptr;
+    }
+
+    const RagdollHost::ActorSlot* RagdollHost::liveSlotOf(ActorRagdollHandle handle) const
+    {
+        const ActorEntry* entry = entryOf(handle);
+        if (entry == nullptr || entry->mFrozen || entry->mSlot >= mActorSlots.size())
+            return nullptr;
+        return &mActorSlots[entry->mSlot];
+    }
+
+    std::size_t RagdollHost::findSettledSlot()
+    {
+        std::size_t best = mActorSlots.size();
+        for (std::size_t i = 0; i < mActorSlots.size(); ++i)
+        {
+            ActorSlot& slot = mActorSlots[i];
+            if (!slot.mUsed || slot.mSettledStep == cNotSettled)
+                continue;
+            if (best != mActorSlots.size() && slot.mSettledStep >= mActorSlots[best].mSettledStep)
+                continue; // strictly older wins, so a tie keeps the lowest slot
+            // The record is from the last check: it must still hold now.
+            mWorld->readBodies(slot.mBodyIds, slot.mStates);
+            bool asleep = true;
+            for (const opas::physics::BodyState& state : slot.mStates)
+                asleep = asleep && !state.awake;
+            if (asleep)
+                best = i;
+        }
+        return best;
+    }
+
+    void RagdollHost::freezeSlot(std::size_t slotIndex)
+    {
+        ActorSlot& slot = mActorSlots[slotIndex];
+        ActorEntry& entry = mActorEntries[slot.mEntry];
+        const ActorRagdollHandle handle{ slot.mEntry, entry.mGeneration };
+        const RagdollStatus status = actorStatus(handle);
+        readActor(handle, entry.mFrozenStates);
+        entry.mFrozenBodies = slot.mBodyIds.size();
+        entry.mFrozenLowestZ = status.lowestZ;
+        entry.mFrozenHighestZ = status.highestZ;
+        entry.mFrozen = true;
+        entry.mSlot = ~0u;
+        Log(Debug::Info) << "Ragdoll slot " << slotIndex << " reused: the ragdoll of entry " << handle.mIndex
+                         << " settled at step " << slot.mSettledStep << " is frozen in its last pose";
+        destroySlotBodies(slot);
     }
 
     bool RagdollHost::loadRigAndProfile(std::string* error)
@@ -312,6 +383,18 @@ namespace MWPhysics
             return ActorRagdollHandle{};
         };
 
+        std::size_t entryIndex = mActorEntries.size();
+        for (std::size_t i = 0; i < mActorEntries.size(); ++i)
+        {
+            if (!mActorEntries[i].mUsed)
+            {
+                entryIndex = i;
+                break;
+            }
+        }
+        if (entryIndex == mActorEntries.size())
+            return fail("all actor ragdoll entries are in use");
+
         std::size_t index = mActorSlots.size();
         for (std::size_t i = 0; i < mActorSlots.size(); ++i)
         {
@@ -321,8 +404,16 @@ namespace MWPhysics
                 break;
             }
         }
+        // Task 0195: no free slot: a settled corpse gives its slot (frozen below, once the new ragdoll is built).
+        // A ragdoll with any body awake is never taken.
+        bool takeSettled = false;
         if (index == mActorSlots.size())
-            return fail("all actor ragdoll slots are in use");
+        {
+            index = findSettledSlot();
+            if (index == mActorSlots.size())
+                return fail("all actor ragdoll slots are in use");
+            takeSettled = true;
+        }
         if (!loadRigAndProfile(error))
             return ActorRagdollHandle{};
 
@@ -351,9 +442,24 @@ namespace MWPhysics
         if (!built.ok())
             return fail(built.message);
 
+        if (takeSettled)
+        {
+            if (mActorBodyBones.size() > cMaxFrozenBones)
+            {
+                opas::motor::destroyRagdoll(*mWorld, *built.ragdoll);
+                return fail("the rig has too many bodies to freeze a settled ragdoll");
+            }
+            freezeSlot(index);
+        }
         ActorSlot& slot = mActorSlots[index];
         slot.mRagdoll.emplace(std::move(*built.ragdoll));
         slot.mUsed = true;
+        slot.mEntry = static_cast<std::uint32_t>(entryIndex);
+        slot.mSettledStep = cNotSettled;
+        ActorEntry& entry = mActorEntries[entryIndex];
+        entry.mUsed = true;
+        entry.mFrozen = false;
+        entry.mSlot = static_cast<std::uint32_t>(index);
         if (!opas::motor::makeLimp(*mWorld, *slot.mRagdoll, *mActorProfile))
             Log(Debug::Warning) << "Ragdoll: some of the death settings could not be applied";
 
@@ -371,24 +477,10 @@ namespace MWPhysics
         for (const opas::physics::BodyId id : slot.mBodyIds)
             mWorld->setVelocity(id, velocity, opas::physics::Vec3{});
 
-        return ActorRagdollHandle{ static_cast<std::uint32_t>(index), slot.mGeneration };
+        return ActorRagdollHandle{ static_cast<std::uint32_t>(entryIndex), entry.mGeneration };
     }
 
-    bool RagdollHost::hasActor(ActorRagdollHandle handle) const
-    {
-        return handle.mIndex < mActorSlots.size() && mActorSlots[handle.mIndex].mUsed
-            && mActorSlots[handle.mIndex].mGeneration == handle.mGeneration;
-    }
-
-    bool RagdollHost::removeActor(ActorRagdollHandle handle)
-    {
-        if (!hasActor(handle))
-            return false;
-        clearActorSlot(mActorSlots[handle.mIndex]);
-        return true;
-    }
-
-    std::size_t RagdollHost::actorRagdollCount() const
+    std::size_t RagdollHost::liveActorRagdollCount() const
     {
         std::size_t count = 0;
         for (const ActorSlot& slot : mActorSlots)
@@ -396,11 +488,61 @@ namespace MWPhysics
         return count;
     }
 
+    bool RagdollHost::isActorFrozen(ActorRagdollHandle handle) const
+    {
+        const ActorEntry* entry = entryOf(handle);
+        return entry != nullptr && entry->mFrozen;
+    }
+
+    std::uint64_t RagdollHost::actorSettledStep(ActorRagdollHandle handle) const
+    {
+        const ActorSlot* slot = liveSlotOf(handle);
+        return slot == nullptr ? cNotSettled : slot->mSettledStep;
+    }
+
+    bool RagdollHost::hasActor(ActorRagdollHandle handle) const
+    {
+        return entryOf(handle) != nullptr;
+    }
+
+    bool RagdollHost::removeActor(ActorRagdollHandle handle)
+    {
+        const ActorEntry* entry = entryOf(handle);
+        if (entry == nullptr)
+            return false;
+        if (entry->mFrozen)
+        {
+            ActorEntry& frozen = mActorEntries[handle.mIndex];
+            frozen.mUsed = false;
+            frozen.mFrozen = false;
+            ++frozen.mGeneration;
+            return true;
+        }
+        clearActorSlot(mActorSlots[entry->mSlot]);
+        return true;
+    }
+
+    std::size_t RagdollHost::actorRagdollCount() const
+    {
+        std::size_t count = 0;
+        for (const ActorEntry& entry : mActorEntries)
+            count += entry.mUsed ? 1 : 0;
+        return count;
+    }
+
     bool RagdollHost::readActor(ActorRagdollHandle handle, std::span<RagdollBoneState> out) const
     {
-        if (!hasActor(handle))
+        const ActorEntry* entry = entryOf(handle);
+        if (entry == nullptr)
             return false;
-        const ActorSlot& slot = mActorSlots[handle.mIndex];
+        if (entry->mFrozen)
+        {
+            if (out.size() < entry->mFrozenBodies)
+                return false;
+            std::copy_n(entry->mFrozenStates.begin(), entry->mFrozenBodies, out.begin());
+            return true;
+        }
+        const ActorSlot& slot = mActorSlots[entry->mSlot];
         if (out.size() < slot.mBodyIds.size())
             return false;
         mWorld->readBodies(slot.mBodyIds, slot.mStates);
@@ -485,6 +627,23 @@ namespace MWPhysics
     void RagdollHost::endStep()
     {
         mWorld->endStep();
+        // Task 0195: which live ragdolls have settled, checked every cSettleCheckSteps steps (no allocation).
+        if (++mStepCounter % cSettleCheckSteps == 0)
+        {
+            for (ActorSlot& slot : mActorSlots)
+            {
+                if (!slot.mUsed)
+                    continue;
+                mWorld->readBodies(slot.mBodyIds, slot.mStates);
+                bool asleep = true;
+                for (const opas::physics::BodyState& state : slot.mStates)
+                    asleep = asleep && !state.awake;
+                if (!asleep)
+                    slot.mSettledStep = cNotSettled;
+                else if (slot.mSettledStep == cNotSettled)
+                    slot.mSettledStep = mStepCounter;
+            }
+        }
         if (mProgressLogging)
         {
             // The developer trace (OPENEDEN_RAGDOLL_TRACE): the step at which each actor ragdoll first sleeps ...
@@ -496,7 +655,7 @@ namespace MWPhysics
                 ++slot.mSteps;
                 if (slot.mSettledLogged)
                     continue;
-                const ActorRagdollHandle handle{ static_cast<std::uint32_t>(i), slot.mGeneration };
+                const ActorRagdollHandle handle{ slot.mEntry, mActorEntries[slot.mEntry].mGeneration };
                 if (actorStatus(handle).allAsleep)
                 {
                     slot.mSettledLogged = true;
@@ -510,9 +669,11 @@ namespace MWPhysics
                 mActorTraceCounter = 0;
                 for (std::size_t i = 0; i < mActorSlots.size(); ++i)
                 {
-                    const ActorRagdollHandle handle{ static_cast<std::uint32_t>(i), mActorSlots[i].mGeneration };
-                    if (!hasActor(handle))
+                    if (!mActorSlots[i].mUsed)
                         continue;
+                    const ActorRagdollHandle handle{
+                        mActorSlots[i].mEntry, mActorEntries[mActorSlots[i].mEntry].mGeneration
+                    };
                     const RagdollStatus current = actorStatus(handle);
                     Log(Debug::Info) << "Actor ragdoll " << i << ": lowest body " << current.lowestZ << " highest "
                                      << current.highestZ << " (units, spawn height " << mActorSlots[i].mSpawnZ
@@ -586,9 +747,19 @@ namespace MWPhysics
     RagdollStatus RagdollHost::actorStatus(ActorRagdollHandle handle) const
     {
         RagdollStatus result;
-        if (!hasActor(handle))
+        const ActorEntry* entry = entryOf(handle);
+        if (entry == nullptr)
             return result;
-        const ActorSlot& slot = mActorSlots[handle.mIndex];
+        if (entry->mFrozen)
+        {
+            result.present = true;
+            result.bodies = entry->mFrozenBodies;
+            result.lowestZ = entry->mFrozenLowestZ;
+            result.highestZ = entry->mFrozenHighestZ;
+            result.allAsleep = true; // a frozen pose never moves
+            return result;
+        }
+        const ActorSlot& slot = mActorSlots[entry->mSlot];
         result.present = true;
         result.bodies = slot.mBodyIds.size();
         mWorld->readBodies(slot.mBodyIds, slot.mStates);
