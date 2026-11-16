@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -101,6 +102,26 @@ namespace game_skyrimse::journal
     /// the alias NAME stays as before.
     using AliasNameResolver = std::function<std::string(std::string_view aliasName)>;
     [[nodiscard]] std::string expandTags(std::string_view text, const AliasNameResolver& aliasName);
+
+    /// Task 0228: the same tags in a conversation (the lines, the topic prompts and the subtitles), where more tags are
+    /// known. A hook that is empty leaves its tag unfilled. The tag names are compared without regard to case.
+    ///  - `<Alias=X>`, `<Alias.ShortName=X>`, `<Alias.Name=X>`: mAlias (as above).
+    ///  - `<Alias.Pronoun=X>` he or she, `.PronounCap` He or She, `.PronounObj` him or her, `.PronounPos` his or her,
+    ///    `.PronounPosObj` his or hers, `.PronounRef` himself or herself: mAliasFemale says which (1 female, 0 male, -1
+    ///    unknown, which gives the plural forms they, them, their, theirs, themselves).
+    ///  - `<Global=X>`: mGlobal gives the value of the global named X (a whole number shows without decimals).
+    ///  - `<BaseName>` (the speaker's name), `<BribeCost>`, `<CrimeGold>`.
+    /// A tag with no hook (and any other tag) becomes `unknown` ("" in a conversation, "..." in the journal).
+    struct TagHooks
+    {
+        AliasNameResolver mAlias;
+        std::function<int(std::string_view aliasName)> mAliasFemale;
+        std::function<std::optional<float>(std::string_view globalName)> mGlobal;
+        std::function<std::string()> mBaseName;
+        std::function<std::optional<float>()> mBribeCost;
+        std::function<std::optional<float>()> mCrimeGold;
+    };
+    [[nodiscard]] std::string expandTags(std::string_view text, const TagHooks& hooks, std::string_view unknown);
 
     using TextFn = std::function<std::string(const LString&, std::uint32_t plugin, StringTableKind)>;
     using ObjectiveFn = std::function<ObjectiveFlags(FormId quest, std::uint16_t index)>;

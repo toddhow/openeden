@@ -68,6 +68,7 @@ namespace MWWorld
     class NeutralProjectiles;
     class NeutralSceneSpeech;
     class NeutralMusicDriver; // task 0209
+    class NeutralPlayerNameDriver; // task 0228
 
     /// \brief The game world and its visual representation
 
@@ -99,6 +100,8 @@ namespace MWWorld
         std::unique_ptr<NeutralProjectiles> mNeutralProjectiles; // task 0178: the arrows of the neutral combat bridge
         std::unique_ptr<NeutralMusicDriver> mNeutralMusic; // task 0209: a game pack's music, made on first use
         bool mNeutralMusicTried = false;
+        std::unique_ptr<NeutralPlayerNameDriver> mNeutralPlayerName; // task 0228: the pack's player name
+        bool mNeutralPlayerNameTried = false;
 
         bool mGodMode;
         bool mScriptsEnabled;
@@ -142,6 +145,7 @@ namespace MWWorld
         std::unique_ptr<MWWorld::WeatherManager> makeWeatherManager();
         void updateWeather(float duration, bool paused = false);
         void updateNeutralMusic(float duration);
+        void updateNeutralPlayerName();
 
         void initObjectInCell(const Ptr& ptr, CellStore& cell, bool adjustPos);
         Ptr moveObjectToCell(const Ptr& ptr, CellStore* cell, ESM::Position pos, bool adjustPos);

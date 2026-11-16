@@ -11,6 +11,7 @@ local self = require('openmw.self')
 local util = require('openmw.util')
 local nearby = require('openmw.nearby')
 local I = require('openmw.interfaces')
+local input = require('openmw.input')
 
 local okUi, ui = pcall(require, 'openeden.ui')
 local okChr, chr = pcall(require, 'core.skyrimse.character')
@@ -99,8 +100,25 @@ local function show()
   I.UI.setMode(MODE, { windows = {} })
 end
 
+-- Task 0228: the race's power. The key P uses the first power of the race when it is ready (one a game day); the
+-- pack says which ones its magic runtime can do (`power_support`: works, status or none).
+local POWER_KEY = input.KEY.P
+local function usePower()
+  if not chr.ready() or chr.needed() or I.UI.getMode() ~= nil then return end
+  local now = math.floor(core.getGameTime())
+  for i = 0, chr.power_count() - 1 do
+    if chr.power_ready(i, now) then
+      core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'power', index = i, now = now })
+      return
+    end
+  end
+end
+
 return {
   engineHandlers = {
+    onKeyPress = function(key)
+      if key.code == POWER_KEY then usePower() end
+    end,
     onFrame = function()
       frames = frames + 1
       if view.isOpen() then

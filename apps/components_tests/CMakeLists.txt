@@ -661,6 +661,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseinventoryequipreal.cpp
     skyrimse/testskyrimseinventoryreal.cpp
     skyrimse/testskyrimsejournal.cpp
+    skyrimse/testskyrimsetexttags.cpp
+    skyrimse/testskyrimsepowersname.cpp
+    skyrimse/testskyrimsepowersreal.cpp
     skyrimse/testskyrimsemap.cpp
     skyrimse/testskyrimserest.cpp
     skyrimse/testskyrimsetravel.cpp

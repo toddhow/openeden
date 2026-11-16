@@ -748,6 +748,22 @@ namespace game_skyrimse
         return it == mGlobals.end() ? nullptr : &it->second;
     }
 
+    const GlobalValue* DialogueIndex::globalByEditorId(std::string_view name) const
+    {
+        for (const auto& [id, value] : mGlobals)
+        {
+            const std::string& editor = value.mCommon.mEditorId;
+            if (editor.size() != name.size())
+                continue;
+            bool same = true;
+            for (std::size_t i = 0; i < name.size() && same; ++i)
+                same = std::tolower(static_cast<unsigned char>(editor[i])) == std::tolower(static_cast<unsigned char>(name[i]));
+            if (same)
+                return &value;
+        }
+        return nullptr;
+    }
+
     const FormListRecord* DialogueIndex::formList(FormId id) const
     {
         const auto it = mFormLists.find(id);
@@ -800,6 +816,11 @@ namespace game_skyrimse
     }
 
     // ---- the player and the speaker's numbers (task 0155) --------------------------------------------------------
+
+    std::uint16_t SkyrimConditionWorld::speakerLevel() const
+    {
+        return speakerStats() ? mStats.level : 0;
+    }
 
     bool SkyrimConditionWorld::speakerStats() const
     {

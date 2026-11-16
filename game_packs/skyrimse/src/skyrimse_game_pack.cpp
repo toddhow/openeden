@@ -1680,6 +1680,20 @@ namespace game_skyrimse
                                 + " abilities, starting skills " + character::describeBoosts(race.mBoosts)
                                 + (fresh ? " (new character)" : " (loaded)"));
                 };
+                hooks.mName = [this](const std::string& name) { mWorldView.setPlayerName(name); }; // task 0228
+                hooks.mPowers = [this](const std::vector<FormId>& spells) {
+                    std::vector<character::PowerInfo> out;
+                    for (const SkyrimCombat::RacePower& power : mCellSource.combat().racePowers(spells))
+                    {
+                        character::PowerInfo info;
+                        info.mId = power.mId;
+                        info.mName = power.mName;
+                        info.mSupport = static_cast<character::PowerSupport>(power.mSupport);
+                        out.push_back(std::move(info));
+                    }
+                    return out;
+                };
+                hooks.mCastPower = [this](FormId spell) { return mCellSource.combat().castPlayerPower(spell); };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
@@ -1697,6 +1711,8 @@ namespace game_skyrimse
                 {
                     if (!chunks->registerHandler(mCharacter->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the character chunk was not registered");
+                    if (!chunks->registerHandler(mCharacter->powerChunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the character powers chunk was not registered");
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "CHARACTER the character creation is on");

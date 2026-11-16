@@ -19,6 +19,9 @@ return {
         chr.set_name(data.text)
       elseif data.kind == 'finish' then
         chr.finish()
+      elseif data.kind == 'power' and type(data.index) == 'number' and type(data.now) == 'number' then
+        -- task 0228: the race's power (once a game day); the pack checks that it is ready
+        chr.use_power(math.floor(data.index), math.floor(data.now))
       end
     end,
   },

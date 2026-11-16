@@ -93,6 +93,163 @@ namespace game_skyrimse
         }
     }
 
+    // ---- task 0228: race powers ------------------------------------------------------------------------------------
+
+    namespace
+    {
+        constexpr std::uint32_t kSpellTypePower = 2;
+        constexpr std::uint32_t kSpellTypeLesserPower = 3;
+        /// How long a queued power waits for the cast clip's timing before it is dropped (the sidecar is read on a worker).
+        constexpr float kPowerWaitSeconds = 5.f;
+
+        bool isPowerType(const SpellRecord& spell)
+        {
+            return spell.mHasData && (spell.mType == kSpellTypePower || spell.mType == kSpellTypeLesserPower);
+        }
+
+        SkyrimCombat::PowerSupport powerSupportOf(CombatData& data, const SpellRecord& spell, bool applyConditions)
+        {
+            bool works = false;
+            bool status = false;
+            for (const SpellEffect& e : spell.mEffects)
+            {
+                const MagicEffectRecord* record = data.effectById(e.mEffect);
+                if (record == nullptr || !record->mHasData)
+                    continue;
+                if (e.mConditions + record->mConditions > 0 && !applyConditions)
+                    continue;
+                switch (record->mArchetype)
+                {
+                    case MagicArchetype::ValueModifier:
+                    case MagicArchetype::PeakValueModifier:
+                    case MagicArchetype::Dual:
+                    case MagicArchetype::Absorb:
+                        if (isVitalValue(record->mPrimaryValue))
+                            works = true;
+                        else
+                            status = true;
+                        break;
+                    case MagicArchetype::Stagger:
+                    case MagicArchetype::Demoralize:
+                        works = true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return works ? SkyrimCombat::PowerSupport::Works
+                         : (status ? SkyrimCombat::PowerSupport::StatusOnly : SkyrimCombat::PowerSupport::Unsupported);
+        }
+    }
+
+    std::vector<SkyrimCombat::RacePower> SkyrimCombat::racePowers(const std::vector<FormId>& spells)
+    {
+        std::vector<RacePower> out;
+        if (mData == nullptr)
+            return out;
+        for (const FormId id : spells)
+        {
+            const SpellRecord* spell = mData->spellById(id);
+            if (spell == nullptr || !isPowerType(*spell))
+                continue;
+            RacePower power;
+            power.mId = id;
+            power.mName = spellName(*spell);
+            power.mSupport = powerSupportOf(*mData, *spell, true); // a power applies its effects' conditions
+            out.push_back(std::move(power));
+        }
+        return out;
+    }
+
+    void SkyrimCombat::applyPowerEffects(CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell)
+    {
+        // A power's effects: one with an area goes to everyone else within that many feet of the caster, one without to
+        // the caster. The effects' own conditions (the records gate a Battle Cry on its targets) are not evaluated: OURS,
+        // a power applies them all.
+        SubjectState me;
+        bool haveMe = false;
+        bool meAsked = false;
+        for (const SpellEffect& effect : spell.mEffects)
+        {
+            const MagicEffectRecord* record = mData->effectById(effect.mEffect);
+            if (record == nullptr || !record->mHasData)
+            {
+                trace("COMBAT effect of " + spellName(spell) + ": no record");
+                continue;
+            }
+            if (effect.mArea == 0)
+            {
+                bool blocked = false;
+                applyOneEffect(writer, caster, caster, spell, effect, *record, blocked, nullptr);
+                continue;
+            }
+            if (!meAsked)
+            {
+                meAsked = true;
+                haveMe = writer.subjectState(caster.mSubject, me);
+            }
+            if (!haveMe)
+                continue;
+            const double radius = static_cast<double>(effect.mArea) * static_cast<double>(kUnitsPerFoot);
+            std::size_t reached = 0;
+            for (std::size_t i = 0; i < mFighters.size(); ++i)
+            {
+                Fighter& other = mFighters[i];
+                if (&other == &caster || other.mDead || !ready(other))
+                    continue;
+                SubjectState there;
+                if (!writer.subjectState(other.mSubject, there))
+                    continue;
+                const double dx = there.x - me.x;
+                const double dy = there.y - me.y;
+                const double dz = there.z - me.z;
+                if (dx * dx + dy * dy + dz * dz > radius * radius)
+                    continue;
+                bool blocked = false;
+                applyOneEffect(writer, caster, other, spell, effect, *record, blocked, nullptr);
+                ++reached;
+            }
+            trace("COMBAT power " + spellName(spell) + " area " + std::to_string(effect.mArea) + " ft reached "
+                + std::to_string(reached));
+        }
+    }
+
+    bool SkyrimCombat::castPlayerPower(FormId spell)
+    {
+        if (mData == nullptr || mPendingPower != kNullFormId)
+            return false;
+        const SpellRecord* record = mData->spellById(spell);
+        if (record == nullptr || !isPowerType(*record))
+            return false;
+        mPendingPower = spell;
+        mPendingPowerAt = mClock;
+        trace("COMBAT player power " + spellName(*record) + " queued");
+        return true;
+    }
+
+    void SkyrimCombat::runPlayerPower(CombatRequestWriter& writer)
+    {
+        if (mPendingPower == kNullFormId || mFighters.empty())
+            return;
+        Fighter& player = mFighters.front();
+        const SpellRecord* spell = mData->spellById(mPendingPower);
+        if (spell == nullptr)
+        {
+            mPendingPower = kNullFormId;
+            return;
+        }
+        if (ready(player) && beginCast(writer, player, *spell, false, 0.f))
+        {
+            mPendingPower = kNullFormId;
+            return;
+        }
+        if (mClock - mPendingPowerAt > kPowerWaitSeconds)
+        {
+            trace("COMBAT player power " + spellName(*spell) + " gave up: the cast did not start");
+            mPendingPower = kNullFormId;
+        }
+    }
+
     SlotTable SlotTable::magic()
     {
         // Names from the listing of Skyrim - Animations.bsa (meshes/actors/character/animations/mrh_release.hkx and
@@ -790,7 +947,10 @@ namespace game_skyrimse
             + " of " + num(f->mProfile.mMagickaMax));
         if (spell.mDelivery == MagicDelivery::Self)
         {
-            applySpellEffects(writer, *f, *f, spell, nullptr);
+            if (isPowerType(spell))
+                applyPowerEffects(writer, *f, spell); // task 0228: a power's area reaches the others
+            else
+                applySpellEffects(writer, *f, *f, spell, nullptr);
             return;
         }
         if (spell.mDelivery == MagicDelivery::Touch && mSpellBeams)
@@ -1225,6 +1385,7 @@ namespace game_skyrimse
             fireCast(writer, cast);
         }
         runPlayerCast(writer);
+        runPlayerPower(writer);
         startTestCasts(writer);
     }
 }

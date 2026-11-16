@@ -22,6 +22,7 @@
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/player_body.hpp>
+#include <openeden/game/player_identity.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
@@ -164,6 +165,7 @@ namespace game_skyrimse
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
                                    public openeden::sdk::game::ActorAppearanceSource,
                                    public openeden::sdk::game::PlayerBodySource,
+                                   public openeden::sdk::game::PlayerIdentitySource,
                                    public openeden::sdk::game::ActorMechanicsSource,
                                    public openeden::sdk::game::DialogueSource,
                                    public openeden::sdk::game::DisplayNameSource,
@@ -260,6 +262,7 @@ namespace game_skyrimse
         /// Task 0222: the player's body. The picture comes from the view; the swing state is the combat rules'.
         bool playerBody(openeden::sdk::game::PlayerBodyState& out) override;
         bool describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        bool playerIdentity(openeden::sdk::game::PlayerIdentityState& out) override; // task 0228
         /// Actor numbers and relations (task 0154): forwarded to the view when it has them (SkyrimWorldView does).
         bool actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation, std::uint16_t playerLevel,
             openeden::sdk::game::ActorStats& out, std::string& error) override;

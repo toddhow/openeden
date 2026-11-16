@@ -15,6 +15,10 @@
 //   step_part(part, d)   [Mutate]   d places in the part's list, wrapping round
 //   set_name(text)       [Mutate]
 //   finish()             [Mutate]   keeps the choice: the chunk, the body, the race's skills and abilities
+// Version 1.1 (task 0228), the race's powers (RACE SPLO spells of type power or lesser power; once a game day each):
+//   power_count() -> int, power_name(i) -> string (the editor id), power_support(i) -> "works"|"status"|"none"
+//   power_ready(i, now) -> bool            `now` is the game time in seconds (core.getGameTime())
+//   use_power(i, now)    [Mutate]          casts the power through the magic runtime when it is ready, and starts its day
 //
 // The chunk (`character` version 1): done byte, then the choice's own blob (length and bytes). The saved choice is
 // checked when the actor records are read (a race that is not playable, a part that is not an option: refused, and the
@@ -31,6 +35,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace game_skyrimse::character
@@ -41,6 +46,23 @@ namespace game_skyrimse::character
         TextFn mText;
     };
 
+    /// How much of a power the magic runtime can do (SkyrimCombat::PowerSupport, repeated here so the service does not
+    /// include the combat).
+    enum class PowerSupport : std::uint8_t
+    {
+        Works,
+        StatusOnly,
+        Unsupported
+    };
+    struct PowerInfo
+    {
+        FormId mId = kNullFormId;
+        std::string mName;
+        PowerSupport mSupport = PowerSupport::Unsupported;
+    };
+    /// A power can be used once in this many game seconds (a game day; OURS: the records give no timing).
+    inline constexpr std::int64_t kPowerCooldownSeconds = 24 * 60 * 60;
+
     struct Hooks
     {
         /// Fills the access when the actor records are read (false: ask again next frame).
@@ -50,6 +72,12 @@ namespace game_skyrimse::character
         /// The race of the character is known (a finished creation or a restored one): its abilities are the player's.
         /// `fresh` is true only at the moment the player finishes (the starting skills are applied then).
         std::function<void(const RaceOption&, bool fresh)> mRace;
+        /// Task 0228: the player's chosen name (a finished creation, a restored choice): the engine's player record
+        /// takes it.
+        std::function<void(const std::string&)> mName;
+        /// Task 0228: the powers among a race's spells, and the cast of one. Without them the race has no powers.
+        std::function<std::vector<PowerInfo>(const std::vector<FormId>& raceSpells)> mPowers;
+        std::function<bool(FormId)> mCastPower;
         std::function<void(const std::string&)> mLog;
     };
 
@@ -81,12 +109,23 @@ namespace game_skyrimse::character
         /// Keeps the choice. False when not ready or already done.
         bool finish();
 
+        /// Task 0228: the powers of the chosen race (empty before the creation is done).
+        [[nodiscard]] std::vector<PowerInfo> powers() const;
+        /// Ready: the creation is done, the index is valid, the power is not Unsupported and a day has passed.
+        [[nodiscard]] bool powerReady(std::size_t index, std::int64_t nowSeconds) const;
+        /// Casts power `index` when ready and starts its day; false (nothing changes) otherwise.
+        bool usePower(std::size_t index, std::int64_t nowSeconds);
+
         [[nodiscard]] openeden::sdk::SaveChunkHandler& chunk();
+        /// Task 0228: the powers' last use, a second chunk (`character_powers` v1) so the first stays as saved before.
+        [[nodiscard]] openeden::sdk::SaveChunkHandler& powerChunk();
         [[nodiscard]] openeden::sdk::DeclareResult declare(openeden::sdk::BindingsService& service);
 
         /// Called by the chunk.
         void writeChunk(openeden::sdk::ChunkWriter& writer);
         bool readChunk(openeden::sdk::ChunkReader& reader, std::uint32_t version);
+        void writePowerChunk(openeden::sdk::ChunkWriter& writer);
+        bool readPowerChunk(openeden::sdk::ChunkReader& reader);
 
     private:
         void changed();
@@ -98,6 +137,7 @@ namespace game_skyrimse::character
         Access mAccess;
         bool mDone = false;
         Choice mFinal;
+        std::vector<std::pair<FormId, std::int64_t>> mPowerUsed; ///< power -> game second of its last use (saved)
         bool mHavePending = false;
         Choice mPending;
         std::uint64_t mLastSent = 0;

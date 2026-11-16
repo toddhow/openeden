@@ -217,6 +217,7 @@ add_library(game_skyrimse_world STATIC
     src/scene.cpp
     src/scene_runner.cpp
     src/quest_alias.cpp
+    src/journal.cpp
     src/vmad.cpp
     src/papyrus_host.cpp
     src/papyrus_world.cpp

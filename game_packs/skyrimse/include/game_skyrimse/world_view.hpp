@@ -46,6 +46,7 @@
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/player_body.hpp>
+#include <openeden/game/player_identity.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
@@ -135,6 +136,7 @@ namespace game_skyrimse
                                   public TerrainProvider,
                                   public openeden::sdk::game::ActorAppearanceSource,
                                   public openeden::sdk::game::PlayerBodySource,
+                                  public openeden::sdk::game::PlayerIdentitySource,
                                   public openeden::sdk::game::ActorMechanicsSource,
                                   public openeden::sdk::game::DialogueSource,
                                   public openeden::sdk::game::DisplayNameSource,
@@ -415,6 +417,11 @@ namespace game_skyrimse
         /// records are read (a worker reads them, adopted here).
         bool playerBody(openeden::sdk::game::PlayerBodyState& out) override;
         bool describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        // ---- openeden::sdk::game::PlayerIdentitySource (task 0228) ----
+        /// The name the player chose: the core writes it into his record. An empty name is no name.
+        void setPlayerName(std::string name);
+        [[nodiscard]] const std::string& playerName() const { return mPlayerName; }
+        bool playerIdentity(openeden::sdk::game::PlayerIdentityState& out) override;
         [[nodiscard]] bool creatures() const { return mCreatures; }
         /// The speech skill and the gold of the stand-in player the dialogue conditions read (task 0155; the pack
         /// settings `player speech` and `player gold`). Applied when the dialogue runtime is built, the level is
@@ -582,6 +589,10 @@ namespace game_skyrimse
         /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
         /// call and never waits: false means "ask again next frame"). Main thread.
         [[nodiscard]] bool papyrusAccess(PapyrusAccess& out);
+        /// Tasks 0217 and 0228: the display name of what fills the alias `aliasName` of `quest` ("" when nothing does),
+        /// shared by the journal and the conversation tags; and its sex (1 female, 0 male, -1 unknown).
+        [[nodiscard]] std::string aliasDisplayName(FormId quest, std::string_view aliasName);
+        [[nodiscard]] int aliasFemale(FormId quest, std::string_view aliasName);
         /// The scripts of the placed references of a cell (its own placements, not the world's persistent ones).
         /// Main thread.
         /// Task 0181: a placement's own scripts followed by those of its base form (see vmad::combineScripts).
@@ -658,6 +669,7 @@ namespace game_skyrimse
         bool musicFileExists(const std::string& vfsPath) override;
 
     private:
+        [[nodiscard]] const QuestAlias* findAliasByName(FormId quest, std::string_view aliasName) const;
         struct PluginData
         {
             std::filesystem::path mPath;
@@ -744,6 +756,8 @@ namespace game_skyrimse
         std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mCharacterTables; ///< task 0225
         std::vector<FormId> mPlayerArmour; ///< task 0222: sorted
         FormId mPlayerWeapon = kNullFormId; ///< task 0222
+        std::string mPlayerName; ///< task 0228
+        std::uint32_t mPlayerNameRevision = 0;
         std::uint32_t mPlayerBodyRevision = 0; ///< task 0222: counts changes of the equipment
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold

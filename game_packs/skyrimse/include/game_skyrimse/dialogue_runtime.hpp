@@ -15,6 +15,7 @@
 
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/dialogue.hpp>
+#include <game_skyrimse/journal.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/speech.hpp>
 
@@ -57,6 +58,17 @@ namespace game_skyrimse
     {
         std::uint32_t mMaxTopics = 256; ///< topics offered at once (the rest are counted as cut)
         std::uint32_t mMaxTextBytes = 16 * 1024; ///< one response, joined
+    };
+
+    /// Task 0228: what the text tags of a conversation need from outside the dialogue data. Every field may be empty.
+    struct DialogueTagSources
+    {
+        /// What fills the alias `alias` of `quest` (the journal's own resolver: one function for both).
+        std::function<std::string(FormId quest, std::string_view alias)> mAliasName;
+        /// 1 female, 0 male, -1 unknown, for the alias's pronouns.
+        std::function<int(FormId quest, std::string_view alias)> mAliasFemale;
+        /// The gold the player owes in the speaker's crime faction (`<CrimeGold>`); 0 when absent.
+        std::function<float()> mCrimeGold;
     };
 
     class DialogueRuntime
@@ -107,6 +119,12 @@ namespace game_skyrimse
 
         void setVoiceProbe(VoiceProbe probe) { mVoiceProbe = std::move(probe); }
 
+        /// Task 0228: the text tags (`<Global=...>`, `<Alias=...>`, `<BaseName>`...) of every line, prompt and subtitle
+        /// are filled in; without sources only the tags the dialogue data alone can answer are.
+        void setTagSources(DialogueTagSources sources) { mTagSources = std::move(sources); }
+        /// Fills the tags of `text`, for the quest `quest` (the topic's) and the open speaker.
+        [[nodiscard]] std::string expandText(const std::string& text, FormId quest) const;
+
         /// The stand-in player the speech checks and level conditions read (task 0155); the default is a new game's.
         void setPlayer(const PlayerStandIn& player)
         {
@@ -156,6 +174,7 @@ namespace game_skyrimse
         void offerTopics(openeden::sdk::game::DialogueTurn& out);
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
 
+        DialogueTagSources mTagSources;
         const ActorIndex& mActors;
         const DialogueIndex& mDialogue;
         const QuestIndex& mQuestIndex;

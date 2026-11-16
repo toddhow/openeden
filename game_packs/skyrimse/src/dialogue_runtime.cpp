@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "game_skyrimse/services.hpp"
+#include "game_skyrimse/speech.hpp"
 #include "game_skyrimse/voice.hpp"
 
 namespace game_skyrimse
@@ -30,6 +31,40 @@ namespace game_skyrimse
         o.mQuests = &mQuestIndex;
         o.mPick = pick;
         return o;
+    }
+
+    std::string DialogueRuntime::expandText(const std::string& text, FormId quest) const
+    {
+        if (text.find('<') == std::string::npos)
+            return text;
+        journal::TagHooks hooks;
+        if (mTagSources.mAliasName)
+            hooks.mAlias = [this, quest](std::string_view alias) { return mTagSources.mAliasName(quest, alias); };
+        if (mTagSources.mAliasFemale)
+            hooks.mAliasFemale = [this, quest](std::string_view alias) { return mTagSources.mAliasFemale(quest, alias); };
+        hooks.mGlobal = [this](std::string_view name) -> std::optional<float> {
+            const GlobalValue* global = mDialogue.globalByEditorId(name);
+            if (global == nullptr)
+                return std::nullopt;
+            return global->mValue;
+        };
+        hooks.mBaseName = [this]() -> std::string {
+            const ActorNpc* npc = mActors.npc(mSpeaker.mBase);
+            if (npc == nullptr || !npc->mName.mPresent)
+                return {};
+            return npc->mName.mLocalized ? mResolver(npc->mName, npc->mPlugin, StringTableKind::Strings)
+                                         : npc->mName.mText;
+        };
+        hooks.mBribeCost = [this]() -> std::optional<float> {
+            const std::uint16_t level = mWorld.speakerLevel();
+            if (level == 0)
+                return std::nullopt;
+            return kBribeGoldPerLevel * static_cast<float>(level);
+        };
+        hooks.mCrimeGold = [this]() -> std::optional<float> {
+            return mTagSources.mCrimeGold ? mTagSources.mCrimeGold() : 0.f;
+        };
+        return journal::expandTags(text, hooks, std::string_view());
     }
 
     void DialogueRuntime::nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out)
@@ -88,6 +123,8 @@ namespace game_skyrimse
     {
         out.text.clear();
         out.voice.clear();
+        const DialogTopic* ownTopic = mDialogue.topic(info.mTopic);
+        const FormId topicQuest = ownTopic != nullptr && ownTopic->mQuest != kNullFormId ? ownTopic->mQuest : info.mQuest;
         if (mVoiceProbe)
             nameVoice(info, out);
         for (const DialogResponse& response : info.mResponses)
@@ -95,6 +132,9 @@ namespace game_skyrimse
             std::string line = response.mText.mPresent && !response.mText.mLocalized
                 ? response.mText.mText
                 : mResolver(response.mText, info.mPlugin, StringTableKind::IlStrings);
+            if (line.empty())
+                continue;
+            line = expandText(line, topicQuest);
             if (line.empty())
                 continue;
             if (!out.text.empty())
@@ -172,6 +212,7 @@ namespace game_skyrimse
             if (text.empty())
                 text = topic->mName.mLocalized ? mResolver(topic->mName, topic->mPlugin, StringTableKind::Strings)
                                                : topic->mName.mText;
+            text = expandText(text, topic->mQuest != kNullFormId ? topic->mQuest : s.mInfo->mQuest);
             if (text.empty())
                 continue;
             if (out.topics.size() >= mLimits.mMaxTopics)

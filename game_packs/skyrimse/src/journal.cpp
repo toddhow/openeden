@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 
 // The quest journal and its bindings: see the header (task 0185).
@@ -67,6 +68,147 @@ namespace game_skyrimse::journal
         return true;
     }
 
+    namespace
+    {
+        bool startsWithNoCase(std::string_view s, std::string_view prefix)
+        {
+            if (s.size() < prefix.size())
+                return false;
+            for (std::size_t i = 0; i < prefix.size(); ++i)
+                if (std::tolower(static_cast<unsigned char>(s[i])) != std::tolower(static_cast<unsigned char>(prefix[i])))
+                    return false;
+            return true;
+        }
+
+        bool equalsNoCase(std::string_view a, std::string_view b)
+        {
+            return a.size() == b.size() && startsWithNoCase(a, b);
+        }
+
+        // A number the way the game prints a tag value: a whole number without decimals, else two places trimmed.
+        std::string tagNumber(float value)
+        {
+            if (!std::isfinite(value))
+                return "0";
+            const double rounded = std::round(static_cast<double>(value));
+            if (std::abs(static_cast<double>(value) - rounded) < 0.005)
+                return std::to_string(static_cast<long long>(rounded));
+            char buffer[32];
+            std::snprintf(buffer, sizeof(buffer), "%.2f", static_cast<double>(value));
+            std::string out = buffer;
+            while (!out.empty() && out.back() == '0')
+                out.pop_back();
+            if (!out.empty() && out.back() == '.')
+                out.pop_back();
+            return out;
+        }
+
+        // `which` is the part after "Alias.Pronoun"; empty for plain "Pronoun". Empty result: not a pronoun tag.
+        std::string_view pronounFor(std::string_view suffix, int female)
+        {
+            struct Row
+            {
+                std::string_view mSuffix, mMale, mFemale, mPlural;
+            };
+            static constexpr Row rows[] = {
+                { "", "he", "she", "they" },
+                { "Cap", "He", "She", "They" },
+                { "Obj", "him", "her", "them" },
+                { "Pos", "his", "her", "their" },
+                { "PosObj", "his", "hers", "theirs" },
+                { "Ref", "himself", "herself", "themselves" },
+            };
+            for (const Row& row : rows)
+                if (equalsNoCase(suffix, row.mSuffix))
+                    return female < 0 ? row.mPlural : (female > 0 ? row.mFemale : row.mMale);
+            return {};
+        }
+
+        std::string expandImpl(std::string_view text, const TagHooks& hooks, std::string_view unknown, bool rawAliasNames)
+        {
+            constexpr std::size_t kMaxTag = 64;
+            std::string out;
+            out.reserve(text.size());
+            for (std::size_t i = 0; i < text.size(); ++i)
+            {
+                const char c = text[i];
+                if (c == '>')
+                    continue;
+                if (c != '<')
+                {
+                    out += c;
+                    continue;
+                }
+                const std::size_t end = text.find('>', i + 1);
+                if (end == std::string_view::npos || end - i > kMaxTag)
+                    continue; // a stray '<'
+                const std::string_view tag = text.substr(i + 1, end - i - 1);
+                const std::size_t equals = tag.find('=');
+                const std::string_view key = equals == std::string_view::npos ? tag : tag.substr(0, equals);
+                const std::string_view arg
+                    = equals == std::string_view::npos ? std::string_view() : tag.substr(equals + 1);
+                std::string shown;
+                bool filled = false;
+                if (equals != std::string_view::npos
+                    && (equalsNoCase(key, "Alias") || equalsNoCase(key, "Alias.ShortName")
+                        || equalsNoCase(key, "Alias.Name")))
+                {
+                    if (rawAliasNames && !hooks.mAlias)
+                    {
+                        shown = std::string(arg);
+                        filled = true;
+                    }
+                    else if (hooks.mAlias)
+                    {
+                        shown = hooks.mAlias(arg);
+                        filled = !shown.empty();
+                    }
+                }
+                else if (equals != std::string_view::npos && startsWithNoCase(key, "Alias.Pronoun") && hooks.mAliasFemale)
+                {
+                    const std::string_view word = pronounFor(key.substr(13), hooks.mAliasFemale(arg));
+                    shown = std::string(word);
+                    filled = !word.empty();
+                }
+                else if (equals != std::string_view::npos && equalsNoCase(key, "Global") && hooks.mGlobal)
+                {
+                    const std::optional<float> value = hooks.mGlobal(arg);
+                    if (value)
+                    {
+                        shown = tagNumber(*value);
+                        filled = true;
+                    }
+                }
+                else if (equals == std::string_view::npos && equalsNoCase(key, "BaseName") && hooks.mBaseName)
+                {
+                    shown = hooks.mBaseName();
+                    filled = !shown.empty();
+                }
+                else if (equals == std::string_view::npos && equalsNoCase(key, "BribeCost") && hooks.mBribeCost)
+                {
+                    const std::optional<float> value = hooks.mBribeCost();
+                    if (value)
+                    {
+                        shown = tagNumber(*value);
+                        filled = true;
+                    }
+                }
+                else if (equals == std::string_view::npos && equalsNoCase(key, "CrimeGold") && hooks.mCrimeGold)
+                {
+                    const std::optional<float> value = hooks.mCrimeGold();
+                    if (value)
+                    {
+                        shown = tagNumber(*value);
+                        filled = true;
+                    }
+                }
+                out.append(filled ? std::string_view(shown) : unknown);
+                i = end;
+            }
+            return out;
+        }
+    }
+
     std::string expandTags(std::string_view text)
     {
         return expandTags(text, AliasNameResolver());
@@ -74,50 +216,14 @@ namespace game_skyrimse::journal
 
     std::string expandTags(std::string_view text, const AliasNameResolver& aliasName)
     {
-        constexpr std::size_t kMaxTag = 64;
-        const auto startsWith = [](std::string_view s, std::string_view prefix) {
-            if (s.size() < prefix.size())
-                return false;
-            for (std::size_t i = 0; i < prefix.size(); ++i)
-                if (std::tolower(static_cast<unsigned char>(s[i]))
-                    != std::tolower(static_cast<unsigned char>(prefix[i])))
-                    return false;
-            return true;
-        };
-        std::string out;
-        out.reserve(text.size());
-        for (std::size_t i = 0; i < text.size(); ++i)
-        {
-            const char c = text[i];
-            if (c == '>')
-                continue;
-            if (c != '<')
-            {
-                out += c;
-                continue;
-            }
-            const std::size_t end = text.find('>', i + 1);
-            if (end == std::string_view::npos || end - i > kMaxTag)
-                continue; // a stray '<'
-            const std::string_view tag = text.substr(i + 1, end - i - 1);
-            const std::size_t equals = tag.find('=');
-            if (equals != std::string_view::npos
-                && (startsWith(tag, "Alias=") || startsWith(tag, "Alias.ShortName=") || startsWith(tag, "Alias.Name=")))
-            {
-                const std::string_view name = tag.substr(equals + 1);
-                if (!aliasName)
-                    out.append(name);
-                else
-                {
-                    const std::string shown = aliasName(name);
-                    out.append(shown.empty() ? std::string("...") : shown);
-                }
-            }
-            else
-                out += "...";
-            i = end;
-        }
-        return out;
+        TagHooks hooks;
+        hooks.mAlias = aliasName;
+        return expandImpl(text, hooks, "...", !aliasName);
+    }
+
+    std::string expandTags(std::string_view text, const TagHooks& hooks, std::string_view unknown)
+    {
+        return expandImpl(text, hooks, unknown, false);
     }
 
     namespace

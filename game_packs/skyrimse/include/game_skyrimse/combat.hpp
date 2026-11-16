@@ -551,6 +551,32 @@ namespace game_skyrimse
         /// out again. A copy; the call may come at any time.
         void setPlayerRaceAbilities(std::vector<FormId> chosen, std::vector<FormId> standIn);
 
+        // ---- task 0228: the powers of the player's race (RACE SPLO spells of type power or lesser power) ---------------
+        /// What the magic runtime does with a power: its effects change the player's health, magicka or stamina or
+        /// stagger or demoralise (Works); a modifier of a value the pack does not track is kept as a status for its
+        /// duration and changes nothing else (StatusOnly); every other archetype does nothing (Unsupported). Effects with
+        /// conditions the pack cannot evaluate count as not there (unless the test setting applies them).
+        /// Spell areas are in feet: 21.33 units a foot (RECALLED-VERIFY: 64 units to 3 feet).
+        static constexpr float kUnitsPerFoot = 64.f / 3.f;
+        enum class PowerSupport : std::uint8_t
+        {
+            Works,
+            StatusOnly,
+            Unsupported
+        };
+        struct RacePower
+        {
+            FormId mId = kNullFormId;
+            std::string mName; ///< the editor id (the pack reads no SPEL names)
+            PowerSupport mSupport = PowerSupport::Unsupported;
+        };
+        /// The powers among `spells` (a race's SPLO list), in the list's order; empty until the combat data is read.
+        [[nodiscard]] std::vector<RacePower> racePowers(const std::vector<FormId>& spells);
+        /// Queues the cast of the power `spell` by the player: it goes through the same cast clip and effect rules as any
+        /// spell, with no magicka cost taken beyond the record's own (0 for a power). False when the spell is not a known
+        /// power, or one is already waiting. The once-a-day rule is the caller's.
+        bool castPlayerPower(FormId spell);
+
         // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp) -----------------------------------
 
         /// What the AI asks of the actor hook (the combat writer has no movement): the cell source drains these once a
@@ -793,6 +819,8 @@ namespace game_skyrimse
         void resolveTestCasts();
         void startTestCasts(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerCast(openeden::sdk::game::CombatRequestWriter& writer);
+        void runPlayerPower(openeden::sdk::game::CombatRequestWriter& writer);
+        void applyPowerEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
         bool beginCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
             bool heldByKey, float holdSeconds);
         void fireCast(openeden::sdk::game::CombatRequestWriter& writer, const Cast& cast);
@@ -1059,6 +1087,8 @@ namespace game_skyrimse
         float mPlayerCastWantedAt = 0.f;
         bool mPlayerCastHeld = false; ///< the attack control is down (a real key or an automatic press)
         std::vector<bool> mCastEdges; ///< attack-control edges for the spell (true: pressed)
+        FormId mPendingPower = kNullFormId; ///< task 0228: a power waiting for its cast clip's timing
+        float mPendingPowerAt = 0.f;
         std::string mTestPlayerSpell; ///< lower case
         const SpellRecord* mPlayerSpell = nullptr;
         bool mPlayerSpellLooked = false;

@@ -53,6 +53,7 @@
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -205,6 +206,9 @@ namespace game_skyrimse
 
         [[nodiscard]] const DialogTopic* topic(FormId id) const;
         [[nodiscard]] const GlobalValue* global(FormId id) const;
+        /// Task 0228: a global by its editor id (the `<Global=Name>` tag), ignoring case; null when there is none. A
+        /// scan: tags are rare.
+        [[nodiscard]] const GlobalValue* globalByEditorId(std::string_view name) const;
         /// Task 0187: the INFO with this id when it has a parsed VMAD (script fragments); null for any other id.
         [[nodiscard]] const DialogInfo* scriptedInfo(FormId id) const;
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
@@ -318,6 +322,8 @@ namespace game_skyrimse
         /// The voice type (VTYP) of the speaker given to `setSpeaker`: the traits record's VTCK (after templates), else
         /// the race's voice type for its sex; kNullFormId when none (task 0143).
         [[nodiscard]] FormId speakerVoiceType() const;
+        /// Task 0228: the speaker's level (the bribe cost is a gold sum per level); 0 when unknown.
+        [[nodiscard]] std::uint16_t speakerLevel() const;
         void setCurrentWeather(FormId weather) { mWeather = weather; }
         /// Quest data and state (task 0139). Both null (the default): no quest is known, every quest function keeps the
         /// default answer (stage 0, nothing done, not running) and `answers` says so.

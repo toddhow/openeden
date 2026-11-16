@@ -14,6 +14,8 @@ namespace game_skyrimse::character
         using openeden::sdk::BindingValue;
 
         constexpr std::uint32_t kChunkVersion = 1;
+        constexpr std::uint32_t kPowerChunkVersion = 1; // task 0228: the powers' last use, a chunk of its own
+        constexpr std::uint32_t kMaxPowerRecords = 16;
         constexpr std::uint32_t kMaxBlobBytes = 1024;
 
         class Fn final : public openeden::sdk::BindingHandler
@@ -49,6 +51,25 @@ namespace game_skyrimse::character
             CharacterService& mService;
         };
 
+        class PowerChunk final : public openeden::sdk::SaveChunkHandler
+        {
+        public:
+            explicit PowerChunk(CharacterService& service)
+                : mService(service)
+            {
+            }
+            std::string_view chunkName() const override { return "character_powers"; }
+            std::uint32_t chunkVersion() const override { return kPowerChunkVersion; }
+            void write(openeden::sdk::ChunkWriter& writer) override { mService.writePowerChunk(writer); }
+            bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override
+            {
+                return version == kPowerChunkVersion && mService.readPowerChunk(reader);
+            }
+
+        private:
+            CharacterService& mService;
+        };
+
         BindingResult okResult() { return BindingResult(); }
 
         BindingResult boolResult(bool v)
@@ -73,6 +94,7 @@ namespace game_skyrimse::character
         std::vector<std::unique_ptr<Fn>> mHandlers;
         std::vector<openeden::sdk::FunctionDescriptor> mFunctions;
         std::unique_ptr<Chunk> mChunk;
+        std::unique_ptr<PowerChunk> mPowerChunk;
         std::string mText; // the text of the last answer: a binding result views it until the next call
         std::uint64_t mBump = 0;
         bool mWarnedNoRaces = false;
@@ -83,9 +105,46 @@ namespace game_skyrimse::character
         , mHooks(std::move(hooks))
     {
         mImpl->mChunk = std::make_unique<Chunk>(*this);
+        mImpl->mPowerChunk = std::make_unique<PowerChunk>(*this);
     }
 
     CharacterService::~CharacterService() = default;
+
+    openeden::sdk::SaveChunkHandler& CharacterService::powerChunk()
+    {
+        return *mImpl->mPowerChunk;
+    }
+
+    void CharacterService::writePowerChunk(openeden::sdk::ChunkWriter& writer)
+    {
+        const std::uint32_t used = static_cast<std::uint32_t>(std::min<std::size_t>(mPowerUsed.size(), kMaxPowerRecords));
+        writer.writeValue(used);
+        for (std::uint32_t i = 0; i < used; ++i)
+        {
+            writer.writeValue(static_cast<std::uint32_t>(mPowerUsed[i].first));
+            writer.writeValue(mPowerUsed[i].second);
+        }
+    }
+
+    bool CharacterService::readPowerChunk(openeden::sdk::ChunkReader& reader)
+    {
+        std::uint32_t count = 0;
+        if (!reader.readValue(count) || count > kMaxPowerRecords)
+            return false;
+        std::vector<std::pair<FormId, std::int64_t>> used;
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            std::uint32_t id = 0;
+            std::int64_t at = 0;
+            if (!reader.readValue(id) || !reader.readValue(at))
+                return false;
+            used.emplace_back(static_cast<FormId>(id), at);
+        }
+        if (reader.remaining() != 0)
+            return false;
+        mPowerUsed = std::move(used);
+        return true;
+    }
 
     openeden::sdk::SaveChunkHandler& CharacterService::chunk()
     {
@@ -139,6 +198,8 @@ namespace game_skyrimse::character
                 mFinal = mCreator->choice();
                 if (mHooks.mApplyBody)
                     mHooks.mApplyBody(mFinal);
+                if (mHooks.mName && !mFinal.mName.empty())
+                    mHooks.mName(mFinal.mName);
                 const RaceOption* race = mCreator->race();
                 if (race != nullptr && mHooks.mRace)
                     mHooks.mRace(*race, false);
@@ -218,12 +279,54 @@ namespace game_skyrimse::character
         ++mImpl->mBump;
         if (mHooks.mApplyBody)
             mHooks.mApplyBody(mFinal);
+        if (mHooks.mName)
+            mHooks.mName(mFinal.mName);
         const RaceOption* race = mCreator->race();
         if (race != nullptr && mHooks.mRace)
             mHooks.mRace(*race, true);
         if (mHooks.mLog)
             mHooks.mLog("CHARACTER finished: " + mFinal.mName + ", race "
                 + (race != nullptr ? race->mName : std::string()) + (mFinal.mFemale ? ", female" : ", male"));
+        return true;
+    }
+
+    std::vector<PowerInfo> CharacterService::powers() const
+    {
+        if (!mDone || mCreator == nullptr || !mHooks.mPowers)
+            return {};
+        const RaceOption* race = mCreator->race();
+        return race != nullptr ? mHooks.mPowers(race->mAbilities) : std::vector<PowerInfo>();
+    }
+
+    bool CharacterService::powerReady(std::size_t index, std::int64_t nowSeconds) const
+    {
+        const std::vector<PowerInfo> list = powers();
+        if (index >= list.size() || list[index].mSupport == PowerSupport::Unsupported)
+            return false;
+        for (const auto& [id, at] : mPowerUsed)
+            if (id == list[index].mId)
+                return nowSeconds - at >= kPowerCooldownSeconds || nowSeconds < at; // a clock set back frees it
+        return true;
+    }
+
+    bool CharacterService::usePower(std::size_t index, std::int64_t nowSeconds)
+    {
+        if (!powerReady(index, nowSeconds) || !mHooks.mCastPower)
+            return false;
+        const PowerInfo power = powers()[index];
+        if (!mHooks.mCastPower(power.mId))
+            return false;
+        bool found = false;
+        for (auto& [id, at] : mPowerUsed)
+            if (id == power.mId)
+            {
+                at = nowSeconds;
+                found = true;
+            }
+        if (!found && mPowerUsed.size() < kMaxPowerRecords)
+            mPowerUsed.emplace_back(power.mId, nowSeconds);
+        if (mHooks.mLog)
+            mHooks.mLog("CHARACTER power " + power.mName + " used at game second " + std::to_string(nowSeconds));
         return true;
     }
 
@@ -271,6 +374,8 @@ namespace game_skyrimse::character
         mHavePending = true;
         if (mHooks.mApplyBody)
             mHooks.mApplyBody(choice); // the body follows at once; the records are checked when they are read
+        if (mHooks.mName && !choice.mName.empty())
+            mHooks.mName(choice.mName); // so a save made at once still has the name
         if (mCreator != nullptr)
         {
             // a load into a running session: the records are there already
@@ -288,6 +393,7 @@ namespace game_skyrimse::character
         static const BindingType intParam[] = { BindingType::Int32 };
         static const BindingType boolParam[] = { BindingType::Bool };
         static const BindingType strParam[] = { BindingType::String };
+        static const BindingType intIntParams[] = { BindingType::Int32, BindingType::Int32 };
         static const BindingType strIntParams[] = { BindingType::String, BindingType::Int32 };
         (void)noParams;
 
@@ -382,6 +488,34 @@ namespace game_skyrimse::character
             return intResult(static_cast<std::int64_t>(self->mCreator->partIndex(part)));
         });
 
+        add("power_count", {}, true, BindingType::Int32, kRead, [self](std::span<const BindingValue>) {
+            return intResult(static_cast<std::int64_t>(self->powers().size()));
+        });
+        add("power_name", intParam, true, BindingType::String, kRead,
+            [self, textResult](std::span<const BindingValue> a) {
+                const std::vector<PowerInfo> list = self->powers();
+                return textResult(a[0].integer >= 0 && static_cast<std::size_t>(a[0].integer) < list.size()
+                        ? list[static_cast<std::size_t>(a[0].integer)].mName
+                        : std::string());
+            });
+        add("power_support", intParam, true, BindingType::String, kRead,
+            [self, textResult](std::span<const BindingValue> a) {
+                const std::vector<PowerInfo> list = self->powers();
+                if (a[0].integer < 0 || static_cast<std::size_t>(a[0].integer) >= list.size())
+                    return textResult(std::string());
+                switch (list[static_cast<std::size_t>(a[0].integer)].mSupport)
+                {
+                    case PowerSupport::Works:
+                        return textResult("works");
+                    case PowerSupport::StatusOnly:
+                        return textResult("status");
+                    default:
+                        return textResult("none");
+                }
+            });
+        add("power_ready", intIntParams, true, BindingType::Bool, kRead, [self](std::span<const BindingValue> a) {
+            return boolResult(a[0].integer >= 0 && self->powerReady(static_cast<std::size_t>(a[0].integer), a[1].integer));
+        });
         add("choose_race", intParam, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue> a) {
             if (a[0].integer >= 0)
                 (void)self->chooseRace(static_cast<std::size_t>(a[0].integer));
@@ -402,6 +536,11 @@ namespace game_skyrimse::character
             self->setName(a[0].text);
             return okResult();
         });
+        add("use_power", intIntParams, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue> a) {
+            if (a[0].integer >= 0)
+                (void)self->usePower(static_cast<std::size_t>(a[0].integer), a[1].integer);
+            return okResult();
+        });
         add("finish", {}, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue>) {
             (void)self->finish();
             return okResult();
@@ -409,7 +548,7 @@ namespace game_skyrimse::character
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = kNamespace;
-        ns.version = { 1, 0 };
+        ns.version = { 1, 1 }; // 1.1: the powers (task 0228)
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

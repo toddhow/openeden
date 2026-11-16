@@ -50,6 +50,7 @@
 #include "defaultglobals.hpp"
 #include "neutraldialogue.hpp"
 #include "neutralmusicdriver.hpp"
+#include "neutralplayername.hpp"
 #include "neutralscenespeech.hpp"
 #include "neutralprojectiles.hpp"
 #include "neutralnavigation.hpp"
@@ -1958,6 +1959,7 @@ namespace MWWorld
         }
         if (!paused)
             updateNeutralMusic(duration);
+        updateNeutralPlayerName();
         {
             Misc::LoadTrace::Scope trace("world.navigator.update");
             updateNavigator();
@@ -2002,6 +2004,18 @@ namespace MWWorld
             mNavigator->wait(DetourNavigator::WaitConditionType::requiredTilesPresent, &dummy);
             mWorldScene->resetCellLoaded();
         }
+    }
+
+    void World::updateNeutralPlayerName()
+    {
+        // Task 0228: with [Game] neutral world the name a game pack's player chose goes into his record.
+        if (!mNeutralPlayerNameTried)
+        {
+            mNeutralPlayerNameTried = true;
+            mNeutralPlayerName = NeutralPlayerNameDriver::make();
+        }
+        if (mNeutralPlayerName)
+            mNeutralPlayerName->update();
     }
 
     void World::updateNeutralMusic(float duration)

@@ -739,6 +739,24 @@ namespace game_skyrimse
         return true;
     }
 
+    void SkyrimWorldView::setPlayerName(std::string name)
+    {
+        if (name == mPlayerName)
+            return;
+        mPlayerName = std::move(name);
+        ++mPlayerNameRevision;
+    }
+
+    bool SkyrimWorldView::playerIdentity(openeden::sdk::game::PlayerIdentityState& out)
+    {
+        out = {};
+        if (mPlayerName.empty())
+            return true; // revision 0: no name yet
+        out.revision = mPlayerNameRevision;
+        out.name = mPlayerName;
+        return true;
+    }
+
     bool SkyrimWorldView::playerBody(openeden::sdk::game::PlayerBodyState& out)
     {
         out = {};
@@ -976,6 +994,13 @@ namespace game_skyrimse
         };
         raw->mRuntime = std::make_unique<DialogueRuntime>(*mActorIndex, raw->mData->mDialogue, raw->mData->mQuests,
             QuestState::initial(raw->mData->mQuests), raw->mResolver);
+        {
+            // Task 0228: the text tags of conversations; the alias names are the journal's own function.
+            DialogueTagSources tags;
+            tags.mAliasName = [this](FormId quest, std::string_view alias) { return aliasDisplayName(quest, alias); };
+            tags.mAliasFemale = [this](FormId quest, std::string_view alias) { return aliasFemale(quest, alias); };
+            raw->mRuntime->setTagSources(std::move(tags));
+        }
         if (mFiles != nullptr)
         {
             // Task 0143: a voice line is named only when its .fuz exists (loose, in a mod or in "Skyrim -
@@ -1774,6 +1799,79 @@ namespace game_skyrimse
         return true;
     }
 
+    const QuestAlias* SkyrimWorldView::findAliasByName(FormId quest, std::string_view aliasName) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return nullptr;
+        const QuestRecord* record = mDialogue->mData->mQuests.quest(quest);
+        if (record == nullptr)
+            return nullptr;
+        for (const QuestAlias& a : record->mAliases)
+        {
+            if (a.mName.size() != aliasName.size())
+                continue;
+            bool same = true;
+            for (std::size_t i = 0; i < aliasName.size() && same; ++i)
+                same = std::tolower(static_cast<unsigned char>(a.mName[i]))
+                    == std::tolower(static_cast<unsigned char>(aliasName[i]));
+            if (same)
+                return &a;
+        }
+        return nullptr;
+    }
+
+    // Task 0217 (the journal) and task 0228 (conversations): the display name of what fills an alias.
+    std::string SkyrimWorldView::aliasDisplayName(FormId quest, std::string_view aliasName)
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr)
+            return {};
+        DialogueData* data = mDialogue->mData.get();
+        DialogueState* state = mDialogue.get();
+        const QuestAlias* alias = findAliasByName(quest, aliasName);
+        if (alias == nullptr)
+            return {};
+        const AliasFill fill = state->mRuntime->quests().aliasFill(quest, alias->mId);
+        if (!fill.mKnown)
+            return {};
+        if (alias->mIsLocation)
+        {
+            const LocationRecord* location = data->mLocations.location(fill.mReference);
+            return location != nullptr && state->mResolver
+                ? state->mResolver(location->mName, location->mPlugin, StringTableKind::Strings)
+                : std::string();
+        }
+        FormId base = fill.mActor;
+        if (fill.mReference != kNullFormId)
+        {
+            const PlacedEntry* entry = data->mPlacedRefs.find(fill.mReference);
+            if (entry != nullptr)
+                base = entry->mBase;
+        }
+        return base != kNullFormId ? displayNameOf(static_cast<sdkgame::WorldId>(base)) : std::string();
+    }
+
+    // Task 0228: 1 when the NPC of the alias is female, 0 male, -1 when nothing fills it or it is no one.
+    int SkyrimWorldView::aliasFemale(FormId quest, std::string_view aliasName)
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr || mActorIndex == nullptr)
+            return -1;
+        const QuestAlias* alias = findAliasByName(quest, aliasName);
+        if (alias == nullptr || alias->mIsLocation)
+            return -1;
+        const AliasFill fill = mDialogue->mRuntime->quests().aliasFill(quest, alias->mId);
+        if (!fill.mKnown)
+            return -1;
+        FormId base = fill.mActor;
+        if (fill.mReference != kNullFormId)
+        {
+            const PlacedEntry* entry = mDialogue->mData->mPlacedRefs.find(fill.mReference);
+            if (entry != nullptr)
+                base = entry->mBase;
+        }
+        const ActorNpc* npc = base != kNullFormId ? mActorIndex->npc(base) : nullptr;
+        return npc == nullptr ? -1 : (npc->female() ? 1 : 0);
+    }
+
     bool SkyrimWorldView::papyrusAccess(PapyrusAccess& out)
     {
         if (!ready() || mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr)
@@ -1794,46 +1892,7 @@ namespace game_skyrimse
             return entry != nullptr ? entry->mBase : kNullFormId;
         };
         // Task 0217: the journal names what an alias holds
-        out.mAliasName = [this, data, state](FormId quest, std::string_view aliasName) -> std::string {
-            const QuestRecord* record = data->mQuests.quest(quest);
-            if (record == nullptr || state->mRuntime == nullptr)
-                return {};
-            const QuestAlias* alias = nullptr;
-            for (const QuestAlias& a : record->mAliases)
-            {
-                if (a.mName.size() != aliasName.size())
-                    continue;
-                bool same = true;
-                for (std::size_t i = 0; i < aliasName.size() && same; ++i)
-                    same = std::tolower(static_cast<unsigned char>(a.mName[i]))
-                        == std::tolower(static_cast<unsigned char>(aliasName[i]));
-                if (same)
-                {
-                    alias = &a;
-                    break;
-                }
-            }
-            if (alias == nullptr)
-                return {};
-            const AliasFill fill = state->mRuntime->quests().aliasFill(quest, alias->mId);
-            if (!fill.mKnown)
-                return {};
-            if (alias->mIsLocation)
-            {
-                const LocationRecord* location = data->mLocations.location(fill.mReference);
-                return location != nullptr && state->mResolver
-                    ? state->mResolver(location->mName, location->mPlugin, StringTableKind::Strings)
-                    : std::string();
-            }
-            FormId base = fill.mActor;
-            if (fill.mReference != kNullFormId)
-            {
-                const PlacedEntry* entry = data->mPlacedRefs.find(fill.mReference);
-                if (entry != nullptr)
-                    base = entry->mBase;
-            }
-            return base != kNullFormId ? displayNameOf(static_cast<sdkgame::WorldId>(base)) : std::string();
-        };
+        out.mAliasName = [this](FormId quest, std::string_view aliasName) { return aliasDisplayName(quest, aliasName); };
         out.mSetSceneLookup = [state](std::function<bool(FormId, std::uint32_t)> lookup) {
             state->mQuestWorld->setSceneActionLookup(std::move(lookup));
         };

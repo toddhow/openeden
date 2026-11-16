@@ -434,6 +434,13 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimCellSource::playerIdentity(openeden::sdk::game::PlayerIdentityState& out)
+    {
+        out = {};
+        auto* source = dynamic_cast<openeden::sdk::game::PlayerIdentitySource*>(&mView);
+        return source != nullptr && source->playerIdentity(out);
+    }
+
     bool SkyrimCellSource::describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error)
     {
         auto* source = dynamic_cast<openeden::sdk::game::PlayerBodySource*>(&mView);
