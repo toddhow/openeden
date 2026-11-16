@@ -11,6 +11,7 @@ local okPick, pick = pcall(require, 'core.skyrimse.pickup')
 local cfg = require('scripts.n9.cfg')
 local storage = require('openmw.storage')
 local saved = false
+local advanced = false
 local pickedAt
 
 local start, placed, target, nextShot, nextPrint = nil, false, nil, 1, 0
@@ -40,6 +41,12 @@ return {
                 target = nearest(player.cell)
                 print('N9 loaded: target ' .. tostring(target and target.recordId) .. ' enabled ' .. tostring(target and target.enabled))
             end
+            -- Task 0221: cfg.advanceHours game hours are passed once at real time cfg.advanceAt (plants grow back).
+            if cfg.advanceHours > 0 and not advanced and t >= cfg.advanceAt then
+                advanced = true
+                world.advanceTime(cfg.advanceHours)
+                print(string.format('N9 advanced %d hours', cfg.advanceHours))
+            end
             local have = okInv and cfg.item ~= '' and inv.count('player', cfg.item) or 0
             if have > 0 then pickedAt = pickedAt or t end
             if cfg.phase == 'save' and not saved and pickedAt and t >= pickedAt + 3 then
@@ -50,7 +57,14 @@ return {
             if not placed and t >= 6 then
                 placed = true
                 target = nearest(player.cell)
-                if target == nil then print('N9 target not found'); return end
+                if target == nil then
+                    print('N9 target not found; the cell has ' .. tostring(#player.cell:getAll()) .. ' objects')
+                    for i, obj in ipairs(player.cell:getAll()) do
+                        if i > 6 then break end
+                        print('N9 sees ' .. tostring(obj.recordId) .. ' ' .. tostring(obj.type))
+                    end
+                    return
+                end
                 local p = target.position
                 local cx, cy = cfg.from[1], cfg.from[2]
                 local len = math.sqrt(cx * cx + cy * cy)

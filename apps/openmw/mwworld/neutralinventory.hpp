@@ -52,6 +52,15 @@ namespace MWWorld
     [[nodiscard]] NeutralInventoryDecision decideNeutralPickpocket(
         openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead, bool sneaking);
 
+    /// Task 0221: a placed flora or tree the player activates is harvested (the pack's scripts do it: the pack decides
+    /// from the base whether it names an ingredient). Only with `[Game] neutral inventory`.
+    inline constexpr std::string_view kNeutralHarvestEvent = "openeden_skyrimse_harvest_activated";
+    [[nodiscard]] NeutralInventoryDecision decideNeutralHarvest(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn);
+    /// Whether an object of this kind shows a tooltip (its name, or the pack's prompt) when the player looks at it:
+    /// actors, doors and containers always, furniture, items, flora and trees with the neutral inventory on.
+    [[nodiscard]] bool neutralKindHasToolTip(openeden::sdk::game::ObjectKind kind, bool inventorySettingOn);
+
     /// An id as lower-case hex of at least 8 digits (the form the pack's bindings read).
     [[nodiscard]] std::string neutralHexId(std::uint64_t id);
 

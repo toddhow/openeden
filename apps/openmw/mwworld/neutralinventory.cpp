@@ -37,6 +37,26 @@ namespace MWWorld
         return NeutralInventoryDecision::Open;
     }
 
+    NeutralInventoryDecision decideNeutralHarvest(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn)
+    {
+        const bool plant
+            = kind == openeden::sdk::game::ObjectKind::Flora || kind == openeden::sdk::game::ObjectKind::Tree;
+        if (!settingOn || !byPlayer || !plant)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
+    bool neutralKindHasToolTip(openeden::sdk::game::ObjectKind kind, bool inventorySettingOn)
+    {
+        using openeden::sdk::game::ObjectKind;
+        if (kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container)
+            return true;
+        return (kind == ObjectKind::Furniture || kind == ObjectKind::Item || kind == ObjectKind::Flora
+                   || kind == ObjectKind::Tree)
+            && inventorySettingOn;
+    }
+
     NeutralInventoryDecision decideNeutralPickpocket(
         openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead, bool sneaking)
     {

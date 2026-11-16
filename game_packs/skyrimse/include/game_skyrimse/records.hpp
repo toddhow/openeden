@@ -398,6 +398,18 @@ namespace game_skyrimse
     /// A base form that is placed in the world: ACTI, CONT, DOOR, FLOR, FURN, LIGH, MSTT, TREE, TACT; the carried
     /// things ALCH, AMMO, APPA, BOOK, INGR, KEYM, SCRL, SLGM; and the markers IDLM, SOUN, ASPC, SPEL, TXST (no model).
     /// The same fields as StaticRecord, plus the type.
+    /// Task 0221: the harvest data of a FLOR or TREE record. PFIG (4 bytes: an INGR or an LVLI), PFPC (4 bytes: the
+    /// percent chance of the ingredient in spring, summer, fall and winter; VERIFIED size on the five masters, the
+    /// season order is the CK's and RECALLED-VERIFY) and, FLOR only, RNAM (the activate text: "Harvest", "Pick",
+    /// "Catch"; a localised id when the plugin is localised).
+    struct HarvestData
+    {
+        FormId mIngredient = kNullFormId; ///< resolved; kNullFormId when the record names none
+        std::array<std::uint8_t, 4> mChances{};
+        bool mHasChances = false; ///< PFPC was present and had 4 bytes
+        LString mActivateText;
+    };
+
     struct ModelRecord
     {
         std::uint32_t mType = 0; ///< The record's FourCC
@@ -414,6 +426,8 @@ namespace game_skyrimse
         std::vector<vmad::Script> mScripts;
         /// KWDA (task 0181): the keywords, resolved.
         std::vector<FormId> mKeywords;
+        /// FLOR and TREE records with a PFIG, PFPC or RNAM (task 0221).
+        std::optional<HarvestData> mHarvest;
     };
 
     namespace NpcFlags

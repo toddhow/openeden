@@ -423,6 +423,12 @@ namespace game_skyrimse
         /// Task 0208: the placements the player picked up; a cell built afterwards (a load, a return) comes out with
         /// them disabled, whether or not the Papyrus host is on. Main thread.
         void setTakenLookup(std::function<bool(openeden::sdk::game::WorldId)> lookup) { mTaken = std::move(lookup); }
+        /// Task 0221: the harvested plants that are hidden until they grow back; a cell built afterwards (a load, a
+        /// return) comes out with them disabled. Main thread.
+        void setHarvestedLookup(std::function<bool(openeden::sdk::game::WorldId)> lookup)
+        {
+            mHarvested = std::move(lookup);
+        }
         /// Task 0208: tells the script sink (when the Papyrus host is on) that the player activated a placement.
         void notifyActivated(openeden::sdk::game::WorldId reference)
         {
@@ -470,6 +476,7 @@ namespace game_skyrimse
         std::function<void(const openeden::sdk::game::PlayerPlace&)> mPlaceSink; ///< task 0211
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         std::function<bool(openeden::sdk::game::WorldId)> mTaken; ///< task 0208
+        std::function<bool(openeden::sdk::game::WorldId)> mHarvested; ///< task 0221
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

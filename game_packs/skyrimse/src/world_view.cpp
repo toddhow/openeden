@@ -4,6 +4,7 @@
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/dialogue_runtime.hpp"
+#include "game_skyrimse/harvest.hpp"
 #include "game_skyrimse/location.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/quest_script.hpp"
@@ -2048,7 +2049,11 @@ namespace game_skyrimse
         for (NpcRecord& n : p.mNpcs)
             resolve(n.mName);
         for (ModelRecord& m : p.mModels)
+        {
             resolve(m.mName);
+            if (m.mHarvest)
+                resolve(m.mHarvest->mActivateText); // task 0221
+        }
         for (ItemRecord& i : p.mItems)
             resolve(i.mName);
     }
@@ -2559,8 +2564,16 @@ namespace game_skyrimse
                 name = &p.mNpcs[it->second.mIndex].mName;
                 break;
             case BaseTable::Model:
-                name = &p.mModels[it->second.mIndex].mName;
+            {
+                const ModelRecord& m = p.mModels[it->second.mIndex];
+                name = &m.mName;
+                // Task 0221: with the harvest on, a plant's prompt is its verb and name ("Harvest Canis Root").
+                if (mHarvestPrompts && m.mHarvest && m.mHarvest->mIngredient != kNullFormId)
+                    return harvest::promptFor(m.mHarvest->mActivateText.mPresent ? m.mHarvest->mActivateText.mText
+                                                                                  : std::string(),
+                        name->mPresent ? name->mText : m.mCommon.mEditorId);
                 break;
+            }
             case BaseTable::Item:
                 name = &p.mItems[it->second.mIndex].mName;
                 break;
@@ -2873,6 +2886,21 @@ namespace game_skyrimse
         if (it == mOwners.end())
             return std::nullopt;
         return it->second;
+    }
+
+    bool SkyrimWorldView::plantOf(FormId base, HarvestData& out, std::string& name)
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId || !awaitIndex())
+            return false;
+        const auto it = mBases.find(base);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return false;
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        if (!m.mHarvest || m.mHarvest->mIngredient == kNullFormId)
+            return false;
+        out = *m.mHarvest;
+        name = m.mName.mPresent ? m.mName.mText : m.mCommon.mEditorId;
+        return true;
     }
 
     std::int32_t SkyrimWorldView::itemCountOfPlacement(FormId placement) const

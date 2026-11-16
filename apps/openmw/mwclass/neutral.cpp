@@ -264,9 +264,11 @@ namespace MWClass
                 Log(Debug::Info) << "NINV " << mKind << " " << MWWorld::neutralHexId(mPlacement) << " base "
                                  << MWWorld::neutralHexId(mBase) << " '" << mName << "' opened";
                 // Task 0208: "item" is a placed item picked up, "pickpocket" a living actor's pockets.
+                // Task 0221: "flora" is a plant the player harvests.
                 const std::string_view eventName = mKind == "bench" ? MWWorld::kNeutralBenchEvent
                     : mKind == "item"                               ? MWWorld::kNeutralPickupEvent
                     : mKind == "pickpocket"                         ? MWWorld::kNeutralPickpocketEvent
+                    : mKind == "flora"                              ? MWWorld::kNeutralHarvestEvent
                                                                     : MWWorld::kNeutralInventoryEvent;
                 MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(eventName), fields);
             }
@@ -391,6 +393,17 @@ namespace MWClass
                     return std::make_unique<OpenInventoryAction>(
                         ptr, *placement, base.mBase, std::string(getName(ptr)), "item");
             }
+        }
+        // Task 0221: a placed flora or tree the player activates is harvested (the pack's scripts decide whether the base
+        // names an ingredient; nothing happens when no script listens).
+        if ((base.mKind == ObjectKind::Flora || base.mKind == ObjectKind::Tree) && actor == MWMechanics::getPlayer())
+        {
+            const auto plantPlacement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            if (plantPlacement != std::nullopt
+                && MWWorld::decideNeutralHarvest(base.mKind, true, Settings::game().mNeutralInventory.get())
+                    == MWWorld::NeutralInventoryDecision::Open)
+                return std::make_unique<OpenInventoryAction>(
+                    ptr, *plantPlacement, base.mBase, std::string(getName(ptr)), "flora");
         }
         // Task 0141: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
         // same setting that draws them, and only by the player).
@@ -601,10 +614,9 @@ namespace MWClass
 
     bool Neutral::hasToolTip(const MWWorld::ConstPtr& ptr) const
     {
-        const ObjectKind kind = baseOf(ptr).mKind;
-        // task 0199: a furniture shows its name when the neutral inventory is on (a crafting bench may be among them)
-        return kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container
-            || ((kind == ObjectKind::Furniture || kind == ObjectKind::Item) && Settings::game().mNeutralInventory.get());
+        // task 0199: a furniture shows its name when the neutral inventory is on (a crafting bench may be among them);
+        // task 0221: so does a flora or a tree (the pack's name is the harvest prompt)
+        return MWWorld::neutralKindHasToolTip(baseOf(ptr).mKind, Settings::game().mNeutralInventory.get());
     }
 
     MWGui::ToolTipInfo Neutral::getToolTipInfo(const MWWorld::ConstPtr& ptr, int /*count*/) const

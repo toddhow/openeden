@@ -216,6 +216,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/map_player.lua
     scripts/openeden/skyrimse/rest_global.lua
     scripts/openeden/skyrimse/rest_player.lua
+    scripts/openeden/skyrimse/harvest_global.lua
+    scripts/openeden/skyrimse/harvest_player.lua
     scripts/openeden/skyrimse/menus_menu.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua

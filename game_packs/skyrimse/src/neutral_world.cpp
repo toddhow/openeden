@@ -399,6 +399,12 @@ namespace game_skyrimse
                 if (mTaken(object.id))
                     object.initiallyDisabled = true; // task 0208: the player picked it up
         }
+        if (built && mHarvested)
+        {
+            for (openeden::sdk::game::WorldObject& object : out.objects)
+                if (mHarvested(object.id))
+                    object.initiallyDisabled = true; // task 0221: a harvested plant that has not grown back
+        }
         if (built && mCellBuilt)
             mCellBuilt(cell);
         return built;

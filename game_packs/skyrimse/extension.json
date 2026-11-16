@@ -286,6 +286,11 @@
       "default": false
     },
     {
+      "key": "harvest",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "rest test ignore owner",
       "type": "bool",
       "default": false

@@ -463,6 +463,12 @@ namespace game_skyrimse
         /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every cell
         /// loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
         [[nodiscard]] std::optional<openeden::sdk::game::OwnerComponent> ownerOfPlacement(FormId placement) const;
+        /// Task 0221: the harvest data of a FLOR or TREE base that names an ingredient, and its name (the FULL, else
+        /// the editor id); false for any other base or before the index is built. Main thread.
+        [[nodiscard]] bool plantOf(FormId base, HarvestData& out, std::string& name);
+        /// Task 0221: with this on, displayNameOf answers a harvestable plant's prompt ("Harvest Canis Root") instead
+        /// of its name. Set before the first cell is built.
+        void setHarvestPrompts(bool on) { mHarvestPrompts = on; }
         /// Task 0208: the XCNT of a loaded placed stack, 0 when it has none. Main thread.
         [[nodiscard]] std::int32_t itemCountOfPlacement(FormId placement) const;
         /// True when the form is a FACT (else an NPC_). Needs the actor index (built by the combat or the first actor).
@@ -680,6 +686,7 @@ namespace game_skyrimse
             const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
             bool mapMarkers, bool loadingScreens);
         bool mWantLoadingScreens = false; ///< task 0207: read the LSCR records with the dialogue data
+        bool mHarvestPrompts = false; ///< task 0221: displayNameOf answers a plant's prompt
         bool mWantMapMarkers = false; ///< task 0201: read the map markers with the dialogue data
         std::thread mDialogueThread; ///< reads the conversation records after the first actor was described
         std::unique_ptr<DialogueData> mPrefetched; ///< the thread's result; valid once mDialogueReady is set

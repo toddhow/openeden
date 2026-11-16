@@ -1112,6 +1112,9 @@ namespace game_skyrimse
                 LString fullName; // FULL of a model record (task 0150)
                 std::vector<vmad::Script> baseScripts; // VMAD (task 0181)
                 std::vector<FormId> baseKeywords; // KWDA (task 0181)
+                const bool isPlant = record.mType == Content::fourCC("FLOR") || record.mType == Content::fourCC("TREE");
+                HarvestData harvest; // PFIG, PFPC and RNAM of a FLOR or TREE (task 0221)
+                bool hasHarvest = false;
                 SubReader reader(bytes);
                 std::uint32_t type = 0;
                 std::span<const std::byte> data;
@@ -1126,6 +1129,36 @@ namespace game_skyrimse
                             break;
                         case Content::fourCC("FULL"):
                             ok = lstring(type, data, fullName);
+                            break;
+                        case Content::fourCC("PFIG"): // FLOR, TREE: the ingredient
+                            if (!isPlant)
+                                break;
+                            if (data.size() == 4)
+                            {
+                                harvest.mIngredient = resolved(readLe<std::uint32_t>(data.data()));
+                                hasHarvest = true;
+                            }
+                            else
+                                odd("PFIG");
+                            break;
+                        case Content::fourCC("PFPC"): // FLOR, TREE: spring, summer, fall, winter chances
+                            if (!isPlant)
+                                break;
+                            if (data.size() == 4)
+                            {
+                                for (std::size_t i = 0; i < 4; ++i)
+                                    harvest.mChances[i] = static_cast<std::uint8_t>(data[i]);
+                                harvest.mHasChances = true;
+                                hasHarvest = true;
+                            }
+                            else
+                                odd("PFPC");
+                            break;
+                        case Content::fourCC("RNAM"): // FLOR only: the activate text
+                            if (record.mType != Content::fourCC("FLOR"))
+                                break;
+                            ok = lstring(type, data, harvest.mActivateText);
+                            hasHarvest = true;
                             break;
                         case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
                             if (!isLight)
@@ -1199,6 +1232,8 @@ namespace game_skyrimse
                     model.mName = std::move(fullName);
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);
+                    if (hasHarvest)
+                        model.mHarvest = std::move(harvest);
                     if (hasLightData)
                     {
                         light.mFade = lightFade;

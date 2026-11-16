@@ -8,6 +8,7 @@
 #include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/crafting_service.hpp"
+#include "game_skyrimse/harvest_service.hpp"
 #include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/map.hpp"
@@ -1061,6 +1062,9 @@ namespace game_skyrimse
                     // Task 0210: waiting and sleeping (the namespace skyrimse.rest), off unless
                     // [extension.skyrimse] rest.
                     startRest(host, logger);
+                    // Task 0221: harvesting flora (the namespace skyrimse.harvest), off unless
+                    // [extension.skyrimse] harvest; needs the inventory.
+                    startHarvest(host, logger);
                     // Task 0207: the loading screen tips of the menu script, off unless [extension.skyrimse] menus.
                     startMenus(host, logger);
                     // Task 0215: tells the scripts that the session has its own menus or music (Morrowind's music
@@ -1090,6 +1094,7 @@ namespace game_skyrimse
             {
                 mCellSource.setCrime(nullptr); // task 0204: before the crime service goes
                 mCellSource.setTakenLookup({}); // task 0208: before the pickup service goes
+                mCellSource.setHarvestedLookup({}); // task 0221: before the harvest service goes
                 unwirePapyrusWorld();
                 if (mPapyrus != nullptr)
                 {
@@ -1557,6 +1562,95 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Warning, "the rest chunk was not registered");
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "REST waiting and sleeping are on");
+            }
+
+            // Task 0221: harvesting flora. The rules are `harvest.*`; this wires them to the world view (is that base a
+            // plant, what does it give), the inventory (the item goes to the player's list; a leveled ingredient is
+            // resolved with a seed of the placement and the try), the world source (a harvested plant is disabled
+            // until it grows back) and the save chunk `harvest`.
+            void startHarvest(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "harvest", false) || mInventory == nullptr)
+                    return;
+                harvest::Hooks hooks;
+                hooks.mPlant = [this](FormId base, harvest::PlantInfo& out) {
+                    HarvestData data;
+                    std::string name;
+                    if (!mWorldView.plantOf(base, data, name))
+                        return false;
+                    out.mIngredient = data.mIngredient;
+                    out.mChances = data.mChances;
+                    out.mActivateText = data.mActivateText.mPresent ? data.mActivateText.mText : std::string();
+                    out.mName = std::move(name);
+                    out.mHide = true;
+                    return true;
+                };
+                hooks.mPick = [this](FormId ingredient, std::uint64_t seed, FormId& item, std::int32_t& count) {
+                    std::vector<InventoryEntry> entries(1);
+                    entries[0].mItem = ingredient;
+                    entries[0].mCount = 1;
+                    const std::vector<inventory::Stack> stacks = inventory::resolveContents(
+                        entries, mInventory->table(), seed, harvest::kListLevel);
+                    if (stacks.empty())
+                        return false;
+                    item = stacks.front().mItem;
+                    count = stacks.front().mCount;
+                    return true;
+                };
+                hooks.mAddToPlayer = [this](FormId item, std::int32_t count) {
+                    return mInventory->model().add(inventory::kPlayerOwner, item, count)
+                        == inventory::TransferStatus::Ok;
+                };
+                hooks.mItemName = [this](FormId item) { return mWorldView.displayNameOf(item); };
+                const auto cellOf = [this](FormId placement) {
+                    FormId cell = kNullFormId;
+                    if (const PlacedRefIndex* refs = mWorldView.placedRefs())
+                        if (const PlacedEntry* entry = refs->find(placement))
+                            cell = entry->mCell;
+                    return cell;
+                };
+                hooks.mHide = [this, cellOf](FormId placement) {
+                    return mWorldSources != nullptr
+                        && mWorldSources->setObjectEnabled(mCellSource, cellOf(placement), placement, false);
+                };
+                hooks.mShow = [this, cellOf](FormId placement) {
+                    return mWorldSources != nullptr
+                        && mWorldSources->setObjectEnabled(mCellSource, cellOf(placement), placement, true);
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mHarvest = std::make_unique<harvest::HarvestService>(std::move(hooks));
+                mWorldView.setHarvestPrompts(true);
+                mCellSource.setHarvestedLookup([this](openeden::sdk::game::WorldId placement) {
+                    return mHarvest != nullptr
+                        && mHarvest->book().hidden(static_cast<FormId>(placement), mHarvest->now());
+                });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mHarvest->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the harvest bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    mHarvest->chunk().setRefusalSink([logger](const std::string& why) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Warning, "HARVEST " + why);
+                    });
+                    mHarvest->chunk().setRestoredSink([logger](std::size_t plants) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "HARVEST restored " + std::to_string(plants) + " harvested plants");
+                    });
+                    if (!chunks->registerHandler(mHarvest->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the harvest chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "HARVEST harvesting flora is on");
             }
 
             // Task 0182: the inventory service (item table, model, save chunk) and the namespace skyrimse.inventory.
@@ -2635,6 +2729,7 @@ namespace game_skyrimse
             std::unique_ptr<travel::TravelService> mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
+            std::unique_ptr<harvest::HarvestService> mHarvest; // task 0221; refers to the view and the inventory
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
