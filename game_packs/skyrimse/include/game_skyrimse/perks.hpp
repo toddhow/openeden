@@ -169,7 +169,8 @@ namespace game_skyrimse
         /// Task 0200: DATA +12, the skill the effect trains (an actor value 18 to 22), -1 for none (VERIFIED).
         std::int32_t mAssociatedSkill = -1;
         /// Task 0250: DATA +8, the associated form (an NPC_ or a leveled NPC list for Summon Creature, resolved; 0 when
-        /// none). VERIFIED by the data (`SkyrimSummonsReal`): every Summon Creature effect names one.
+        /// none). VERIFIED by the data (`SkyrimSummonsReal`): every Summon Creature effect names one. Task 0248 reads
+        /// the same field as a cloak's damage spell (VERIFIED: PowerDarkElfFireCloakFFSelf names PowerDarkELfFlameCloakDmg).
         FormId mAssociatedItem = kNullFormId;
         // Task 0186: +4 base cost, +16 resist actor value, +60 secondary weight, +72 projectile, +80 casting type, +84
         // delivery, +88 secondary actor value.
@@ -188,9 +189,6 @@ namespace game_skyrimse
         /// Warrior, Mage, Thief and Lover stones' effects name doomWarriorPerk and the others, which hold the ModSkillUse
         /// entry points.
         FormId mPerkToApply = kNullFormId;
-        /// Task 0248: DATA +8, the associated item (resolved, 0 when none): a cloak's damage spell (VERIFIED:
-        /// PowerDarkElfFireCloakFFSelf names PowerDarkELfFlameCloakDmg).
-        FormId mAssociatedItem = kNullFormId;
         bool mHasScript = false; ///< the record carries a VMAD (its effect is a script, Firebolt's damage among them)
         /// CTDA subrecords of the record: a perk or a state gates the effect (the Stagger and Demoralize effects of
         /// Firebolt are perk effects with conditions). The magic runtime evaluates them (task 0236).
