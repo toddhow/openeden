@@ -342,6 +342,21 @@ namespace game_skyrimse::progression
         ++mRevision;
     }
 
+    std::size_t PlayerProgression::applyRacialBoosts(std::span<const std::pair<std::size_t, std::uint8_t>> boosts)
+    {
+        std::size_t changed = 0;
+        for (const auto& [slot, boost] : boosts)
+        {
+            if (slot >= kSkillCount || boost == 0 || mSkill[slot] >= kMaxSkill)
+                continue;
+            mSkill[slot] = static_cast<std::uint8_t>(std::min<unsigned>(kMaxSkill, unsigned(mSkill[slot]) + boost));
+            ++changed;
+        }
+        if (changed != 0)
+            ++mRevision;
+        return changed;
+    }
+
     void PlayerProgression::reset(std::uint16_t level, std::uint8_t skill)
     {
         setStart(level, skill);

@@ -130,6 +130,7 @@ namespace game_skyrimse
                     case Content::fourCC("CLAS"):
                     case Content::fourCC("FACT"):
                     case Content::fourCC("WEAP"): // task 0220
+                    case Content::fourCC("FLST"): // task 0225
                         break;
                     default:
                         return true;
@@ -195,6 +196,9 @@ namespace game_skyrimse
                         break;
                     case Content::fourCC("FACT"):
                         ok = readFaction(record, bytes);
+                        break;
+                    case Content::fourCC("FLST"):
+                        ok = readFormList(record, bytes);
                         break;
                     case Content::fourCC("WEAP"):
                         ok = readWeapon(record, bytes);
@@ -623,6 +627,9 @@ namespace game_skyrimse
                         case Content::fourCC("FULL"):
                             ok = lstring(type, data, r.mName);
                             break;
+                        case Content::fourCC("DESC"): // task 0225
+                            ok = lstring(type, data, r.mDescription);
+                            break;
                         case Content::fourCC("WNAM"):
                             ok = formField(type, data, r.mSkin);
                             break;
@@ -645,6 +652,14 @@ namespace game_skyrimse
                             if (data.size() >= 36)
                             {
                                 r.mHasData = true;
+                                // seven (actor value, boost) pairs; a value outside the skills (255) or no boost is unused
+                                for (std::size_t i = 0; i < 7; ++i)
+                                {
+                                    const std::uint8_t value = std::to_integer<std::uint8_t>(data[2 * i]);
+                                    const std::uint8_t boost = std::to_integer<std::uint8_t>(data[2 * i + 1]);
+                                    if (value >= 6 && value <= 23 && boost > 0)
+                                        r.mSkillBoosts.push_back({ value, boost });
+                                }
                                 for (std::size_t i = 0; i < 2; ++i)
                                 {
                                     const float h = readLe<float>(data.data() + 16 + i * 4);
@@ -927,6 +942,37 @@ namespace game_skyrimse
             }
 
             // -- WEAP (task 0220): the model, the animation type and the damage, for the actor's held gear --
+
+            // FLST (task 0225): the LNAM entries. A list over the cap keeps its first entries (a form list is data, not
+            // a thing to refuse a plugin over).
+            bool readFormList(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                ActorFormList f;
+                f.mCommon = common(record);
+                SubReader reader(bytes);
+                std::uint32_t type = 0;
+                std::span<const std::byte> data;
+                int status = 0;
+                while ((status = reader.next(type, data)) == 1)
+                {
+                    if (type == Content::fourCC("EDID"))
+                    {
+                        if (!zstring(type, data, f.mCommon.mEditorId))
+                            return false;
+                    }
+                    else if (type == Content::fourCC("LNAM"))
+                    {
+                        if (data.size() != 4)
+                            oddType(type);
+                        else if (f.mForms.size() < mLimits.mMaxEntriesPerList)
+                            f.mForms.push_back(resolved(readLe<std::uint32_t>(data.data())));
+                    }
+                }
+                if (status < 0)
+                    return damaged(reader);
+                mOut.mFormLists.push_back(std::move(f));
+                return true;
+            }
 
             bool readWeapon(const Content::RawRecord& record, std::span<const std::byte> bytes)
             {
@@ -1322,6 +1368,27 @@ namespace game_skyrimse
         put(mClasses, records.mClasses);
         put(mFactionTable, records.mFactionRecords);
         put(mWeaponLooks, records.mWeapons);
+        put(mFormLists, records.mFormLists);
+    }
+
+    std::vector<FormId> ActorIndex::headPartIds() const
+    {
+        std::vector<FormId> out;
+        out.reserve(mHeadParts.size());
+        for (const auto& entry : mHeadParts)
+            out.push_back(entry.first);
+        std::sort(out.begin(), out.end());
+        return out;
+    }
+
+    std::vector<FormId> ActorIndex::raceIds() const
+    {
+        std::vector<FormId> out;
+        out.reserve(mRaces.size());
+        for (const auto& entry : mRaces)
+            out.push_back(entry.first);
+        std::sort(out.begin(), out.end());
+        return out;
     }
 
     void ActorIndex::addLeveledLists(const std::vector<LeveledList>& lists)

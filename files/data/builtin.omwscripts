@@ -81,3 +81,6 @@ PLAYER REQUIRES=core.skyrimse.rest>=1.0: scripts/openeden/skyrimse/rest_player.l
 # Skyrim SE main menu, pause menu and loading screen tips (task 0207); started only when the session's game pack has the
 # namespace (the pack setting [extension.skyrimse] menus) and [GUI] rmlui is on (the script needs openeden.ui)
 MENU REQUIRES=core.skyrimse.menus>=1.0: scripts/openeden/skyrimse/menus_menu.lua
+# Task 0225: the character creation (the pack setting [extension.skyrimse] character creation)
+GLOBAL REQUIRES=core.skyrimse.character>=1.0: scripts/openeden/skyrimse/character_global.lua
+PLAYER REQUIRES=core.skyrimse.character>=1.0: scripts/openeden/skyrimse/character_player.lua

@@ -160,12 +160,24 @@ namespace game_skyrimse
         FormId mHeadPart = kNullFormId; ///< HEAD: an HDPT (VERIFIED: 282 of 282)
     };
 
+    /// A skill boost of a race: DATA bytes 0 to 13 are seven (actor value, boost) pairs (task 0225; VERIFIED on the ten
+    /// playable races: the Nord pairs are Two-Handed 10 and One-Handed, Block, Smithing, Speech and Light Armor 5, the
+    /// actor value 255 ends the list).
+    struct RaceSkillBoost
+    {
+        std::uint32_t mActorValue = 0; ///< 6 to 23 for a skill
+        std::uint8_t mBoost = 0;
+    };
+
     /// RACE. The skeleton models are the ANAM that follows the MNAM / FNAM markers before the body-data section
     /// (VERIFIED on the installed data: 399 ANAM, two per race, all paths ending in .nif and none containing "hkx").
     struct RaceRecord
     {
         RecordCommon mCommon;
         LString mName;
+        LString mDescription; ///< DESC (task 0225)
+        std::vector<RaceSkillBoost> mSkillBoosts; ///< DATA bytes 0 to 13, the used pairs (task 0225)
+        std::uint32_t mPlugin = 0; ///< index in the load order of the plugin whose record won (string tables)
         std::string mSkeleton[2]; ///< indexed by Sex
         std::vector<RaceModel> mBodyModels; ///< NAM1 section: INDX + MODL (.egt morph files in the installed data)
         std::vector<RaceModel> mBehaviourGraphs; ///< NAM3 section: MODL (.hkx)
@@ -342,7 +354,21 @@ namespace game_skyrimse
         std::vector<FormId> mExtraParts; ///< HNAM (HDPT, VERIFIED)
         FormId mTextureSet = kNullFormId; ///< TNAM (TXST, VERIFIED)
         FormId mColor = kNullFormId; ///< CNAM
-        FormId mValidRaces = kNullFormId; ///< RNAM (an FLST in the installed data; the list is not read)
+        FormId mValidRaces = kNullFormId; ///< RNAM (an FLST of RACE in the installed data, see ActorFormList)
+        std::uint32_t mPlugin = 0; ///< task 0225: the plugin whose record won (string tables)
+
+        // DATA flags (task 0225; VERIFIED by the data: the playable hair of the Nord is flags 3 or 5 with bit 0)
+        [[nodiscard]] bool playable() const { return (mFlags & 1u) != 0; }
+        [[nodiscard]] bool male() const { return (mFlags & 2u) != 0; }
+        [[nodiscard]] bool female() const { return (mFlags & 4u) != 0; }
+        [[nodiscard]] bool extraPart() const { return (mFlags & 8u) != 0; }
+    };
+
+    /// FLST (task 0225): the form ids of the LNAM entries, in order. Only the head parts' race lists are used.
+    struct ActorFormList
+    {
+        RecordCommon mCommon;
+        std::vector<FormId> mForms;
     };
 
     struct ClassRecord
@@ -383,6 +409,7 @@ namespace game_skyrimse
         std::vector<ClassRecord> mClasses;
         std::vector<FactionRecord> mFactionRecords; ///< FACT (task 0154)
         std::vector<WeaponLook> mWeapons; ///< WEAP (task 0220)
+        std::vector<ActorFormList> mFormLists; ///< FLST (task 0225)
 
         std::map<std::uint32_t, TypeCount> mCounts;
         std::uint64_t mUnresolvedFormIds = 0;
@@ -423,6 +450,11 @@ namespace game_skyrimse
         [[nodiscard]] const FactionRecord* faction(FormId id) const { return find(mFactionTable, id); }
         [[nodiscard]] const LeveledList* leveledList(FormId id) const { return find(mLeveled, id); }
         [[nodiscard]] const WeaponLook* weaponLook(FormId id) const { return find(mWeaponLooks, id); } // task 0220
+        [[nodiscard]] const ActorFormList* formList(FormId id) const { return find(mFormLists, id); } // task 0225
+        /// All HDPT ids, sorted (deterministic; task 0225).
+        [[nodiscard]] std::vector<FormId> headPartIds() const;
+        /// All RACE ids, sorted (task 0225).
+        [[nodiscard]] std::vector<FormId> raceIds() const;
 
         [[nodiscard]] std::size_t npcCount() const { return mNpcs.size(); }
 
@@ -504,6 +536,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, HeadPartRecord> mHeadParts;
         std::unordered_map<FormId, ClassRecord> mClasses;
         std::unordered_map<FormId, WeaponLook> mWeaponLooks; // task 0220
+        std::unordered_map<FormId, ActorFormList> mFormLists; // task 0225
         std::unordered_map<FormId, FactionRecord> mFactionTable;
         std::unordered_map<FormId, LeveledList> mLeveled;
     };

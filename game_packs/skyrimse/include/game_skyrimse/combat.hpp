@@ -526,6 +526,11 @@ namespace game_skyrimse
         /// With a progression the player's skills, level, vitals and perks in a fight are its own (read again when its
         /// revision moves); without one (null, the default) they are the stand-in's, as before.
         void setPlayerProgression(const progression::PlayerProgression* progression);
+        /// Task 0225 (character creation): the player's race abilities (RACE SPLO). `chosen` are the abilities of the race
+        /// he chose, `standIn` those of the race the stand-in player record already brought (the Nord's): the profile's
+        /// spell list loses the second and gains the first, and the ability sums (damage resist, weapon speed) are worked
+        /// out again. A copy; the call may come at any time.
+        void setPlayerRaceAbilities(std::vector<FormId> chosen, std::vector<FormId> standIn);
 
         // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp) -----------------------------------
 
@@ -1057,6 +1062,9 @@ namespace game_skyrimse
         std::string mTestPlayerPerks;
         std::string mTestNpcPerks;
         std::vector<FormId> mPlayerTestPerks; ///< resolved once
+        std::vector<FormId> mRaceAbilities; ///< task 0225
+        std::vector<FormId> mStandRaceAbilities; ///< task 0225
+        bool mRaceAbilitiesSet = false; ///< task 0225
         std::vector<FormId> mNpcTestPerks;
         bool mPerksResolved = false;
         std::unique_ptr<PerkEngine> mPerkEngine;

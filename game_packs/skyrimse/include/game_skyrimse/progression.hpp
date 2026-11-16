@@ -146,6 +146,10 @@ namespace game_skyrimse::progression
         PlayerProgression(const SkillTable& skills, const PerkLibrary* perks, Settings settings = {});
 
         void setStart(std::uint16_t level, std::uint8_t skill); ///< a new game: before anything was used
+        /// Task 0225: a race's starting bonuses. Each pair is (skill slot, boost); a skill goes up by its boost to at
+        /// most kMaxSkill, a bad slot is ignored, the experience towards the next increase is kept. Returns how many
+        /// skills changed.
+        std::size_t applyRacialBoosts(std::span<const std::pair<std::size_t, std::uint8_t>> boosts);
         /// A new character: setStart, and no experience, perk points, vital choices, perks or pending level events.
         void reset(std::uint16_t level, std::uint8_t skill);
         [[nodiscard]] std::uint16_t level() const { return mLevel; }

@@ -4,6 +4,7 @@
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/barter_service.hpp"
+#include "game_skyrimse/character_service.hpp"
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
@@ -1043,6 +1044,8 @@ namespace game_skyrimse
                     }
                     if (mWorldView.playerBodyOn())
                         syncPlayerBody(); // task 0222
+                    if (mCharacter != nullptr)
+                        pollCharacter(); // task 0225
                 });
             }
 
@@ -1200,6 +1203,9 @@ namespace game_skyrimse
                     // Task 0215: tells the scripts that the session has its own menus or music (Morrowind's music
                     // script gives way), off unless [extension.skyrimse] menus or music.
                     startPresentation(host, logger);
+                    // Task 0225: the character creation (the namespace skyrimse.character), off unless
+                    // [extension.skyrimse] character creation (which needs menus and player body).
+                    startCharacter(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1608,6 +1614,86 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MENUS the menus and loading tips are on");
+            }
+
+            // Task 0225: the character creation. The body follows the working choice at once (the world is paused while
+            // the window is open, so nothing here may wait for a game phase), the saved choice is a chunk, and the race's
+            // abilities reach the combat rules and its starting skills the progression.
+            void startCharacter(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, character::kSettingKey, false))
+                    return;
+                if (!settings->getBool(kPackId, "menus", false) || !settings->getBool(kPackId, kPlayerBodyKey, false))
+                {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the setting 'character creation' needs 'menus' and 'player body': it is off");
+                    return;
+                }
+                character::Hooks hooks;
+                hooks.mAccess = [this](character::Access& out) { return mWorldView.characterAccess(out); };
+                hooks.mApplyBody = [this](const character::Choice& choice) {
+                    PlayerBodyRequest request;
+                    character::applyChoice(choice, request);
+                    mWorldView.setPlayerLook(choice.mRace, choice.mFemale, std::move(request.mHeadChoice));
+                };
+                hooks.mRace = [this, logger](const character::RaceOption& race, bool fresh) {
+                    std::vector<FormId> standIn; // the abilities the stand-in player record already has
+                    if (mCharacter != nullptr && mCharacter->creator() != nullptr)
+                        for (const character::RaceOption& option : mCharacter->creator()->races())
+                            if (option.mId == kPlayerRace)
+                                standIn = option.mAbilities;
+                    mCellSource.combat().setPlayerRaceAbilities(race.mAbilities, std::move(standIn));
+                    if (fresh)
+                    {
+                        mPendingBoosts = race.mBoosts;
+                        mHaveBoosts = !mPendingBoosts.empty();
+                    }
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "CHARACTER race " + race.mName + ": " + std::to_string(race.mAbilities.size())
+                                + " abilities, starting skills " + character::describeBoosts(race.mBoosts)
+                                + (fresh ? " (new character)" : " (loaded)"));
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mCharacterLog = hooks.mLog;
+                mCharacter = std::make_unique<character::CharacterService>(std::move(hooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mCharacter->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the character bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    if (!chunks->registerHandler(mCharacter->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the character chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "CHARACTER the character creation is on");
+            }
+
+            // Once a frame: builds the service when the records are read and gives a new character the starting skills
+            // of its race as soon as the progression exists (a loaded character already has them in its own save).
+            void pollCharacter()
+            {
+                (void)mCharacter->poll();
+                if (!mHaveBoosts || mProgression == nullptr || mProgression->progression() == nullptr)
+                    return;
+                std::vector<std::pair<std::size_t, std::uint8_t>> boosts;
+                for (const RaceSkillBoost& b : mPendingBoosts)
+                    if (b.mActorValue >= progression::kFirstSkillValue)
+                        boosts.emplace_back(b.mActorValue - progression::kFirstSkillValue, b.mBoost);
+                const std::size_t changed = mProgression->progression()->applyRacialBoosts(boosts);
+                mHaveBoosts = false;
+                mPendingBoosts.clear();
+                if (mCharacterLog)
+                    mCharacterLog("CHARACTER starting skills applied to " + std::to_string(changed) + " skills");
             }
 
             // Task 0215: the namespace skyrimse.presentation, declared when menus or music is on.
@@ -2896,6 +2982,10 @@ namespace game_skyrimse
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
             std::uint32_t mBodySynced = 0xFFFFFFFFu; // task 0222
+            std::unique_ptr<character::CharacterService> mCharacter; // task 0225; refers to the world view
+            std::vector<RaceSkillBoost> mPendingBoosts; // task 0225: a new character's starting skills, not applied yet
+            bool mHaveBoosts = false;
+            std::function<void(const std::string&)> mCharacterLog;
             bool mEquipPending = false;
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; refers to mPapyrus

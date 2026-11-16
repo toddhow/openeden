@@ -35,6 +35,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimserestwindows.cpp
     ui/testskyrimsetravelwindows.cpp
     ui/testskyrimsemenuswindows.cpp
+    ui/testskyrimsecharacterwindow.cpp
     ui/testskyrimsepresentationlua.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testskyrimselockpickwindow.cpp
@@ -676,6 +677,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseappearancereal.cpp
     skyrimse/testskyrimseheldgear.cpp
     skyrimse/testskyrimseplayerbody.cpp
+    skyrimse/testskyrimsecharacter.cpp
+    skyrimse/testskyrimsecharacterservice.cpp
     skyrimse/testskyrimseactorsreal.cpp
     skyrimse/testskyrimsecreaturesreal.cpp
     skyrimse/testskyrimsecreatures.cpp
@@ -754,6 +757,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/player_body.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/character.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/character_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/grass.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp

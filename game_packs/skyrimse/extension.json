@@ -389,6 +389,11 @@
       "key": "player body",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "character creation",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

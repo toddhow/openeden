@@ -43,6 +43,8 @@ openeden_add_game_pack(skyrimse
         src/papyrus_world.cpp
         src/appearance.cpp
         src/player_body.cpp
+        src/character.cpp
+        src/character_service.cpp
         src/land.cpp
         src/grass.cpp
         src/worldspace.cpp
@@ -207,6 +209,8 @@ add_library(game_skyrimse_world STATIC
     src/papyrus_world.cpp
     src/appearance.cpp
     src/player_body.cpp
+    src/character.cpp
+    src/character_service.cpp
     src/land.cpp
     src/grass.cpp
     src/worldspace.cpp

@@ -166,9 +166,24 @@ namespace game_skyrimse
                     defaults.push_back(h);
             std::stable_sort(defaults.begin(), defaults.end(),
                 [](const RaceHeadPart& a, const RaceHeadPart& b) { return a.mIndex < b.mIndex; });
+            const auto chosenType = [&](std::uint32_t type) {
+                for (const auto& choice : request.mHeadChoice)
+                    if (choice.first == type)
+                        return true;
+                return false;
+            };
             std::set<FormId> seen;
             for (const RaceHeadPart& h : defaults)
+            {
+                // a default part of a type the player chose is replaced (its extra parts go with it)
+                const HeadPartRecord* head = index.headPart(h.mHeadPart);
+                if (head != nullptr && chosenType(head->mType))
+                    continue;
                 addHeadPart(index, h.mHeadPart, 0, limits, seen, out);
+            }
+            for (const auto& choice : request.mHeadChoice)
+                if (choice.second != kNullFormId)
+                    addHeadPart(index, choice.second, 0, limits, seen, out);
         }
 
         // What he holds (the rule of an NPC's, task 0220: melee types 1 to 6 with a model; a two-handed weapon gives no

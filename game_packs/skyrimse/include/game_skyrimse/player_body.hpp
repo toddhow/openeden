@@ -14,6 +14,7 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace game_skyrimse
@@ -39,6 +40,10 @@ namespace game_skyrimse
         std::vector<FormId> mWornArmour;
         /// The WEAP the player has equipped; kNullFormId for none.
         FormId mWeapon = kNullFormId;
+        /// Task 0225 (character creation): head parts the player chose. Each entry is an HDPT type (2 eyes, 3 hair, 4
+        /// facial hair, ...) and the part chosen for it, kNullFormId for "none". A type listed here REPLACES the race's
+        /// default head parts of that type (with the extra parts of the default hair or beard); the other defaults stay.
+        std::vector<std::pair<std::uint32_t, FormId>> mHeadChoice;
     };
 
     /// The player's appearance. Skin parts that a worn piece covers are left out; a start-outfit piece is dropped when

@@ -3,6 +3,7 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
+#include "game_skyrimse/character_service.hpp"
 #include "game_skyrimse/dialogue_runtime.hpp"
 #include "game_skyrimse/harvest.hpp"
 #include "game_skyrimse/location.hpp"
@@ -688,6 +689,56 @@ namespace game_skyrimse
         ++mPlayerBodyRevision;
     }
 
+    void SkyrimWorldView::setPlayerLook(
+        FormId race, bool female, std::vector<std::pair<std::uint32_t, FormId>> headChoice)
+    {
+        if (mPlayerLookSet && race == mPlayerRace && female == mPlayerFemale && headChoice == mPlayerHeadChoice)
+            return;
+        mPlayerLookSet = true;
+        mPlayerRace = race;
+        mPlayerFemale = female;
+        mPlayerHeadChoice = std::move(headChoice);
+        ++mPlayerBodyRevision;
+    }
+
+    bool SkyrimWorldView::characterAccess(character::Access& out)
+    {
+        if (mActorIndex == nullptr)
+        {
+            (void)combatReady(); // adopts the index once the worker has read it
+            if (mActorIndex == nullptr)
+                return false;
+        }
+        out.mIndex = mActorIndex.get();
+        // The names and descriptions of the records come from the plugins' own string tables, read when first needed
+        // (not through the dialogue data: that is read a good while after the start).
+        out.mText = [this](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
+            if (!text.mPresent)
+                return std::string();
+            if (!text.mLocalized)
+                return text.mText;
+            if (mFiles == nullptr || plugin >= mPlugins.size())
+                return std::string();
+            auto& slot = mCharacterTables[{ plugin, static_cast<int>(kind) }];
+            if (slot == nullptr)
+            {
+                std::string bytes;
+                const std::string path = stringTablePath(stemOf(mPlugins[plugin].mPath), mOptions.mLanguage, kind);
+                auto table = std::make_unique<StringTable>();
+                Content::Error tableError;
+                if (mFiles->read(path, bytes)
+                    && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, kind,
+                        mPlugins[plugin].mName, *table, tableError))
+                    slot = std::move(table);
+                else
+                    slot = std::make_unique<StringTable>(); // empty: not tried again
+            }
+            const std::string* found = slot->find(text.mId);
+            return found != nullptr ? *found : std::string();
+        };
+        return true;
+    }
+
     bool SkyrimWorldView::playerBody(openeden::sdk::game::PlayerBodyState& out)
     {
         out = {};
@@ -719,6 +770,12 @@ namespace game_skyrimse
         }
         PlayerBodyRequest request;
         request.mFemale = mStandInFemale;
+        if (mPlayerLookSet)
+        {
+            request.mRace = mPlayerRace;
+            request.mFemale = mPlayerFemale;
+            request.mHeadChoice = mPlayerHeadChoice;
+        }
         request.mWornArmour = mPlayerArmour;
         request.mWeapon = mPlayerWeapon;
         AppearanceLimits limits;

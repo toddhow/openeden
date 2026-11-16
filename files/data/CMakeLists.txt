@@ -155,6 +155,7 @@ set(BUILTIN_DATA_FILES
     openeden/skyrimse/book_window.lua
     openeden/skyrimse/rest_windows.lua
     openeden/skyrimse/menus.lua
+    openeden/skyrimse/character_window.lua
 
     builtin.omwscripts
 
@@ -219,6 +220,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/harvest_global.lua
     scripts/openeden/skyrimse/harvest_player.lua
     scripts/openeden/skyrimse/menus_menu.lua
+    scripts/openeden/skyrimse/character_global.lua
+    scripts/openeden/skyrimse/character_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua
     scripts/omw/input/settings.lua

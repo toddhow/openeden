@@ -378,6 +378,26 @@ namespace game_skyrimse
         return true;
     }
 
+    // ---- task 0225: the abilities of the race the player chose
+    void SkyrimCombat::setPlayerRaceAbilities(std::vector<FormId> chosen, std::vector<FormId> standIn)
+    {
+        mRaceAbilities = std::move(chosen);
+        mStandRaceAbilities = std::move(standIn);
+        mRaceAbilitiesSet = true;
+        if (mTrace)
+            trace("COMBAT player race abilities: " + std::to_string(mRaceAbilities.size()) + " chosen, "
+                + std::to_string(mStandRaceAbilities.size()) + " of the stand-in's race left out");
+        Fighter* player = find(openeden::sdk::game::CombatSubject::ofPlayer());
+        if (player == nullptr || !player->mHasProfile)
+            return; // the profile is not made yet: preparePerks applies the abilities when it is
+        // preparePerks sums the abilities again from nothing (the player's base profile has no ability of its own)
+        FighterProfile& profile = player->mProfile;
+        profile.mAbilityDamageResist = 0.f;
+        profile.mHasWeaponSpeedAbility = false;
+        profile.mAbilityWeaponSpeed = 1.f;
+        preparePerks(*player);
+    }
+
     // ---- task 0184: what the player wields and wears, and a potion's health
     void SkyrimCombat::setPlayerEquipment(PlayerEquipment equipment)
     {
@@ -564,6 +584,19 @@ namespace game_skyrimse
         if (!mPerksResolved)
             resolveTestPerks();
         FighterProfile& p = fighter.mProfile;
+        if (fighter.mSubject.player && mRaceAbilitiesSet)
+        {
+            // task 0225: the abilities of the race the player chose replace those of the stand-in's own race
+            p.mSpells.erase(std::remove_if(p.mSpells.begin(), p.mSpells.end(),
+                                [this](FormId id) {
+                                    return std::find(mStandRaceAbilities.begin(), mStandRaceAbilities.end(), id)
+                                        != mStandRaceAbilities.end();
+                                }),
+                p.mSpells.end());
+            for (const FormId id : mRaceAbilities)
+                if (std::find(p.mSpells.begin(), p.mSpells.end(), id) == p.mSpells.end())
+                    p.mSpells.push_back(id);
+        }
         const std::vector<FormId>& extra = fighter.mSubject.player ? mPlayerTestPerks : mNpcTestPerks;
         p.mPerks.insert(p.mPerks.end(), extra.begin(), extra.end());
         std::sort(p.mPerks.begin(), p.mPerks.end());

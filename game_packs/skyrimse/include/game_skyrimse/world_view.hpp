@@ -71,6 +71,11 @@
 
 namespace game_skyrimse
 {
+    namespace character
+    {
+        struct Access;
+    }
+
     class ActorIndex;
     class PlacedRefIndex;
     struct DialogueSpeaker;
@@ -534,6 +539,15 @@ namespace game_skyrimse
         /// world does (the player's current state).
         [[nodiscard]] bool loadingAccess(menus::Access& out);
 
+        // ---- task 0225 (character creation)
+        /// The player's look when he made one: race, sex and the head parts he chose (HDPT type and part, kNullFormId
+        /// for "none"). A change moves the revision the core polls (the body is made again); the same look again does
+        /// not. Until it is called the body is the Nord of `player female`.
+        void setPlayerLook(FormId race, bool female, std::vector<std::pair<std::uint32_t, FormId>> headChoice);
+        /// The actor records and a text resolver for the character menu: true once the actor index is there (the combat
+        /// worker reads it; this call never waits). Main thread only.
+        [[nodiscard]] bool characterAccess(character::Access& out);
+
         // ---- task 0176 (Papyrus wiring)
         /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
         /// call and never waits: false means "ask again next frame"). Main thread.
@@ -687,6 +701,11 @@ namespace game_skyrimse
         bool mCreatures = false; ///< task 0212
         bool mHeldGear = false; ///< task 0220
         bool mPlayerBodyOn = false; ///< task 0222
+        bool mPlayerLookSet = false; ///< task 0225
+        FormId mPlayerRace = kNullFormId; ///< task 0225
+        bool mPlayerFemale = false; ///< task 0225
+        std::vector<std::pair<std::uint32_t, FormId>> mPlayerHeadChoice; ///< task 0225
+        std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mCharacterTables; ///< task 0225
         std::vector<FormId> mPlayerArmour; ///< task 0222: sorted
         FormId mPlayerWeapon = kNullFormId; ///< task 0222
         std::uint32_t mPlayerBodyRevision = 0; ///< task 0222: counts changes of the equipment
