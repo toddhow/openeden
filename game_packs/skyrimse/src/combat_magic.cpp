@@ -134,6 +134,7 @@ namespace game_skyrimse
                     case MagicArchetype::Demoralize:
                     case StatusArchetype::Invisibility: // task 0241: the Shadow stone's power
                     case StatusArchetype::Paralysis: // task 0241: the Serpent stone's power
+                    case werewolf::kArchetypeWerewolf: // task 0259: Beast Form (the pack turns the player into the beast)
                         works = true;
                         break;
                     default:
@@ -230,6 +231,20 @@ namespace game_skyrimse
         const SpellRecord* record = mData->spellById(spell);
         if (record == nullptr || !isPowerType(*record))
             return false;
+        // Task 0259: Beast Form is a power whose effect is of the werewolf archetype: the pack's glue changes the player
+        // (body, claws, clock) instead of the magic runtime casting it.
+        for (const SpellEffect& effect : record->mEffects)
+        {
+            const MagicEffectRecord* magic = mData->effectById(effect.mEffect);
+            if (magic != nullptr && magic->mHasData && magic->mArchetype == werewolf::kArchetypeWerewolf)
+            {
+                if (!mBeastStart)
+                    return false;
+                trace("COMBAT player power " + spellName(*record) + " is the beast form");
+                mBeastStart();
+                return true;
+            }
+        }
         mPendingPower = spell;
         mPendingPowerAt = mClock;
         trace("COMBAT player power " + spellName(*record) + " queued");

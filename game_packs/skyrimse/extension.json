@@ -416,6 +416,21 @@
       "default": ""
     },
     {
+      "key": "werewolf",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "werewolf test grant",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "werewolf test seconds",
+      "type": "float",
+      "default": 0.0
+    },
+    {
       "key": "shouts test shout every",
       "type": "float",
       "default": 0.0

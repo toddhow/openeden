@@ -475,6 +475,8 @@ namespace game_skyrimse
     // The weapon a fighter swings: the player's equipped melee weapon, else the test weapon (as before).
     const WeaponRecord* SkyrimCombat::weaponFor(const Fighter& fighter) const
     {
+        if (mBeast && fighter.mSubject.player)
+            return nullptr; // task 0259: the claws, whatever he had in his hand
         if (fighter.mSubject.player && mEquip.mWeapon != nullptr && mEquip.mWeapon->isMelee())
             return mEquip.mWeapon;
         // Task 0214: an NPC's own weapon, unless the test weapon overrides it.
@@ -996,6 +998,8 @@ namespace game_skyrimse
                 mBaseMitigationKnown = true;
             }
             applyRealGear(fighter); // task 0214 (nothing with the setting off)
+            if (fighter.mSubject.player && mBeast)
+                applyBeastToProfile(fighter); // task 0259: a form that began before his data was read
             if (fighter.mSubject.player && mTestPlayerMagicka > 0.f)
                 fighter.mProfile.mMagickaMax = mTestPlayerMagicka; // task 0250: a test aid
             fighter.mHealth = fighter.mProfile.mHealthMax;

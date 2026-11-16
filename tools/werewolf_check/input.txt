@@ -1,0 +1,33 @@
+# task 0259: the keys of the werewolf check (frames are the overlay's frames at the fixed 60 a second, about 60 ahead of
+# the player script's; the check prints the frame the form began). P is the power key of the character service, L the attack
+# control, Space the activate key, W forward.
+# the creation window's Done button (REAL click; its place was found in a screenshot of the window)
+248 mouse 62 407
+250 down L 62 407
+254 up L 62 407
+# the first power the list offers is the Nord's Battle Cry; the second press is Beast Form
+700 key P down
+704 key P up
+760 key P down
+764 key P up
+# claw swings at Hulda
+900 down L 400 300
+904 up L 400 300
+1020 down L 400 300
+1024 up L 400 300
+1140 down L 400 300
+1144 up L 400 300
+1260 down L 400 300
+1264 up L 400 300
+1380 down L 400 300
+1384 up L 400 300
+1500 down L 400 300
+1504 up L 400 300
+# feed on the corpse
+1700 key Space down
+1704 key Space up
+1830 key Space down
+1834 key Space up
+# walk
+1900 key W down
+2020 key W up

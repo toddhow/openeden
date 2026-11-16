@@ -113,7 +113,12 @@ namespace MWPhysics
         std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
     {
         out = {};
-        if (mSink == nullptr || mWorld == nullptr || !validClipName(clip))
+        // Task 0259: a creature's clip may carry its folder, `werewolfbeast::ww_attackrightfast`; each part is a plain name.
+        const std::size_t folderEnd = clip.find("::");
+        const bool nameOk = folderEnd == std::string_view::npos
+            ? validClipName(clip)
+            : validClipName(clip.substr(0, folderEnd)) && validClipName(clip.substr(folderEnd + 2));
+        if (mSink == nullptr || mWorld == nullptr || !nameOk)
             return false;
         // The first call for a clip starts the world's read; the answer comes in a later frame.
         return clipTimingOf(mWorld->playerClipMeta(clip, perSex).get(), out);

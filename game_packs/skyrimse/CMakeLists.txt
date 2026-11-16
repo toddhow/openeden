@@ -120,6 +120,9 @@ openeden_add_game_pack(skyrimse
         src/creatures.cpp
         src/riding.cpp
         src/dragons.cpp
+        src/werewolf.cpp
+        src/combat_werewolf.cpp
+        src/werewolf_service.cpp
         src/combat_dragon.cpp
         src/combat_ai.cpp
         src/combat_ai_run.cpp
@@ -337,6 +340,9 @@ add_library(game_skyrimse_world STATIC
     src/creatures.cpp
     src/riding.cpp
     src/dragons.cpp
+    src/werewolf.cpp
+    src/combat_werewolf.cpp
+    src/werewolf_service.cpp
     src/combat_dragon.cpp
     src/combat_ai.cpp
     src/combat_ai_run.cpp

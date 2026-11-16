@@ -482,7 +482,7 @@ namespace game_skyrimse
         if (source == nullptr || !source->playerBody(out))
             return false;
         out.swingToken = mCombat.playerSwingCount();
-        out.swingClip = mCombat.playerSwingClip();
+        out.swingClip = std::string(werewolf::bareClip(mCombat.playerSwingClip())); // task 0259: no folder for the body
         out.castToken = mCombat.playerCastCount(); // task 0245
         out.castClip = mCombat.playerCastClip();
         {

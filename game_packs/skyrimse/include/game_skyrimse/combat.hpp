@@ -36,6 +36,7 @@
 #include <game_skyrimse/shouts.hpp>
 #include <game_skyrimse/summons.hpp>
 #include <game_skyrimse/value_modifiers.hpp>
+#include <game_skyrimse/werewolf.hpp>
 
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
@@ -693,6 +694,14 @@ namespace game_skyrimse
         /// Task 0241: perks the player has beyond his progression's (Actor.AddPerk of the Papyrus host: the Ritual
         /// stone's). A copy; replaces the last list; the perks join his list like the test setting's.
         void setPlayerExtraPerks(std::vector<FormId> perks);
+        /// Task 0259 (werewolf): what the beast form changes in the player's fighting: his bare hands become the race's
+        /// claws and his clips the werewolf's (the creature row `werewolf::playerProfile()`); an equipped weapon is
+        /// ignored while it lasts. `setPlayerBeast(nullptr)` makes him human again.
+        using BeastForm = werewolf::BeastNumbers;
+        void setPlayerBeast(const BeastForm* form);
+        [[nodiscard]] bool playerBeast() const { return mBeast; }
+        /// The player cast a power whose effect is of the werewolf archetype (36): this is called instead of a cast.
+        void setBeastStartHook(std::function<void()> hook) { mBeastStart = std::move(hook); }
         /// Task 0241 (combat_abilities.cpp): the numbers the player's held abilities and blessings give (the sum over
         /// his spell list, ability_numbers.hpp). Everything is zero when he holds none or the perk rules are off.
         [[nodiscard]] AbilityNumbers playerAbilityNumbers() const;
@@ -1073,6 +1082,7 @@ namespace game_skyrimse
         [[nodiscard]] float shieldBlockBonus(const Fighter& fighter) const;
         void applyRealGear(Fighter& fighter);
         void syncPlayerTimingClass(const Fighter& player);
+        void applyBeastToProfile(Fighter& player); ///< task 0259 (combat_werewolf.cpp)
         void applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit);
         /// Task 0227 (combat_sneak.cpp): the sneak attack multiplier of the player's blow or shot on `victim` (1: none).
         float sneakAttackFor(Fighter& attacker, Fighter& victim, const WeaponRecord* swung, bool ranged);
@@ -1360,6 +1370,10 @@ namespace game_skyrimse
         std::uint32_t mPlayerSwingToken = 0;
         std::uint32_t mPlayerSwingCount = 0; ///< task 0222
         std::string mPlayerSwingClip; ///< task 0222
+        bool mBeast = false; ///< task 0259
+        BeastForm mBeastForm; ///< task 0259
+        FighterProfile mBeastSaved; ///< the human profile put back by setPlayerBeast(nullptr)
+        std::function<void()> mBeastStart; ///< task 0259
         std::uint32_t mPlayerCastCount = 0; ///< task 0245
         std::string mPlayerCastClip; ///< task 0245
         // Reserved for the usual cell; a cell with more actors makes onActorAdded grow it (an allocation per added

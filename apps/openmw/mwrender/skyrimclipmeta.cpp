@@ -98,6 +98,18 @@ namespace MWRender::SkyrimClipMeta
         for (const DragonAlias& alias : kDragonAliases)
             if (lower == alias.mStem)
                 out.push_back(alias.mGenerator);
+        // Task 0259: the werewolf's generators are `WW <Clip>.hkx` and `WW <Clip>.hkx00` to `.hkx10` for the file
+        // `ww_<clip>`; the first with the clip's duration wins (linkClip checks it).
+        if (lower.rfind("ww_", 0) == 0 && lower.size() > 3)
+        {
+            const std::string rest = lower.substr(3);
+            // the two fast attacks are generators `WW Attack<Side>FastLow.hkx` (VERIFIED by duration, 1.33333 s)
+            if (rest == "attackleftfast" || rest == "attackrightfast")
+                out.push_back("ww " + rest + "low.hkx");
+            out.push_back("ww " + rest + ".hkx");
+            for (int i = 0; i <= 10; ++i)
+                out.push_back("ww " + rest + ".hkx" + (i < 10 ? "0" : "") + std::to_string(i));
+        }
         out.push_back(std::string(clipStem) + "NPC");
         return out;
     }

@@ -32,8 +32,12 @@
 #include "game_skyrimse/progression_service.hpp"
 #include "game_skyrimse/story_events.hpp"
 #include "game_skyrimse/shouts_service.hpp"
+#include "game_skyrimse/werewolf.hpp"
+#include "game_skyrimse/werewolf_service.hpp"
 #include "game_skyrimse/world_view.hpp"
 
+#include <functional>
+#include <set>
 #include <openeden/extension.hpp>
 #include <openeden/game/content.hpp>
 #include <openeden/game/player_place.hpp>
@@ -1279,6 +1283,8 @@ namespace game_skyrimse
                         }
                         syncEquipment();
                     }
+                    if (mWerewolf != nullptr)
+                        werewolfFrame(dt); // task 0259
                     if (mWorldView.playerBodyOn())
                         syncPlayerBody(); // task 0222
                     if (mCharacter != nullptr)
@@ -1512,6 +1518,9 @@ namespace game_skyrimse
                     startCharacter(host, logger);
                     // Task 0205: the shouts (the namespace skyrimse.shouts), off unless [extension.skyrimse] shouts.
                     startShouts(host, logger);
+                    // Task 0259: the werewolf beast form (the namespace skyrimse.werewolf), off unless
+                    // [extension.skyrimse] werewolf; needs the player body.
+                    startWerewolf(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1737,7 +1746,9 @@ namespace game_skyrimse
                     return mRest != nullptr && mRest->now() > 0.0 ? mRest->now() : mPapyrus->host().gameSeconds();
                 };
                 hooks.mApply = [this](std::span<const FormId> spells) {
-                    mCellSource.combat().setPlayerExtraAbilities(std::vector<FormId>(spells.begin(), spells.end()));
+                    std::vector<FormId> all(spells.begin(), spells.end());
+                    all.insert(all.end(), mBeastAbilities.begin(), mBeastAbilities.end()); // task 0259
+                    mCellSource.combat().setPlayerExtraAbilities(std::move(all));
                 };
                 hooks.mAnswer = [this](FormId message, std::int32_t button) {
                     return mPapyrus->host().answerMessage(message, button);
@@ -2172,7 +2183,10 @@ namespace game_skyrimse
                 };
                 hooks.mCastPower = [this](FormId spell) { return mCellSource.combat().castPlayerPower(spell); };
                 hooks.mExtraPowerSpells = [this] { // task 0241: the powers of the stones the player holds
-                    return mStones != nullptr ? mStones->active() : std::vector<FormId>();
+                    std::vector<FormId> held = mStones != nullptr ? mStones->active() : std::vector<FormId>();
+                    for (const FormId power : werewolfPowers()) // task 0259: Beast Form
+                        held.push_back(power);
+                    return held;
                 };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
@@ -2477,6 +2491,127 @@ namespace game_skyrimse
 
             // Task 0205: the player's shouts: the state (words, souls, cooldown), its save chunk, the namespace
             // skyrimse.shouts and the test settings. The combat rules cast the shout (combat_shout.cpp).
+            // Task 0259: the werewolf beast form. The power Beast Form (SPEL WerewolfChange 0x92C48, an effect of archetype
+            // 36) is cast from the character service's power list with the P key; the combat calls beastStart() instead
+            // of casting it. The form lasts 150 s (the quest script's own number), is third person with the beast's body
+            // and clips, fights with the race's claws, ignores gear and menus, and feeding on a corpse (the activate key)
+            // adds time and heals. HAND-WRITTEN: the shipped scripts are not run (they need SetRace,
+            // OnRaceSwitchComplete, UnequipAll, ForceThirdPerson and the Companions quest's own scripts).
+            void startWerewolf(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, std::string(werewolf::kKey), false))
+                    return;
+                mWerewolfLog = [logger](openeden::sdk::LogLevel level, const std::string& text) {
+                    if (logger != nullptr)
+                        logger->log(level, text);
+                };
+                mWerewolfTestSeconds = settings->getFloat(kPackId, std::string(werewolf::kTestSecondsKey), 0.f);
+                mWerewolfGrant = settings->getBool(kPackId, std::string(werewolf::kTestGrantKey), false);
+                mWerewolf = std::make_unique<werewolf::WerewolfService>(
+                    [this](std::uint64_t placement, FormId base) { return beastFeed(placement, base); });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mWerewolf->declare(*bindings);
+                    if (!declared.ok)
+                        mWerewolfLog(openeden::sdk::LogLevel::Warning,
+                            "the werewolf bindings were refused: " + declared.message);
+                }
+                mCellSource.combat().setBeastStartHook([this] { beastStart(); });
+                mWerewolfLog(openeden::sdk::LogLevel::Info,
+                    std::string("WEREWOLF the beast form is on") + (mWerewolfGrant ? " (the power is granted)" : ""));
+            }
+
+            /// The powers the player has beyond his race's: with the test grant, Beast Form.
+            [[nodiscard]] std::vector<FormId> werewolfPowers() const
+            {
+                if (mWerewolf != nullptr && mWerewolfGrant)
+                    return { werewolf::kBeastPower };
+                return {};
+            }
+
+            void applyExtraAbilities()
+            {
+                std::vector<FormId> all = mStones != nullptr ? mStones->active() : std::vector<FormId>();
+                all.insert(all.end(), mBeastAbilities.begin(), mBeastAbilities.end());
+                mCellSource.combat().setPlayerExtraAbilities(std::move(all));
+            }
+
+            void beastStart()
+            {
+                if (mWerewolf == nullptr || mBeastClock.active())
+                    return;
+                const std::uint32_t level
+                    = mProgression != nullptr && mProgression->progression() != nullptr
+                    ? mProgression->progression()->level()
+                    : 1u;
+                werewolf::BeastNumbers numbers;
+                if (!mWorldView.beastNumbers(level, numbers))
+                {
+                    mWerewolfLog(
+                        openeden::sdk::LogLevel::Warning, "WEREWOLF the race's numbers are not read yet: no change");
+                    return;
+                }
+                mBeastClock.start(mWerewolfTestSeconds > 0.f ? mWerewolfTestSeconds : werewolf::kStandardSeconds);
+                mBeastFed.clear();
+                mBeastAbilities = { werewolf::kBaseAbility, werewolf::levelAbility(level) };
+                mCellSource.combat().setPlayerBeast(&numbers);
+                applyExtraAbilities();
+                mWorldView.setBeastForm(true);
+                mWerewolf->setState(true, mBeastClock.remaining());
+                mWerewolfLog(openeden::sdk::LogLevel::Info,
+                    "WEREWOLF transformed: " + std::to_string(static_cast<int>(mBeastClock.remaining())) + " s, claws "
+                        + std::to_string(numbers.mUnarmedDamage) + " reach " + std::to_string(numbers.mUnarmedReach)
+                        + ", level ability " + std::to_string(werewolf::levelAbility(level)));
+            }
+
+            void beastEnd(const char* why)
+            {
+                mBeastClock.stop();
+                mBeastAbilities.clear();
+                mCellSource.combat().setPlayerBeast(nullptr);
+                applyExtraAbilities();
+                mWorldView.setBeastForm(false);
+                mWerewolf->setState(false, 0.f);
+                mWerewolf->announce("You return to your human form.");
+                mWerewolfLog(openeden::sdk::LogLevel::Info, std::string("WEREWOLF back to human (") + why + ")");
+            }
+
+            void werewolfFrame(float dt)
+            {
+                if (!mBeastClock.active())
+                    return;
+                switch (mBeastClock.tick(dt))
+                {
+                    case werewolf::BeastClock::Event::Warned:
+                        mWerewolf->announce("Your transformation is about to end.");
+                        mWerewolfLog(openeden::sdk::LogLevel::Info, "WEREWOLF the form is about to end");
+                        break;
+                    case werewolf::BeastClock::Event::Ended:
+                        beastEnd("the time ran out");
+                        return;
+                    case werewolf::BeastClock::Event::None:
+                        break;
+                }
+                mWerewolf->setState(true, mBeastClock.remaining());
+            }
+
+            bool beastFeed(std::uint64_t placement, FormId base)
+            {
+                if (!mBeastClock.active() || !mBeastFed.insert(placement).second)
+                    return false; // a corpse is fed on once
+                const bool person = mWorldView.baseIsPerson(static_cast<openeden::sdk::game::WorldId>(base));
+                (void)mBeastClock.feed(person);
+                const bool healed = mCellSource.combat().queuePlayerHeal(werewolf::kFeedHealth);
+                mWerewolf->announce("You feed.");
+                mWerewolf->setState(true, mBeastClock.remaining());
+                mWerewolfLog(openeden::sdk::LogLevel::Info,
+                    std::string("WEREWOLF fed on ") + (person ? "a person" : "an animal") + ", "
+                        + std::to_string(static_cast<int>(mBeastClock.remaining())) + " s left"
+                        + (healed ? ", healed" : ", not healed (the combat rules are not running)"));
+                return true;
+            }
+
             void startShouts(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
@@ -4256,6 +4391,13 @@ namespace game_skyrimse
             std::uint64_t mProgressionPushed = 0;
             std::unique_ptr<map::MapService> mMap; // task 0201; refers to the world view
             std::unique_ptr<shouts::ShoutService> mShouts; // task 0205; refers to the world view
+            std::unique_ptr<werewolf::WerewolfService> mWerewolf; // task 0259; its lambdas refer to the pack
+            werewolf::BeastClock mBeastClock; // task 0259
+            std::vector<FormId> mBeastAbilities; // task 0259: AbWerewolf and the level ability while the form lasts
+            std::set<std::uint64_t> mBeastFed; // task 0259: the corpses fed on in this form
+            std::function<void(openeden::sdk::LogLevel, const std::string&)> mWerewolfLog;
+            float mWerewolfTestSeconds = 0.f;
+            bool mWerewolfGrant = false;
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
             std::unique_ptr<travel::TravelService> mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view

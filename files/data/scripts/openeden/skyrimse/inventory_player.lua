@@ -13,6 +13,7 @@ if not (okUi and okInv) then
 end
 local windows = require('openeden.skyrimse.inventory_windows')
 local hasBooks = pcall(require, 'core.skyrimse.lockbooks') -- task 0203: books can be read
+local hasWolf, wolf = pcall(require, 'core.skyrimse.werewolf') -- task 0259: a werewolf has no inventory window
 
 local MODE = 'Interface'
 local view
@@ -67,6 +68,7 @@ return {
     end,
     onKeyPress = function(key)
       if key.code ~= input.KEY.I then return end
+      if hasWolf and wolf.active() == 1 then return end
       if view.isOpen() then
         leave()
       elseif I.UI.getMode() == nil and inv.ready() then
@@ -75,6 +77,9 @@ return {
     end,
   },
   eventHandlers = {
-    SkyrimInventoryOpen = function(data) show(data.owner, data.name) end,
+    SkyrimInventoryOpen = function(data)
+      if hasWolf and wolf.active() == 1 then return end
+      show(data.owner, data.name)
+    end,
   },
 }

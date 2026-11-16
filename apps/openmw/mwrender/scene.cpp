@@ -867,6 +867,21 @@ namespace MWRender
             if (resources == nullptr || resources->getVFS() == nullptr)
                 return {};
             const VFS::Manager& vfs = *resources->getVFS();
+            // Task 0259: a clip named `<creature folder>::<clip>` is a creature's (the werewolf beast's): its skeleton is
+            // `actors/<folder>/character assets/skeleton.nif` and its sidecar `<folder>project`.
+            const std::size_t separator = clip.find("::");
+            if (separator != std::string_view::npos && separator > 0)
+            {
+                const std::string folder(clip.substr(0, separator));
+                const std::string stem(clip.substr(separator + 2));
+                SkyrimIdle::ClipFuture creatureClip = SkyrimIdle::loadIdleAsync(
+                    vfs, "actors/" + folder + "/character assets/skeleton.nif", std::string_view(), stem);
+                static const bool sCreatureRepeatable = std::getenv("OPENEDEN_FIXED_FRAME_TIME") != nullptr;
+                mPlayerClipMeta.begin(clip, perSex,
+                    SkyrimClipMeta::loadAsync(vfs, false, folder + "project", stem, creatureClip),
+                    std::chrono::milliseconds(sCreatureRepeatable ? 2000 : 0));
+                return answer.mMeta;
+            }
             SkyrimIdle::ClipFuture decoded
                 = SkyrimIdle::loadIdleAsync(vfs, std::string(kSkeleton), perSex ? "male" : "", clip);
             // Task 0183: a run with a fixed frame time (every repeatable test run) waits for the read, so the frame on

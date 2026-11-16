@@ -7,6 +7,9 @@ if not okInv then
   return {}
 end
 
+-- task 0259: a werewolf does not search a corpse, it feeds on it (the pack's service counts the time and the health)
+local okWolf, wolf = pcall(require, 'core.skyrimse.werewolf')
+
 local function toPlayer(name, data)
   local player = world.players[1]
   if player then player:sendEvent(name, data) end
@@ -18,6 +21,10 @@ return {
     -- data: placement and base (hex text), kind ('container' or 'actor'), name.
     openeden_skyrimse_container_opened = function(data)
       print('[skyrimse inventory] container opened ' .. tostring(data.placement))
+      if okWolf and wolf.active() == 1 then
+        if data.kind == 'actor' then wolf.feed(data.placement, data.base) end
+        return
+      end
       inv.open(data.placement, data.base, data.kind)
       toPlayer('SkyrimInventoryOpen', { owner = data.placement, name = data.name })
     end,

@@ -762,6 +762,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecreaturesthirdreal.cpp
     skyrimse/testskyrimsedragonsreal.cpp
     skyrimse/testskyrimsedragons.cpp
+    skyrimse/testskyrimsewerewolfreal.cpp
+    skyrimse/testskyrimsewerewolf.cpp
     skyrimse/testskyrimsecombatdragon.cpp
     skyrimse/testskyrimsecreaturesthird.cpp
     skyrimse/testskyrimseriding.cpp
@@ -914,6 +916,9 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/creatures.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/riding.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dragons.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/werewolf.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_werewolf.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/werewolf_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_dragon.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_factions.cpp

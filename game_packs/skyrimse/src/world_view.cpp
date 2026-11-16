@@ -798,6 +798,54 @@ namespace game_skyrimse
         ++mPlayerBodyRevision;
     }
 
+    void SkyrimWorldView::setBeastForm(bool on)
+    {
+        if (on == mBeastForm)
+            return;
+        mBeastForm = on;
+        ++mPlayerBodyRevision;
+    }
+
+    bool SkyrimWorldView::beastNumbers(std::uint32_t playerLevel, werewolf::BeastNumbers& out)
+    {
+        out = {};
+        if (mCombatIndex == nullptr)
+        {
+            (void)combatReady();
+            if (mCombatIndex == nullptr)
+                return false;
+        }
+        const RaceCombatRecord* race = mCombatIndex->race(werewolf::kBeastRace);
+        if (race == nullptr)
+            return false;
+        out.mUnarmedDamage = race->mUnarmedDamage;
+        out.mUnarmedReach = race->mUnarmedReach;
+        out.mBodyMaterial = race->mBodyMaterial;
+        out.mUnarmedImpactSet = race->mUnarmedImpactSet;
+        // the level ability's Fortify Unarmed Damage (PlayerWerewolfChangeScript.StartTracking adds it)
+        if (const SpellRecord* ability = mCombatIndex->spell(werewolf::levelAbility(playerLevel)))
+            for (const SpellEffect& effect : ability->mEffects)
+                if (effect.mEffect == werewolf::kFortifyUnarmedEffect && std::isfinite(effect.mMagnitude))
+                    out.mUnarmedDamage += effect.mMagnitude;
+        return true;
+    }
+
+    bool SkyrimWorldView::baseIsPerson(openeden::sdk::game::WorldId base)
+    {
+        if (mActorIndex == nullptr)
+            return false;
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(static_cast<FormId>(base), 1, 0, resolved) != ActorIndex::ResolveStatus::Ok)
+            return false;
+        const RaceRecord* race = mActorIndex->race(resolved.mRace);
+        if (race == nullptr)
+            return false;
+        std::string path = race->skeleton(Sex::Male);
+        for (char& c : path)
+            c = c == '\\' ? '/' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return path.find("actors/character/") != std::string::npos;
+    }
+
     void SkyrimWorldView::setPlayerLook(
         FormId race, bool female, std::vector<std::pair<std::uint32_t, FormId>> headChoice)
     {
@@ -879,7 +927,7 @@ namespace game_skyrimse
             return true;
         }
         out.revision = mPlayerBodyRevision + 1; // never 0
-        out.firstPerson = mFirstPersonBodyOn; // task 0245
+        out.firstPerson = mFirstPersonBodyOn && !mBeastForm; // task 0245 (task 0259: a werewolf is third person only)
         return true;
     }
 
@@ -926,6 +974,27 @@ namespace game_skyrimse
         }
         PlayerBodyRequest request;
         request.mFemale = mStandInFemale;
+        if (mBeastForm)
+        {
+            // Task 0259: the beast's body: its race and skin, no clothes, no gear (it has none), the werewolf's clips
+            request.mRace = werewolf::kBeastRace;
+            request.mFemale = false;
+            request.mStartOutfit = kNullFormId;
+            AppearanceLimits beast;
+            beast.mCreatures = true;
+            if (!makePlayerAppearance(*mActorIndex, request, out, error, beast))
+                return false;
+            const CreatureProfile& row = werewolf::bareProfile();
+            out.animationProject = std::string(row.mProject);
+            out.idleClip = std::string(row.mIdle);
+            out.walkClip = std::string(row.mWalk);
+            out.runClip = std::string(row.mRun);
+            out.walkSpeed = row.mWalkSpeed;
+            out.runSpeed = row.mRunSpeed;
+            out.walkStride = row.mWalkStride;
+            out.runStride = row.mRunStride;
+            return true;
+        }
         if (mPlayerLookSet)
         {
             request.mRace = mPlayerRace;

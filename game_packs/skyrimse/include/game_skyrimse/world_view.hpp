@@ -40,6 +40,7 @@
 #include <game_skyrimse/story.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
+#include <game_skyrimse/werewolf.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/actor_mechanics.hpp>
@@ -447,6 +448,13 @@ namespace game_skyrimse
         /// What the player has equipped, as the pack's inventory holds it (the ARMO items and the one WEAP). A change
         /// moves the revision the core polls; the same lists again do not.
         void setPlayerEquipment(std::vector<FormId> armour, FormId weapon);
+        /// Task 0259: the player is a werewolf (his body is the beast's, in third person only; the revision moves).
+        void setBeastForm(bool on);
+        [[nodiscard]] bool beastForm() const { return mBeastForm; }
+        /// What the beast's claws do for a player of this level (false until the combat records are read; never waits).
+        [[nodiscard]] bool beastNumbers(std::uint32_t playerLevel, werewolf::BeastNumbers& out);
+        /// True when the base resolves to an NPC_ of a human race (a person: a werewolf's feed gives it the full time).
+        [[nodiscard]] bool baseIsPerson(openeden::sdk::game::WorldId base);
         /// The revision and (through the cell source) the swing state. Never blocks: the revision is 0 until the actor
         /// records are read (a worker reads them, adopted here).
         bool playerBody(openeden::sdk::game::PlayerBodyState& out) override;
@@ -821,6 +829,7 @@ namespace game_skyrimse
         bool mHeldGear = false; ///< task 0220
         bool mPlayerBodyOn = false; ///< task 0222
         bool mFirstPersonBodyOn = false; ///< task 0245
+        bool mBeastForm = false; ///< task 0259
         bool mPlayerLookSet = false; ///< task 0225
         FormId mPlayerRace = kNullFormId; ///< task 0225
         bool mPlayerFemale = false; ///< task 0225
