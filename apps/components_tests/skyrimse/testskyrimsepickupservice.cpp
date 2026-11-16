@@ -63,7 +63,7 @@ namespace
         return v;
     }
 
-    struct Fixture : ::testing::Test
+    struct PickupServiceFixture : ::testing::Test
     {
         std::vector<std::string> mSteps; // the order of the hook calls
         std::map<FormId, std::pair<std::int32_t, float>> mItems{ { kSword, { 100, 8.f } }, { kGold, { 1, 0.f } } };
@@ -129,7 +129,7 @@ namespace
 
     // ---- pickup -----------------------------------------------------------------------------------------------------
 
-    TEST_F(Fixture, aPickupGivesTheItemRemovesTheObjectAndRemembersIt)
+    TEST_F(PickupServiceFixture, aPickupGivesTheItemRemovesTheObjectAndRemembersIt)
     {
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::Ok);
         EXPECT_EQ(mPlayer[kSword], 1);
@@ -139,14 +139,14 @@ namespace
         EXPECT_EQ(mSteps, expect); // an unowned item: no theft step
     }
 
-    TEST_F(Fixture, aPlacedStackKeepsItsCount)
+    TEST_F(PickupServiceFixture, aPlacedStackKeepsItsCount)
     {
         mXcnt = 25;
         EXPECT_EQ(mService->pickup(kPlacement, kGold), PickupStatus::Ok);
         EXPECT_EQ(mPlayer[kGold], 25);
     }
 
-    TEST_F(Fixture, aSecondPickupOfOnePlacementIsRefused)
+    TEST_F(PickupServiceFixture, aSecondPickupOfOnePlacementIsRefused)
     {
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::Ok);
         mSteps.clear();
@@ -155,14 +155,14 @@ namespace
         EXPECT_TRUE(mSteps.empty());
     }
 
-    TEST_F(Fixture, aFormThatIsNoItemIsRefusedAndNothingChanges)
+    TEST_F(PickupServiceFixture, aFormThatIsNoItemIsRefusedAndNothingChanges)
     {
         EXPECT_EQ(mService->pickup(kPlacement, 0x1234), PickupStatus::NotAnItem);
         EXPECT_FALSE(mService->book().taken(kPlacement));
         EXPECT_TRUE(mSteps.empty());
     }
 
-    TEST_F(Fixture, aPlayerThatCannotReceiveLeavesTheObjectInTheWorld)
+    TEST_F(PickupServiceFixture, aPlayerThatCannotReceiveLeavesTheObjectInTheWorld)
     {
         mPlayerFull = true;
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::Refused);
@@ -170,7 +170,7 @@ namespace
         EXPECT_EQ(mSteps, std::vector<std::string>{ "add" });
     }
 
-    TEST_F(Fixture, aFailedDisableIsStillRememberedSoTheItemIsNotTakenTwice)
+    TEST_F(PickupServiceFixture, aFailedDisableIsStillRememberedSoTheItemIsNotTakenTwice)
     {
         mDisableOk = false;
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::Ok);
@@ -178,7 +178,7 @@ namespace
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::AlreadyTaken);
     }
 
-    TEST_F(Fixture, anOwnedItemIsTheftBeforeItLeavesTheWorld)
+    TEST_F(PickupServiceFixture, anOwnedItemIsTheftBeforeItLeavesTheWorld)
     {
         Hooks h = hooks();
         h.mTaken = [this](FormId placement, FormId item, std::int32_t count) {
@@ -193,7 +193,7 @@ namespace
         EXPECT_EQ(mSteps, expect);
     }
 
-    TEST_F(Fixture, aMissingHookRefusesInsteadOfCrashing)
+    TEST_F(PickupServiceFixture, aMissingHookRefusesInsteadOfCrashing)
     {
         Hooks h;
         PickupService bare(h);
@@ -202,14 +202,14 @@ namespace
         EXPECT_EQ(bare.chance(kHulda, kSword, 1), 0.f);
     }
 
-    TEST_F(Fixture, theRevisionMovesAfterAPickup)
+    TEST_F(PickupServiceFixture, theRevisionMovesAfterAPickup)
     {
         const std::uint32_t before = mService->revision();
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::Ok);
         EXPECT_NE(mService->revision(), before);
     }
 
-    TEST_F(Fixture, theSavedSetSurvivesAChunkRoundTrip)
+    TEST_F(PickupServiceFixture, theSavedSetSurvivesAChunkRoundTrip)
     {
         EXPECT_EQ(mService->pickup(kPlacement, kSword), PickupStatus::Ok);
         struct Out final : openeden::sdk::ChunkWriter
@@ -245,14 +245,14 @@ namespace
 
     // ---- pickpocket -------------------------------------------------------------------------------------------------
 
-    TEST_F(Fixture, theChanceFollowsTheRulesOverTheHooks)
+    TEST_F(PickupServiceFixture, theChanceFollowsTheRulesOverTheHooks)
     {
         // skill 50, value 100, weight 8: 25 + 30 - 30 - 12 = 13
         EXPECT_NEAR(mService->chance(kHulda, kSword, 1), 13.f, 1e-3f);
         EXPECT_EQ(mService->chance(kHulda, 0x4321, 1), 0.f); // unknown item
     }
 
-    TEST_F(Fixture, everyTryTrainsThePickpocketSkillWhateverItsOutcome)
+    TEST_F(PickupServiceFixture, everyTryTrainsThePickpocketSkillWhateverItsOutcome)
     {
         const TryStatus first = mService->take(kHulda, kGold, 5);
         EXPECT_TRUE(first == TryStatus::Success || first == TryStatus::Caught);
@@ -261,7 +261,7 @@ namespace
         EXPECT_FLOAT_EQ(mTrained, 6.f);
     }
 
-    TEST_F(Fixture, aSuccessMovesTheItemsAndATryCountsAsAnAttempt)
+    TEST_F(PickupServiceFixture, aSuccessMovesTheItemsAndATryCountsAsAnAttempt)
     {
         mSkill = 100.f; // gold: 25 + 60 - 3 * sqrt(1) = 82%: pick the first attempt that succeeds, deterministically
         int successes = 0;
@@ -288,7 +288,7 @@ namespace
         EXPECT_EQ(mCaughtCalls, 40 - successes);
     }
 
-    TEST_F(Fixture, theOutcomesAreTheSameInEveryRun)
+    TEST_F(PickupServiceFixture, theOutcomesAreTheSameInEveryRun)
     {
         const auto run = [this]() {
             mHulda = { { kSword, 2 }, { kGold, 40 } };
@@ -302,7 +302,7 @@ namespace
         EXPECT_EQ(run(), run());
     }
 
-    TEST_F(Fixture, aCaughtTryTellsTheCrimeHookTheVictimAndTheCount)
+    TEST_F(PickupServiceFixture, aCaughtTryTellsTheCrimeHookTheVictimAndTheCount)
     {
         mSkill = 0.f;
         for (int i = 0; i < 60 && mCaughtCalls == 0; ++i)
@@ -312,7 +312,7 @@ namespace
         EXPECT_FALSE(mService->message().empty());
     }
 
-    TEST_F(Fixture, aBadCountIsRefusedWithoutARollOrTraining)
+    TEST_F(PickupServiceFixture, aBadCountIsRefusedWithoutARollOrTraining)
     {
         EXPECT_EQ(mService->take(kHulda, kSword, 0), TryStatus::BadCount);
         EXPECT_EQ(mService->take(kHulda, kSword, -1), TryStatus::BadCount);
@@ -324,7 +324,7 @@ namespace
 
     // ---- bindings ---------------------------------------------------------------------------------------------------
 
-    TEST_F(Fixture, theBindingsAreDeclaredAndDriveTheService)
+    TEST_F(PickupServiceFixture, theBindingsAreDeclaredAndDriveTheService)
     {
         StubBindings bindings;
         ASSERT_TRUE(mService->declare(bindings).ok);
@@ -346,7 +346,7 @@ namespace
         EXPECT_EQ(mService->book().attempts(), 1u);
     }
 
-    TEST_F(Fixture, aBadIdArgumentIsAnErrorAndChangesNothing)
+    TEST_F(PickupServiceFixture, aBadIdArgumentIsAnErrorAndChangesNothing)
     {
         StubBindings bindings;
         ASSERT_TRUE(mService->declare(bindings).ok);
