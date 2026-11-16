@@ -25,9 +25,12 @@
 #include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/barter.hpp>
 #include <game_skyrimse/furniture.hpp>
+#include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/quest_alias.hpp>
+#include <game_skyrimse/story.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
 
@@ -165,6 +168,10 @@ namespace game_skyrimse
             /// task 0185: the text of a localised string of a record of plugin `plugin` (the runtime's own resolver;
             /// main thread only; an empty string when it cannot be found)
             std::function<std::string(const LString&, std::uint32_t plugin, StringTableKind)> mText;
+            /// task 0187: fills quest aliases (specific references, unique actors, find-matching by conditions)
+            QuestAliasFiller* mAliases = nullptr;
+            /// task 0187: the story manager: raises an event and returns the quests it starts (the caller starts them)
+            std::function<std::vector<FormId>(const StoryEvent& event)> mStory;
         };
 
         /// What startLoad's worker did, handed to the completion function.
@@ -424,6 +431,16 @@ namespace game_skyrimse
         [[nodiscard]] bool formHasKeyword(FormId form, FormId keyword) const;
         /// A script set a quest's stage: the package brain's own copy of the quest state follows.
         void setPackageQuestStage(FormId quest, std::uint32_t stage);
+        /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
+        /// when it is made). Main thread.
+        void setInfoFragmentSink(InfoFragmentSink sink);
+        /// Task 0187: is the form a dialogue INFO with scripts (the class of a TIF fragment script's form)?
+        [[nodiscard]] bool isScriptedInfo(FormId info) const;
+        /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
+        [[nodiscard]] FormId questOfInfo(FormId info) const;
+        /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false
+        /// when the cell is not known. Main thread.
+        [[nodiscard]] bool cellLocation(FormId cell, FormId& location, bool& interior) const;
         [[nodiscard]] std::uint64_t placedRefsBuildMillis() const { return mPlacedRefsMillis.load(); }
 
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
@@ -541,6 +558,7 @@ namespace game_skyrimse
         std::unique_ptr<DialogueState> mDialogue;
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
+        InfoFragmentSink mInfoFragmentSink; ///< task 0187
         bool mPackageWired = true;
         std::atomic<std::uint64_t> mPlacedRefsMillis{ 0 };
         void fillSpeakerCell(DialogueSpeaker& speaker, FormId cell) const; ///< interior flag and location of a cell

@@ -23,6 +23,8 @@ openeden_add_game_pack(skyrimse
         src/barter_service.cpp
         src/journal.cpp
         src/quest_script.cpp
+        src/story.cpp
+        src/quest_alias.cpp
         src/vmad.cpp
         src/papyrus_host.cpp
         src/appearance.cpp
@@ -126,6 +128,8 @@ add_library(game_skyrimse_world STATIC
     src/location.cpp
     src/placed_refs.cpp
     src/quest_script.cpp
+    src/story.cpp
+    src/quest_alias.cpp
     src/vmad.cpp
     src/papyrus_host.cpp
     src/appearance.cpp

@@ -103,6 +103,8 @@ namespace game_skyrimse
                 return true;
             }
             className = mData.formClass(form);
+            if (className.empty() && mData.isTopicInfo(form))
+                className = "TopicInfo";
             return !className.empty();
         }
 
@@ -433,6 +435,55 @@ namespace game_skyrimse
             }
         }
 
+        // Task 0187: the aliases of a quest that starts get their references (`matching`: also the find-matching ones).
+        void fillAliases(FormId quest, bool matching)
+        {
+            if (mFiller == nullptr || mState == nullptr)
+                return;
+            const std::size_t filled = mFiller->fillQuest(quest, *mState, matching);
+            mCounters.mAliasesFilled += filled;
+            if (filled != 0 && matching)
+                say(false,
+                    "Papyrus: quest " + hex(quest) + " started with " + std::to_string(filled) + " aliases filled");
+        }
+
+        // Task 0187: the runtime refuses to load a script from inside a native, and attaching a quest that no script
+        // named before loads its scripts. So the attach, the fragments and the events of a stage change or a start that a
+        // script asked for run right after the native (and the script that called it) returned.
+        void afterNative(std::function<void()> work)
+        {
+            if (mNativeDepth > 0)
+                mDeferred.push_back(std::move(work));
+            else
+                work();
+        }
+
+        bool runDeferred()
+        {
+            bool any = false;
+            for (int round = 0; !mDeferred.empty() && round < 16; ++round)
+            {
+                std::vector<std::function<void()>> work = std::move(mDeferred);
+                mDeferred.clear();
+                for (std::function<void()>& f : work)
+                    f();
+                any = true;
+            }
+            return any;
+        }
+
+        // The classes a native hands to scripts (an Actor as akSpeakerRef, the owning Quest of an alias, ...) must be
+        // loaded before the first call on them, and cannot be loaded inside a native.
+        void preloadClasses()
+        {
+            if (mPreloaded)
+                return;
+            mPreloaded = true;
+            for (const char* name : { "form", "objectreference", "actor", "quest", "alias", "referencealias",
+                     "locationalias", "location", "keyword", "topicinfo", "cell", "spell", "game", "utility", "debug" })
+                (void)load(name, false);
+        }
+
         bool setStage(FormId quest, std::uint32_t stage)
         {
             if (mIndex == nullptr || mState == nullptr)
@@ -442,24 +493,28 @@ namespace game_skyrimse
                 return false;
             if (mState->stageDone(quest, stage) && (record->mFlags & QuestFlags::AllowRepeatedStages) == 0)
                 return false;
+            if (!mState->running(quest))
+                fillAliases(quest, true);
             mState->setStage(*mIndex, quest, stage);
             ++mCounters.mStageSets;
             say(false, "Papyrus: quest " + hex(quest) + " set to stage " + std::to_string(stage));
             if (mQuestChanged)
                 mQuestChanged(quest, stage);
-            (void)attachQuest(quest); // a quest that starts by a stage gets its scripts now
-            runFragments(quest, stage);
-            std::int32_t logEntry = 0;
-            if (const vmad::Vmad* v = mVmads ? mVmads(quest) : nullptr)
-                for (const vmad::Fragment& fragment : v->mFragments)
-                    if (fragment.mStage == stage)
-                    {
-                        logEntry = fragment.mLogEntry;
-                        break;
-                    }
-            for (const InstanceId instance : instancesOf(quest))
-                (void)sendEvent(instance, "OnStageSet",
-                    { PapyrusValue::makeInt(static_cast<std::int32_t>(stage)), PapyrusValue::makeInt(logEntry) });
+            afterNative([this, quest, stage] {
+                (void)attachQuest(quest); // a quest that starts by a stage gets its scripts now
+                runFragments(quest, stage);
+                std::int32_t logEntry = 0;
+                if (const vmad::Vmad* v = mVmads ? mVmads(quest) : nullptr)
+                    for (const vmad::Fragment& fragment : v->mFragments)
+                        if (fragment.mStage == stage)
+                        {
+                            logEntry = fragment.mLogEntry;
+                            break;
+                        }
+                for (const InstanceId instance : instancesOf(quest))
+                    (void)sendEvent(instance, "OnStageSet",
+                        { PapyrusValue::makeInt(static_cast<std::int32_t>(stage)), PapyrusValue::makeInt(logEntry) });
+            });
             return true;
         }
 
@@ -467,9 +522,32 @@ namespace game_skyrimse
         {
             if (mState == nullptr)
                 return;
+            fillAliases(quest, true);
             mState->start(quest);
-            (void)attachQuest(quest);
-            runStartUpStage(quest);
+            afterNative([this, quest] {
+                (void)attachQuest(quest);
+                runStartUpStage(quest);
+            });
+        }
+
+        // Task 0187: the story manager's answer to an event: the quests it chose are started (once each).
+        std::size_t raiseStory(const StoryEvent& event)
+        {
+            if (!mStorySink || mState == nullptr)
+                return 0;
+            ++mCounters.mStoryEvents;
+            const std::vector<FormId> chosen = mStorySink(event);
+            std::size_t started = 0;
+            for (const FormId quest : chosen)
+            {
+                if (mState->running(quest) || mState->completed(quest))
+                    continue;
+                startQuest(quest);
+                ++started;
+                ++mCounters.mStoryQuestsStarted;
+                say(false, "Papyrus: story event " + event.mType + " started quest " + hex(quest));
+            }
+            return started;
         }
 
         void runStartUpStage(FormId quest)
@@ -587,6 +665,16 @@ namespace game_skyrimse
                 descriptor,
                 [this, key, handler = std::move(handler)](const NativeCall& call) {
                     ++mCounters.mNatives[key];
+                    struct Depth
+                    {
+                        int& mValue;
+                        explicit Depth(int& v)
+                            : mValue(v)
+                        {
+                            ++mValue;
+                        }
+                        ~Depth() { --mValue; }
+                    } depth(mNativeDepth);
                     return handler(call);
                 },
                 error);
@@ -769,6 +857,23 @@ namespace game_skyrimse
                 const auto it = mObjectivesCompleted.find({ formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)) });
                 return result(PapyrusValue::makeBool(it != mObjectivesCompleted.end() && it->second));
             });
+            reg("TopicInfo", "GetOwningQuest", false, [this](const NativeCall& c) {
+                return result(formValue(mData.questOfInfo(formOf(c.self))));
+            });
+            // Task 0187: Keyword.SendStoryEvent(akLoc, akRef1, akRef2, aiValue1, aiValue2): the keyword is the event's K1
+            const auto sendStory = [this](const NativeCall& c) {
+                StoryEvent event;
+                event.mType = "SCPT";
+                event.mKeyword = formOf(c.self);
+                event.mLocation1 = c.arguments.size() > 0 ? formOf(c.arguments[0]) : 0;
+                event.mRef1 = c.arguments.size() > 1 ? formOf(c.arguments[1]) : 0;
+                event.mRef2 = c.arguments.size() > 2 ? formOf(c.arguments[2]) : 0;
+                event.mValue1 = argInt(c, 3);
+                event.mValue2 = argInt(c, 4);
+                return result(PapyrusValue::makeBool(raiseStory(event) != 0));
+            };
+            reg("Keyword", "SendStoryEvent", false, sendStory);
+            reg("Keyword", "SendStoryEventAndWait", false, sendStory);
             // Alias and ReferenceAlias
             reg("Alias", "GetOwningQuest", false, [this](const NativeCall& c) {
                 FormId quest = 0;
@@ -785,7 +890,14 @@ namespace game_skyrimse
                     return result(formValue(forced->second));
                 if (mState != nullptr)
                 {
-                    const AliasFill fill = mState->aliasFill(quest, alias);
+                    AliasFill fill = mState->aliasFill(quest, alias);
+                    if ((!fill.mKnown || fill.mReference == 0) && mFiller != nullptr && mState->running(quest))
+                    {
+                        // Task 0187: an alias nobody filled at the start is filled when a script asks (once)
+                        if (mFiller->fillAlias(quest, alias, *mState))
+                            ++mCounters.mAliasesFilled;
+                        fill = mState->aliasFill(quest, alias);
+                    }
                     if (fill.mKnown && fill.mReference != 0)
                         return result(formValue(fill.mReference));
                 }
@@ -820,12 +932,18 @@ namespace game_skyrimse
                 mTime += static_cast<double>(dt);
             ++mCounters.mTicks;
             fireTimers();
-            const openeden::script::TickResult r = mRuntime->tick(mTime);
-            mCounters.mStacksRun += r.stacksRun;
-            for (const openeden::script::ErrorReport& error : r.errors)
+            for (int round = 0; round < 8; ++round)
             {
-                ++mCounters.mScriptErrors;
-                say(true, "Papyrus: " + error.format());
+                const openeden::script::TickResult r = mRuntime->tick(mTime);
+                mCounters.mStacksRun += r.stacksRun;
+                for (const openeden::script::ErrorReport& error : r.errors)
+                {
+                    ++mCounters.mScriptErrors;
+                    say(true, "Papyrus: " + error.format());
+                }
+                // work a native left for after it (a quest the stage change attached) queues events: run them now
+                if (!runDeferred())
+                    break;
             }
             mInTick = false;
         }
@@ -847,6 +965,11 @@ namespace game_skyrimse
         const QuestIndex* mIndex = nullptr;
         QuestState* mState = nullptr;
         QuestVmadLookup mVmads;
+        QuestAliasFiller* mFiller = nullptr; ///< task 0187
+        int mNativeDepth = 0; ///< > 0 while a native runs: a script cannot be loaded then (task 0187)
+        std::vector<std::function<void()>> mDeferred; ///< work that needs a script loaded, run after the native returned
+        bool mPreloaded = false;
+        StoryEventSink mStorySink; ///< task 0187
         bool mStarted = false;
         bool mInTick = false;
         double mTime = 0.0;
@@ -1383,6 +1506,62 @@ namespace game_skyrimse
 
     PapyrusHost::~PapyrusHost() = default;
 
+    void PapyrusHost::setAliasFiller(QuestAliasFiller* filler)
+    {
+        mImpl->mFiller = filler;
+    }
+
+    void PapyrusHost::setStoryEventSink(StoryEventSink sink)
+    {
+        mImpl->mStorySink = std::move(sink);
+    }
+
+    std::size_t PapyrusHost::raiseStoryEvent(const StoryEvent& event)
+    {
+        return mImpl->raiseStory(event);
+    }
+
+    std::size_t PapyrusHost::runInfoFragments(FormId info, const vmad::Vmad& vmad, FormId ref, FormId base)
+    {
+        (void)base;
+        Impl& m = *mImpl;
+        if (!vmad.mHasInfoFragments)
+            return 0;
+        m.preloadClasses();
+        {
+            std::string speakerClass;
+            if (ref != 0 && m.formClass(ref, speakerClass))
+                (void)m.load(lower(speakerClass), false);
+        }
+        std::uint32_t ordinal = 0;
+        for (const vmad::Script& script : vmad.mScripts)
+        {
+            const std::uint32_t at = ordinal++;
+            if (m.findInstance(info, script.mName) != 0)
+                continue;
+            Impl::InstanceInfo instanceInfo;
+            instanceInfo.mForm = info;
+            (void)m.attachScript(AttachKey{ AttachKind::Form, info, 0, at }, instanceInfo, script);
+        }
+        std::size_t queued = 0;
+        const auto run = [&](bool wanted, const std::string& scriptName, const std::string& function) {
+            if (!wanted)
+                return;
+            const InstanceId instance = m.findInstance(info, scriptName);
+            if (instance == 0)
+                return;
+            if (m.sendEvent(instance, function, { m.formValue(ref) }))
+            {
+                ++queued;
+                ++m.mCounters.mInfoFragmentsRun;
+                m.say(false, "Papyrus: dialogue line " + hex(info) + " runs " + scriptName + "." + function);
+            }
+        };
+        run(vmad.mInfo.hasBegin(), vmad.mInfo.mBeginScript, vmad.mInfo.mBeginFunction);
+        run(vmad.mInfo.hasEnd(), vmad.mInfo.mEndScript, vmad.mInfo.mEndFunction);
+        return queued;
+    }
+
     void PapyrusHost::setLog(LogFunction log)
     {
         mImpl->mLog = std::move(log);
@@ -1411,11 +1590,13 @@ namespace game_skyrimse
         if (m.mStarted || m.mIndex == nullptr || m.mState == nullptr)
             return;
         m.mStarted = true;
+        m.preloadClasses();
         for (const FormId quest : m.mIndex->questIds())
         {
             const QuestRecord* record = m.mIndex->quest(quest);
             if (record == nullptr || !record->startsEnabled() || !m.mState->running(quest))
                 continue;
+            m.fillAliases(quest, false); // the find-matching ones wait until a script asks (task 0187)
             (void)m.attachQuest(quest);
             m.runStartUpStage(quest);
         }
@@ -1487,6 +1668,7 @@ namespace game_skyrimse
 
     PapyrusRestoreOutcome PapyrusHost::restoreSavedState(std::span<const std::uint8_t> bytes)
     {
+        mImpl->preloadClasses();
         return mImpl->restore(bytes);
     }
 
@@ -1642,6 +1824,7 @@ namespace game_skyrimse
         if (instance == 0 || mImpl->mInTick)
             return false;
         const openeden::script::CallResult r = mImpl->mRuntime->call(instance, function, {});
+        (void)mImpl->runDeferred();
         if (!r.ok)
         {
             ++mImpl->mCounters.mScriptErrors;

@@ -583,6 +583,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedialogueruntimereal.cpp
     skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsespeech.cpp
+    skyrimse/testskyrimsequestscripts.cpp
+    skyrimse/testskyrimsequestscriptsreal.cpp
     skyrimse/testskyrimseconditionstate.cpp
     skyrimse/testskyrimseconditionstatereal.cpp
     skyrimse/testskyrimseplacedrefs.cpp
@@ -668,6 +670,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/journal.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_alias.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/vmad.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_host.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp

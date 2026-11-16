@@ -91,6 +91,8 @@ namespace game_skyrimse
                 return entry != nullptr ? entry->mBase : 0;
             }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
+            bool isTopicInfo(FormId form) const override { return mView.isScriptedInfo(form); }
+            FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
             bool initiallyEnabled(FormId reference) const override
             {
                 const PlacedRefIndex* refs = mView.placedRefs();
@@ -194,7 +196,9 @@ namespace game_skyrimse
                         + std::to_string(c.mPropertiesSet) + " (rejected " + std::to_string(c.mPropertiesRejected)
                         + ", skipped " + std::to_string(c.mPropertiesSkipped) + "); stage sets "
                         + std::to_string(c.mStageSets) + ", fragments " + std::to_string(c.mFragmentsRun)
-                        + ", updates " + std::to_string(c.mUpdatesFired) + ", script errors "
+                        + ", dialogue fragments " + std::to_string(c.mInfoFragmentsRun) + ", story events "
+                        + std::to_string(c.mStoryEvents) + " (quests started " + std::to_string(c.mStoryQuestsStarted)
+                        + "), aliases filled " + std::to_string(c.mAliasesFilled) + ", updates " + std::to_string(c.mUpdatesFired) + ", script errors "
                         + std::to_string(c.mScriptErrors) + "; native calls answered " + std::to_string(answered)
                         + ", tolerant natives " + std::to_string(names.size()) + ", tolerant calls "
                         + std::to_string(mHost.tolerantCalls()));
@@ -222,6 +226,15 @@ namespace game_skyrimse
                     return false;
                 mData.setQuests(access.mQuests);
                 mHost.setQuests(access.mQuests, access.mState, access.mVmads);
+                // Task 0187: aliases fill when a quest starts, the story manager answers events, and the script
+                // fragments of a dialogue line the player picks run here
+                mHost.setAliasFiller(access.mAliases);
+                mHost.setStoryEventSink(access.mStory);
+                mView.setInfoFragmentSink([this](const InfoFragmentCall& call) {
+                    if (call.mVmad != nullptr)
+                        (void)mHost.runInfoFragments(
+                            call.mInfo, *call.mVmad, call.mSpeakerReference, call.mSpeakerBase);
+                });
                 mStarted = true;
                 const auto began = std::chrono::steady_clock::now();
                 if (mPendingRestore)
@@ -273,6 +286,30 @@ namespace game_skyrimse
                 return buffer;
             }
 
+            // Task 0187: the story manager's "change location" event. The pack is not told where the player stands, so
+            // it is raised for an INTERIOR cell the engine built (the player enters those by a door or starts in
+            // one) whose location differs from the last one raised; exterior cells load in rings and are not raised.
+            void raiseLocationChange(openeden::sdk::game::WorldId cell)
+            {
+                FormId location = kNullFormId;
+                bool interior = false;
+                const bool known = mView.cellLocation(static_cast<FormId>(cell), location, interior);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS cell " + hexId(static_cast<FormId>(cell)) + " location " + hexId(location)
+                        + (known ? (interior ? " interior" : " exterior") : " unknown"));
+                if (!known || !interior || location == kNullFormId || location == mLastLocation)
+                    return;
+                StoryEvent event;
+                event.mType = "CLOC";
+                event.mLocation1 = mLastLocation;
+                event.mLocation2 = location;
+                mLastLocation = location;
+                const std::size_t started = mHost.raiseStoryEvent(event);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS story event CLOC to location " + hexId(location) + " started "
+                        + std::to_string(started) + " quests");
+            }
+
             void pushEnabled(FormId reference, bool enabled)
             {
                 if (mSources == nullptr)
@@ -301,6 +338,7 @@ namespace game_skyrimse
                         references.push_back(s.mReference);
                     }
                     mHost.onCellLoaded(cell, references);
+                    raiseLocationChange(cell);
                     say(openeden::sdk::LogLevel::Info,
                         std::string("PAPYRUS") + " cell " + std::to_string(cell) + " loaded: "
                             + std::to_string(references.size()) + " references with scripts");
@@ -319,6 +357,7 @@ namespace game_skyrimse
             openeden::sdk::game::WorldSourceService* mSources;
             openeden::sdk::game::WorldCellSource& mCells;
             double mNextSummary = kSummarySeconds;
+            FormId mLastLocation = kNullFormId; ///< the last location a CLOC event named (task 0187)
             std::deque<openeden::sdk::game::WorldId> mPendingCells;
             std::vector<openeden::sdk::game::WorldId> mPendingActivations;
         };

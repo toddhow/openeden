@@ -380,6 +380,20 @@ namespace game_skyrimse
                         case Content::fourCC("VMAD"):
                             info.mHasScript = true; // fragments are not run (task 0141): only noted
                             info.mFragmentScript = findFragmentScriptName(data); // task 0155
+                            {
+                                // Task 0187: the scripts and fragments, parsed; a damaged VMAD stays "noted only".
+                                vmad::ParseResult parsed = vmad::parseInfo(data);
+                                if (parsed.mOk)
+                                {
+                                    (void)vmad::resolveForms(parsed.mVmad, [this](std::uint32_t stored) {
+                                        const std::optional<FormId> id = mResolver.resolve(stored);
+                                        return id ? *id : 0u;
+                                    });
+                                    info.mVmad = std::make_shared<const vmad::Vmad>(std::move(parsed.mVmad));
+                                }
+                                else
+                                    odd(type);
+                            }
                             return true;
                         case Content::fourCC("RNAM"):
                             return lstring(type, data, info.mPrompt);
@@ -625,12 +639,19 @@ namespace game_skyrimse
             if (it != slot.mByInfo.end())
             {
                 slot.mAlive[it->second] = !deleted;
+                mScriptedInfos.erase(info.mCommon.mId);
                 if (!deleted)
+                {
+                    if (info.mVmad != nullptr)
+                        mScriptedInfos[info.mCommon.mId] = info.mTopic;
                     slot.mList[it->second] = std::move(info);
+                }
                 continue;
             }
             if (deleted)
                 continue;
+            if (info.mVmad != nullptr)
+                mScriptedInfos[info.mCommon.mId] = info.mTopic;
             slot.mByInfo[info.mCommon.mId] = slot.mList.size();
             slot.mList.push_back(std::move(info));
             slot.mAlive.push_back(true);
@@ -657,6 +678,21 @@ namespace game_skyrimse
         for (const auto& [id, slot] : mSlots)
             for (bool alive : slot.mAlive)
                 mInfoCount += alive ? 1 : 0;
+    }
+
+    const DialogInfo* DialogueIndex::scriptedInfo(FormId id) const
+    {
+        const auto topic = mScriptedInfos.find(id);
+        if (topic == mScriptedInfos.end())
+            return nullptr;
+        const auto slot = mSlots.find(topic->second);
+        if (slot == mSlots.end())
+            return nullptr;
+        const auto at = slot->second.mByInfo.find(id);
+        if (at == slot->second.mByInfo.end() || !slot->second.mAlive[at->second])
+            return nullptr;
+        const DialogInfo& info = slot->second.mList[at->second];
+        return info.mVmad != nullptr ? &info : nullptr;
     }
 
     std::optional<DialogueIndex::VoiceOrigin> DialogueIndex::voiceOriginOf(const DialogInfo& info) const
@@ -861,6 +897,22 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::inInterior(conditions::Subject subject) const
     {
         return isSpeaker(subject) && mSpeaker.mInterior.value_or(false);
+    }
+
+    bool SkyrimConditionWorld::storyLocationWithin(FormId location, FormId ancestor) const
+    {
+        return mLocations != nullptr && mLocations->isWithin(location, ancestor);
+    }
+
+    bool SkyrimConditionWorld::storyLocationHasKeyword(FormId location, FormId keyword) const
+    {
+        return mLocations != nullptr && mLocations->hasKeyword(location, keyword);
+    }
+
+    FormId SkyrimConditionWorld::storyBaseOf(FormId reference) const
+    {
+        const PlacedEntry* entry = mPlacedRefs != nullptr ? mPlacedRefs->find(reference) : nullptr;
+        return entry != nullptr ? entry->mBase : kNullFormId;
     }
 
     bool SkyrimConditionWorld::inLocation(conditions::Subject subject, std::uint32_t location) const

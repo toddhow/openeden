@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -40,6 +41,17 @@ namespace game_skyrimse
     /// The lower-case names a compiled fragment script refers to (the .pex string table); empty when it cannot be read.
     /// `script` is the script's name as the VMAD gives it ("TIF__000A1B2C").
     using ScriptNameProbe = std::function<std::vector<std::string>(const std::string& script)>;
+
+    /// Task 0187: a shown response whose INFO has script fragments. The sink runs them (the begin fragment, then the end
+    /// fragment: the pack does not know when a spoken line ends, so both run when the line is shown, in that order).
+    struct InfoFragmentCall
+    {
+        FormId mInfo = kNullFormId;
+        std::shared_ptr<const vmad::Vmad> mVmad;
+        FormId mSpeakerReference = kNullFormId; ///< the placed ACHR, 0 when only the base is known
+        FormId mSpeakerBase = kNullFormId;
+    };
+    using InfoFragmentSink = std::function<void(const InfoFragmentCall&)>;
 
     struct DialogueRuntimeLimits
     {
@@ -61,6 +73,7 @@ namespace game_skyrimse
             std::uint64_t mVoiceFound = 0; ///< response lines whose voice file exists (task 0143)
             std::uint64_t mVoiceMissing = 0; ///< response lines with a text and no voice file
             std::uint64_t mVoiceUnnamed = 0; ///< shown responses for which no voice path could be made
+            std::uint64_t mFragmentCalls = 0; ///< shown responses whose script fragments were handed to the sink (0187)
             std::uint64_t mServices = 0; ///< shown responses that are a service the pack cannot run (task 0155)
         };
 
@@ -82,6 +95,10 @@ namespace game_skyrimse
         void end();
 
         /// Turns voice on: `probe` says which files exist. Without it no turn has voice.
+        /// Task 0187: where the script fragments of a shown response go. Without a sink they are not run (counted in
+        /// `mScriptsNotRun`, as before).
+        void setFragmentSink(InfoFragmentSink sink) { mFragmentSink = std::move(sink); }
+
         void setVoiceProbe(VoiceProbe probe) { mVoiceProbe = std::move(probe); }
 
         /// The stand-in player the speech checks and level conditions read (task 0155); the default is a new game's.
@@ -137,6 +154,7 @@ namespace game_skyrimse
         DialogueRuntimeLimits mLimits;
         VoiceProbe mVoiceProbe;
         ScriptNameProbe mScriptProbe;
+        InfoFragmentSink mFragmentSink;
         std::map<std::string, std::string> mServiceOfScript; ///< fragment script -> service ("" for none), probed once
         PlayerStandIn mPlayer;
         std::string mVoiceType; ///< editor id of the speaker's voice type, lower case; empty when unknown

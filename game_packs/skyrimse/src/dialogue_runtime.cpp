@@ -107,8 +107,21 @@ namespace game_skyrimse
         }
         out.endsConversation = (info.mFlags & InfoFlags::Goodbye) != 0;
         out.hadUnrunEffects = info.mHasScript;
+        // Task 0187: the fragments of the INFO go to the script host (begin, then end).
+        if (mFragmentSink && info.mVmad != nullptr && info.mVmad->mHasInfoFragments
+            && (info.mVmad->mInfo.hasBegin() || info.mVmad->mInfo.hasEnd()))
+        {
+            InfoFragmentCall call;
+            call.mInfo = info.mCommon.mId;
+            call.mVmad = info.mVmad;
+            call.mSpeakerReference = mSpeaker.mReference;
+            call.mSpeakerBase = mSpeaker.mBase;
+            ++mStats.mFragmentCalls;
+            mFragmentSink(call);
+            out.hadUnrunEffects = false;
+        }
         ++mStats.mResponses;
-        if (info.mHasScript)
+        if (info.mHasScript && out.hadUnrunEffects)
             ++mStats.mScriptsNotRun;
         if (!info.mLinksTo.empty())
             ++mStats.mLinksIgnored;

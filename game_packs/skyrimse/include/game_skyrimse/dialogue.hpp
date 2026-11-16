@@ -38,11 +38,14 @@
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/speech.hpp>
+#include <game_skyrimse/story.hpp>
+#include <game_skyrimse/vmad.hpp>
 
 #include <components/contentsource/plugin.hpp>
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <map>
 #include <optional>
 #include <set>
@@ -121,6 +124,10 @@ namespace game_skyrimse
         /// section), empty when the VMAD names none (task 0155). Found by scanning the VMAD for that wstring, not by
         /// walking the script and property tables.
         std::string mFragmentScript;
+        /// Task 0187: the INFO's VMAD, parsed (scripts with their property values, form ids resolved to load-order ids,
+        /// and the begin and end fragments); null when the INFO has none or it was damaged. Shared: copies of an INFO
+        /// (the index moves them) do not copy the scripts.
+        std::shared_ptr<const vmad::Vmad> mVmad;
         bool mConditionsOk = true; ///< false: the CTDA list was damaged, the INFO never passes
         std::uint32_t mPlugin = 0; ///< index into DialogueIndex's plugins
     };
@@ -196,6 +203,8 @@ namespace game_skyrimse
 
         [[nodiscard]] const DialogTopic* topic(FormId id) const;
         [[nodiscard]] const GlobalValue* global(FormId id) const;
+        /// Task 0187: the INFO with this id when it has a parsed VMAD (script fragments); null for any other id.
+        [[nodiscard]] const DialogInfo* scriptedInfo(FormId id) const;
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
 
         /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
@@ -243,6 +252,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, std::string> mVoiceTypes;
         std::unordered_map<FormId, DialogTopic> mTopics;
         std::unordered_map<FormId, Slot> mSlots;
+        std::unordered_map<FormId, FormId> mScriptedInfos; ///< INFO id -> its topic (INFOs with a parsed VMAD only)
         std::unordered_map<FormId, GlobalValue> mGlobals;
         std::unordered_map<FormId, FormListRecord> mFormLists;
         std::size_t mInfoCount = 0;
@@ -278,7 +288,7 @@ namespace game_skyrimse
     class PlacedRefIndex;
     class PackageIndex;
 
-    class SkyrimConditionWorld final : public conditions::ConditionWorld
+    class SkyrimConditionWorld final : public conditions::ConditionWorld, public StoryEventSource
     {
     public:
         static constexpr conditions::Subject kPlayer = 0x100000007ull; ///< the player (his NPC_ is 0x00000007)
@@ -361,6 +371,14 @@ namespace game_skyrimse
         static constexpr conditions::Subject kPlacedTag = 0x200000000ull;
         static constexpr conditions::Subject kBaseTag = 0x300000000ull;
 
+        /// Task 0187: the story event the conditions of a story node are evaluated against (fn_576 GetEventData).
+        void setStoryEvent(const StoryEvent* event) { mStoryEvent = event; }
+        [[nodiscard]] const StoryEvent* currentStoryEvent() const override { return mStoryEvent; }
+        [[nodiscard]] FormId resolveStoryForm(std::uint32_t stored) const override { return resolve(stored); }
+        [[nodiscard]] bool storyLocationWithin(FormId location, FormId ancestor) const override;
+        [[nodiscard]] bool storyLocationHasKeyword(FormId location, FormId keyword) const override;
+        [[nodiscard]] FormId storyBaseOf(FormId reference) const override;
+
         /// True if the condition's answer comes from data, not from a default (for example a quest stage). Needs the
         /// facts given with setSpeaker / setCurrentWeather.
         [[nodiscard]] bool answers(const survey::Ctda& condition) const;
@@ -415,6 +433,7 @@ namespace game_skyrimse
         bool offersServicesNow(conditions::Subject subject) const override;
 
     private:
+        const StoryEvent* mStoryEvent = nullptr;
         // ---- task 0160 helpers
         struct ActorView
         {

@@ -22,7 +22,9 @@
 // work must write the same keys.
 
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/quest_alias.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/story.hpp>
 #include <game_skyrimse/vmad.hpp>
 
 #include <components/script_papyrus/papyrusruntime.hpp>
@@ -90,6 +92,20 @@ namespace game_skyrimse
             return true;
         }
 
+        /// Task 0187: is the form a dialogue INFO (a form a TIF fragment script is attached to)? Its class is "TopicInfo".
+        [[nodiscard]] virtual bool isTopicInfo(FormId form) const
+        {
+            (void)form;
+            return false;
+        }
+
+        /// Task 0187: the quest a dialogue INFO belongs to (TopicInfo.GetOwningQuest): its QNAM, else its topic's.
+        [[nodiscard]] virtual FormId questOfInfo(FormId info) const
+        {
+            (void)info;
+            return 0;
+        }
+
         /// The editor id or the name of a form for GetName; empty when none.
         [[nodiscard]] virtual std::string nameOf(FormId form) const
         {
@@ -125,6 +141,10 @@ namespace game_skyrimse
         std::uint64_t mFragmentsRun = 0; ///< a quest stage fragment function was queued
         std::uint64_t mStageSets = 0; ///< Quest.SetStage calls that changed a stage
         std::uint64_t mUpdatesFired = 0; ///< OnUpdate events sent for RegisterForSingleUpdate or RegisterForUpdate
+        std::uint64_t mInfoFragmentsRun = 0; ///< INFO fragment functions queued (task 0187)
+        std::uint64_t mStoryEvents = 0; ///< story events raised (SendStoryEvent and the pack's own)
+        std::uint64_t mStoryQuestsStarted = 0; ///< quests the story manager started
+        std::uint64_t mAliasesFilled = 0; ///< aliases that gained a reference when a quest started or on demand
         std::uint64_t mTicks = 0;
         std::uint64_t mStacksRun = 0;
         std::uint64_t mScriptErrors = 0; ///< a stack that ended with an error
@@ -148,6 +168,8 @@ namespace game_skyrimse
         /// Called when a script enables or disables a placed reference (the engine cannot be told yet: no SDK path).
         using EnableChanged = std::function<void(FormId reference, bool enabled)>;
         using QuestVmadLookup = std::function<const vmad::Vmad*(FormId quest)>;
+        /// Task 0187: raises a story event: returns the quests to start (the pack's story manager walks its tree).
+        using StoryEventSink = std::function<std::vector<FormId>(const StoryEvent& event)>;
 
         explicit PapyrusHost(PapyrusGameData& data, PapyrusHostOptions options = {});
         ~PapyrusHost();
@@ -160,6 +182,20 @@ namespace game_skyrimse
         /// The quest records and their run-time state, and where a quest's VMAD is. The state is changed by
         /// Quest.SetStage, Start and Stop; the host does not own any of the three.
         void setQuests(const QuestIndex* index, QuestState* state, QuestVmadLookup vmads);
+
+        /// Task 0187: fills quest aliases when a quest starts and on demand (`ReferenceAlias.GetReference` of an unfilled
+        /// alias). Not owned; null: aliases are only what the quest state already holds.
+        void setAliasFiller(QuestAliasFiller* filler);
+        /// Task 0187: the story manager. `Keyword.SendStoryEvent` and `raiseStoryEvent` call it and start the quests it
+        /// returns (state, scripts, start up stage fragment, aliases).
+        void setStoryEventSink(StoryEventSink sink);
+        /// Raises an event as a script's SendStoryEvent would; returns how many quests it started.
+        std::size_t raiseStoryEvent(const StoryEvent& event);
+
+        /// Task 0187: the fragments of a shown dialogue line. The scripts of the INFO's VMAD are attached to the INFO
+        /// (once), their properties set, and the begin fragment function and then the end fragment function are queued
+        /// with the speaker as `akSpeakerRef` (run by the next tick). Returns how many functions were queued.
+        std::size_t runInfoFragments(FormId info, const vmad::Vmad& vmad, FormId speakerReference, FormId speakerBase);
 
         /// Attaches the scripts of every start-game-enabled quest of the index (sorted by form id) and queues the
         /// fragment of its start up stage. Once; later calls do nothing. Needs setQuests.
