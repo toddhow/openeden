@@ -523,6 +523,19 @@ namespace game_skyrimse
         /// spell's magicka). Empty by default; nothing else of the combat changes.
         using SkillUseHook = std::function<void(std::size_t slot, float amount)>;
         void setSkillUseHook(SkillUseHook hook) { mSkillHook = std::move(hook); }
+
+        // ---- task 0227: sneak attacks ----------------------------------------------------------------------------
+        /// Asked once per blow or arrow of the PLAYER on an actor (not a bash): the multiplier before perks (1 or less:
+        /// not a sneak attack), from the victim's placement reference, the weapon's WEAP animation type (0 bare hands)
+        /// and whether it is a shot. `done` is told of a blow that landed with its final multiplier (perks included).
+        /// Both empty by default: nothing of the combat changes.
+        using SneakMultiplierHook = std::function<float(std::uint32_t victim, std::uint8_t animType, bool ranged)>;
+        using SneakDoneHook = std::function<void(std::uint32_t victim, float multiplier)>;
+        void setSneakAttackHooks(SneakMultiplierHook multiplier, SneakDoneHook done)
+        {
+            mSneakMultiplier = std::move(multiplier);
+            mSneakDone = std::move(done);
+        }
         /// With a progression the player's skills, level, vitals and perks in a fight are its own (read again when its
         /// revision moves); without one (null, the default) they are the stand-in's, as before.
         void setPlayerProgression(const progression::PlayerProgression* progression);
@@ -763,6 +776,8 @@ namespace game_skyrimse
         void applyRealGear(Fighter& fighter);
         void syncPlayerTimingClass(const Fighter& player);
         void applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit);
+        /// Task 0227 (combat_sneak.cpp): the sneak attack multiplier of the player's blow or shot on `victim` (1: none).
+        float sneakAttackFor(Fighter& attacker, Fighter& victim, const WeaponRecord* swung, bool ranged);
         [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
         [[nodiscard]] bool bowReady();
         // Task 0186 (stage S5-8): the magic runtime (combat_magic.cpp).
@@ -942,6 +957,8 @@ namespace game_skyrimse
         void applyPlayerHeal(openeden::sdk::game::CombatRequestWriter& writer);
         // Task 0200
         SkillUseHook mSkillHook;
+        SneakMultiplierHook mSneakMultiplier; ///< task 0227
+        SneakDoneHook mSneakDone;
         const progression::PlayerProgression* mProgression = nullptr;
         std::uint64_t mProgressionSynced = 0;
         bool mHaveStandProfile = false;

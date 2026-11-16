@@ -117,6 +117,7 @@ namespace game_skyrimse
             { 2, { O, W, T } },
             { 8, { O, T, N } },
             { 14, { O, T, N } },
+            { 18, { O, W, T } }, // task 0227: ModSneakAttackMult (RECALLED-VERIFY: not seen in a tab condition)
             { 20, { O, N, N } },
             { 21, { O, N, N } },
             { 26, { O, W, N } },

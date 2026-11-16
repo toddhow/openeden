@@ -1571,6 +1571,12 @@ namespace game_skyrimse
         MeleeHit result = preset != nullptr ? *preset : computeMeleeHit(input, mCombatSettings);
         if (!bash)
             applyPerksToHit(attacker, victim, power, result);
+        const float sneakMult = bash ? 1.f : sneakAttackFor(attacker, victim, swung, preset != nullptr); // task 0227
+        if (sneakMult > 1.f)
+        {
+            result.mDamageBefore *= sneakMult;
+            result.mDamageAfter *= sneakMult;
+        }
 
         // A bash deals no damage and no block stops it; a blow on a blocker goes through the block formula (task 0172).
         float damage = bash ? 0.f : result.mDamageAfter;
@@ -1642,6 +1648,8 @@ namespace game_skyrimse
         report.y = hit.y;
         report.z = hit.z;
         writer.reportDamage(report);
+        if (sneakMult > 1.f && mSneakDone)
+            mSneakDone(victim.mSubject.actor.reference, sneakMult); // task 0227
         soundHit(writer, attacker, victim, blocked, bash); // task 0193
         if (mTrace)
             trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "

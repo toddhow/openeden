@@ -141,7 +141,8 @@ namespace game_skyrimse::pickup
         if (count <= 0 || mHooks.mHeldBy(owner, item) < count || !mHooks.mItem(item, value, weight))
             return TryStatus::BadCount;
         const float percent = pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count);
-        const bool success = pickpocketRoll(owner, item, mBook.takeAttempt(), percent);
+        const bool rolled = pickpocketRoll(owner, item, mBook.takeAttempt(), percent);
+        const bool success = rolled && !(mHooks.mAware && mHooks.mAware(owner)); // task 0227
         if (mHooks.mTrain)
             mHooks.mTrain(pickpocketTraining(value, count));
         ++mRevision;

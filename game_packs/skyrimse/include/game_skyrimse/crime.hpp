@@ -297,6 +297,10 @@ namespace game_skyrimse::crime
         /// Replaces the line the window shows (a refusal the service found, such as a faction with no jail).
         void setMessage(std::string text);
 
+        /// Task 0227 (sneaking): with a lookup set, only a witness that has NOTICED the player counts (the lookup answers
+        /// per actor reference); without one (the default) a clear sight line is enough, as before.
+        void setDetectedLookup(std::function<bool(std::uint32_t reference)> lookup) { mDetected = std::move(lookup); }
+
         [[nodiscard]] State state() const { return mState; }
         [[nodiscard]] FormId offerFaction() const { return mFaction; }
         [[nodiscard]] const std::string& guardName() const { return mGuardName; }
@@ -354,6 +358,7 @@ namespace game_skyrimse::crime
         float mJailUntil = 0.f;
         std::size_t mRays = 0;
         std::uint32_t mRevision = 0;
+        std::function<bool(std::uint32_t)> mDetected; ///< task 0227
     };
 
     /// The outermost wrapper of the combat chain (task 0204): it tells the crime system of every damage report and

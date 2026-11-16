@@ -142,7 +142,9 @@ set(BUILTIN_DATA_FILES
     openeden/ui.lua
     openeden/ui/reactive.lua
     openeden/hud/skyrimcombat.lua
+    openeden/hud/skyrimsneak.lua
     scripts/openeden/skyrim_combat_hud.lua
+    scripts/openeden/skyrim_sneak_hud.lua
     openeden/skyrimse/inventory_windows.lua
     openeden/skyrimse/barter_windows.lua
     openeden/skyrimse/services_windows.lua

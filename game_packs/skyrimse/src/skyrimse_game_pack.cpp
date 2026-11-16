@@ -7,6 +7,7 @@
 #include "game_skyrimse/character_service.hpp"
 #include "game_skyrimse/services.hpp"
 #include "game_skyrimse/crime_service.hpp"
+#include "game_skyrimse/sneak.hpp"
 #include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/player_body.hpp"
@@ -1189,6 +1190,9 @@ namespace game_skyrimse
                     startLockBooks(host, logger);
                     // Task 0208: picking up placed items and pickpocketing (needs the inventory).
                     startPickup(host, logger);
+                    // Task 0227: sneaking and detection (the namespace skyrimse.sneak), off unless
+                    // [extension.skyrimse] sneak; crime and pickpocketing ask it who has noticed the player.
+                    startSneak(host, logger);
                     wirePapyrusWorld(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
@@ -2243,6 +2247,63 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "CRIME crime rules are on");
             }
 
+            // Task 0227: sneaking and detection. Needs `[Game] neutral combat` (the engine hands the pack the player's
+            // stance only through the combat bridge).
+            void startSneak(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "sneak", false))
+                    return;
+                sneak::Hooks hooks;
+                hooks.mActors = [this](std::vector<crime::CrimeActor>& out) { mCellSource.combat().crimeActors(out); };
+                hooks.mIsFollower = [this](std::uint32_t reference) { return mCellSource.isFollower(reference); };
+                hooks.mSkill = [this]() {
+                    float skill = 0.f;
+                    constexpr std::uint32_t kSneakValue = progression::kFirstSkillValue + progression::Slot::Sneak;
+                    if (mProgression != nullptr && mProgression->actorValue(kSneakValue, skill))
+                        return skill;
+                    return 15.f; // a new character's Sneak (RECALLED-VERIFY)
+                };
+                hooks.mArmourWeight = [this]() {
+                    float weight = 0.f;
+                    if (mInventory == nullptr)
+                        return weight;
+                    for (const inventory::EquippedItem& worn : mInventory->model().equipped())
+                        if (worn.mKind != inventory::EquipKind::Weapon)
+                            if (const inventory::ItemStat* stat = mInventory->table().item(worn.mItem))
+                                weight += stat->mWeight;
+                    return weight;
+                };
+                hooks.mTrain = [this](float amount) {
+                    if (mProgression != nullptr)
+                        mProgression->skillUsed(progression::Slot::Sneak, amount);
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mSneak = std::make_unique<sneak::SneakSystem>(std::move(hooks));
+                mCellSource.setSneak(mSneak.get());
+                mCellSource.combat().setSneakAttackHooks(
+                    [this](std::uint32_t victim, std::uint8_t animType, bool ranged) {
+                        return mSneak->attackMultiplier(victim, animType, ranged);
+                    },
+                    [this](std::uint32_t victim, float multiplier) { mSneak->onSneakAttack(victim, multiplier); });
+                if (mCrime != nullptr)
+                    mCrime->system().setDetectedLookup(
+                        [this](std::uint32_t reference) { return mSneak->detected(reference); });
+                mSneakBindings = std::make_unique<sneak::SneakBindings>(*mSneak);
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mSneakBindings->declareTo(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the sneak bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "SNEAK sneaking and detection are on");
+            }
+
             // Task 0208: picking up placed items and pickpocketing. On with the inventory (no setting of its own); a
             // theft or a caught try is a crime only when the crime rules are on.
             void startPickup(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
@@ -2295,7 +2356,12 @@ namespace game_skyrimse
                     if (mProgression != nullptr)
                         mProgression->skillUsed(progression::Slot::Pickpocket, amount);
                 };
+                hooks.mAware = [this](std::uint64_t owner) {
+                    return mSneak != nullptr && mSneak->detected(static_cast<std::uint32_t>(owner)); // task 0227
+                };
                 hooks.mCaught = [this](std::uint64_t owner, FormId, std::int32_t) {
+                    if (mSneak != nullptr)
+                        mSneak->markDetected(static_cast<std::uint32_t>(owner)); // task 0227: the victim noticed
                     if (mCrime != nullptr)
                         mCrime->system().onPickpocketCaught(static_cast<std::uint32_t>(owner));
                 };
@@ -3152,6 +3218,8 @@ namespace game_skyrimse
             bool mPlayerSpellFromSetting = false;
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
+            std::unique_ptr<sneak::SneakSystem> mSneak; // task 0227; refers to the cell source, inventory, progression
+            std::unique_ptr<sneak::SneakBindings> mSneakBindings;
             std::unique_ptr<pickup::PickupService> mPickup; // task 0208; refers to the inventory, crime, progression
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;

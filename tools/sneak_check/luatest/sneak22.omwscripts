@@ -1,0 +1,2 @@
+GLOBAL: scripts/sneak22/global.lua
+PLAYER: scripts/sneak22/player.lua

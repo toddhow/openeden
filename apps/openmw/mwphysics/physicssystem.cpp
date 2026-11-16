@@ -1385,6 +1385,7 @@ namespace MWPhysics
             out.pitch = player.mPitch;
             out.health = player.mHealth;
             out.healthMax = player.mHealthMax;
+            out.sneaking = player.mSneaking; // task 0227
             return true;
         }
         const void* key = mPhysics.mNeutralBridge.keyOfHandle(subject.actor);

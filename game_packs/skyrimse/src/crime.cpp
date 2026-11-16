@@ -491,6 +491,8 @@ namespace game_skyrimse::crime
             }
             if (!clear)
                 continue;
+            if (mDetected && !mDetected(a.mHandle.reference))
+                continue; // task 0227: it never noticed the player
             if (a.mCrimeFaction == kNullFormId || mWorld.crimeData(a.mCrimeFaction) == nullptr)
                 continue;
             if (std::find(factions.begin(), factions.end(), a.mCrimeFaction) == factions.end())

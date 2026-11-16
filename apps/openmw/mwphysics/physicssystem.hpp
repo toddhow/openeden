@@ -388,6 +388,8 @@ namespace MWPhysics
             bool mAttackEnabled = false;
             /// Task 0178: the look direction's elevation, radians, positive up (the bow's launch pitch).
             float mPitch = 0.f;
+            /// Task 0227: the player's Stance_Sneak.
+            bool mSneaking = false;
         };
         using NeutralPlayerStateFn = std::function<bool(NeutralPlayerState&)>;
         /// Task 0206: also the report's maximum (0 when it names none), so that a raised maximum reaches the

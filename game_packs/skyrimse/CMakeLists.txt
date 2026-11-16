@@ -72,12 +72,12 @@ openeden_add_game_pack(skyrimse
         src/pickup_service.cpp
         src/harvest.cpp
         src/harvest_service.cpp
-    src/mining.cpp
-    src/mining_service.cpp
         src/mining.cpp
         src/mining_service.cpp
+        src/sneak.cpp
         src/magic.cpp
         src/combat_magic.cpp
+        src/combat_sneak.cpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp
         src/combat_impact.cpp
@@ -154,6 +154,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/harvest_service.hpp
         include/game_skyrimse/mining.hpp
         include/game_skyrimse/mining_service.hpp
+        include/game_skyrimse/sneak.hpp
         include/game_skyrimse/actor_mechanics.hpp
         include/game_skyrimse/combat_stats.hpp
         include/game_skyrimse/combat_impact.hpp
@@ -248,8 +249,10 @@ add_library(game_skyrimse_world STATIC
     src/harvest_service.cpp
     src/mining.cpp
     src/mining_service.cpp
+    src/sneak.cpp
     src/magic.cpp
     src/combat_magic.cpp
+    src/combat_sneak.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
     src/combat_impact.cpp

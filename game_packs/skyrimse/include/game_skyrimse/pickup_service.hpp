@@ -48,6 +48,9 @@ namespace game_skyrimse::pickup
         std::function<void(float amount)> mTrain;
         /// A try that was caught: the victim (a placement), the item and the count.
         std::function<void(std::uint64_t owner, FormId item, std::int32_t count)> mCaught;
+        /// Task 0227: the victim has noticed the player (the sneak rules). An aware victim always catches the hand; the
+        /// roll is still drawn so the seeded sequence does not change. Empty: nobody is aware.
+        std::function<bool(std::uint64_t owner)> mAware;
         std::function<void(const std::string&)> mLog;
     };
 

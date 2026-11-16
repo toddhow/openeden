@@ -394,6 +394,8 @@ namespace MWWorld
                         = player.getClass().getCreatureStats(player).getHealth();
                     out.mHealth = health.getCurrent();
                     out.mHealthMax = health.getModified();
+                    out.mSneaking = player.getClass().getCreatureStats(player).getStance(
+                        MWMechanics::CreatureStats::Stance_Sneak); // task 0227
                     // Task 0172 (stage S5-4): the attack action. It is only read, never changed, and only because
                     // `[Game] neutral combat` is on (this hook is installed under it).
                     MWBase::InputManager* input = MWBase::Environment::get().getInputManager();

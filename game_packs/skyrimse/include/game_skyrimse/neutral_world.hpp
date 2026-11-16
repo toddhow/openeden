@@ -15,6 +15,7 @@
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/hud.hpp>
+#include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/terrain_source.hpp>
@@ -378,6 +379,8 @@ namespace game_skyrimse
             AiDamageWriter aiWriter(hudWriter, mCombat); // task 0190: damage of every kind provokes the victim
             ScriptEventWriter scriptWriter(aiWriter, mScriptBridge); // task 0198: OnHit, OnDeath, Actor.Kill
             mScriptBridge.drain(scriptWriter);
+            if (mSneak != nullptr)
+                mSneak->update(seconds, scriptWriter); // task 0227: judged before the blows of this update
             if (mCrime != nullptr)
             {
                 // Task 0204: the crime rules see every blow and death first (before the victim is provoked), and run
@@ -406,6 +409,8 @@ namespace game_skyrimse
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
         /// Task 0204: the crime rules (null: off). The system must outlive the cell source's use of it.
         void setCrime(crime::CrimeSystem* system) { mCrime = system; }
+        /// Task 0227: sneaking and detection (null: off). The system must outlive the cell source's use of it.
+        void setSneak(sneak::SneakSystem* system) { mSneak = system; }
         /// Task 0198: where the Papyrus host hears of damage and deaths and queues Actor.Kill (inactive until sinks are set).
         [[nodiscard]] ScriptCombatBridge& scriptBridge() { return mScriptBridge; }
         /// Task 0180: what the combat HUD shows (the script package `core.skyrimse.combat` reads it).
@@ -484,6 +489,7 @@ namespace game_skyrimse
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204
+        sneak::SneakSystem* mSneak = nullptr; ///< task 0227
         std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<bool(std::uint64_t)> mLockPicked; // task 0203
         bool mLockpickingOn = false;

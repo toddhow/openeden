@@ -1,0 +1,15 @@
+# task 0227: the REAL sneak stance (the controller's left stick button, SDL controller events through the real input path),
+# walking with W and the left mouse button for the blow. Frame numbers are running frames (60 a second, fixed frame time);
+# frame = 60 * simulation seconds + 15 in this scene (measured from the log lines below).
+30 log SNEAKKEY sneak on
+30 cbutton leftstick down
+330 key W down
+330 log SNEAKKEY walk on
+570 key W up
+570 log SNEAKKEY walk off
+2025 down L 400 300
+2029 up L 400 300
+2025 log SNEAKKEY blow 1
+2295 down L 400 300
+2299 up L 400 300
+2295 log SNEAKKEY blow 2

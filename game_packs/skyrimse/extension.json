@@ -296,6 +296,11 @@
       "default": false
     },
     {
+      "key": "sneak",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "rest test ignore owner",
       "type": "bool",
       "default": false
