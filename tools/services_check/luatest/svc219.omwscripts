@@ -1,0 +1,3 @@
+GLOBAL: scripts/svc219/global.lua
+PLAYER: scripts/svc219/player.lua
+MENU: scripts/svc219/menu.lua

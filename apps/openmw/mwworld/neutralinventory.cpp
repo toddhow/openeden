@@ -81,6 +81,24 @@ namespace MWWorld
         return settingOn && service == "barter";
     }
 
+    std::string decideNeutralService(std::string_view service, bool settingOn)
+    {
+        constexpr std::string_view kPrefix = "open:";
+        if (!settingOn || service.size() <= kPrefix.size() || service.substr(0, kPrefix.size()) != kPrefix)
+            return std::string();
+        const std::string_view name = service.substr(kPrefix.size());
+        if (name != "training" && name != "rent" && name != "gift" && name != "carry")
+            return std::string();
+        return std::string(name);
+    }
+
+    std::vector<NeutralInventoryEventField> neutralServiceEventFields(
+        std::string_view service, std::uint64_t placement, std::uint64_t npcBase, std::string_view name)
+    {
+        return { { "service", std::string(service) }, { "placement", neutralHexId(placement) },
+            { "base", neutralHexId(npcBase) }, { "name", std::string(name) } };
+    }
+
     std::vector<NeutralInventoryEventField> neutralBarterEventFields(
         std::uint64_t placement, std::uint64_t npcBase, std::string_view name)
     {

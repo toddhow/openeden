@@ -5,6 +5,7 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/character_service.hpp"
+#include "game_skyrimse/services.hpp"
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
@@ -1033,6 +1034,8 @@ namespace game_skyrimse
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
                         if (mBarter != nullptr)
                             mBarter->poll(); // task 0189: a pending barter session asks again
+                        if (mServices != nullptr)
+                            mServices->poll(); // task 0219: a pending training or rent session asks again
                         if (mCrafting != nullptr)
                             mCrafting->poll(); // task 0199: reads the crafting records, registers made items
                         if (mLockBooks != nullptr)
@@ -1176,6 +1179,8 @@ namespace game_skyrimse
                     startProgression(host, logger);
                     // Task 0189: the barter session (the namespace skyrimse.barter); needs the inventory.
                     startBarter(host, logger);
+                    // Task 0219: training, rooms to rent and gifts (skyrimse.services); needs the inventory.
+                    startServices(host, logger);
                     // Task 0204: crime, bounty and guards (the namespace skyrimse.crime).
                     startCrime(host, logger);
                     // Task 0203: lock picking and books (the namespace skyrimse.lockbooks); needs the inventory.
@@ -1739,7 +1744,9 @@ namespace game_skyrimse
                         return rest::BedState::NotABed;
                     bool owned = false;
                     const auto owner = mWorldView.ownerOfPlacement(static_cast<FormId>(placement));
-                    if (owner && owner->owner != openeden::sdk::game::kNoWorldId && !ignoreOwner)
+                    // task 0219: a rented room's bed is the player's while the rental lasts
+                    const bool rented = mServices != nullptr && mServices->isRented(static_cast<FormId>(placement));
+                    if (owner && owner->owner != openeden::sdk::game::kNoWorldId && !ignoreOwner && !rented)
                     {
                         const FormId who = static_cast<FormId>(owner->owner);
                         owned = !(who == crime::kPlayerNpcId || who == kPlayerFactionId);
@@ -2107,6 +2114,8 @@ namespace game_skyrimse
                     return mWorldView.cellAccessByName(editorId, out);
                 };
                 hooks.mPlacementOwner = [this](FormId placement) {
+                    if (mServices != nullptr && mServices->isRented(placement))
+                        return crime::kPlayerNpcId; // task 0219: a rented room's bed is the player's
                     const auto owner = mWorldView.ownerOfPlacement(placement);
                     return owner && owner->owner != openeden::sdk::game::kNoWorldId
                         ? static_cast<FormId>(owner->owner)
@@ -2282,6 +2291,87 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "BARTER the barter service is on");
+            }
+
+            // Task 0219: the dialogue services that are not barter: training, renting a room and gifts. Off unless
+            // [extension.skyrimse] services (and the inventory, which holds the gold); training also needs
+            // `player progression` (it raises the skill through it).
+            void startServices(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (mInventory == nullptr || settings == nullptr || !settings->getBool(kPackId, "services", false))
+                    return;
+                services::Hooks hooks;
+                hooks.mTrainerOf = [this](FormId npc, services::TrainerInfo& out) {
+                    SkyrimWorldView::ClassTraining data;
+                    const barter::VendorLookup found = mWorldView.trainingOf(npc, data);
+                    if (found == barter::VendorLookup::Pending)
+                        return services::Lookup::Pending;
+                    if (found != barter::VendorLookup::Ready
+                        || !services::makeTrainer(data.mHasData, data.mSkill, data.mMaxLevel, out))
+                        return services::Lookup::None;
+                    return services::Lookup::Ready;
+                };
+                hooks.mRentOf = [this](FormId npc, services::RentOffer& out) {
+                    const barter::VendorLookup found = mWorldView.rentBedOf(npc, out.mBed);
+                    if (found == barter::VendorLookup::Pending)
+                        return services::Lookup::Pending;
+                    return found == barter::VendorLookup::Ready ? services::Lookup::Ready : services::Lookup::None;
+                };
+                hooks.mSkillLevel = [this](std::size_t slot) {
+                    float value = 0.f;
+                    if (mProgression != nullptr
+                        && mProgression->actorValue(
+                            progression::kFirstSkillValue + static_cast<std::uint32_t>(slot), value))
+                        return static_cast<int>(value);
+                    return -1;
+                };
+                hooks.mPlayerLevel = [this]() -> std::uint16_t {
+                    if (mProgression != nullptr && mProgression->progression() != nullptr)
+                        return mProgression->progression()->level();
+                    return 0;
+                };
+                hooks.mRaise
+                    = [this](std::size_t slot) { return mProgression != nullptr && mProgression->raiseSkill(slot); };
+                hooks.mSkillName = [](std::size_t slot) { return std::string(progression::skillName(slot)); };
+                hooks.mGold = [this]() -> std::int64_t {
+                    return mInventory->model().count(inventory::kPlayerOwner, inventory::kGoldItem);
+                };
+                hooks.mPay = [this](std::int32_t amount) {
+                    return mInventory->model().consume(inventory::kPlayerOwner, inventory::kGoldItem, amount)
+                        == inventory::TransferStatus::Ok;
+                };
+                hooks.mOpenOwner = [this](std::uint64_t placement, FormId npcBase) {
+                    return mInventory->open(placement, npcBase, "actor");
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mServices = std::make_unique<services::ServicesService>(std::move(hooks));
+                mWorldView.setOpenServices(true);
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mServices->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the services bindings were refused: " + declared.message);
+                }
+                mServicesChunk = std::make_unique<services::ServicesChunk>(mServices->ledger(), mServices->rentals());
+                mServicesChunk->setRefusalSink([logger](const std::string& reason) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Error, "the services chunk is refused: " + reason);
+                });
+                mServicesChunk->setRestoredSink([logger](const std::string& what) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, "SERVICES " + what);
+                });
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(*mServicesChunk) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the services chunk was not registered");
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info,
+                        "SERVICES training, rooms and gifts are on (training needs the player progression)");
             }
 
             // Task 0203: lock picking and books, off unless [extension.skyrimse] lockpicking and books (and the
@@ -2951,6 +3041,8 @@ namespace game_skyrimse
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
+            std::unique_ptr<services::ServicesService> mServices; // task 0219; the lambdas refer to the pack
+            std::unique_ptr<services::ServicesChunk> mServicesChunk; // task 0219; refers to mServices' ledger and book
             std::unique_ptr<barter::BarterService> mBarter; // task 0189; refers to the inventory and the world view
             std::unique_ptr<crafting::CraftingService> mCrafting; // task 0199; refers to the inventory
             openeden::sdk::Logger* mCraftLogger = nullptr; // task 0199

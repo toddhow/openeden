@@ -59,6 +59,25 @@ namespace MWWorld
                 std::string(kNeutralBarterEvent), fields);
             return true;
         }
+        // Task 0219: training, renting a room and gifts open their own window; the pack marks the turn "open:<name>"
+        // when [extension.skyrimse] services is on. False when there is no speaker to name.
+        bool sendServiceEvent(const Ptr& speaker, const std::string& service, const std::string& name)
+        {
+            if (speaker.isEmpty() || speaker.getType() != NeutralBase::sRecordId)
+                return false;
+            const auto placement = neutralPlacementOf(speaker.getCellRef().getRefNum());
+            if (!placement)
+                return false;
+            const NeutralBase& base = *speaker.get<NeutralBase>()->mBase;
+            std::vector<MWBase::LuaManager::ExtensionEventField> fields;
+            for (const NeutralInventoryEventField& f : neutralServiceEventFields(service, *placement, base.mBase, name))
+                fields.push_back({ f.mName, f.mText });
+            Log(Debug::Info) << "NINV service " << service << " " << neutralHexId(*placement) << " base "
+                             << neutralHexId(base.mBase) << " '" << name << "' opened";
+            MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
+                std::string(kNeutralServiceEvent), fields);
+            return true;
+        }
     }
 
     NeutralDialoguePager::NeutralDialoguePager(
@@ -462,6 +481,12 @@ namespace MWWorld
                     && sendBarterEvent(mSpeaker, mName))
                 {
                     close(); // the barter menu replaces the dialogue
+                    return;
+                }
+                if (const std::string opened = decideNeutralService(turn.service, Settings::game().mNeutralInventory);
+                    !opened.empty() && sendServiceEvent(mSpeaker, opened, mName))
+                {
+                    close(); // the service window replaces the dialogue
                     return;
                 }
                 if (const std::string note = neutralServiceNote(turn, mName); !note.empty())

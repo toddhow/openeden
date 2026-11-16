@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "game_skyrimse/services.hpp"
 #include "game_skyrimse/voice.hpp"
 
 namespace game_skyrimse
@@ -134,11 +135,17 @@ namespace game_skyrimse
         {
             auto it = mServiceOfScript.find(info.mFragmentScript);
             if (it == mServiceOfScript.end())
-                it = mServiceOfScript.emplace(info.mFragmentScript, classifyService(mScriptProbe(info.mFragmentScript)))
-                         .first;
+            {
+                const std::vector<std::string> names = mScriptProbe(info.mFragmentScript);
+                std::string service = classifyService(names);
+                if (service.empty() && mOpenServices)
+                    service = services::classifyCarry(names); // task 0219: a follower's inventory line
+                it = mServiceOfScript.emplace(info.mFragmentScript, std::move(service)).first;
+            }
             if (!it->second.empty())
             {
-                out.service = it->second;
+                const std::string opened = mOpenServices ? services::openedServiceTag(it->second) : std::string();
+                out.service = opened.empty() ? it->second : opened;
                 out.endsConversation = true;
                 ++mStats.mServices;
             }

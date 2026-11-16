@@ -281,6 +281,11 @@
       "default": false
     },
     {
+      "key": "services",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "rest",
       "type": "bool",
       "default": false

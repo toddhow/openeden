@@ -1047,6 +1047,7 @@ namespace game_skyrimse
             raw->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
         if (mVendorServicesLookup)
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
+        raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         // Task 0187: aliases and the story manager
         if (mInfoFragmentSink)
             raw->mRuntime->setFragmentSink(mInfoFragmentSink);
@@ -1579,6 +1580,64 @@ namespace game_skyrimse
         mVendorServicesLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setVendorServicesLookup(mVendorServicesLookup);
+    }
+
+    void SkyrimWorldView::setOpenServices(bool on)
+    {
+        mOpenServices = on;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setOpenServices(on);
+    }
+
+    barter::VendorLookup SkyrimWorldView::trainingOf(FormId npcBase, ClassTraining& out)
+    {
+        out = ClassTraining();
+        if (!awaitIndex() || !ensureActorIndex())
+            return barter::VendorLookup::Pending;
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(npcBase, mStandInPlayerLevel, static_cast<std::uint32_t>(npcBase), resolved)
+            != ActorIndex::ResolveStatus::Ok)
+            return barter::VendorLookup::NotVendor;
+        const ClassRecord* record = mActorIndex->classRecord(resolved.mClass);
+        if (record == nullptr)
+            return barter::VendorLookup::NotVendor;
+        out.mHasData = record->mHasData;
+        out.mSkill = record->mTrainedSkill;
+        out.mMaxLevel = record->mMaxTrainingLevel;
+        return barter::VendorLookup::Ready;
+    }
+
+    barter::VendorLookup SkyrimWorldView::rentBedOf(FormId npcBase, FormId& bed)
+    {
+        bed = kNullFormId;
+        if (!awaitIndex())
+            return barter::VendorLookup::Pending;
+        const std::vector<vmad::Script>* scripts = baseScriptsOf(npcBase);
+        if (scripts == nullptr)
+            return barter::VendorLookup::NotVendor;
+        for (const vmad::Script& script : *scripts)
+        {
+            if (script.mName.size() != 14)
+                continue;
+            std::string lower = script.mName;
+            for (char& c : lower)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (lower != "rentroomscript")
+                continue;
+            for (const vmad::Property& property : script.mProperties)
+            {
+                std::string name = property.mName;
+                for (char& c : name)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (name == "bed" && !property.mArray && property.mValue.mKind == vmad::ValueKind::Object
+                    && property.mValue.mForm != kNullFormId)
+                {
+                    bed = property.mValue.mForm;
+                    return barter::VendorLookup::Ready;
+                }
+            }
+        }
+        return barter::VendorLookup::NotVendor;
     }
 
     void SkyrimWorldView::setCurrentPackageLookup(std::function<std::optional<FormId>(FormId reference)> lookup)

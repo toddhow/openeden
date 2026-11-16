@@ -79,6 +79,16 @@ namespace MWWorld
     inline constexpr std::string_view kNeutralBarterEvent = "openeden_skyrimse_barter_opened";
     [[nodiscard]] bool decideNeutralBarter(std::string_view service, bool settingOn);
 
+    /// Task 0219: a dialogue turn whose service is "open:training", "open:rent" or "open:gift" (the pack marks these
+    /// when [extension.skyrimse] services is on) opens that service's window instead of the conversation box when the
+    /// neutral inventory is on. The result is the bare service name ("training", "rent" or "gift"), "" for anything
+    /// else (barter has its own event).
+    inline constexpr std::string_view kNeutralServiceEvent = "openeden_skyrimse_service_opened";
+    [[nodiscard]] std::string decideNeutralService(std::string_view service, bool settingOn);
+    /// The fields of the service event: the service, the speaker's placement and base (hex text) and its name.
+    [[nodiscard]] std::vector<NeutralInventoryEventField> neutralServiceEventFields(
+        std::string_view service, std::uint64_t placement, std::uint64_t npcBase, std::string_view name);
+
     /// Task 0199: activating a Furniture opens the crafting window when the neutral inventory is on. The pack decides
     /// from the furniture's base whether it is a bench (the engine knows no keywords); the event carries the fields of
     /// `neutralInventoryEventFields` with kind "bench".

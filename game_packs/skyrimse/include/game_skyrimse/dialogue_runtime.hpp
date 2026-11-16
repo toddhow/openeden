@@ -140,6 +140,9 @@ namespace game_skyrimse
         /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a
         /// service.
         void setScriptProbe(ScriptNameProbe probe) { mScriptProbe = std::move(probe); }
+        /// Task 0219: with this on a training, rent or gift service is named "open:<name>" (services.hpp) so the engine
+        /// opens its window; off, the names are the classifier's and the engine logs "service not implemented".
+        void setOpenServices(bool on) { mOpenServices = on; }
 
         [[nodiscard]] bool open() const { return mOpen; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -162,6 +165,7 @@ namespace game_skyrimse
         DialogueRuntimeLimits mLimits;
         VoiceProbe mVoiceProbe;
         ScriptNameProbe mScriptProbe;
+        bool mOpenServices = false; ///< task 0219
         InfoFragmentSink mFragmentSink;
         std::map<std::string, std::string> mServiceOfScript; ///< fragment script -> service ("" for none), probed once
         PlayerStandIn mPlayer;

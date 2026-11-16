@@ -485,6 +485,23 @@ namespace game_skyrimse
         /// A merchant's GetOffersServicesNow is true whatever its package (see SkyrimConditionWorld); set before the
         /// first conversation or any time after.
         void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
+        // ---- task 0219 (training, rooms)
+        /// Training and renting are named "open:<name>" in the conversation (set before the first conversation or
+        /// any time after).
+        void setOpenServices(bool on);
+        /// The class data of an NPC_ base (templates followed): CLAS DATA's trained skill and maximum training level.
+        /// Ready (with `hasData` false for a class with no data), Pending until the actor index is built, NotVendor
+        /// when the NPC or its class is unknown. Main thread; reads the actor index like vendorOf.
+        struct ClassTraining
+        {
+            bool mHasData = false;
+            std::uint8_t mSkill = 0;
+            std::uint8_t mMaxLevel = 0;
+        };
+        [[nodiscard]] barter::VendorLookup trainingOf(FormId npcBase, ClassTraining& out);
+        /// The bed REFR of an innkeeper: the `Bed` property of its base's RentRoomScript (VMAD of the NPC_). Ready, or
+        /// NotVendor when the NPC has no such script or property; Pending until the index is built.
+        [[nodiscard]] barter::VendorLookup rentBedOf(FormId npcBase, FormId& bed);
         // ---- task 0204 (crime)
         /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every cell
         /// loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
@@ -731,6 +748,7 @@ namespace game_skyrimse
         std::unique_ptr<DialogueState> mDialogue;
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
+        bool mOpenServices = false; ///< task 0219
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         LocationKeywordData mKeywordData; ///< task 0217
         StoryManager::Trace mStoryTrace; ///< task 0217
