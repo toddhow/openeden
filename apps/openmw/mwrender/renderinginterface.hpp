@@ -97,6 +97,14 @@ namespace MWRender
         }
         /// Stops drawing from the ragdoll (the ragdoll is gone).
         virtual void endNeutralRagdoll(const MWWorld::Ptr& /*ptr*/) {}
+
+        // Task 0232 (door and chest sequences). Main thread. The defaults do nothing / say no.
+        /// Whether the object's model plays an Open sequence (only with [Game] neutral object animations).
+        virtual bool neutralObjectHasSequence(const MWWorld::Ptr& /*ptr*/) { return false; }
+        /// Shows a door `progress` open (0..1); closing uses the Close sequence when the model has one.
+        virtual void setNeutralObjectOpen(const MWWorld::Ptr& /*ptr*/, float /*progress*/, bool /*closing*/) {}
+        /// A lid opens or closes by itself over the sequence's own time.
+        virtual void setNeutralObjectTarget(const MWWorld::Ptr& /*ptr*/, bool /*open*/) {}
     };
 }
 

@@ -102,6 +102,7 @@ namespace Settings
         SettingValue<bool> mNeutralActorIdles{ mIndex, "Game", "neutral actor idles" };
         SettingValue<bool> mNeutralCombat{ mIndex, "Game", "neutral combat" };
         SettingValue<bool> mNeutralSpellEffects{ mIndex, "Game", "neutral spell effects" };
+        SettingValue<bool> mNeutralObjectAnimations{ mIndex, "Game", "neutral object animations" }; // task 0232
         SettingValue<bool> mNeutralActorLocomotion{ mIndex, "Game", "neutral actor locomotion" };
         SettingValue<bool> mNeutralPlayerBody{ mIndex, "Game", "neutral player body" };
         SettingValue<bool> mNeutralActorProcessLevels{ mIndex, "Game", "neutral actor process levels" };

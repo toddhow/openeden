@@ -298,6 +298,9 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testflattenskinnedatrest.cpp
     nifscene/testskyrimmaterialsreal.cpp
     nifscene/testcollision.cpp
+    nifscene/testsequence.cpp
+    nifscene/testsequenceflatten.cpp
+    nifscene/testsequencereal.cpp
 
     extension/test_version.cpp
     extension/test_resolution.cpp

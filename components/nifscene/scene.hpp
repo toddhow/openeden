@@ -216,6 +216,59 @@ namespace NifScene
         bool mNoVertexData = false;
     };
 
+    /// Task 0232: one key of a transform track. Rotations are quaternions as x, y, z, w.
+    struct KeyVec3
+    {
+        float mTime = 0.f;
+        Vec3 mValue{ 0.f, 0.f, 0.f };
+        Vec3 mInTan{ 0.f, 0.f, 0.f };
+        Vec3 mOutTan{ 0.f, 0.f, 0.f };
+    };
+    struct KeyQuat
+    {
+        float mTime = 0.f;
+        Vec4 mValue{ 0.f, 0.f, 0.f, 1.f };
+    };
+    struct KeyFloat
+    {
+        float mTime = 0.f;
+        float mValue = 1.f;
+        float mInTan = 0.f;
+        float mOutTan = 0.f;
+    };
+
+    /// What a NiControllerSequence does to one named node (a ControlledBlock with a NiTransformInterpolator).
+    /// Interpolation codes are the NIF's (1 linear, 2 quadratic/Bezier, 3 TCB (tangents already generated), 5 constant).
+    struct Track
+    {
+        std::string mNodeName;
+        bool mHasDefault = false; // the interpolator's own value, used for a channel with no keys
+        Vec3 mDefaultTranslation{ 0.f, 0.f, 0.f };
+        Vec4 mDefaultRotation{ 0.f, 0.f, 0.f, 1.f };
+        float mDefaultScale = 1.f;
+        std::uint32_t mTranslationInterpolation = 1;
+        std::vector<KeyVec3> mTranslations;
+        std::vector<KeyQuat> mRotations;
+        /// Euler rotation keys (the file stores rotation as three angle tracks, radians; Skyrim doors do). Used only
+        /// when mRotations is empty. Order of the turns: about X first, then Y, then Z (R = Rz * Ry * Rx).
+        std::array<std::vector<KeyFloat>, 3> mEuler;
+        std::array<std::uint32_t, 3> mEulerInterpolation{ 1, 1, 1 };
+        std::uint32_t mScaleInterpolation = 1;
+        std::vector<KeyFloat> mScales;
+    };
+
+    /// A NiControllerSequence (Skyrim door and chest models name them "Open" and "Close").
+    struct Sequence
+    {
+        std::string mName;
+        float mStart = 0.f;
+        float mStop = 0.f;
+        float mFrequency = 1.f;
+        std::uint32_t mCycleType = 2; // NiTimeController extrapolation: 0 loop, 1 reverse, 2 clamp
+        std::vector<Track> mTracks;
+        std::uint32_t mUnsupportedBlocks = 0; // controlled blocks that were not a plain transform interpolator
+    };
+
     struct Scene
     {
         std::uint32_t mVersion = 0;
@@ -228,6 +281,8 @@ namespace NifScene
         std::vector<ShaderMaterial> mMaterials;
         std::vector<AlphaProperty> mAlphaProperties;
         std::vector<std::uint32_t> mRoots; // indices into mNodes
+        /// Task 0232: the controller sequences of the file's NiControllerManager(s), in file order.
+        std::vector<Sequence> mSequences;
         /// The bhk collision data (task 0144), only filled when SceneOptions::mReadHavok is set.
         Havok::Collision mHavok;
         /// Things a consumer may want to log: a vertex layout that disagrees with its declared size, partition bone

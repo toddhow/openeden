@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
 #include <components/nif/exception.hpp>
 #include <components/nif/node.hpp>
@@ -118,6 +119,108 @@ namespace NifScene
             }
 
             void warn(const std::string& message) { mScene.mWarnings.push_back(message); }
+
+            // Task 0232: the NiControllerSequences of the file (Skyrim door and chest models). Only plain transform
+            // interpolators with keys are read; every other controlled block is counted in mUnsupportedBlocks.
+            void buildSequences()
+            {
+                constexpr std::size_t maxSequences = 64;
+                constexpr std::size_t maxTracks = 256;
+                constexpr std::size_t maxKeys = 4096;
+                for (const auto& record : mFile.mRecords)
+                {
+                    const auto* source = dynamic_cast<const Nif::NiControllerSequence*>(record.get());
+                    if (source == nullptr)
+                        continue;
+                    if (mScene.mSequences.size() >= maxSequences)
+                    {
+                        warn("controller sequences beyond " + std::to_string(maxSequences) + " are ignored");
+                        break;
+                    }
+                    Sequence sequence;
+                    sequence.mName = source->mName;
+                    sequence.mStart = source->mStartTime;
+                    sequence.mStop = source->mStopTime;
+                    sequence.mFrequency = source->mFrequency;
+                    sequence.mCycleType = static_cast<std::uint32_t>(source->mExtrapolationMode);
+                    for (const Nif::ControlledBlock& block : source->mControlledBlocks)
+                    {
+                        const auto* interpolator
+                            = dynamic_cast<const Nif::NiTransformInterpolator*>(block.mInterpolator.getPtr());
+                        if (interpolator == nullptr || block.mNodeName.empty() || sequence.mTracks.size() >= maxTracks)
+                        {
+                            ++sequence.mUnsupportedBlocks;
+                            continue;
+                        }
+                        Track track;
+                        track.mNodeName = block.mNodeName;
+                        track.mHasDefault = true;
+                        const Nif::NiQuatTransform& value = interpolator->mDefaultValue;
+                        track.mDefaultTranslation = { value.mTranslation.x, value.mTranslation.y, value.mTranslation.z };
+                        track.mDefaultRotation
+                            = { static_cast<float>(value.mRotation.x), static_cast<float>(value.mRotation.y),
+                                  static_cast<float>(value.mRotation.z), static_cast<float>(value.mRotation.w) };
+                        track.mDefaultScale = value.mScale;
+                        if (!interpolator->mData.empty())
+                        {
+                            const Nif::NiKeyframeData& data = *interpolator->mData.getPtr();
+                            if (data.mTranslations)
+                            {
+                                track.mTranslationInterpolation = data.mTranslations->mInterpolationType;
+                                for (const auto& [time, key] : data.mTranslations->mKeys)
+                                {
+                                    if (track.mTranslations.size() >= maxKeys)
+                                        break;
+                                    track.mTranslations.push_back(
+                                        { time, { key.mValue.x, key.mValue.y, key.mValue.z },
+                                            { key.mInTan.x, key.mInTan.y, key.mInTan.z },
+                                            { key.mOutTan.x, key.mOutTan.y, key.mOutTan.z } });
+                                }
+                            }
+                            if (data.mRotations && data.mRotations->mInterpolationType != Nif::InterpolationType_XYZ)
+                            {
+                                for (const auto& [time, key] : data.mRotations->mKeys)
+                                {
+                                    if (track.mRotations.size() >= maxKeys)
+                                        break;
+                                    track.mRotations.push_back({ time,
+                                        { static_cast<float>(key.mValue.x), static_cast<float>(key.mValue.y),
+                                            static_cast<float>(key.mValue.z), static_cast<float>(key.mValue.w) } });
+                                }
+                            }
+                            else if (data.mRotations)
+                            {
+                                const Nif::FloatKeyMapPtr* axes[3]
+                                    = { &data.mXRotations, &data.mYRotations, &data.mZRotations };
+                                for (int axis = 0; axis < 3; ++axis)
+                                {
+                                    if (!*axes[axis])
+                                        continue;
+                                    track.mEulerInterpolation[axis] = (*axes[axis])->mInterpolationType;
+                                    for (const auto& [time, key] : (*axes[axis])->mKeys)
+                                    {
+                                        if (track.mEuler[axis].size() >= maxKeys)
+                                            break;
+                                        track.mEuler[axis].push_back({ time, key.mValue, key.mInTan, key.mOutTan });
+                                    }
+                                }
+                            }
+                            if (data.mScales)
+                            {
+                                track.mScaleInterpolation = data.mScales->mInterpolationType;
+                                for (const auto& [time, key] : data.mScales->mKeys)
+                                {
+                                    if (track.mScales.size() >= maxKeys)
+                                        break;
+                                    track.mScales.push_back({ time, key.mValue, key.mInTan, key.mOutTan });
+                                }
+                            }
+                        }
+                        sequence.mTracks.push_back(std::move(track));
+                    }
+                    mScene.mSequences.push_back(std::move(sequence));
+                }
+            }
 
             std::uint32_t buildSkin(const Nif::Record* skinRecord, const std::string& shapeName)
             {
@@ -701,6 +804,7 @@ namespace NifScene
                 mScene.mUserVersion = mFile.mUserVersion;
                 mScene.mBethVersion = mFile.mBethVersion;
                 buildNodes();
+                buildSequences();
                 buildGeometries();
                 if (mOptions.mReadHavok)
                     mScene.mHavok = Havok::readCollision(mFile);

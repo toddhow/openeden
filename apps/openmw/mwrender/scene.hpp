@@ -82,6 +82,10 @@ namespace MWRender
         /// @param animated Attempt to load separate keyframes from a .kf file matching the model file?
         /// @param allowLight If false, no lights will be created, and particles systems will be removed.
         void insertModel(const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true) override;
+        /// Task 0232: the object of a Skyrim door or chest whose model has an Open sequence (null when the model has
+        /// none or cannot be read: the caller then builds it as before).
+        std::unique_ptr<MWAnim::Object> makeNeutralSequenceObject(
+            const MWWorld::Ptr& ptr, const std::string& mesh, MWAnim::Context& ctx);
 
     private:
         SkyrimRagdoll::Controller* findNeutralRagdoll(const MWWorld::Ptr& ptr);
@@ -113,6 +117,9 @@ namespace MWRender
         void setNeutralRagdollStates(
             const MWWorld::Ptr& ptr, std::span<const MWPhysics::RagdollBoneState> states) override;
         void endNeutralRagdoll(const MWWorld::Ptr& ptr) override;
+        bool neutralObjectHasSequence(const MWWorld::Ptr& ptr) override;
+        void setNeutralObjectOpen(const MWWorld::Ptr& ptr, float progress, bool closing) override;
+        void setNeutralObjectTarget(const MWWorld::Ptr& ptr, bool open) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
 
         /// Puts a built and compiled object (an actor when `actor`) into its cell's group and update list: the end of

@@ -29,7 +29,7 @@ fi
 cp -r "$HERE/luatest/." "$WORK/luatest/"
 IFS=',' read -r nx ny nz <<< "${NEAR:-0,0,0}"
 IFS=',' read -r fx fy <<< "${FROM:-0,0}"
-echo "return { base = '${BASE_ID:-}', near = { $nx, $ny, $nz }, from = { $fx, $fy }, dist = ${DIST:-120}, frame = ${PLACE:-600}, saveAt = ${SAVEAT:-1800}, base2 = '${BASE2:-}', near2 = { ${NEAR2:-0,0,0} }, from2 = nil, dist2 = ${DIST2:-100}, frame2 = ${PLACE2:-0}, owner = '${OWNER:-000c8fcd}', item = '${ITEM:-00086993}', worn = '${WORN:-00086993}' }" > "$WORK/luatest/scripts/inv/cfg.lua"
+echo "return { base = '${BASE_ID:-}', near = { $nx, $ny, $nz }, from = { $fx, $fy }, dist = ${DIST:-120}, frame = ${PLACE:-600}, saveAt = ${SAVEAT:-1800}, base2 = '${BASE2:-}', near2 = { ${NEAR2:-0,0,0} }, from2 = nil, dist2 = ${DIST2:-100}, frame2 = ${PLACE2:-0}, owner = '${OWNER:-000c8fcd}', item = '${ITEM:-00086993}', worn = '${WORN:-00086993}', yawOffset = ${YAW_OFFSET:-0} }" > "$WORK/luatest/scripts/inv/cfg.lua"
 echo "return '${PHASE:-none}'" > "$WORK/luatest/scripts/inv/phase.lua"
 B=$(native "$BUILD")
 grep -vE '^(content|data-local|resources|extension|user-data|config)=|vfs-mw|worldobjects_check|omwscripts' "$BASE/openmw.cfg" > "$WORK/config/openmw.cfg"

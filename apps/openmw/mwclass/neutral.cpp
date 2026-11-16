@@ -8,6 +8,7 @@
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/worldmodel/store.hpp>
 
@@ -34,6 +35,7 @@
 #include "../mwphysics/skyrimshape.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwrender/skyrimmodel.hpp"
+#include "../mwrender/skyrimsequence.hpp"
 #include "../mwworld/action.hpp"
 #include "../mwworld/actionteleport.hpp"
 #include "../mwworld/cellref.hpp"
@@ -55,6 +57,19 @@ namespace MWClass
 {
     namespace
     {
+        // Task 0232 (`[Game] neutral object animations`): the model has an Open sequence the renderer plays. A pure
+        // function of the model path (cached), so it does not depend on whether the object is drawn yet.
+        bool objectAnimationsWanted(std::string_view model)
+        {
+            if (!Settings::game().mNeutralObjectAnimations || model.empty())
+                return false;
+            Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+            return resources != nullptr && resources->getVFS() != nullptr
+                && MWRender::SkyrimSequence::loadModel(
+                       *resources->getVFS(), std::string(model), Settings::game().mNeutralWorldMaterials)
+                != nullptr;
+        }
+
         using openeden::sdk::game::CollisionSource;
         using openeden::sdk::game::ObjectKind;
 
@@ -272,6 +287,10 @@ namespace MWClass
                     : mKind == "resource"                           ? MWWorld::kNeutralResourceEvent
                                                                     : MWWorld::kNeutralInventoryEvent;
                 MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(eventName), fields);
+                // Task 0232: a chest's lid lifts while its window is open.
+                if (mKind == "container" && objectAnimationsWanted(getTarget().getClass().getModel(getTarget())))
+                    if (MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem())
+                        physics->openNeutralLid(getTarget());
             }
 
         public:
@@ -576,6 +595,13 @@ namespace MWClass
             case MWWorld::NeutralDoorOutcome::NotAPlayer:
                 return std::make_unique<MWWorld::FailedAction>(std::string_view{}, ptr);
             case MWWorld::NeutralDoorOutcome::Inert:
+                // Task 0232: the player opens a door that goes nowhere (a key, or a plain press): it swings open and
+                // closes by itself a few seconds later.
+                if (base.mKind == ObjectKind::Door && actor == MWMechanics::getPlayer()
+                    && objectAnimationsWanted(ptr.getClass().getModel(ptr)))
+                    if (MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem())
+                        physics->pokeNeutralDoor(ptr, true);
+                break;
             case MWWorld::NeutralDoorOutcome::NotADoor:
                 break;
         }
@@ -869,7 +895,7 @@ namespace MWClass
         // Task 0157: a door neutral actors walk through swings open for them (the scene gave the navigator the matching
         // off-mesh connection).
         if (asMesh && MWWorld::neutralDoorPtrOpensForActors(ptr))
-            physics.addNeutralDoor(ptr);
+            physics.addNeutralDoor(ptr, objectAnimationsWanted(model));
         // Task 0140: a model that was read and has nothing to collide with (effects, water volumes, markers) gets no
         // collision at all, not the box of its bounds: those bounds can be 3,000 units across.
         if (!MWPhysics::SkyrimShape::standInBoxWanted(asMesh, base.mCollision.hasBounds,
@@ -884,6 +910,6 @@ namespace MWClass
             static_cast<float>((hi.z - lo.z) * 0.5));
         physics.addBoxObject(ptr, half, centre, rotation, MWPhysics::Layers::WORLD);
         if (MWWorld::neutralDoorPtrOpensForActors(ptr))
-            physics.addNeutralDoor(ptr);
+            physics.addNeutralDoor(ptr, objectAnimationsWanted(model));
     }
 }

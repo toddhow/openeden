@@ -222,7 +222,23 @@ namespace MWPhysics
         /// Task 0157: a door of a neutral interior that neutral actors walk through (the scene decides which:
         /// MWWorld::neutralDoorPtrOpensForActors). From now on it swings open when a walking neutral actor comes
         /// near and closes behind it (NeutralDoor::step). The door must already have a body (addModelObject).
-        void addNeutralDoor(const MWWorld::Ptr& ptr);
+        /// Task 0232: `animated` says the door's model swings by its own Open sequence (the drawn object then stays
+        /// where it is and only the collision sinks, once the swing is half done).
+        void addNeutralDoor(const MWWorld::Ptr& ptr, bool animated = false);
+        /// Task 0232: the player opened this door (a key, or just a press): it counts as approached for
+        /// NeutralDoor::kPokeSeconds. Adds the door when it was not one yet.
+        void pokeNeutralDoor(const MWWorld::Ptr& ptr, bool animated);
+        /// Task 0232: a container's inventory window opens: its lid should lift until the window is gone. One lid at a
+        /// time (a newer one replaces the older).
+        void openNeutralLid(const MWWorld::Ptr& ptr);
+        struct NeutralLid
+        {
+            MWWorld::Ptr mPtr;
+            bool mPendingOpen = false; ///< the world has not told the renderer yet
+            bool mSawWindow = false;
+            float mAge = 0.f;
+        };
+        NeutralLid& neutralLid() { return mNeutralLid; }
 
         /// The doors whose opening changed in the last updateNeutralActors, with the height of the reference the caller
         /// must give them (closed height minus NeutralDoor::sinkOffset): it moves the drawn object, the body and the
@@ -231,6 +247,12 @@ namespace MWPhysics
         {
             MWWorld::Ptr mPtr;
             float mZ = 0.f;
+            /// Task 0232: an animated door. The renderer is given mProgress and mClosing (the drawn object is NOT
+            /// moved); the body and the navigator's shape move only when mMoveBody is set.
+            bool mAnimated = false;
+            bool mMoveBody = true;
+            bool mClosing = false;
+            float mProgress = 0.f;
         };
         /// Task 0159: the crossings of one-sided walls of a neutral object that the mover can make (see
         /// neutralplanelinks.hpp). Main thread, after the cell's objects have bodies.
@@ -689,7 +711,12 @@ namespace MWPhysics
             float mCentreX = 0.f, mCentreY = 0.f, mCentreZ = 0.f; ///< world centre of the door's bounds while closed
             NeutralDoor::State mState;
             float mPublishedProgress = 0.f;
+            bool mAnimated = false; ///< task 0232
+            bool mCollisionOpen = false;
+            bool mClosing = false;
+            float mPokeLeft = 0.f;
         };
+        NeutralLid mNeutralLid;
         std::vector<NeutralDoorEntry> mNeutralDoors;
         std::vector<NeutralDoorMove> mNeutralDoorsMoved;
         void updateNeutralDoors(float dt);

@@ -1609,6 +1609,20 @@ namespace MWWorld
             // body and navigator shape; see mwphysics/neutraldoorswing.hpp).
             for (const auto& move : mPhysics->getNeutralDoorsMoved())
             {
+                if (move.mAnimated)
+                {
+                    // Task 0232: the model swings by its own sequence; only the collision sinks (once, at half way).
+                    mRendering->getObjects().setNeutralObjectOpen(move.mPtr, move.mProgress, move.mClosing);
+                    if (!move.mMoveBody)
+                        continue;
+                    ESM::Position animatedPos = move.mPtr.getRefData().getPosition();
+                    animatedPos.pos[2] = move.mZ;
+                    move.mPtr.getRefData().setPosition(animatedPos);
+                    mPhysics->updatePosition(move.mPtr);
+                    if (const auto object = mPhysics->getObject(move.mPtr))
+                        updateNavigatorObject(*object);
+                    continue;
+                }
                 ESM::Position pos = move.mPtr.getRefData().getPosition();
                 pos.pos[2] = move.mZ;
                 move.mPtr.getRefData().setPosition(pos);
@@ -1616,6 +1630,25 @@ namespace MWWorld
                 mPhysics->updatePosition(move.mPtr);
                 if (const auto object = mPhysics->getObject(move.mPtr))
                     updateNavigatorObject(*object);
+            }
+            // Task 0232: the lid of a container whose inventory window is open lifts, and falls when the window goes.
+            {
+                MWPhysics::PhysicsSystem::NeutralLid& lid = mPhysics->neutralLid();
+                if (!lid.mPtr.isEmpty())
+                {
+                    if (lid.mPendingOpen)
+                    {
+                        mRendering->getObjects().setNeutralObjectTarget(lid.mPtr, true);
+                        lid.mPendingOpen = false;
+                    }
+                    const bool window = MWBase::Environment::get().getWindowManager()->isGuiMode();
+                    lid.mSawWindow = lid.mSawWindow || window;
+                    if (MWPhysics::NeutralDoor::lidShouldClose(lid.mSawWindow, window, lid.mAge))
+                    {
+                        mRendering->getObjects().setNeutralObjectTarget(lid.mPtr, false);
+                        lid = MWPhysics::PhysicsSystem::NeutralLid{};
+                    }
+                }
             }
             // Task 0135 stage S6b: a sit or sleep pose starts or ends.
             for (const auto& change : mPhysics->getNeutralPoseChanges())

@@ -2108,9 +2108,26 @@ namespace MWPhysics
             }
         }
         updateNeutralDoors(dt);
+        if (!mNeutralLid.mPtr.isEmpty() && dt > 0.f)
+            mNeutralLid.mAge += dt;
     }
 
-    void PhysicsSystem::addNeutralDoor(const MWWorld::Ptr& ptr)
+    void PhysicsSystem::pokeNeutralDoor(const MWWorld::Ptr& ptr, bool animated)
+    {
+        addNeutralDoor(ptr, animated);
+        for (NeutralDoorEntry& entry : mNeutralDoors)
+            if (entry.mRef == ptr.mRef)
+                entry.mPokeLeft = NeutralDoor::kPokeSeconds;
+    }
+
+    void PhysicsSystem::openNeutralLid(const MWWorld::Ptr& ptr)
+    {
+        mNeutralLid = NeutralLid{};
+        mNeutralLid.mPtr = ptr;
+        mNeutralLid.mPendingOpen = true;
+    }
+
+    void PhysicsSystem::addNeutralDoor(const MWWorld::Ptr& ptr, bool animated)
     {
         const Object* object = getObject(ptr);
         if (object == nullptr)
@@ -2129,6 +2146,7 @@ namespace MWPhysics
         NeutralDoorEntry entry;
         entry.mRef = ptr.mRef;
         entry.mClosedZ = ptr.getRefData().getPosition().pos[2];
+        entry.mAnimated = animated;
         entry.mCentreX = static_cast<float>(centre.x);
         entry.mCentreY = static_cast<float>(centre.y);
         entry.mCentreZ = static_cast<float>(centre.z);
@@ -2161,15 +2179,41 @@ namespace MWPhysics
                     break;
                 }
             }
+            if (door.mPokeLeft > 0.f)
+            {
+                near = true;
+                door.mPokeLeft = NeutralDoor::stepPoke(door.mPokeLeft, dt);
+            }
             const float before = door.mState.mProgress;
             door.mState = NeutralDoor::step(door.mState, near, dt);
+            if (door.mAnimated && door.mState.mProgress != before)
+                door.mClosing = door.mState.mProgress < before;
             static const bool doorTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
             if (doorTrace && (before <= 0.f) != (door.mState.mProgress <= 0.f || false)
                 && before != door.mState.mProgress && (before <= 0.f || door.mState.mProgress <= 0.f))
                 Log(Debug::Info) << "NACTDOOR " << doorObject->second->getPtr().getCellRef().getRefId() << " "
                                  << (before <= 0.f ? "opens" : "closed") << " at " << door.mCentreX << " "
                                  << door.mCentreY << " " << door.mCentreZ;
-            if (door.mState.mProgress != door.mPublishedProgress)
+            if (door.mAnimated)
+            {
+                // Task 0232: the drawn door swings by its sequence; only the collision sinks, once, at half way.
+                const bool open = NeutralDoor::collisionOpen(door.mState.mProgress);
+                const bool flips = open != door.mCollisionOpen;
+                if (door.mState.mProgress != door.mPublishedProgress || flips)
+                {
+                    door.mPublishedProgress = door.mState.mProgress;
+                    door.mCollisionOpen = open;
+                    NeutralDoorMove move;
+                    move.mPtr = doorObject->second->getPtr();
+                    move.mZ = door.mClosedZ - (open ? NeutralDoor::kSinkDepth : 0.f);
+                    move.mAnimated = true;
+                    move.mMoveBody = flips;
+                    move.mClosing = door.mClosing;
+                    move.mProgress = door.mState.mProgress;
+                    mNeutralDoorsMoved.push_back(std::move(move));
+                }
+            }
+            else if (door.mState.mProgress != door.mPublishedProgress)
             {
                 door.mPublishedProgress = door.mState.mProgress;
                 mNeutralDoorsMoved.push_back(

@@ -339,6 +339,7 @@ namespace NifScene::Flat
         {
             MaterialKey key;
             bool hasUV = false;
+            std::uint32_t animNode = 0xFFFFFFFFu;
             friend auto operator<=>(const MergeKey&, const MergeKey&) = default;
         };
     }
@@ -627,7 +628,23 @@ namespace NifScene::Flat
                 bounds.add(positions[index]);
 
             // Merge into the open shape with the same key, or start one.
-            const MergeKey mergeKey{ key, !uvs.empty() };
+            // Task 0232: the nearest ancestor-or-self the sequence moves (the walk is bounded by the node count).
+            std::uint32_t animNode = 0xFFFFFFFFu;
+            if (!limits.mAnimatedNodes.empty())
+            {
+                std::uint32_t at = static_cast<std::uint32_t>(n);
+                for (std::size_t steps = 0; at < scene.mNodes.size() && steps <= scene.mNodes.size(); ++steps)
+                {
+                    if (std::find(limits.mAnimatedNodes.begin(), limits.mAnimatedNodes.end(), at)
+                        != limits.mAnimatedNodes.end())
+                    {
+                        animNode = at;
+                        break;
+                    }
+                    at = scene.mNodes[at].mParent;
+                }
+            }
+            const MergeKey mergeKey{ key, !uvs.empty(), animNode };
             auto found = open.find(mergeKey);
             Shape* shape = nullptr;
             if (found != open.end())
@@ -645,6 +662,7 @@ namespace NifScene::Flat
                 shape->mMergedFrom = 0;
                 shape->mFlags1 = material.mFlags1;
                 shape->mFlags2 = material.mFlags2;
+                shape->mAnimNode = animNode;
                 open[mergeKey] = model.mShapes.size() - 1;
             }
             const auto base = static_cast<std::uint32_t>(shape->mPositions.size());

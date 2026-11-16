@@ -208,7 +208,7 @@ case "$SHOT" in lodview|lodobjview) echo "content=n4lodview.omwscripts" >> "$WOR
 # Task 0150: "actactor" and "actdoor" stand the player before Hulda or the Mare front door, facing it;
 # the activate key then comes from OPENEDEN_RMLUI_INPUT_SCRIPT (needs [GUI] rmlui = true in SETTINGS_EXTRA) and
 # OPENEDEN_ACTIVATE_TRACE=1 logs the focus query (use at least 2400 frames; the script's press frame must be after real second 6).
-case "$SHOT" in actactor|actdoor) echo "content=$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
+case "$SHOT" in actactor|actdoor|seqdoor|seqwalk) echo "content=$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 # Task skyext: "skyext" turns the camera through eight headings at a game hour (SKYEXT_HOUR in global.lua) from an exterior start
 # (CELL=@Tamriel,x,y) with a screenshot and a ray survey per heading (use at least 2500 frames).
 [ "$SHOT" = skyext ] && echo "content=skyext.omwscripts" >> "$WORK/config/openmw.cfg"
@@ -231,7 +231,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|n5gear|pbody) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|n5gear|pbody|seqdoor|seqwalk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

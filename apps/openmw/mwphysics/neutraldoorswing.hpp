@@ -27,6 +27,38 @@ namespace MWPhysics::NeutralDoor
     inline constexpr float kTriggerRadius = 160.f;
     inline constexpr float kTriggerHeight = 128.f;
 
+    // Task 0232 (`[Game] neutral object animations`): a door whose model plays its Open sequence swings instead of
+    // sinking. Its collision opens (the body and the navigator's shape sink, as before) once the swing is half done and
+    // comes back when the door is less than half open on the way back.
+    inline constexpr float kCollisionOpenProgress = 0.5f;
+    /// A door the player opened stays open this long (seconds) before the walker rule closes it.
+    inline constexpr float kPokeSeconds = 6.f;
+    /// A lid whose inventory window was never seen to open closes again after this long.
+    inline constexpr float kLidGraceSeconds = 5.f;
+
+    /// Whether the collision of an animated door is open at this progress.
+    [[nodiscard]] inline bool collisionOpen(float progress)
+    {
+        return progress >= kCollisionOpenProgress;
+    }
+
+    /// The seconds a poke has left after `dt` (never below 0; a bad dt changes nothing).
+    [[nodiscard]] inline float stepPoke(float left, float dt)
+    {
+        if (!(dt > 0.f) || !(left > 0.f))
+            return left > 0.f ? left : 0.f;
+        return left > dt ? left - dt : 0.f;
+    }
+
+    /// Whether the lid of a container whose window was opened should close now: the window was seen open and is
+    /// gone, or it was never seen open and the grace time is over.
+    [[nodiscard]] inline bool lidShouldClose(bool sawWindow, bool windowNow, float ageSeconds)
+    {
+        if (sawWindow)
+            return !windowNow;
+        return ageSeconds >= kLidGraceSeconds;
+    }
+
     struct State
     {
         float mProgress = 0.f; ///< 0 closed .. 1 open

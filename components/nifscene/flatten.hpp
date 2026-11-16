@@ -84,6 +84,11 @@ namespace NifScene::Flat
         /// shimmer) stay out. Particle systems are not geometry in a Nif::Scene and are never drawn. Off (the
         /// default) effect shapes are left out as before.
         bool mEffects = false;
+        /// Task 0232 (door and chest sequences): nodes (indices into Scene::mNodes) that a controller sequence moves.
+        /// A shape under one of them (or under a descendant of one) gets Shape::mAnimNode = the nearest such ancestor
+        /// and is never merged with a shape that has another value. Positions stay baked in the model's rest frame.
+        /// Empty (the default): nothing changes.
+        std::vector<std::uint32_t> mAnimatedNodes;
     };
 
     /// What makes two shapes drawable by one StateGroup.
@@ -137,6 +142,8 @@ namespace NifScene::Flat
         std::uint32_t mMergedFrom = 1; // geometries that went into this shape
         std::uint32_t mFlags1 = 0; // the first geometry's shader flag words (diagnostics; not part of the key)
         std::uint32_t mFlags2 = 0;
+        /// Task 0232: the animated node (Limits::mAnimatedNodes) this shape hangs under, or 0xFFFFFFFF (none).
+        std::uint32_t mAnimNode = 0xFFFFFFFFu;
     };
 
     /// What flatten did, for logging and tests. Counts of geometries unless said otherwise.

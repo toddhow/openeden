@@ -49,6 +49,8 @@
 #include "skyrimlocomotion.hpp"
 #include "skyrimpose.hpp"
 #include "skyrimragdoll.hpp"
+#include "skyrimsequence.hpp"
+#include <components/vsgutil/addchildren.hpp>
 #include "skyrimragdollmap.hpp"
 #include <cstdlib>
 
@@ -195,6 +197,80 @@ namespace MWRender
         return animated;
     }
 
+    std::unique_ptr<MWAnim::Object> Scene::makeNeutralSequenceObject(
+        const MWWorld::Ptr& ptr, const std::string& mesh, MWAnim::Context& ctx)
+    {
+        const auto kind = ptr.get<MWWorld::NeutralBase>()->mBase->mKind;
+        if (mesh.empty() || (kind != openeden::sdk::game::ObjectKind::Door && kind != openeden::sdk::game::ObjectKind::Container))
+            return nullptr;
+        Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+        if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
+            return nullptr;
+        const std::shared_ptr<const SkyrimSequence::Model> model
+            = SkyrimSequence::loadModel(*resources->getVFS(), mesh, Settings::game().mNeutralWorldMaterials);
+        if (!model)
+            return nullptr;
+        const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,
+            Bin_DepthSorted, mesh, {} };
+        SkyrimSequence::Built built = SkyrimSequence::build(model, buildContext);
+        if (!built.mNode || !built.mInstance)
+            return nullptr;
+        auto object = std::make_unique<MWAnim::Object>(ctx);
+        vsgUtil::addChildren(*object->nodeToAddChildrenTo(), *built.mNode);
+        object->addController(built.mInstance, object->transform());
+        object->keepAlive.push_back(built.mInstance);
+        return object;
+    }
+
+    namespace
+    {
+        SkyrimSequence::Instance* sequenceOf(MWAnim::Object& object)
+        {
+            for (const vsg::ref_ptr<vsg::Object>& kept : object.keepAlive)
+                if (auto* instance = dynamic_cast<SkyrimSequence::Instance*>(kept.get()))
+                    return instance;
+            return nullptr;
+        }
+    }
+
+    bool Scene::neutralObjectHasSequence(const MWWorld::Ptr& ptr)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return false;
+        const auto iter = cell->objects.find(ptr);
+        return iter != cell->objects.end() && sequenceOf(*iter->second) != nullptr;
+    }
+
+    void Scene::setNeutralObjectOpen(const MWWorld::Ptr& ptr, float progress, bool closing)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        if (SkyrimSequence::Instance* instance = sequenceOf(*iter->second))
+            instance->setProgress(progress, closing);
+    }
+
+    void Scene::setNeutralObjectTarget(const MWWorld::Ptr& ptr, bool open)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        SkyrimSequence::Instance* instance = sequenceOf(*iter->second);
+        static const bool trace = std::getenv("OPENEDEN_NEUTRAL_SEQUENCE_TRACE") != nullptr;
+        if (trace)
+            Log(Debug::Info) << "NSEQ lid " << ptr.getCellRef().getRefId() << " target " << (open ? "open" : "closed")
+                             << (instance != nullptr ? "" : " (no sequence on the object)");
+        if (instance != nullptr)
+            instance->setTarget(open);
+    }
+
     void Scene::insertModel(const MWWorld::Ptr& ptr, const std::string& mesh, bool allowLight)
     {
         const ESM::Light* light{};
@@ -216,7 +292,12 @@ namespace MWRender
         MWAnim::Context& ctx = allowLight ? context : noParticlesContext;
 
         Misc::LoadTrace::Scope traceCreate("model.create");
-        auto anim = MWAnim::createObject(mesh, ptr.getClass().useAnim(), light, ctx);
+        // Task 0232: a Skyrim door or chest whose model has an Open sequence is built with its moving parts apart.
+        std::unique_ptr<MWAnim::Object> anim;
+        if (Settings::game().mNeutralObjectAnimations && ptr.getType() == MWWorld::NeutralBase::sRecordId)
+            anim = makeNeutralSequenceObject(ptr, mesh, ctx);
+        if (!anim)
+            anim = MWAnim::createObject(mesh, ptr.getClass().useAnim(), light, ctx);
         traceCreate.end();
         if (Settings::game().mAnimatePlacedSceneryKeyframes && !ptr.getClass().useAnim())
             anim = giveSceneryKeyframes(std::move(anim), ptr, mesh, light, ctx);

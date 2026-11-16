@@ -89,6 +89,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimmaterial.cpp
     mwrender/testskyrimtreesway.cpp
     mwrender/testskyrimactor.cpp
+    mwrender/testskyrimsequence.cpp
     mwrender/testskyrimheldgear.cpp
     mwrender/testplayerbodytrack.cpp
     mwrender/testskyrimidle.cpp
@@ -224,6 +225,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralpathpartial.cpp
     mwphysics/testneutralprocess.cpp
     mwphysics/testneutraldoorswing.cpp
+    mwphysics/testneutraldoorsequence.cpp
     mwphysics/testneutralactorclock.cpp
     mwphysics/testneutralmover.cpp
     mwphysics/testneutralmoverbevel.cpp

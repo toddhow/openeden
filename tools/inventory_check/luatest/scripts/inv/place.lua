@@ -52,7 +52,7 @@ return {
                 local cx, cy = fx - p.x, fy - p.y
                 local len = math.sqrt(cx * cx + cy * cy)
                 local px, py = p.x + cx / len * dist, p.y + cy / len * dist
-                local yaw = math.atan2(p.x - px, p.y - py)
+                local yaw = math.atan2(p.x - px, p.y - py) + (cfg.yawOffset or 0) -- task 0232: turn the view so the object is off centre
                 print(string.format('N6INV target%s %s at %.0f,%.0f,%.0f (%.0f from the spot), placed at update %d', label, tostring(obj.recordId), p.x, p.y, p.z, d, updates))
                 player:teleport(player.cell, util.vector3(px, py, p.z), { onGround = true, rotation = util.transform.rotateZ(yaw) })
             end
