@@ -29,6 +29,13 @@ namespace MWPhysics
             return on;
         }
 
+        // OPENEDEN_NEUTRAL_ACTOR_COST=1 (task 0154's developer aid; task 0192 adds the pack's combatUpdate time).
+        bool costTraceOn()
+        {
+            static const bool on = std::getenv("OPENEDEN_NEUTRAL_ACTOR_COST") != nullptr;
+            return on;
+        }
+
         bool equalsNoCase(std::string_view a, std::string_view b)
         {
             return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
@@ -643,7 +650,9 @@ namespace MWPhysics
         mWriter.mWorld = world;
         // OPENEDEN_NEUTRAL_COMBAT_TRACE: a pack update that blocks the main thread is visible here (review fix of task
         // 0171: the first one used to read every plugin). Not a NCOMBAT line: the milliseconds differ run to run.
-        const auto updateStart = traceOn() ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
+        const bool costOn = costTraceOn();
+        const auto updateStart
+            = (traceOn() || costOn) ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
         try
         {
             rules->combatUpdate(seconds, mWriter);
@@ -652,6 +661,10 @@ namespace MWPhysics
         {
             ++mStats.mRulesFailures;
         }
+        if (costOn)
+            mStats.mRulesNs += static_cast<std::uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - updateStart)
+                    .count());
         if (traceOn())
         {
             const double ms

@@ -1,5 +1,7 @@
 #include <game_skyrimse/combat.hpp>
 
+#include <game_skyrimse/combat_crowd.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -138,13 +140,13 @@ namespace game_skyrimse
         mCastEdges.reserve(8);
         mTestCasters.reserve(kMaxTestCasters);
         mActorNames.reserve(256);
-        mPendingBow.reserve(32);
+        mPendingBow.reserve(kMaxConcurrentAttacks);
         mShots.reserve(kMaxShotsRemembered);
         mProjectileResults.reserve(kMaxShotsRemembered);
         mPlayerEdges.reserve(8);
-        mPendingHits.reserve(32);
-        mAwaiting.reserve(32);
-        mDeliveries.reserve(32);
+        mPendingHits.reserve(kMaxConcurrentAttacks);
+        mAwaiting.reserve(kMaxConcurrentAttacks);
+        mDeliveries.reserve(kMaxConcurrentAttacks);
         Fighter player;
         player.mSubject = CombatSubject::ofPlayer();
         mFighters.push_back(player);
@@ -193,6 +195,16 @@ namespace game_skyrimse
         }
         mTestHostile = lowerAscii(editorId);
         return true;
+    }
+
+    void SkyrimCombat::setTestCrowd(int hostile, int duels, float delaySeconds)
+    {
+        mTestCrowd = hostile > 0 ? static_cast<std::size_t>(hostile) : 0;
+        mTestDuels = duels > 0 ? static_cast<std::size_t>(duels) : 0;
+        mCrowdDelay = (std::isfinite(delaySeconds) && delaySeconds >= 0.f) ? delaySeconds : kDefaultCrowdDelay;
+        mCrowdChosen = false;
+        mOpponents.clear();
+        mOpponents.reserve(2 * std::min<std::size_t>(mTestDuels, Crowd::kMaxPicked / 2));
     }
 
     bool SkyrimCombat::setTestWeapon(std::string_view editorId)
@@ -739,6 +751,7 @@ namespace game_skyrimse
     {
         std::erase(mSwingers, handle);
         std::erase(mHostiles, handle);
+        std::erase_if(mOpponents, [&](const auto& pair) { return pair.first == handle; });
         std::erase(mBlockers, handle);
         cancelCastsOf(CombatSubject::of(handle)); // task 0186
         mEffects.removeCaster(CombatSubject::of(handle));
@@ -797,6 +810,16 @@ namespace game_skyrimse
         if (mPendingHits.size() < mPendingHits.capacity())
             mPendingHits.push_back(
                 { event.subject, event.token, event.slot == ClipSlot::PowerAttack, 0, event.slot == ClipSlot::Bash });
+        else if (!mWarnedHitsFull)
+        {
+            // Task 0192: more blows in one frame than the table holds (the bridge plays at most 64 clips, so this is
+            // a sign of a table sized below that): said once, never in silence.
+            mWarnedHitsFull = true;
+            const std::string line = "COMBAT more hit events in one frame than the table holds; blows are dropped";
+            if (mWarning)
+                mWarning(line);
+            trace(line);
+        }
     }
 
     void SkyrimCombat::onClipFinished(CombatSubject subject, std::uint32_t token, openeden::sdk::game::ClipEnd how)
@@ -928,8 +951,9 @@ namespace game_skyrimse
             mPlayerSwingToken = mNextToken++;
             mPlayerPower = power;
             ++mSwingsRequested;
-            trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "")
-                + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
+            if (mTrace)
+                trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "")
+                    + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
         if (fighter.mDead || fighter.mSwinging || fighter.mStaggered)
@@ -951,11 +975,61 @@ namespace game_skyrimse
             fighter.mSwinging = true;
             fighter.mSwingToken = request.token;
             ++mSwingsRequested;
-            trace("COMBAT swing " + name(fighter.mSubject) + " token " + std::to_string(request.token)
-                + (kind == AttackKind::Bash ? " bash"
-                        : power             ? " power"
-                                            : ""));
+            if (mTrace)
+                trace("COMBAT swing " + name(fighter.mSubject) + " token " + std::to_string(request.token)
+                    + (kind == AttackKind::Bash ? " bash"
+                            : power             ? " power"
+                                                : ""));
         }
+    }
+
+    void SkyrimCombat::chooseCrowd(CombatRequestWriter& writer)
+    {
+        // Task 0192: once, at the delay; the actors then known and alive are ranked by their distance to the player.
+        mCrowdChosen = true;
+        openeden::sdk::game::SubjectState player;
+        if (!writer.subjectState(CombatSubject::ofPlayer(), player))
+            return;
+        std::vector<Crowd::Candidate> candidates;
+        candidates.reserve(mFighters.size());
+        for (const Fighter& f : mFighters)
+        {
+            openeden::sdk::game::SubjectState where;
+            if (f.mSubject.player || f.mDead || !writer.subjectState(f.mSubject, where))
+                continue;
+            candidates.push_back({ f.mSubject.actor, where.x, where.y });
+        }
+        const Crowd::Choice choice = Crowd::choose(candidates, player.x, player.y, mTestCrowd, mTestDuels);
+        mHostiles.reserve(mHostiles.size() + choice.mHostile.size() + choice.mOpponents.size());
+        for (const ActorHandle& h : choice.mHostile)
+            if (std::find(mHostiles.begin(), mHostiles.end(), h) == mHostiles.end())
+                mHostiles.push_back(h);
+        for (const auto& pair : choice.mOpponents)
+        {
+            if (std::find(mHostiles.begin(), mHostiles.end(), pair.first) == mHostiles.end())
+                mHostiles.push_back(pair.first);
+            mOpponents.push_back(pair);
+        }
+        for (const ActorHandle& h : choice.mHostile)
+            trace("COMBAT crowd hostile " + name(CombatSubject::of(h)));
+        for (std::size_t i = 0; i + 1 < choice.mOpponents.size(); i += 2)
+            trace("COMBAT crowd duel " + name(CombatSubject::of(choice.mOpponents[i].first)) + " against "
+                + name(CombatSubject::of(choice.mOpponents[i].second)));
+        trace("COMBAT crowd chosen: " + std::to_string(choice.mHostile.size()) + " hostile to the player, "
+            + std::to_string(choice.mOpponents.size() / 2) + " duels, of " + std::to_string(candidates.size())
+            + " actors");
+    }
+
+    bool SkyrimCombat::mayHit(const Fighter& attacker, const Fighter& victim) const
+    {
+        if (!crowdOn() || attacker.mSubject.player)
+            return true;
+        for (const auto& pair : mOpponents)
+            if (pair.first == attacker.mSubject.actor)
+                return !victim.mSubject.player && victim.mSubject.actor == pair.second;
+        if (std::find(mHostiles.begin(), mHostiles.end(), attacker.mSubject.actor) != mHostiles.end())
+            return victim.mSubject.player;
+        return true;
     }
 
     void SkyrimCombat::startHostiles(CombatRequestWriter& writer)
@@ -970,17 +1044,32 @@ namespace game_skyrimse
             if (f == nullptr || f->mDead || f->mSwinging || f->mStaggered || f->mBow != Fighter::Bow::None
                 || mClock < f->mNextAttack || !ready(*f))
                 continue;
-            if (!havePlayer)
+            // Task 0192: a duelist fights its one opponent, everybody else the player.
+            const ActorHandle* opponent = nullptr;
+            for (const auto& pair : mOpponents)
+                if (pair.first == handle)
+                    opponent = &pair.second;
+            openeden::sdk::game::SubjectState rival;
+            if (opponent != nullptr)
+            {
+                const Fighter* other = find(CombatSubject::of(*opponent));
+                if (other == nullptr || other->mDead || !writer.subjectState(other->mSubject, rival))
+                    continue;
+            }
+            else if (!havePlayer)
             {
                 havePlayer = writer.subjectState(CombatSubject::ofPlayer(), player);
                 if (!havePlayer)
                     return;
             }
+            const openeden::sdk::game::SubjectState& target = opponent != nullptr ? rival : player;
             openeden::sdk::game::SubjectState self;
             if (!writer.subjectState(f->mSubject, self))
                 continue;
-            const double dx = player.x - self.x;
-            const double dy = player.y - self.y;
+            const double dx = target.x - self.x;
+            const double dy = target.y - self.y;
+            if (opponent != nullptr && mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+                continue; // duels are melee only: arrows are aimed at the player
             if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
             {
                 // Task 0178: an archer shoots from afar (up to the bow's maximum range) and does not swing.
@@ -1144,9 +1233,11 @@ namespace game_skyrimse
         request.halfAngle = kStrikeHalfAngle;
         request.heightBelow = kSweepHeightBelow;
         request.heightAbove = kSweepHeightAbove;
-        trace("COMBAT hitframe " + name(attacker->mSubject) + " token " + std::to_string(hit.mToken) + " stamina "
-            + fmt(attacker->mStamina) + " of " + fmt(attacker->mProfile.mStaminaMax) + " reach " + fmt(request.reach)
-            + (hit.mBash ? " bash" : ""));
+        if (mTrace)
+            trace("COMBAT hitframe " + name(attacker->mSubject) + " token " + std::to_string(hit.mToken) + " stamina "
+                + fmt(attacker->mStamina) + " of " + fmt(attacker->mProfile.mStaminaMax) + " reach "
+                + fmt(request.reach)
+                + (hit.mBash ? " bash" : ""));
         if (writer.requestSweep(attacker->mSubject, request))
         {
             PendingHit asked = hit;
@@ -1236,10 +1327,11 @@ namespace game_skyrimse
         report.y = hit.y;
         report.z = hit.z;
         writer.reportDamage(report);
-        trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "
-            + fmt(result.mDamageBefore) + " after armour " + fmt(result.mDamageAfter) + " (mitigation "
-            + fmt(victim.mProfile.mMitigationPercent) + "%) health " + fmt(current) + " -> " + fmt(after) + " of "
-            + fmt(maximum) + (power ? " power" : "") + (bash ? " bash" : "") + blockNote);
+        if (mTrace)
+            trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "
+                + fmt(result.mDamageBefore) + " after armour " + fmt(result.mDamageAfter) + " (mitigation "
+                + fmt(victim.mProfile.mMitigationPercent) + "%) health " + fmt(current) + " -> " + fmt(after) + " of "
+                + fmt(maximum) + (power ? " power" : "") + (bash ? " bash" : "") + blockNote);
 
         if (after > 0.f)
         {
@@ -1263,7 +1355,8 @@ namespace game_skyrimse
                         victim.mSwinging = false; // the reaction replaced its swing
                         victim.mStaggered = slot == ClipSlot::Stagger;
                         victim.mStaggerToken = request.token;
-                        trace("COMBAT reaction " + name(victim.mSubject) + " clip " + std::string(clip));
+                        if (mTrace)
+                            trace("COMBAT reaction " + name(victim.mSubject) + " clip " + std::string(clip));
                     }
                 }
             }
@@ -1273,7 +1366,8 @@ namespace game_skyrimse
             return;
         victim.mDead = true;
         victim.mStaggered = false;
-        trace("COMBAT death " + name(victim.mSubject));
+        if (mTrace)
+            trace("COMBAT death " + name(victim.mSubject));
         if (!victim.mSubject.player)
         {
             // The stagger-back clip lays the body down; as a Death-slot clip the core holds its last pose until the
@@ -1306,12 +1400,14 @@ namespace game_skyrimse
                 continue;
             Fighter* victim = hit.target == SweepTarget::Player ? find(CombatSubject::ofPlayer())
                                                                 : find(CombatSubject::of(hit.actor));
-            if (victim == nullptr || victim == attacker || victim->mDead || !ready(*victim))
+            if (victim == nullptr || victim == attacker || victim->mDead || !ready(*victim)
+                || !mayHit(*attacker, *victim))
                 continue;
             applyHit(writer, *attacker, delivery.mWho.mPower, delivery.mWho.mBash, hit, *victim);
             return; // one target a swing: the nearest valid one
         }
-        trace("COMBAT miss " + name(attacker->mSubject) + " token " + std::to_string(delivery.mWho.mToken));
+        if (mTrace)
+            trace("COMBAT miss " + name(attacker->mSubject) + " token " + std::to_string(delivery.mWho.mToken));
     }
 
     bool SkyrimCombat::bowReady()
@@ -1338,8 +1434,9 @@ namespace game_skyrimse
         (void)writer.setClipSpeed(fighter.mSubject, speed);
         fighter.mBow = Fighter::Bow::Drawing;
         fighter.mBowToken = request.token;
-        trace("COMBAT bow draw " + name(fighter.mSubject) + " token " + std::to_string(request.token) + " speed "
-            + fmt(speed));
+        if (mTrace)
+            trace("COMBAT bow draw " + name(fighter.mSubject) + " token " + std::to_string(request.token) + " speed "
+                + fmt(speed));
     }
 
     void SkyrimCombat::releaseBow(CombatRequestWriter& writer, Fighter& fighter, std::uint32_t)
@@ -1358,7 +1455,8 @@ namespace game_skyrimse
         }
         fighter.mBow = Fighter::Bow::Releasing;
         fighter.mBowToken = request.token;
-        trace("COMBAT bow release " + name(fighter.mSubject) + " token " + std::to_string(request.token));
+        if (mTrace)
+            trace("COMBAT bow release " + name(fighter.mSubject) + " token " + std::to_string(request.token));
     }
 
     bool SkyrimCombat::launchArrow(
@@ -1415,10 +1513,12 @@ namespace game_skyrimse
             mShots.erase(mShots.begin()); // an arrow whose end never came (its owner left): the oldest is forgotten
         mShots.push_back({ request.token, archer.mSubject, fraction });
         ++mArrowsLaunched;
-        trace("COMBAT arrow launch " + name(archer.mSubject) + " token " + std::to_string(request.token) + " from "
-            + fmt(static_cast<float>(request.x)) + " " + fmt(static_cast<float>(request.y)) + " "
-            + fmt(static_cast<float>(request.z)) + " heading " + fmt(request.heading) + " pitch " + fmt(request.pitch)
-            + " speed " + fmt(request.speed) + " gravity " + fmt(request.gravity) + " draw " + fmt(fraction));
+        if (mTrace)
+            trace("COMBAT arrow launch " + name(archer.mSubject) + " token " + std::to_string(request.token) + " from "
+                + fmt(static_cast<float>(request.x)) + " " + fmt(static_cast<float>(request.y)) + " "
+                + fmt(static_cast<float>(request.z)) + " heading " + fmt(request.heading) + " pitch "
+                + fmt(request.pitch)
+                + " speed " + fmt(request.speed) + " gravity " + fmt(request.gravity) + " draw " + fmt(fraction));
         return true;
     }
 
@@ -1434,10 +1534,11 @@ namespace game_skyrimse
         const Shot launched = *shot;
         mShots.erase(shot);
         ++mProjectileResultsSeen;
-        trace("COMBAT arrow ended " + name(result.owner) + " token " + std::to_string(result.token) + " fate "
-            + std::to_string(static_cast<int>(result.fate)) + " at " + fmt(static_cast<float>(result.x)) + " "
-            + fmt(static_cast<float>(result.y)) + " " + fmt(static_cast<float>(result.z)) + " after "
-            + fmt(result.flightSeconds) + " s, " + fmt(result.distance) + " units");
+        if (mTrace)
+            trace("COMBAT arrow ended " + name(result.owner) + " token " + std::to_string(result.token) + " fate "
+                + std::to_string(static_cast<int>(result.fate)) + " at " + fmt(static_cast<float>(result.x)) + " "
+                + fmt(static_cast<float>(result.y)) + " " + fmt(static_cast<float>(result.z)) + " after "
+                + fmt(result.flightSeconds) + " s, " + fmt(result.distance) + " units");
         if (result.fate != openeden::sdk::game::ProjectileFate::HitActor
             && result.fate != openeden::sdk::game::ProjectileFate::HitPlayer)
             return;
@@ -1448,6 +1549,8 @@ namespace game_skyrimse
         if (archer == nullptr || victim == nullptr || archer == victim || victim->mDead || !ready(*archer)
             || !ready(*victim) || !bowReady())
             return;
+        if (!mayHit(*archer, *victim))
+            return; // task 0192: an arrow that ends in a friend of the archer (a crowd test) hurts nobody
         BowInput input;
         input.mBow = mWeapon;
         input.mAmmo = mAmmo;
@@ -1636,6 +1739,8 @@ namespace game_skyrimse
             for (const ActorHandle& handle : mBlockers)
                 if (Fighter* f = find(CombatSubject::of(handle)))
                     (void)ready(*f);
+            if (crowdOn() && !mCrowdChosen && mClock >= mCrowdDelay)
+                chooseCrowd(writer);
             startHostiles(writer);
             runPlayerSwing(writer);
             runPlayerBow(writer);

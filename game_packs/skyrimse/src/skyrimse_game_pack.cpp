@@ -873,6 +873,15 @@ namespace game_skyrimse
                             "the setting '" + std::string(kCombatTestHostileKey) + "' is too long; it is off");
                     else if (!hostile.empty())
                         say(openeden::sdk::LogLevel::Info, "combat test hostile: actors named " + hostile + " attack");
+                    // Task 0192: the crowd test (many fighters), off unless a count is given.
+                    const int crowd = settings->getInt(kPackId, kCombatTestCrowdKey, 0);
+                    const int duels = settings->getInt(kPackId, kCombatTestDuelsKey, 0);
+                    mCellSource.combat().setTestCrowd(
+                        crowd, duels, settings->getFloat(kPackId, kCombatTestCrowdDelayKey, kDefaultCrowdDelay));
+                    if (crowd > 0 || duels > 0)
+                        say(openeden::sdk::LogLevel::Info,
+                            "combat test crowd: " + std::to_string(crowd) + " hostile, " + std::to_string(duels)
+                                + " duels");
                     const std::string weapon = settings->getString(kPackId, kCombatTestWeaponKey, "");
                     if (!mCellSource.combat().setTestWeapon(weapon))
                         say(openeden::sdk::LogLevel::Warning,

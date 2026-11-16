@@ -635,6 +635,13 @@ namespace MWPhysics
         std::uint64_t mNeutralCostFollowNs = 0; ///< inside followNeutralGoal (the path finder is called from there)
         std::uint64_t mNeutralCostWalkNs = 0; ///< inside walkNeutralActor (swept capsule)
         std::uint64_t mNeutralCostActorFrames = 0;
+        // Task 0192: the combat bridge's whole update, the pack's combatUpdate inside it, and the longest frame of each in
+        // the window (all only with OPENEDEN_NEUTRAL_ACTOR_COST).
+        std::uint64_t mNeutralCostCombatNs = 0;
+        std::uint64_t mNeutralCostCombatMaxNs = 0;
+        std::uint64_t mNeutralCostRulesNs = 0;
+        std::uint64_t mNeutralCostRulesMaxNs = 0;
+        std::uint64_t mNeutralCostRulesPrevNs = 0; ///< the bridge's running total at the last frame
         std::vector<NeutralActorEntry> mNeutralActors;
         // Task 0157: doors that open for walking neutral actors.
         struct NeutralDoorEntry

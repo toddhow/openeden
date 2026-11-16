@@ -180,6 +180,8 @@ namespace MWPhysics
             std::uint64_t mProjectilesExpired = 0;
             std::uint64_t mProjectileResultsDropped = 0; ///< the owner had gone
             std::uint64_t mPlayerAttackEdges = 0;
+            /// Task 0192: nanoseconds spent inside rules->combatUpdate (summed, only with OPENEDEN_NEUTRAL_ACTOR_COST).
+            std::uint64_t mRulesNs = 0;
         };
 
         static constexpr std::size_t kMaxPlaying = 64;

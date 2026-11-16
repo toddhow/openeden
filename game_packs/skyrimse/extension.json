@@ -41,6 +41,21 @@
       "default": ""
     },
     {
+      "key": "combat test crowd",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "combat test duels",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "combat test crowd delay",
+      "type": "float",
+      "default": 4.0
+    },
+    {
       "key": "combat test player swing",
       "type": "float",
       "default": 0.0

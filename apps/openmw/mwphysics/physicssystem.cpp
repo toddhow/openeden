@@ -1835,8 +1835,22 @@ namespace MWPhysics
             mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
             mNeutralClipSpeedOps.reserve(NeutralCombatBridge::kMaxPlaying);
             mNeutralProjectileOps.reserve(4 * NeutralCombatBridge::kMaxProjectiles);
+            const auto combatStart = costTrace ? std::chrono::steady_clock::now() : costStart;
             mNeutralCombat.update(
                 mNeutralCombatResolver(), dt, mNeutralClipApplier, mNeutralClipMeta, &mNeutralCombatWorld);
+            if (costTrace)
+            {
+                const std::uint64_t ns = static_cast<std::uint64_t>(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - combatStart)
+                        .count());
+                mNeutralCostCombatNs += ns;
+                mNeutralCostCombatMaxNs = std::max(mNeutralCostCombatMaxNs, ns);
+                const std::uint64_t rulesTotal = mNeutralCombat.stats().mRulesNs;
+                const std::uint64_t rules = rulesTotal - mNeutralCostRulesPrevNs;
+                mNeutralCostRulesPrevNs = rulesTotal;
+                mNeutralCostRulesNs += rules;
+                mNeutralCostRulesMaxNs = std::max(mNeutralCostRulesMaxNs, rules);
+            }
         }
         const auto costAfterPack = costTrace ? std::chrono::steady_clock::now() : costStart;
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
@@ -2016,12 +2030,22 @@ namespace MWPhysics
                                  << " of which pack us " << (static_cast<double>(mNeutralCostPackNs) / 1000.0 / frames)
                                  << " follow us " << (static_cast<double>(mNeutralCostFollowNs) / 1000.0 / frames)
                                  << " walk us " << (static_cast<double>(mNeutralCostWalkNs) / 1000.0 / frames)
-                                 << " per actor-frame ns " << (static_cast<double>(mNeutralCostNs) / actorFrames);
+                                 << " per actor-frame ns " << (static_cast<double>(mNeutralCostNs) / actorFrames)
+                                 << " combat us " << (static_cast<double>(mNeutralCostCombatNs) / 1000.0 / frames)
+                                 << " (max " << (static_cast<double>(mNeutralCostCombatMaxNs) / 1000.0)
+                                 << ") of which pack combatUpdate us "
+                                 << (static_cast<double>(mNeutralCostRulesNs) / 1000.0 / frames) << " (max "
+                                 << (static_cast<double>(mNeutralCostRulesMaxNs) / 1000.0) << ") playing "
+                                 << mNeutralCombat.playing() << " dead " << mNeutralCombat.deadCount();
                 mNeutralCostNs = 0;
                 mNeutralCostPackNs = 0;
                 mNeutralCostFollowNs = 0;
                 mNeutralCostWalkNs = 0;
                 mNeutralCostActorFrames = 0;
+                mNeutralCostCombatNs = 0;
+                mNeutralCostCombatMaxNs = 0;
+                mNeutralCostRulesNs = 0;
+                mNeutralCostRulesMaxNs = 0;
             }
         }
         updateNeutralDoors(dt);

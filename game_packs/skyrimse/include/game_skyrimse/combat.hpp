@@ -31,6 +31,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace game_skyrimse
@@ -48,6 +49,13 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTestHostileKey = "combat test hostile";
     inline constexpr std::string_view kCombatTestPlayerSwingKey = "combat test player swing";
     inline constexpr std::string_view kCombatTestWeaponKey = "combat test weapon";
+    /// Task 0192 (combat on many actors), all off by default: `combat test crowd` makes the N actors nearest to the
+    /// player hostile to it, `combat test duels` makes the next 2M nearest fight each other in pairs; they are chosen
+    /// once, when the combat clock reaches `combat test crowd delay` seconds (default kDefaultCrowdDelay).
+    inline constexpr std::string_view kCombatTestCrowdKey = "combat test crowd";
+    inline constexpr std::string_view kCombatTestDuelsKey = "combat test duels";
+    inline constexpr std::string_view kCombatTestCrowdDelayKey = "combat test crowd delay";
+    inline constexpr float kDefaultCrowdDelay = 4.f;
     inline constexpr std::string_view kCombatTraceKey = "combat trace";
     /// Task 0172 (stage S5-4) test settings, all off by default: every Nth attack of a hostile actor is a power attack,
     /// every Mth a bash, and the actors with this editor id block.
@@ -148,6 +156,11 @@ namespace game_skyrimse
     /// Seconds between two attacks of a hostile test actor.
     inline constexpr float kHostileAttackPeriod = 2.5f;
     inline constexpr std::size_t kMaxCombatFighters = 4096;
+    /// Task 0192: the most swings (hit events, sweeps waiting for their result, results to resolve, bow events) the pack
+    /// keeps in one frame. It mirrors NeutralCombatBridge::kMaxPlaying (64): the bridge plays no more clips than that,
+    /// so no more hit events can come in one frame. It was 32, and a crowd of more than 32 fighters that reached their
+    /// HitFrame together lost the rest of the blows without a word.
+    inline constexpr std::size_t kMaxConcurrentAttacks = 64;
     /// A sweep asked for and not answered after this many updates is forgotten (the engine answers in the next one; a
     /// result it dropped, for an attacker that had gone for instance, must not hold a table slot for ever).
     inline constexpr std::size_t kSweepAnswerUpdates = 2;
@@ -332,6 +345,10 @@ namespace game_skyrimse
         void setData(CombatData* data);
         /// Names the actors that attack the player when it is in reach; same rules as setTestSwing.
         bool setTestHostile(std::string_view editorId);
+        /// Task 0192: the crowd test rules (see kCombatTestCrowdKey); 0 or negative counts are off, a delay that is not
+        /// finite or is negative is the default.
+        void setTestCrowd(int hostile, int duels, float delaySeconds);
+        [[nodiscard]] std::size_t duelists() const { return mOpponents.size(); }
         /// Seconds between the player's automatic swings; 0, negative or not finite is off.
         void setTestPlayerSwing(float seconds);
         /// The WEAP both sides wield (case-insensitive editor id); empty is unarmed. False when too long.
@@ -603,6 +620,17 @@ namespace game_skyrimse
         std::string mTestSwing; ///< lower case
         std::vector<openeden::sdk::game::ActorHandle> mSwingers;
         std::vector<openeden::sdk::game::ActorHandle> mHostiles;
+        // Task 0192: the crowd test. mOpponents lists each duelist with its one enemy (both directions).
+        std::size_t mTestCrowd = 0;
+        std::size_t mTestDuels = 0;
+        float mCrowdDelay = kDefaultCrowdDelay;
+        bool mCrowdChosen = false;
+        std::vector<std::pair<openeden::sdk::game::ActorHandle, openeden::sdk::game::ActorHandle>> mOpponents;
+        void chooseCrowd(openeden::sdk::game::CombatRequestWriter& writer);
+        [[nodiscard]] bool crowdOn() const { return mTestCrowd > 0 || mTestDuels > 0; }
+        /// With a crowd test an NPC may only hurt its enemies (the player for the hostile ones, its opponent for a
+        /// duelist); without one anybody in the arc may be hit, as before.
+        [[nodiscard]] bool mayHit(const Fighter& attacker, const Fighter& victim) const;
         float mPlayerAutoPeriod = 0.f;
         float mNextPlayerAuto = 1.f;
         bool mPlayerAttackPending = false;
@@ -714,6 +742,7 @@ namespace game_skyrimse
         bool mHaveTiming[2] = { false, false };
         std::size_t mWaitingForData = 0;
         bool mWarnedAwaitingFull = false;
+        bool mWarnedHitsFull = false; ///< task 0192
         float mPlayerHitTime = 0.f; ///< of the swing that runs: from the sidecar
         float mPlayerSwingLength = 0.f;
         bool mPlayerTimingKicked = false; ///< the read of the player's attack clip sidecars was started
