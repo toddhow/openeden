@@ -13,7 +13,7 @@ local M = {}
 
 local BAR_WIDTH, BAR_HEIGHT = 220, 14
 local ENEMY_WIDTH = 360
-local TRACK = 'rgba(0, 0, 0, 0.55)'
+local TRACK = 'rgba(0, 0, 0, 140)' -- alpha is 0 to 255 in RmlUi: 140 is 55 percent
 local COLOURS = {
   health = 'rgb(176, 42, 42)',
   magicka = 'rgb(42, 79, 176)',
