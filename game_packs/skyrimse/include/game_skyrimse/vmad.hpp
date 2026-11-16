@@ -92,6 +92,33 @@ namespace game_skyrimse::vmad
         [[nodiscard]] bool hasEnd() const { return (mFlags & 2) != 0 && !mEndFunction.empty(); }
     };
 
+    /// Task 0194: the fragment section of a SCEN's VMAD. Layout, VERIFIED on the five masters (717 scene VMAD subrecords
+    /// all end exactly): after the script list u8 (always 2), u8 flags (bit 0 a fragment when the scene begins, bit 1 one
+    /// when it ends), wstring file name ("SF_" and the scene's id), then for each set bit in bit order u8 (unknown),
+    /// wstring script, wstring function; then u16 phase fragment count and per phase fragment u8 flags (1 when the phase
+    /// starts, 2 when it completes, 0 occurs 7 times), u8 phase index, i16 (unknown), u8 (unknown), u8 (unknown), wstring
+    /// script, wstring function. Names are xEdit's (wbScriptFragmentsScen), RECALLED-VERIFY.
+    struct PhaseFragment
+    {
+        std::uint8_t mFlags = 0;
+        std::uint8_t mPhase = 0;
+        std::string mScript;
+        std::string mFunction;
+        [[nodiscard]] bool onStart() const { return (mFlags & 1) != 0; }
+        [[nodiscard]] bool onCompletion() const { return (mFlags & 2) != 0; }
+    };
+
+    struct SceneFragments
+    {
+        std::uint8_t mFlags = 0;
+        std::string mFileName;
+        std::string mBeginScript;
+        std::string mBeginFunction;
+        std::string mEndScript;
+        std::string mEndFunction;
+        std::vector<PhaseFragment> mPhases;
+    };
+
     struct AliasScripts
     {
         std::uint32_t mQuest = 0;
@@ -110,6 +137,8 @@ namespace game_skyrimse::vmad
         std::vector<AliasScripts> mAliases;
         bool mHasInfoFragments = false; ///< parseInfo found a fragment section
         InfoFragments mInfo;
+        bool mHasSceneFragments = false; ///< parseScene found a fragment section (task 0194)
+        SceneFragments mScene;
     };
 
     struct Limits
@@ -137,6 +166,10 @@ namespace game_skyrimse::vmad
     /// Task 0187: the VMAD of an INFO record: the scripts, then the optional fragment section (`mInfo`). Same strictness
     /// as `parse`: the whole subrecord must be used.
     [[nodiscard]] ParseResult parseInfo(std::span<const std::byte> bytes, const Limits& limits = {});
+
+    /// Task 0194: the VMAD of a SCEN record: the scripts, then the optional fragment section (`mScene`). The whole
+    /// subrecord must be used.
+    [[nodiscard]] ParseResult parseScene(std::span<const std::byte> bytes, const Limits& limits = {});
 
     /// Applies \a resolve to every stored object form id (0 stays 0). A form id the function cannot resolve may return
     /// 0; the number of those is returned.

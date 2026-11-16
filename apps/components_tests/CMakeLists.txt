@@ -588,6 +588,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsespeech.cpp
     skyrimse/testskyrimsequestscripts.cpp
     skyrimse/testskyrimsequestscriptsreal.cpp
+    skyrimse/testskyrimsescenes.cpp
     skyrimse/testskyrimseconditionstate.cpp
     skyrimse/testskyrimseconditionstatereal.cpp
     skyrimse/testskyrimseplacedrefs.cpp
@@ -675,6 +676,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/journal.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scene.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scene_runner.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_alias.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/vmad.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_host.cpp

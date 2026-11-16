@@ -24,6 +24,8 @@ openeden_add_game_pack(skyrimse
         src/journal.cpp
         src/quest_script.cpp
         src/story.cpp
+        src/scene.cpp
+        src/scene_runner.cpp
         src/quest_alias.cpp
         src/vmad.cpp
         src/papyrus_host.cpp
@@ -133,6 +135,8 @@ add_library(game_skyrimse_world STATIC
     src/placed_refs.cpp
     src/quest_script.cpp
     src/story.cpp
+    src/scene.cpp
+    src/scene_runner.cpp
     src/quest_alias.cpp
     src/vmad.cpp
     src/papyrus_host.cpp

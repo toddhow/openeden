@@ -328,6 +328,56 @@ namespace game_skyrimse::vmad
         return result;
     }
 
+    ParseResult parseScene(std::span<const std::byte> bytes, const Limits& limits)
+    {
+        ParseResult result;
+        Reader r(bytes, limits);
+        Vmad& v = result.mVmad;
+        std::uint16_t count = 0;
+        bool ok
+            = readHeader(r, v.mVersion, v.mObjectFormat, count) && readScripts(r, v.mObjectFormat, count, v.mScripts);
+        if (ok && !r.atEnd())
+        {
+            std::uint8_t marker = 0;
+            SceneFragments& f = v.mScene;
+            ok = r.u8(marker) && r.u8(f.mFlags) && r.wstring(f.mFileName, limits.mMaxNameBytes);
+            if (ok && (f.mFlags & ~3u) != 0)
+                ok = r.fail("scene fragment flags " + std::to_string(f.mFlags) + " are not known");
+            for (unsigned bit = 0; ok && bit < 2; ++bit)
+            {
+                if ((f.mFlags & (1u << bit)) == 0)
+                    continue;
+                std::uint8_t unknown = 0;
+                std::string& script = bit == 0 ? f.mBeginScript : f.mEndScript;
+                std::string& function = bit == 0 ? f.mBeginFunction : f.mEndFunction;
+                ok = r.u8(unknown) && r.wstring(script, limits.mMaxNameBytes)
+                    && r.wstring(function, limits.mMaxNameBytes);
+            }
+            std::uint16_t phases = 0;
+            ok = ok && r.u16(phases);
+            if (ok && phases > limits.mMaxFragments)
+                ok = r.fail(std::to_string(phases) + " phase fragments");
+            for (std::uint16_t i = 0; ok && i < phases; ++i)
+            {
+                PhaseFragment p;
+                std::int16_t unknown16 = 0;
+                std::uint8_t unknown8 = 0;
+                std::uint8_t unknown8b = 0;
+                ok = r.u8(p.mFlags) && r.u8(p.mPhase) && r.i16(unknown16) && r.u8(unknown8) && r.u8(unknown8b)
+                    && r.wstring(p.mScript, limits.mMaxNameBytes) && r.wstring(p.mFunction, limits.mMaxNameBytes);
+                if (ok)
+                    f.mPhases.push_back(std::move(p));
+            }
+            v.mHasSceneFragments = ok;
+        }
+        if (ok && !r.atEnd())
+            ok = r.fail(std::to_string(r.remaining()) + " bytes are left after the last field");
+        result.mOk = ok;
+        if (!ok)
+            result.mError = r.error();
+        return result;
+    }
+
     std::size_t resolveForms(std::vector<Script>& scripts, const std::function<std::uint32_t(std::uint32_t)>& resolve)
     {
         std::size_t missing = 0;
