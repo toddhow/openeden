@@ -384,6 +384,7 @@ namespace game_skyrimse
         std::uint8_t mHealthWeight = 0; ///< bytes 32 to 34 (RECALLED-VERIFY meaning)
         std::uint8_t mMagickaWeight = 0;
         std::uint8_t mStaminaWeight = 0;
+        bool mGuard = false; ///< task 0258: byte 35 bit 0, the Guard flag (VERIFIED on the five masters: 4 of 159)
     };
 
     // ---- the parse -----------------------------------------------------------------------------------------------

@@ -61,6 +61,20 @@ return {
                 saved = true
                 print(string.format('N8CRIME t %.2f loaded: state %s bounty %d stolen %d', t, crime.state(), crime.bounty(), crime.stolen_count()))
             end
+            -- task 0258: mode 'putback' puts the item N8_ITEM (a test item the player starts with) into the owned container
+            -- and takes it out again: the second move is a theft from an owned container whose contents are empty
+            if cfg.mode == 'putback' and okInv and cfg.phase ~= 'load' then
+                if stage == 0 and t >= cfg.tCrime - 1 then
+                    inv.open(cfg.placement, cfg.base, 'container')
+                    stage = 1
+                elseif stage == 1 and t >= cfg.tCrime then
+                    print(string.format('N8CRIME t %.2f puts %s into the container and takes it out again', t, cfg.item))
+                    inv.transfer('player', cfg.placement, cfg.item, 1)
+                    inv.transfer(cfg.placement, 'player', cfg.item, 1)
+                    stage = 2
+                    shot(player)
+                end
+            end
             if cfg.mode == 'theft' and okInv and cfg.phase ~= 'load' then
                 if stage == 0 and t >= cfg.tCrime - 1 then
                     inv.open(cfg.placement, cfg.base, 'container')

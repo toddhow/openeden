@@ -1100,6 +1100,56 @@ namespace game_skyrimse
         return id ? *id : kNullFormId;
     }
 
+    // Task 0258: what the crime rules tell the conversation. Only the speaker is asked about (run on the speaker's crime
+    // faction when the condition names none); without a source the fresh-game answers stand.
+    float SkyrimConditionWorld::crimeGold(conditions::Subject subject, std::uint32_t faction) const
+    {
+        if (mCrimeSource == nullptr || !mCrimeSource->mCrimeGold || (faction == 0 && !isSpeaker(subject)))
+            return 0.f;
+        const float gold = mCrimeSource->mCrimeGold(mSpeaker.mBase, faction == 0 ? kNullFormId : resolve(faction));
+        return std::isfinite(gold) && gold > 0.f ? gold : 0.f;
+    }
+
+    bool SkyrimConditionWorld::canPayCrimeGold(conditions::Subject subject, std::uint32_t faction) const
+    {
+        if (mCrimeSource == nullptr || !mCrimeSource->mCanPay || (faction == 0 && !isSpeaker(subject)))
+            return false;
+        return mCrimeSource->mCanPay(mSpeaker.mBase, faction == 0 ? kNullFormId : resolve(faction));
+    }
+
+    bool SkyrimConditionWorld::isAlarmed(conditions::Subject subject) const
+    {
+        return mCrimeSource != nullptr && mCrimeSource->mAlarmed && isSpeaker(subject)
+            && mCrimeSource->mAlarmed(mSpeaker.mBase);
+    }
+
+    // fn_125 IsGuard (task 0258): the NPC's class (after templates) carries the Guard flag, OR the NPC is a member of the
+    // game's own guard faction (IsGuardFaction, the marker task 0197 settled on: the street guards' class is the civil war
+    // soldier's, which has no Guard flag, yet the quest DialogueCrimeGuards asks IsGuard of every guard it speaks for).
+    // RECALLED-VERIFY: what the engine reads for IsGuard.
+    bool SkyrimConditionWorld::isGuardClass(conditions::Subject subject) const
+    {
+        const ActorIndex::Resolved* r = resolvedOf(subject);
+        if (r == nullptr)
+            return false;
+        if (const ClassRecord* record = mActors.classRecord(r->mClass); record != nullptr && record->mGuard)
+            return true;
+        for (const FactionMembership& membership : r->mFactions)
+        {
+            const FactionRecord* faction = mActors.faction(membership.mFaction);
+            if (faction == nullptr || membership.mRank < 0)
+                continue;
+            const std::string& id = faction->mCommon.mEditorId;
+            const std::string_view guardId = "IsGuardFaction";
+            if (id.size() == guardId.size()
+                && std::equal(id.begin(), id.end(), guardId.begin(), [](char a, char b) {
+                       return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+                   }))
+                return true;
+        }
+        return false;
+    }
+
     bool SkyrimConditionWorld::isSpeaker(conditions::Subject subject) const
     {
         return mSpeaker.mBase != kNullFormId && subject == mSpeaker.mBase;
@@ -1133,6 +1183,11 @@ namespace game_skyrimse
         switch (c.mFunction)
         {
             case 74: // GetGlobalValue: no subject
+                return true;
+            case 61: // GetAlarmed and CanPayCrimeGold: the crime rules answer (task 0258)
+            case 497:
+                return mCrimeSource != nullptr;
+            case 125: // IsGuard: the class flag (task 0258)
                 return true;
             case 77: // GetRandomPercent: answered by the seeded generator (task 0156)
                 return mRandomSeeded;

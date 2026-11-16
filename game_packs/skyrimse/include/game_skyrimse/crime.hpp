@@ -267,6 +267,16 @@ namespace game_skyrimse::crime
         Unknown, ///< a choice text that is none of pay, jail, resist
     };
 
+    /// Task 0258: how a standing offer is made to the player. `Dialogue`: the guard opens the game's own arrest
+    /// conversation (the pack's dialogue runtime, its fragments make the choice). `Window`: the pack's small window of
+    /// task 0204, the fallback (no dialogue available, or the conversation was closed without a choice).
+    enum class OfferMode : std::uint8_t
+    {
+        Window,
+        Dialogue,
+    };
+    [[nodiscard]] std::string_view offerModeName(OfferMode mode);
+
     class CrimeSystem
     {
     public:
@@ -308,6 +318,28 @@ namespace game_skyrimse::crime
         /// Task 0243: during a witness hook call, the victim of the crime being judged (an assault, a murder, a caught
         /// pickpocket); a handle with reference 0 when it has none (a theft, a trespass).
         [[nodiscard]] openeden::sdk::game::ActorHandle witnessVictim() const { return mWitnessVictim; }
+
+        /// Task 0258. Asked once when an offer starts (the guard stands in front of the player): can the game's own
+        /// conversation run for this guard? Unset (the default): never, the window is the offer.
+        using DialogueProbe = std::function<bool(const CrimeActor& guard)>;
+        void setDialogueProbe(DialogueProbe probe) { mDialogueProbe = std::move(probe); }
+        /// How the standing offer is made; `Window` whenever there is no offer.
+        [[nodiscard]] OfferMode offerMode() const;
+        /// The placement of the guard that makes the offer (kNoWorldId when none).
+        [[nodiscard]] openeden::sdk::game::WorldId guardReference() const;
+        /// The base of that guard (0 when none).
+        [[nodiscard]] FormId guardBase() const { return mGuardBase; }
+        /// The arrest conversation has begun and the offer still stands.
+        [[nodiscard]] bool dialogueOpen() const { return mState == State::Offer && mDialogueOpen; }
+        /// Should a conversation with the actor placed as `reference` open as the arrest dialogue? True while a
+        /// `Dialogue` offer of that guard stands and its conversation has not begun.
+        [[nodiscard]] bool wantsDialogueWith(openeden::sdk::game::WorldId reference) const;
+        /// The conversation began / ended / could not begin. A failure turns the offer into a `Window` offer at once; an
+        /// end does so at the next update, if no choice was made by then (the response's fragment makes the choice in the
+        /// first frame the game runs again).
+        void dialogueBegan(openeden::sdk::game::WorldId reference);
+        void dialogueEnded(openeden::sdk::game::WorldId reference);
+        void dialogueFailed(openeden::sdk::game::WorldId reference);
 
         [[nodiscard]] State state() const { return mState; }
         [[nodiscard]] FormId offerFaction() const { return mFaction; }
@@ -368,6 +400,11 @@ namespace game_skyrimse::crime
         std::uint32_t mRevision = 0;
         std::function<bool(std::uint32_t)> mDetected; ///< task 0227
         WitnessHook mWitnessHook; ///< task 0235
+        DialogueProbe mDialogueProbe; ///< task 0258
+        OfferMode mOfferMode = OfferMode::Window;
+        bool mDialogueOpen = false;
+        bool mDialogueEnded = false; ///< the conversation closed; the next update decides whether the window offers
+        FormId mGuardBase = kNullFormId;
         openeden::sdk::game::ActorHandle mWitnessVictim; ///< task 0243: set only while the hook runs
     };
 

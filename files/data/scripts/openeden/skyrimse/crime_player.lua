@@ -30,6 +30,10 @@ return {
   engineHandlers = {
     onFrame = function()
       local state = crime.state()
+      -- Task 0258: in 'dialogue' mode the guard's own conversation makes the offer; the window is the fallback
+      if state == 'offer' and crime.offer_mode ~= nil and crime.offer_mode() == 'dialogue' then
+        state = 'dialogue'
+      end
       if state == 'offer' then
         if not opened then
           opened = true

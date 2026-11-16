@@ -341,6 +341,39 @@ namespace game_skyrimse
             (void)word;
             return false;
         }
+        // ---- task 0258: what the guards' arrest dialogue fragments call (TIF__000267E0 and its kin). Every default
+        // means "cannot": the native then answers as a tolerant one.
+        /// The crime faction of an actor (Actor.GetCrimeFaction): its NPC_'s CRIF after templates; 0 when it has none.
+        [[nodiscard]] virtual FormId crimeFactionOf(FormId actor)
+        {
+            (void)actor;
+            return 0;
+        }
+        /// Faction.PlayerPayCrimeGold(abRemoveStolenItems, abGoToJail): the player pays his bounty in the faction. True
+        /// when it was done (false: not enough gold, or no offer stands).
+        virtual bool payCrimeGold(FormId faction, bool removeStolenItems, bool goToJail)
+        {
+            (void)faction, (void)removeStolenItems, (void)goToJail;
+            return false;
+        }
+        /// Faction.SendPlayerToJail(abRemoveInventory, abRealJail): the player serves his sentence. True when done.
+        virtual bool sendToJail(FormId faction, bool removeInventory, bool realJail)
+        {
+            (void)faction, (void)removeInventory, (void)realJail;
+            return false;
+        }
+        /// Actor.SetPlayerResistingArrest(): the player will not come quietly; the guards fight. True when done.
+        virtual bool resistArrest(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        /// Faction.GetCrimeGold(): the player's bounty in the faction; -1 when the pack cannot say.
+        [[nodiscard]] virtual std::int32_t crimeGold(FormId faction)
+        {
+            (void)faction;
+            return -1;
+        }
     };
 
     /// Task 0194: what the Scene natives and the quest hooks reach (the scene runner). Every function runs on the main

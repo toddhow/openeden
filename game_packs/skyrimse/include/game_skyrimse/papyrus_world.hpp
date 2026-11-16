@@ -46,6 +46,12 @@ namespace game_skyrimse
         std::function<bool(FormId word)> teachWord; ///< task 0205
         std::function<bool(FormId word)> unlockWord;
         std::function<bool(FormId word)> isWordUnlocked;
+        /// Task 0258: the arrest dialogue's fragments (see PapyrusWorldHooks).
+        std::function<FormId(FormId actor)> crimeFactionOf;
+        std::function<bool(FormId faction, bool removeStolenItems, bool goToJail)> payCrimeGold;
+        std::function<bool(FormId faction, bool removeInventory, bool realJail)> sendToJail;
+        std::function<bool(FormId actor)> resistArrest;
+        std::function<std::int32_t(FormId faction)> crimeGold;
         std::function<void(const std::string&)> notification;
         /// Task 0202: enable or disable with a fade, move or turn, and create (PlaceAtMe) through the world.
         std::function<bool(FormId reference, bool enabled, float fadeSeconds)> setObjectEnabled;
@@ -99,6 +105,17 @@ namespace game_skyrimse
         bool teachWord(FormId word) override { return mEnv.teachWord && mEnv.teachWord(word); }
         bool unlockWord(FormId word) override { return mEnv.unlockWord && mEnv.unlockWord(word); }
         bool isWordUnlocked(FormId word) override { return mEnv.isWordUnlocked && mEnv.isWordUnlocked(word); }
+        FormId crimeFactionOf(FormId actor) override { return mEnv.crimeFactionOf ? mEnv.crimeFactionOf(actor) : 0; }
+        bool payCrimeGold(FormId faction, bool removeStolenItems, bool goToJail) override
+        {
+            return mEnv.payCrimeGold && mEnv.payCrimeGold(faction, removeStolenItems, goToJail);
+        }
+        bool sendToJail(FormId faction, bool removeInventory, bool realJail) override
+        {
+            return mEnv.sendToJail && mEnv.sendToJail(faction, removeInventory, realJail);
+        }
+        bool resistArrest(FormId actor) override { return mEnv.resistArrest && mEnv.resistArrest(actor); }
+        std::int32_t crimeGold(FormId faction) override { return mEnv.crimeGold ? mEnv.crimeGold(faction) : -1; }
 
     private:
         inventory::InventoryModel* model() const { return mEnv.model ? mEnv.model() : nullptr; }

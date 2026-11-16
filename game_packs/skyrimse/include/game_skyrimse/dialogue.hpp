@@ -34,6 +34,7 @@
 
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/conditions.hpp>
+#include <game_skyrimse/crime_conditions.hpp>
 #include <game_skyrimse/follower_state.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -330,6 +331,9 @@ namespace game_skyrimse
         /// Task 0228: the speaker's level (the bribe cost is a gold sum per level); 0 when unknown.
         [[nodiscard]] std::uint16_t speakerLevel() const;
         void setCurrentWeather(FormId weather) { mWeather = weather; }
+        /// Task 0258: the crime rules' answers for GetCrimeGold (fn_459), CanPayCrimeGold (fn_497) and GetAlarmed (fn_61)
+        /// of the speaker. Not owned; null (the default): the fresh-game answers, as before.
+        void setCrimeSource(const CrimeConditionSource* source) { mCrimeSource = source; }
         /// Task 0243: the actor (its base record) that is the victim of the crime being remarked on: IsActorAVictim
         /// (fn_314) is true for the subject with this base. Told by a bark about a caught pickpocket or an assault, for
         /// the speaker that is the victim; kNullFormId (the default) when no crime is under way.
@@ -495,8 +499,14 @@ namespace game_skyrimse
         bool isPlayerTeammate(conditions::Subject subject) const override; // task 0239
         bool runsPackage(conditions::Subject subject, std::uint32_t package) const override;
         bool offersServicesNow(conditions::Subject subject) const override;
+        // task 0258
+        float crimeGold(conditions::Subject subject, std::uint32_t faction) const override;
+        bool canPayCrimeGold(conditions::Subject subject, std::uint32_t faction) const override;
+        bool isAlarmed(conditions::Subject subject) const override;
+        bool isGuardClass(conditions::Subject subject) const override;
 
     private:
+        const CrimeConditionSource* mCrimeSource = nullptr; // task 0258
         const StoryEvent* mStoryEvent = nullptr;
         FormId mSubjectLocation = kNullFormId; ///< task 0211
         std::function<FormId(std::uint32_t)> mAliasView; ///< task 0226

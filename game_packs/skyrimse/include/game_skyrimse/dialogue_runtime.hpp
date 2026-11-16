@@ -121,6 +121,24 @@ namespace game_skyrimse
         [[nodiscard]] bool barkLine(std::string_view subtype, const DialogueSpeaker& speaker, std::uint32_t pick,
             openeden::sdk::game::DialogueTurn& out, bool speakerIsVictim = false);
 
+        /// Task 0258: the guard's forced greeting. The topics of subtype `subtype` ("PFGT") by priority, the first INFO
+        /// that passes with a response text (and a voice file when voice is on); like barkLine it marks nothing said and
+        /// runs no fragment. False when none passes (with no crime source set none does: the lines need GetAlarmed).
+        [[nodiscard]] bool forcedGreetingAvailable(
+            const DialogueSpeaker& speaker, std::string_view subtype, std::string* why = nullptr);
+        /// Task 0258: opens a conversation whose greeting is the forced one and whose choices are the greeting's link-to
+        /// topics (TCLT) that have an INFO passing now, each shown by its INFO's prompt else its topic's name. Choosing
+        /// one gives its response (its fragments run); a response with no link-to topics of its own ends the
+        /// conversation. False with `error` when no forced greeting passes. `begin` and `end` leave this mode.
+        [[nodiscard]] bool beginForced(const DialogueSpeaker& speaker, std::string_view subtype,
+            openeden::sdk::game::DialogueTurn& out, std::string& error);
+        /// Task 0258: what the crime rules say to the conditions and the text tag <CrimeGold>. Without it: nothing.
+        void setCrimeSource(CrimeConditionSource source)
+        {
+            mCrimeSource = std::move(source);
+            mWorld.setCrimeSource(&mCrimeSource);
+        }
+
         /// Turns voice on: `probe` says which files exist. Without it no turn has voice.
         /// Task 0187: where the script fragments of a shown response go. Without a sink they are not run (counted in
         /// `mScriptsNotRun`, as before).
@@ -186,6 +204,8 @@ namespace game_skyrimse
         void nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void offerTopics(openeden::sdk::game::DialogueTurn& out);
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
+        /// Task 0258: the link-to topics (TCLT) of `from` that have an INFO passing now, as the turn's choices.
+        void offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out);
         /// Task 0243 (barkLine's helpers; none changes a conversation). Has the INFO a response with text? No side
         /// effect. Has it a voice file for the speaker (always true with no probe)? The probe's counts are restored.
         [[nodiscard]] bool hasResponseText(const DialogInfo& info) const;
@@ -193,9 +213,12 @@ namespace game_skyrimse
         /// The INFO a bark of `subtype` takes: `selectInfo`'s rules over the topics of the subtype by priority, except
         /// that an INFO with no response text, or none with a voice file, is not a candidate. Nothing is marked said
         /// and no fragment runs: the caller runs `fillTurn` on the one returned.
-        [[nodiscard]] const DialogInfo* selectBarkInfo(std::string_view subtype, std::uint32_t pick);
+        [[nodiscard]] const DialogInfo* selectBarkInfo(
+            std::string_view subtype, std::uint32_t pick, std::string* why = nullptr);
 
         DialogueTagSources mTagSources;
+        CrimeConditionSource mCrimeSource; // task 0258
+        bool mLinkMode = false; // task 0258: the open conversation offers link-to topics only
         const ActorIndex& mActors;
         const DialogueIndex& mDialogue;
         const QuestIndex& mQuestIndex;

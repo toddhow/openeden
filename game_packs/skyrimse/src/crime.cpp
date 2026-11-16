@@ -593,6 +593,10 @@ namespace game_skyrimse::crime
         mState = State::None;
         mGuard = {};
         mGuardName.clear();
+        mGuardBase = kNullFormId;
+        mOfferMode = OfferMode::Window;
+        mDialogueOpen = false;
+        mDialogueEnded = false;
         mStateSince = mClock;
         ++mRevision;
     }
@@ -612,6 +616,19 @@ namespace game_skyrimse::crime
 
     void CrimeSystem::runGuards(CombatRequestWriter& writer)
     {
+        if (mDialogueEnded)
+        {
+            mDialogueEnded = false;
+            if (mState == State::Offer && mOfferMode == OfferMode::Dialogue)
+            {
+                mDialogueOpen = false;
+                mOfferMode = OfferMode::Window;
+                mMessage = "You have a bounty of " + std::to_string(mLedger.bounty(mFaction)) + " gold in "
+                    + mWorld.factionName(mFaction) + ". Choose.";
+                ++mRevision;
+                note("arrest conversation closed with no choice: the window offers");
+            }
+        }
         if (mState == State::Jailed)
         {
             if (mClock > mJailUntil + kJailGrace)
@@ -715,11 +732,15 @@ namespace game_skyrimse::crime
                 mWorld.guardHold(mGuard);
                 mState = State::Offer;
                 mStateSince = mClock;
+                // Task 0258: the game's own arrest conversation when it can run for this guard, else the window
+                mGuardBase = guard.mBase;
+                mDialogueOpen = false;
+                mOfferMode = mDialogueProbe && mDialogueProbe(guard) ? OfferMode::Dialogue : OfferMode::Window;
                 mMessage = "You have a bounty of " + std::to_string(mLedger.bounty(mFaction)) + " gold in "
                     + mWorld.factionName(mFaction) + ".";
                 ++mRevision;
                 note("offer by " + mGuardName + " faction " + hex(mFaction) + " bounty "
-                    + std::to_string(mLedger.bounty(mFaction)));
+                    + std::to_string(mLedger.bounty(mFaction)) + " mode " + std::string(offerModeName(mOfferMode)));
                 return;
             }
             if (mClock - mStateSince > mSettings.mApproachTimeout)
@@ -758,6 +779,58 @@ namespace game_skyrimse::crime
                 finishOffer(mSettings.mOfferCooldown);
             }
         }
+    }
+
+    // ---- task 0258: the arrest conversation or the window ---------------------------------------------------------
+
+    std::string_view offerModeName(OfferMode mode)
+    {
+        return mode == OfferMode::Dialogue ? "dialogue" : "window";
+    }
+
+    OfferMode CrimeSystem::offerMode() const
+    {
+        return mState == State::Offer ? mOfferMode : OfferMode::Window;
+    }
+
+    openeden::sdk::game::WorldId CrimeSystem::guardReference() const
+    {
+        return mState == State::Offer ? mGuard.reference : openeden::sdk::game::kNoWorldId;
+    }
+
+    bool CrimeSystem::wantsDialogueWith(openeden::sdk::game::WorldId reference) const
+    {
+        return mState == State::Offer && mOfferMode == OfferMode::Dialogue && !mDialogueOpen
+            && reference != openeden::sdk::game::kNoWorldId && mGuard.reference == reference;
+    }
+
+    void CrimeSystem::dialogueBegan(openeden::sdk::game::WorldId reference)
+    {
+        if (mState != State::Offer || mGuard.reference != reference || mOfferMode != OfferMode::Dialogue)
+            return;
+        mDialogueOpen = true;
+        note("arrest conversation began with " + mGuardName);
+    }
+
+    void CrimeSystem::dialogueEnded(openeden::sdk::game::WorldId reference)
+    {
+        if (mState != State::Offer || mGuard.reference != reference || mOfferMode != OfferMode::Dialogue)
+            return; // a choice was made (the offer is over) or it is another actor's talk
+        // The conversation pauses the game, and the choice is made by the response's script fragment, which runs in the
+        // first frame the game runs again (the Papyrus host ticks in the simulation phase, before this system's update).
+        // So the offer only falls back to the window at the next update, if the fragment made no choice by then.
+        mDialogueEnded = true;
+        note("arrest conversation closed with " + mGuardName);
+    }
+
+    void CrimeSystem::dialogueFailed(openeden::sdk::game::WorldId reference)
+    {
+        if (mState != State::Offer || mGuard.reference != reference || mOfferMode != OfferMode::Dialogue)
+            return;
+        mDialogueOpen = false;
+        mOfferMode = OfferMode::Window;
+        ++mRevision;
+        note("arrest conversation could not run: the window offers");
     }
 
     ChoiceStatus CrimeSystem::choose(std::string_view choice)

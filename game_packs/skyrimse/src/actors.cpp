@@ -1140,6 +1140,9 @@ namespace game_skyrimse
                                 c.mHealthWeight = std::to_integer<std::uint8_t>(data[32]);
                                 c.mMagickaWeight = std::to_integer<std::uint8_t>(data[33]);
                                 c.mStaminaWeight = std::to_integer<std::uint8_t>(data[34]);
+                                // Task 0258: byte 35 bit 0 is the Guard flag (VERIFIED on the five masters: exactly the
+                                // four Guard* classes have it, the *NotGuard soldier classes and the Citizen do not)
+                                c.mGuard = (std::to_integer<std::uint8_t>(data[35]) & 1u) != 0;
                             }
                             else
                                 oddType(type);

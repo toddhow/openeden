@@ -541,6 +541,22 @@ namespace game_skyrimse
         void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
         /// Task 0239: what the follower scripts changed, read by the dialogue conditions. Not owned.
         void setFollowerOverlay(const FollowerOverlay* overlay);
+        /// Task 0258: the arrest conversation. `mWants(reference)`: should a conversation with the actor placed as
+        /// `reference` open as the guard's forced greeting? The others tell the crime rules that it began, ended or
+        /// could not begin. Every function may be empty (then no conversation is forced).
+        struct ArrestDialogueHooks
+        {
+            std::function<bool(FormId reference)> mWants;
+            std::function<void(FormId reference)> mBegan;
+            std::function<void(FormId reference)> mEnded;
+            std::function<void(FormId reference)> mFailed;
+        };
+        void setArrestDialogue(ArrestDialogueHooks hooks);
+        /// What the crime rules tell the conversations' conditions (applied now and to a runtime built later).
+        void setCrimeConditionSource(CrimeConditionSource source);
+        /// Can the guard placed as `reference` (of base `base`) open the forced greeting now? False while the dialogue
+        /// data is not built yet (nothing blocks the main thread).
+        [[nodiscard]] bool forcedGreetingAvailable(FormId base, FormId reference, std::string* why = nullptr);
         // ---- task 0219 (training, rooms)
         /// Training and renting are named "open:<name>" in the conversation (set before the first conversation or
         /// any time after).
@@ -863,6 +879,10 @@ namespace game_skyrimse
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
+        ArrestDialogueHooks mArrest; ///< task 0258
+        CrimeConditionSource mCrimeSource; ///< task 0258
+        bool mCrimeSourceSet = false;
+        FormId mForcedReference = kNullFormId; ///< the open conversation is the forced one with this actor
         bool mOpenServices = false; ///< task 0219
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)

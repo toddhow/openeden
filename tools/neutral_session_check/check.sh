@@ -125,7 +125,7 @@ echo "return { start = ${GEAR_START:-2}, dist = ${GEAR_DIST:-130}, every = ${GEA
 # (theft from the owned container N8_PLACEMENT/N8_BASE at N8_T seconds; assault is the pack setting combat test player swing); N8_CHOICE (pay, jail, resist or empty)
 # is chosen N8_DELAY seconds after the guard's offer (luatest/scripts/n8/crimeglobal.lua). The crime settings go in SETTINGS_EXTRA.
 [ "$SHOT" = n8crime ] && echo "content=n8crime.omwscripts" >> "$WORK/config/openmw.cfg"
-echo "return { mode = '${N8_MODE:-theft}', target = '${N8_TARGET:-b80803}', dist = ${N8_DIST:-100}, placement = '${N8_PLACEMENT:-0009cafb}', base = '${N8_BASE:-0009cafa}', tCrime = ${N8_T:-4}, choice = '${N8_CHOICE:-}', choiceDelay = ${N8_DELAY:-2}, every = ${N8_EVERY:-5}, maxShots = ${N8_SHOTS:-30}, guard = '${N8_GUARD:-}', phase = '${N8_PHASE:-none}', saveT = ${N8_SAVE_T:-10} }" > "$WORK/luatest/scripts/n8/cfg.lua"
+echo "return { mode = '${N8_MODE:-theft}', target = '${N8_TARGET:-b80803}', dist = ${N8_DIST:-100}, item = '${N8_ITEM:-}', placement = '${N8_PLACEMENT:-0009cafb}', base = '${N8_BASE:-0009cafa}', tCrime = ${N8_T:-4}, choice = '${N8_CHOICE:-}', choiceDelay = ${N8_DELAY:-2}, every = ${N8_EVERY:-5}, maxShots = ${N8_SHOTS:-30}, guard = '${N8_GUARD:-}', phase = '${N8_PHASE:-none}', saveT = ${N8_SAVE_T:-10} }" > "$WORK/luatest/scripts/n8/cfg.lua"
 # Task 0208 (pickup, pickpocket): "n9pick" stands the player N9_DIST (default 60) units from the nearest object whose record id is N9_BASE
 # (default: any skyrimse object near N9_NEAR "x,y,z"), on the side of N9_FROM "x,y" and tilted to N9_PITCH (radians, down is positive), and logs
 # N9 lines every second (the count of N9_ITEM (8 hex digits) in the inventory, whether the object is still enabled, the pickup state, the bounty);

@@ -24,6 +24,7 @@
 //   trespass_bed(placement) [Mutate]   task 0213: the player tried a bed that may not be his
 
 #include <game_skyrimse/crime.hpp>
+#include <game_skyrimse/crime_conditions.hpp>
 
 #include <openeden/game/bindings.hpp>
 
@@ -57,6 +58,8 @@ namespace game_skyrimse::crime
         std::function<bool(const std::string& editorId, CellAccess& out)> mCellAccess;
         std::function<FormId(FormId placement)> mPlacementOwner;
         std::function<void(const std::string&)> mLog;
+        /// Task 0258: can the game's own arrest conversation run for this guard now? Unset: never (the window offers).
+        std::function<bool(const CrimeActor& guard)> mDialogueAvailable;
     };
 
     class CrimeService final : public CrimeWorld
@@ -87,6 +90,22 @@ namespace game_skyrimse::crime
         [[nodiscard]] const JailDestination& jailOf(FormId faction);
 
         [[nodiscard]] openeden::sdk::DeclareResult declare(openeden::sdk::BindingsService& service);
+
+        // ---- task 0258: the arrest conversation. What its conditions read, and what its fragments do.
+        /// GetCrimeGold, CanPayCrimeGold and GetAlarmed of the guard of the offer (see CrimeConditionSource).
+        [[nodiscard]] CrimeConditionSource conditionSource();
+        /// Faction.PlayerPayCrimeGold(removeStolen, goToJail): pays the offer's bounty (the faction must be the offer's).
+        /// Whether the stolen items go is the pack's rule (they always do); `removeStolen` is recorded only.
+        bool payByScript(FormId faction, bool removeStolenItems);
+        /// Faction.SendPlayerToJail: the offer's choice "jail".
+        bool jailByScript(FormId faction);
+        /// Actor.SetPlayerResistingArrest: the offer's choice "resist".
+        bool resistByScript();
+        /// Faction.GetCrimeGold: the player's bounty in the faction.
+        [[nodiscard]] std::int32_t crimeGoldOf(FormId faction) const;
+        /// The crime faction of the loaded actor placed as `reference` (0: none or not loaded); of an actor by its base.
+        [[nodiscard]] FormId crimeFactionOfReference(FormId reference);
+        [[nodiscard]] FormId crimeFactionOfBase(FormId speakerBase);
 
         // ---- CrimeWorld
         void actors(std::vector<CrimeActor>& out) override;

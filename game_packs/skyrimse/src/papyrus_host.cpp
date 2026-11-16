@@ -1350,6 +1350,43 @@ namespace game_skyrimse
             registerActorNatives();
             registerCarriageNatives();
             registerFollowerNatives();
+            registerCrimeNatives();
+        }
+
+        // ---- task 0258: what the guards' arrest dialogue fragments call (TIF__000267E0 and its kin) -------------------
+        // Actor.GetCrimeFaction() -> Faction, Faction.PlayerPayCrimeGold(abRemoveStolenItems, abGoToJail),
+        // Faction.SendPlayerToJail(abRemoveInventory, abRealJail), Actor.SetPlayerResistingArrest(),
+        // Faction.GetCrimeGold() -> Int (Creation Kit wiki, recalled, RECALLED-VERIFY). The effects are the pack's
+        // (PapyrusWorldHooks); with no hooks every one is tolerant. The decompiled fragments pass (true, true) for the
+        // payment and (true, true) for the jail: what the flags change in the game is not known, the pack's rules ignore them.
+        void registerCrimeNatives()
+        {
+            const auto flag = [](const NativeCall& c, std::size_t i) {
+                return i < c.arguments.size() && argNumber(c, i) != 0.0;
+            };
+            reg("Actor", "GetCrimeFaction", false, [this](const NativeCall& c) {
+                const FormId faction = mHooks != nullptr ? mHooks->crimeFactionOf(formOf(c.self)) : 0;
+                return result(formValue(faction));
+            });
+            reg("Faction", "PlayerPayCrimeGold", false, [this, flag](const NativeCall& c) {
+                if (mHooks != nullptr)
+                    (void)mHooks->payCrimeGold(formOf(c.self), flag(c, 0), flag(c, 1));
+                return NativeResult{};
+            });
+            reg("Faction", "SendPlayerToJail", false, [this, flag](const NativeCall& c) {
+                if (mHooks != nullptr)
+                    (void)mHooks->sendToJail(formOf(c.self), flag(c, 0), flag(c, 1));
+                return NativeResult{};
+            });
+            reg("Actor", "SetPlayerResistingArrest", false, [this](const NativeCall& c) {
+                if (mHooks != nullptr)
+                    (void)mHooks->resistArrest(formOf(c.self));
+                return NativeResult{};
+            });
+            reg("Faction", "GetCrimeGold", false, [this](const NativeCall& c) {
+                const std::int32_t gold = mHooks != nullptr ? mHooks->crimeGold(formOf(c.self)) : -1;
+                return result(PapyrusValue::makeInt(gold > 0 ? gold : 0));
+            });
         }
 
         // ---- task 0239: what DialogueFollowerScript, HirelingQuest and the follower topics fragments call ----------

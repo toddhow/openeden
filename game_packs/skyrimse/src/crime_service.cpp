@@ -82,6 +82,10 @@ namespace game_skyrimse::crime
         , mChunk(mLedger)
         , mSystem(mLedger, *this, settings)
     {
+        // Task 0258: the arrest conversation runs for a guard when the pack says it can
+        mSystem.setDialogueProbe([this](const CrimeActor& guard) {
+            return mHooks.mDialogueAvailable && mHooks.mDialogueAvailable(guard);
+        });
     }
 
     CrimeService::~CrimeService() = default;
@@ -106,6 +110,87 @@ namespace game_skyrimse::crime
             return mJail.emplace(faction, std::move(dest)).first->second;
         mNoJail = std::move(dest);
         return mNoJail;
+    }
+
+    // ---- task 0258: the arrest conversation -----------------------------------------------------------------------
+
+    namespace
+    {
+        constexpr std::size_t kMaxRoster = 4096;
+    }
+
+    FormId CrimeService::crimeFactionOfBase(FormId speakerBase)
+    {
+        if (speakerBase == kNullFormId)
+            return kNullFormId;
+        if (mSystem.state() == State::Offer && speakerBase == mSystem.guardBase())
+            return mSystem.offerFaction();
+        std::vector<CrimeActor> roster;
+        actors(roster);
+        for (std::size_t i = 0; i < roster.size() && i < kMaxRoster; ++i)
+            if (roster[i].mBase == speakerBase && roster[i].mCrimeFaction != kNullFormId)
+                return roster[i].mCrimeFaction;
+        return kNullFormId;
+    }
+
+    FormId CrimeService::crimeFactionOfReference(FormId reference)
+    {
+        if (reference == kNullFormId)
+            return kNullFormId;
+        std::vector<CrimeActor> roster;
+        actors(roster);
+        for (std::size_t i = 0; i < roster.size() && i < kMaxRoster; ++i)
+            if (roster[i].mHandle.reference == reference)
+                return roster[i].mCrimeFaction;
+        return kNullFormId;
+    }
+
+    CrimeConditionSource CrimeService::conditionSource()
+    {
+        CrimeConditionSource source;
+        source.mCrimeGold = [this](FormId speakerBase, FormId faction) {
+            const FormId f = faction != kNullFormId ? faction : crimeFactionOfBase(speakerBase);
+            return f == kNullFormId ? 0.f : static_cast<float>(mLedger.bounty(f));
+        };
+        source.mCanPay = [this](FormId speakerBase, FormId faction) {
+            const FormId f = faction != kNullFormId ? faction : crimeFactionOfBase(speakerBase);
+            const std::int32_t bounty = f == kNullFormId ? 0 : mLedger.bounty(f);
+            return bounty > 0 && playerGold() >= bounty;
+        };
+        source.mAlarmed = [this](FormId speakerBase) {
+            return mSystem.state() == State::Offer && speakerBase != kNullFormId && speakerBase == mSystem.guardBase();
+        };
+        return source;
+    }
+
+    bool CrimeService::payByScript(FormId faction, bool removeStolenItems)
+    {
+        if (mSystem.state() != State::Offer || faction == kNullFormId || faction != mSystem.offerFaction())
+            return false;
+        // The pack's pay always takes the stolen goods too (RECALLED-VERIFY: the game's flag); the flag is only logged.
+        log(std::string("CRIME script pays the bounty (remove stolen items: ") + (removeStolenItems ? "yes" : "no") + ")");
+        return choose("pay") == ChoiceStatus::Ok;
+    }
+
+    bool CrimeService::jailByScript(FormId faction)
+    {
+        if (mSystem.state() != State::Offer || faction == kNullFormId || faction != mSystem.offerFaction())
+            return false;
+        log("CRIME script sends the player to jail");
+        return choose("jail") == ChoiceStatus::Ok;
+    }
+
+    bool CrimeService::resistByScript()
+    {
+        if (mSystem.state() != State::Offer)
+            return false;
+        log("CRIME script: the player resists arrest");
+        return choose("resist") == ChoiceStatus::Ok;
+    }
+
+    std::int32_t CrimeService::crimeGoldOf(FormId faction) const
+    {
+        return mLedger.bounty(faction);
     }
 
     ChoiceStatus CrimeService::choose(std::string_view choice)
@@ -289,6 +374,24 @@ namespace game_skyrimse::crime
         };
 
         stringFn("state", [](CrimeService& s) { return std::string(stateName(s.mSystem.state())); });
+        // Task 0258 (1.1): how the offer is made, the guard's base (decimal, "" without an offer) and whether the
+        // arrest conversation has begun; `dialogue_failed` tells the pack the conversation did not begin in time.
+        stringFn("offer_mode", [](CrimeService& s) { return std::string(offerModeName(s.mSystem.offerMode())); });
+        stringFn("guard_base", [](CrimeService& s) {
+            return s.mSystem.state() == State::Offer && s.mSystem.guardBase() != kNullFormId
+                ? std::to_string(s.mSystem.guardBase())
+                : std::string();
+        });
+        add("dialogue_open", {}, true, BindingType::Bool, BindingAccess::Read, [self](std::span<const BindingValue>) {
+            BindingResult r = ok();
+            r.value = boolean(self->mSystem.dialogueOpen());
+            return r;
+        });
+        add("dialogue_failed", {}, false, BindingType::Bool, BindingAccess::Mutate,
+            [self](std::span<const BindingValue>) {
+                self->mSystem.dialogueFailed(self->mSystem.guardReference());
+                return ok();
+            });
         stringFn("guard_name", [](CrimeService& s) { return s.mSystem.guardName(); });
         stringFn("message", [](CrimeService& s) { return s.mSystem.message(); });
         intFn("bounty", [](CrimeService& s) { return s.mLedger.totalBounty(); });
@@ -348,7 +451,7 @@ namespace game_skyrimse::crime
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = "skyrimse.crime";
-        ns.version = { 1, 0 };
+        ns.version = { 1, 1 };
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

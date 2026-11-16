@@ -7,12 +7,19 @@ local okCrime, crime = pcall(require, 'core.skyrimse.crime')
 local cfg = require('scripts.n8.cfg')
 if not okCrime then return {} end
 
+local I = require('openmw.interfaces')
+local nextMode = 0
 local offerAt, shotDone, chosen, last = nil, false, false, nil
 return {
     engineHandlers = {
         onFrame = function()
             local state = crime.state()
             local now = core.getRealTime()
+            if now >= nextMode then -- task 0258: what the GUI mode stack is, every 2 real seconds
+                nextMode = now + 2
+                print(string.format('N8CRIME mode %s state %s offer_mode %s', tostring(I.UI.getMode()), state,
+                    crime.offer_mode and crime.offer_mode() or '-'))
+            end
             if state ~= last then
                 print(string.format('N8CRIME player sees state %s bounty %d', state, crime.bounty()))
                 last = state

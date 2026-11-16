@@ -1,6 +1,7 @@
 #include "game_skyrimse/dialogue_runtime.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <utility>
 
 #include "game_skyrimse/services.hpp"
@@ -9,6 +10,16 @@
 
 namespace game_skyrimse
 {
+    namespace
+    {
+        std::string hex8(std::uint32_t id)
+        {
+            char text[16];
+            std::snprintf(text, sizeof(text), "%08X", id);
+            return text;
+        }
+    }
+
     DialogueRuntime::DialogueRuntime(const ActorIndex& actors, const DialogueIndex& dialogue, const QuestIndex& quests,
         QuestState state, DialogueTextResolver resolver, DialogueRuntimeLimits limits)
         : mActors(actors)
@@ -62,7 +73,10 @@ namespace game_skyrimse
             return kBribeGoldPerLevel * static_cast<float>(level);
         };
         hooks.mCrimeGold = [this]() -> std::optional<float> {
-            return mTagSources.mCrimeGold ? mTagSources.mCrimeGold() : 0.f;
+            if (mTagSources.mCrimeGold)
+                return mTagSources.mCrimeGold();
+            // Task 0258: the crime rules' bounty with the speaker's crime faction
+            return mCrimeSource.mCrimeGold ? mCrimeSource.mCrimeGold(mSpeaker.mBase, kNullFormId) : 0.f;
         };
         return journal::expandTags(text, hooks, std::string_view());
     }
@@ -232,6 +246,7 @@ namespace game_skyrimse
     {
         out = {};
         mOpen = false;
+        mLinkMode = false; // task 0258
         mSpeaker = speaker;
         mWorld.setSpeaker(speaker);
         // Task 0156: the speaker is in dialogue with the player from the greeting on, has not talked to him yet, and
@@ -303,7 +318,7 @@ namespace game_skyrimse
         return !scratch.voice.empty();
     }
 
-    const DialogInfo* DialogueRuntime::selectBarkInfo(std::string_view subtype, std::uint32_t pick)
+    const DialogInfo* DialogueRuntime::selectBarkInfo(std::string_view subtype, std::uint32_t pick, std::string* why)
     {
         // The rules of selectInfo (dialogue.cpp) with the skip of task 0243 after the conditions; kept here so that the
         // shared selection, which conversations use, is not touched.
@@ -321,28 +336,50 @@ namespace game_skyrimse
             {
                 const FormId quest
                     = info->mQuest != kNullFormId ? info->mQuest : (topic != nullptr ? topic->mQuest : kNullFormId);
+                const auto skip = [&](const char* reason) {
+                    if (why != nullptr && why->size() < 1500)
+                        *why += " [" + hex8(info->mCommon.mId) + ": " + reason + "]";
+                };
                 if (opts.mQuestRunning && quest != kNullFormId && !opts.mQuestRunning(quest))
+                {
+                    skip("quest not running");
                     continue;
+                }
                 if ((info->mFlags & InfoFlags::SayOnce) != 0 && opts.mSaid && opts.mSaid(info->mCommon.mId))
+                {
+                    skip("said once");
                     continue;
+                }
                 if (info->mSpeaker != kNullFormId && info->mSpeaker != mSpeaker.mBase)
+                {
+                    skip("another speaker");
                     continue;
+                }
                 if (!info->mConditionsOk)
+                {
+                    skip("damaged conditions");
                     continue;
+                }
                 mWorld.setQuestContext(quest);
                 if (opts.mQuests != nullptr)
                 {
                     if (const QuestRecord* record = opts.mQuests->quest(quest))
                     {
                         if (!record->mConditionsOk)
+                        {
+                            skip("damaged quest conditions");
                             continue;
+                        }
                         if (!record->mConditions.empty())
                         {
                             mWorld.setPlugin(&opts.mQuests->resolverOf(*record));
                             const bool questPass = eval.evaluate(record->mConditions, mWorld);
                             mWorld.setPlugin(nullptr);
                             if (!questPass)
+                            {
+                                skip("the quest dialogue conditions fail");
                                 continue;
+                            }
                         }
                     }
                 }
@@ -350,9 +387,20 @@ namespace game_skyrimse
                 const bool pass = eval.evaluate(info->mConditions, mWorld);
                 mWorld.setPlugin(nullptr);
                 if (!pass)
+                {
+                    skip("conditions fail");
                     continue;
-                if (!hasResponseText(*info) || !hasVoiceFile(*info))
+                }
+                if (!hasResponseText(*info))
+                {
+                    skip("no response text");
                     continue;
+                }
+                if (!hasVoiceFile(*info))
+                {
+                    skip("no voice file");
+                    continue;
+                }
                 if (chosen == nullptr)
                 {
                     chosen = info;
@@ -416,15 +464,111 @@ namespace game_skyrimse
             return false;
         }
         fillTurn(*s.mInfo, out);
+        // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its own
+        // ends the talk, as the game closes a forced dialogue when nothing is left to choose
+        if (mLinkMode && !out.endsConversation && !s.mInfo->mLinksTo.empty())
+        {
+            offerLinks(*s.mInfo, out);
+            if (!out.topics.empty())
+                return true;
+        }
+        if (mLinkMode)
+            out.endsConversation = true;
         if (out.endsConversation)
         {
             mOpen = false;
+            mLinkMode = false;
+            out.topics.clear();
             mWorld.setConversationOpen(false);
             mOffered.clear();
             return true;
         }
         offerTopics(out);
         return true;
+    }
+
+    // ---- task 0258: the guard's forced greeting and its link-to choices ----------------------------------------------
+
+    bool DialogueRuntime::forcedGreetingAvailable(
+        const DialogueSpeaker& speaker, std::string_view subtype, std::string* why)
+    {
+        const DialogueSpeaker savedSpeaker = mSpeaker;
+        const std::string savedVoice = mVoiceType;
+        mSpeaker = speaker;
+        mWorld.setSpeaker(speaker);
+        mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
+        mWorld.setRandomSeed(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase);
+        const bool found = selectBarkInfo(subtype, 0, why) != nullptr;
+        mSpeaker = savedSpeaker;
+        mVoiceType = savedVoice;
+        mWorld.setSpeaker(savedSpeaker);
+        return found;
+    }
+
+    bool DialogueRuntime::beginForced(const DialogueSpeaker& speaker, std::string_view subtype,
+        openeden::sdk::game::DialogueTurn& out, std::string& error)
+    {
+        out = {};
+        mOpen = false;
+        mLinkMode = false;
+        mSpeaker = speaker;
+        mWorld.setSpeaker(speaker);
+        mWorld.setConversationOpen(true);
+        mWorld.setTalkedToPlayer(false);
+        mWorld.setRandomSeed(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase);
+        mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
+        const DialogInfo* const greeting = selectBarkInfo(subtype, 0, nullptr);
+        if (greeting == nullptr)
+        {
+            mWorld.setConversationOpen(false);
+            error = "no forced greeting passes for this speaker";
+            return false;
+        }
+        fillTurn(*greeting, out);
+        if (const ActorNpc* npc = mActors.npc(speaker.mBase); npc != nullptr && npc->mName.mPresent)
+            out.speakerName = npc->mName.mLocalized ? mResolver(npc->mName, npc->mPlugin, StringTableKind::Strings)
+                                                    : npc->mName.mText;
+        ++mStats.mConversations;
+        mWorld.setTalkedToPlayer(true);
+        mOpen = true;
+        mLinkMode = true;
+        offerLinks(*greeting, out);
+        if (out.topics.empty())
+            out.endsConversation = true; // nothing to choose: the game would close it
+        return true;
+    }
+
+    void DialogueRuntime::offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out)
+    {
+        out.topics.clear();
+        mOffered.clear();
+        const SelectionOptions opts = options(0);
+        for (const FormId link : from.mLinksTo)
+        {
+            const DialogTopic* topic = mDialogue.topic(link);
+            if (topic == nullptr || mOffered.count(link) != 0)
+                continue;
+            const Selection s = selectInfo(mDialogue, link, mWorld, mSpeaker, opts);
+            if (s.mInfo == nullptr)
+                continue;
+            // The prompt of the response (RNAM) is what the player reads when it is set, else the topic's name.
+            std::string text;
+            if (s.mInfo->mPrompt.mPresent)
+                text = mResolver(s.mInfo->mPrompt, s.mInfo->mPlugin, StringTableKind::Strings);
+            if (text.empty())
+                text = topic->mName.mLocalized ? mResolver(topic->mName, topic->mPlugin, StringTableKind::Strings)
+                                               : topic->mName.mText;
+            text = expandText(text, topic->mQuest != kNullFormId ? topic->mQuest : s.mInfo->mQuest);
+            if (text.empty())
+                continue;
+            if (out.topics.size() >= mLimits.mMaxTopics)
+            {
+                ++mStats.mTopicsCut;
+                continue;
+            }
+            out.topics.push_back({ link, std::move(text) });
+            mOffered.insert(link);
+        }
     }
 
     void DialogueRuntime::end()

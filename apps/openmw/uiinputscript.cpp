@@ -172,6 +172,9 @@ namespace OMW
     void UiInputScript::run(const Command& command)
     {
         const auto& a = command.mArguments;
+        // Task 0258: a line per command, so a scenario can tell which game frame a click or a key came in
+        Log(Debug::Info) << "[UI] input script: frame " << command.mFrame << " " << command.mName
+                         << (a.empty() ? std::string() : " " + a[0]);
         SDL_Event event{};
         const Uint32 window = mWindow != nullptr ? SDL_GetWindowID(mWindow) : 0;
         const std::string& name = command.mName;

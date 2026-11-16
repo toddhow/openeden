@@ -1280,6 +1280,8 @@ namespace game_skyrimse
         if (mVendorServicesLookup)
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
         raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
+        if (mCrimeSourceSet)
+            raw->mRuntime->setCrimeSource(mCrimeSource); // task 0258
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         // Task 0187: aliases and the story manager
         if (mInfoFragmentSink)
@@ -2301,7 +2303,53 @@ namespace game_skyrimse
         if (mDialogue->mAliasFiller != nullptr)
             (void)mDialogue->mAliasFiller->fillForSpeaker(
                 mDialogue->mRuntime->questsMutable(), speaker.mReference, speaker.mBase);
+        // Task 0258: the guard whose offer is the arrest conversation opens the forced greeting
+        if (mArrest.mWants && mArrest.mWants(speaker.mReference))
+        {
+            if (mDialogue->mRuntime->beginForced(speaker, "PFGT", out, error))
+            {
+                mForcedReference = speaker.mReference;
+                if (mArrest.mBegan)
+                    mArrest.mBegan(speaker.mReference);
+                return true;
+            }
+            if (mArrest.mFailed)
+                mArrest.mFailed(speaker.mReference);
+            return false;
+        }
         return mDialogue->mRuntime->begin(speaker, out, error);
+    }
+
+    void SkyrimWorldView::setArrestDialogue(ArrestDialogueHooks hooks)
+    {
+        mArrest = std::move(hooks);
+    }
+
+    void SkyrimWorldView::setCrimeConditionSource(CrimeConditionSource source)
+    {
+        mCrimeSource = std::move(source);
+        mCrimeSourceSet = true;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setCrimeSource(mCrimeSource);
+    }
+
+    bool SkyrimWorldView::forcedGreetingAvailable(FormId base, FormId reference, std::string* why)
+    {
+        if (mDialogue == nullptr || mDialogue->mRuntime == nullptr || mDialogue->mData == nullptr)
+        {
+            if (why != nullptr)
+                *why = " the dialogue data is not built yet";
+            return false;
+        }
+        DialogueSpeaker speaker;
+        speaker.mBase = base;
+        speaker.mReference = reference;
+        if (const PlacedEntry* entry = mDialogue->mData->mPlacedRefs.find(reference))
+        {
+            speaker.mCell = entry->mCell;
+            fillSpeakerCell(speaker, entry->mCell);
+        }
+        return mDialogue->mRuntime->forcedGreetingAvailable(speaker, "PFGT", why);
     }
 
     bool SkyrimWorldView::chooseTopic(std::uint32_t topicId, sdkgame::DialogueTurn& out, std::string& error)
@@ -2319,6 +2367,13 @@ namespace game_skyrimse
     {
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->end();
+        if (mForcedReference != kNullFormId)
+        {
+            const FormId reference = mForcedReference;
+            mForcedReference = kNullFormId;
+            if (mArrest.mEnded)
+                mArrest.mEnded(reference);
+        }
     }
 
     bool SkyrimWorldView::ensureWeather()

@@ -123,6 +123,8 @@ namespace game_skyrimse
                 if (const PlacedRefIndex* refs = mView.placedRefs())
                     if (const PlacedEntry* entry = refs->find(form))
                         return (entry->mFlags & PlacedFlags::IsActor) != 0 ? "Actor" : "ObjectReference";
+                if (mView.isFactionForm(form))
+                    return "Faction"; // task 0258: Faction.PlayerPayCrimeGold and its kin
                 const std::string scripted = mView.scriptClassOf(form); // task 0237: Spell and Message
                 if (!scripted.empty())
                     return scripted;
@@ -1733,6 +1735,18 @@ namespace game_skyrimse
                 env.unlockWord = [this](FormId word) { return mShouts != nullptr && mShouts->unlockWord(word); };
                 env.isWordUnlocked
                     = [this](FormId word) { return mShouts != nullptr && mShouts->isWordUnlocked(word); };
+                // Task 0258: the guards' arrest dialogue fragments act through the crime service
+                env.crimeFactionOf
+                    = [this](FormId actor) { return mCrime != nullptr ? mCrime->crimeFactionOfReference(actor) : 0; };
+                env.payCrimeGold = [this](FormId faction, bool removeStolenItems, bool) {
+                    return mCrime != nullptr && mCrime->payByScript(faction, removeStolenItems);
+                };
+                env.sendToJail
+                    = [this](FormId faction, bool, bool) { return mCrime != nullptr && mCrime->jailByScript(faction); };
+                env.resistArrest = [this](FormId) { return mCrime != nullptr && mCrime->resistByScript(); };
+                env.crimeGold = [this](FormId faction) -> std::int32_t {
+                    return mCrime != nullptr ? mCrime->crimeGoldOf(faction) : -1;
+                };
                 mPapyrusHooks = std::make_unique<PackWorldHooks>(std::move(env));
                 host.setWorldHooks(mPapyrusHooks.get());
                 if (mInventory != nullptr)
@@ -3101,7 +3115,47 @@ namespace game_skyrimse
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
+                // Task 0258: the arrest conversation runs only with the Papyrus host (its fragments make the choice) and
+                // when a forced greeting passes for the guard; else the window offers
+                hooks.mDialogueAvailable = [this, logger](const crime::CrimeActor& guard) {
+                    if (mPapyrus == nullptr)
+                    {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "CRIME the arrest conversation needs the Papyrus host ([extension.skyrimse] papyrus): "
+                                "the window offers");
+                        return false;
+                    }
+                    std::string why;
+                    const bool available = mWorldView.forcedGreetingAvailable(
+                        guard.mBase, static_cast<FormId>(guard.mHandle.reference), &why);
+                    if (!available && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "CRIME no arrest conversation for " + guard.mName + " (base " + std::to_string(guard.mBase)
+                                + "), the window offers:" + why);
+                    return available;
+                };
                 mCrime = std::make_unique<crime::CrimeService>(std::move(hooks));
+                {
+                    SkyrimWorldView::ArrestDialogueHooks arrest;
+                    arrest.mWants = [this](FormId reference) {
+                        return mCrime != nullptr && mCrime->system().wantsDialogueWith(reference);
+                    };
+                    arrest.mBegan = [this](FormId reference) {
+                        if (mCrime != nullptr)
+                            mCrime->system().dialogueBegan(reference);
+                    };
+                    arrest.mEnded = [this](FormId reference) {
+                        if (mCrime != nullptr)
+                            mCrime->system().dialogueEnded(reference);
+                    };
+                    arrest.mFailed = [this](FormId reference) {
+                        if (mCrime != nullptr)
+                            mCrime->system().dialogueFailed(reference);
+                    };
+                    mWorldView.setArrestDialogue(std::move(arrest));
+                    mWorldView.setCrimeConditionSource(mCrime->conditionSource());
+                }
                 mCellSource.combat().setCrimeTestGuard(settings->getString(kPackId, "crime test guard", ""));
                 mCellSource.setCrime(&mCrime->system());
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
