@@ -1155,6 +1155,7 @@ namespace game_skyrimse
                     mCellSource.combat().setSpellVisuals(settings->getBool(kPackId, kCombatSpellVisualsKey, false));
                     // Task 0179 (stage S5-7): perks. The switch defaults to on; the two lists to none.
                     mCellSource.combat().setUsePerks(settings->getBool(kPackId, kCombatPerksKey, true));
+                    mCellSource.combat().setUseSounds(settings->getBool(kPackId, kCombatSoundsKey, true));
                     const std::string playerPerks = settings->getString(kPackId, kCombatTestPlayerPerksKey, "");
                     mCellSource.combat().setTestPlayerPerks(playerPerks);
                     if (!playerPerks.empty())
@@ -1167,6 +1168,9 @@ namespace game_skyrimse
                         [say](const std::string& line) { say(openeden::sdk::LogLevel::Warning, line); });
                     if (settings->getBool(kPackId, kCombatTraceKey, false))
                         mCellSource.combat().setTrace(
+                            [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                    if (settings->getBool(kPackId, kCombatTraceKey, false))
+                        mCellSource.combat().setSoundTrace(
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");

@@ -142,6 +142,7 @@ namespace game_skyrimse
             return mInner.showEffect(subject, request);
         }
         bool hideEffect(std::uint32_t token) override { return mInner.hideEffect(token); }
+        bool playSound(const openeden::sdk::game::SoundRequest& request) override; // task 0193
 
     private:
         openeden::sdk::game::CombatRequestWriter& mInner;

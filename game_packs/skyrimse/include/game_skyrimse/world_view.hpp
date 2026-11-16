@@ -357,6 +357,8 @@ namespace game_skyrimse
         bool combatReady() override;
         const PerkLibrary* perkLibrary() override; // task 0179
         FormId perkByEditorId(std::string_view editorId) override;
+        const SoundLibrary* soundLibrary() override; // task 0193
+        bool soundFileExists(const std::string& vfsPath) override;
 
         // ---- openeden::sdk::game::ActorMechanicsSource (task 0154, stage S7) ----
         /// Numbers and relations from the actor index (FACT, RACE, CLAS, NPC_ of every plugin; read with the first

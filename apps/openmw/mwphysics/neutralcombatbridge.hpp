@@ -74,6 +74,16 @@ namespace MWPhysics
             (void)pose;
         }
         virtual void removeProjectile(std::uint32_t id) { (void)id; }
+        /// Task 0193 (stage S5-10): a combat sound at an actor (`key`) or, when `key` is null, at the player. `file`
+        /// is a
+        /// VFS path, `volume` a gain in [0, 1]. Default: nothing.
+        virtual void playSound(const void* key, std::string_view file, std::string_view name, float volume)
+        {
+            (void)key;
+            (void)file;
+            (void)name;
+            (void)volume;
+        }
         virtual void playClip(const void* key, std::string_view clip, bool perSex) = 0;
         virtual void stopClip(const void* key) = 0;
         /// Task 0171: turns the actor on the spot (default: nothing).
@@ -180,6 +190,8 @@ namespace MWPhysics
             std::uint64_t mProjectilesExpired = 0;
             std::uint64_t mProjectileResultsDropped = 0; ///< the owner had gone
             std::uint64_t mPlayerAttackEdges = 0;
+            std::uint64_t mSoundsPlayed = 0; ///< task 0193: sound requests handed to the sink
+            std::uint64_t mSoundsRefused = 0; ///< no sink, stale actor, empty or over-long path, bad volume
             /// Task 0192: nanoseconds spent inside rules->combatUpdate (summed, only with OPENEDEN_NEUTRAL_ACTOR_COST).
             std::uint64_t mRulesNs = 0;
             std::uint64_t mRaysCast = 0; ///< task 0191
@@ -307,6 +319,7 @@ namespace MWPhysics
             bool launchProjectile(
                 openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r) override;
             bool setClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier) override;
+            bool playSound(const openeden::sdk::game::SoundRequest& request) override;
             bool clipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
                 float& out) override;
             bool castRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
@@ -336,6 +349,7 @@ namespace MWPhysics
             bool doLaunchProjectile(
                 openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r);
             bool doSetClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier);
+            bool doPlaySound(const openeden::sdk::game::SoundRequest& request);
             bool doClipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
                 float& out);
             bool doCastRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,

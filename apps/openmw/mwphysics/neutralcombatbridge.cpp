@@ -824,6 +824,24 @@ namespace MWPhysics
         return true;
     }
 
+    bool NeutralCombatBridge::Writer::doPlaySound(const openeden::sdk::game::SoundRequest& request)
+    {
+        NeutralCombatBridge& b = mBridge;
+        const void* key = (!request.subject.player && request.subject.valid())
+            ? b.mActors.keyOfHandle(request.subject.actor)
+            : nullptr;
+        if (mSink == nullptr || !request.subject.valid() || (!request.subject.player && key == nullptr)
+            || request.file.empty() || request.file.size() > openeden::sdk::game::kMaxCombatSoundPath
+            || !std::isfinite(request.volume))
+        {
+            ++b.mStats.mSoundsRefused;
+            return false;
+        }
+        mSink->playSound(key, request.file, request.name, std::clamp(request.volume, 0.f, 1.f));
+        ++b.mStats.mSoundsPlayed;
+        return true;
+    }
+
     bool NeutralCombatBridge::Writer::doClipEventTime(
         std::string_view clip, bool perSex, ClipEventKind kind, float& out)
     {
@@ -852,6 +870,10 @@ namespace MWPhysics
     bool NeutralCombatBridge::Writer::setClipSpeed(CombatSubject subject, float multiplier)
     {
         return guarded([&] { return doSetClipSpeed(subject, multiplier); });
+    }
+    bool NeutralCombatBridge::Writer::playSound(const openeden::sdk::game::SoundRequest& request)
+    {
+        return guarded([&] { return doPlaySound(request); });
     }
     bool NeutralCombatBridge::Writer::clipEventTime(
         std::string_view clip, bool perSex, ClipEventKind kind, float& out)

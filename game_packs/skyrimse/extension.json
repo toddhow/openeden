@@ -146,6 +146,11 @@
       "default": true
     },
     {
+      "key": "combat sounds",
+      "type": "bool",
+      "default": true
+    },
+    {
       "key": "combat test player perks",
       "type": "string",
       "default": ""

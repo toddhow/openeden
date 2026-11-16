@@ -101,6 +101,7 @@
 #include "../mwphysics/physicssystem.hpp"
 
 #include "../mwsound/constants.hpp"
+#include "../mwsound/sound.hpp"
 #include "../mwstate/changecell.hpp"
 #include "../mwstate/loading.hpp"
 
@@ -123,6 +124,29 @@
 
 namespace MWWorld
 {
+    namespace
+    {
+        // Task 0193 (combat stage S5-10): plays what the combat hooks asked for, from the actor (or the player).
+        void playNeutralCombatSounds(
+            const std::vector<MWPhysics::PhysicsSystem::NeutralSoundOp>& ops, const MWWorld::Ptr& player)
+        {
+            MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
+            for (const MWPhysics::PhysicsSystem::NeutralSoundOp& op : ops)
+            {
+                const Ptr ptr = op.mPtr.isEmpty() ? player : op.mPtr;
+                if (ptr.isEmpty())
+                    continue;
+                const VFS::Path::Normalized file(op.mFile);
+                MWSound::Sound* started = sound->playSound3D(ptr, file, op.mVolume, 1.0f, MWSound::Type::Sfx);
+                // What the manager says right after: a null result means no audio device (or a file it cannot read).
+                const bool playing = started != nullptr && sound->getSoundPlaying(ptr, file);
+                Log(Debug::Info) << "NSOUND " << op.mName << " " << op.mFile << " volume " << op.mVolume
+                                 << (started != nullptr ? " started" : " not started")
+                                 << (playing ? " playing" : " not playing");
+            }
+        }
+    }
+
     namespace
     {
         std::vector<std::pair<std::string_view, ESM::Variant>> generateDefaultGameSettings()
@@ -1583,6 +1607,9 @@ namespace MWWorld
             // Task 0178: after the clips (a new clip starts at speed 1), the draw speed of a bow; then the arrows.
             for (const auto& op : mPhysics->getNeutralClipSpeedOps())
                 mRendering->getObjects().setNeutralActorClipSpeed(op.mPtr, op.mMultiplier);
+            // Task 0193 (combat stage S5-10): the combat sounds, played from the actor (or the player).
+            if (!mPhysics->getNeutralSoundOps().empty())
+                playNeutralCombatSounds(mPhysics->getNeutralSoundOps(), getPlayerPtr());
             if (!mPhysics->getNeutralProjectileOps().empty())
             {
                 if (!mNeutralProjectiles)

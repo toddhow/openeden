@@ -327,6 +327,8 @@ namespace game_skyrimse
         mCombatSettings = mData->settings();
         mBlockSettings = mData->blockSettings();
         mHaveSettings = true;
+        CombatData* const data = mData; // task 0193: the sound records and the VFS probe
+        mSounds.bind(mData->soundLibrary(), [data](const std::string& path) { return data->soundFileExists(path); });
     }
 
     // ---- perks (task 0179, stage S5-7) -----------------------------------------------------------------------------
@@ -780,6 +782,7 @@ namespace game_skyrimse
     void SkyrimCombat::onClipEvent(const openeden::sdk::game::ClipEvent& event)
     {
         ++mEventsSeen;
+        soundEvent(event); // task 0193
         if (event.slot == ClipSlot::Cast && event.kind == openeden::sdk::game::ClipEventKind::SpellFire)
         {
             // Task 0186: the cast clip lets the spell go; combatUpdate fires it.
@@ -907,6 +910,7 @@ namespace game_skyrimse
 
     void SkyrimCombat::beginAttack(CombatRequestWriter& writer, Fighter& fighter, AttackKind kind)
     {
+        mSounds.weaponDraw(writer, fighter.mSubject, weaponFor(fighter)); // task 0193: once per fighter
         const bool power = kind == AttackKind::Power;
         if (fighter.mSubject.player)
         {
@@ -950,6 +954,7 @@ namespace game_skyrimse
             mPlayerSwingStart = mClock;
             mPlayerSwingToken = mNextToken++;
             mPlayerPower = power;
+            mSounds.queueSwing(fighter.mSubject, weaponFor(fighter)); // task 0193: the player has no clip event
             ++mSwingsRequested;
             if (mTrace)
                 trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "")
@@ -1327,6 +1332,7 @@ namespace game_skyrimse
         report.y = hit.y;
         report.z = hit.z;
         writer.reportDamage(report);
+        soundHit(writer, attacker, victim, blocked, bash); // task 0193
         if (mTrace)
             trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "
                 + fmt(result.mDamageBefore) + " after armour " + fmt(result.mDamageAfter) + " (mitigation "
@@ -1434,6 +1440,8 @@ namespace game_skyrimse
         (void)writer.setClipSpeed(fighter.mSubject, speed);
         fighter.mBow = Fighter::Bow::Drawing;
         fighter.mBowToken = request.token;
+        mSounds.weaponDraw(writer, fighter.mSubject, mWeapon); // task 0193: the bow comes up, once
+        mSounds.bowNock(writer, fighter.mSubject); // task 0193
         if (mTrace)
             trace("COMBAT bow draw " + name(fighter.mSubject) + " token " + std::to_string(request.token) + " speed "
                 + fmt(speed));
@@ -1513,6 +1521,7 @@ namespace game_skyrimse
             mShots.erase(mShots.begin()); // an arrow whose end never came (its owner left): the oldest is forgotten
         mShots.push_back({ request.token, archer.mSubject, fraction });
         ++mArrowsLaunched;
+        mSounds.bowRelease(writer, archer.mSubject, mWeapon); // task 0193
         if (mTrace)
             trace("COMBAT arrow launch " + name(archer.mSubject) + " token " + std::to_string(request.token) + " from "
                 + fmt(static_cast<float>(request.x)) + " " + fmt(static_cast<float>(request.y)) + " "
@@ -1656,6 +1665,8 @@ namespace game_skyrimse
                 }
                 mPlayerDrawing = true;
                 mPlayerDrawStart = mClock;
+                mSounds.weaponDraw(writer, player.mSubject, mWeapon); // task 0193
+                mSounds.bowNock(writer, player.mSubject); // task 0193
                 trace("COMBAT player bow draw at " + fmt(mClock) + " full draw takes " + fmt(drawSeconds) + " s");
                 continue;
             }
@@ -1701,6 +1712,7 @@ namespace game_skyrimse
         {
             if (!mHaveSettings)
                 loadSettings();
+            mSounds.flush(writer); // task 0193: the swings and clip sounds the events asked for
             // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);

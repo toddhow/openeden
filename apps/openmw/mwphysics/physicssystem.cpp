@@ -1316,6 +1316,26 @@ namespace MWPhysics
         mPhysics.mNeutralClipSpeedOps.push_back({ found->second->getPtr(), multiplier });
     }
 
+    void PhysicsSystem::NeutralClipApplier::playSound(
+        const void* key, std::string_view file, std::string_view name, float volume)
+    {
+        NeutralSoundOp op;
+        if (key != nullptr)
+        {
+            NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+            if (entry == nullptr)
+                return;
+            const auto found = mPhysics.mObjects.find(entry->mRef);
+            if (found == mPhysics.mObjects.end())
+                return;
+            op.mPtr = found->second->getPtr();
+        }
+        op.mFile = std::string(file);
+        op.mName = std::string(name);
+        op.mVolume = volume;
+        mPhysics.mNeutralSoundOps.push_back(std::move(op));
+    }
+
     void PhysicsSystem::NeutralClipApplier::spawnProjectile(
         std::uint32_t id, std::string_view model, const NeutralProjectilePose& pose)
     {
@@ -1803,6 +1823,7 @@ namespace MWPhysics
         mNeutralDoorsMoved.clear();
         mNeutralClipOps.clear();
         mNeutralClipSpeedOps.clear();
+        mNeutralSoundOps.clear();
         mNeutralProjectileOps.clear();
         if (mNeutralActors.empty())
             return;
@@ -1852,6 +1873,7 @@ namespace MWPhysics
             }
             mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
             mNeutralClipSpeedOps.reserve(NeutralCombatBridge::kMaxPlaying);
+            mNeutralSoundOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
             mNeutralProjectileOps.reserve(4 * NeutralCombatBridge::kMaxProjectiles);
             const auto combatStart = costTrace ? std::chrono::steady_clock::now() : costStart;
             mNeutralCombat.update(

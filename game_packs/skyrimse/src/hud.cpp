@@ -201,6 +201,11 @@ namespace game_skyrimse
     {
         return mInner.clipEventTime(clip, perSex, kind, out);
     }
+    bool HudWriter::playSound(const openeden::sdk::game::SoundRequest& request)
+    {
+        return mInner.playSound(request);
+    }
+
     bool HudWriter::reportDeath(ActorHandle actor)
     {
         const bool ok = mInner.reportDeath(actor);

@@ -18,6 +18,7 @@
 
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
+#include "game_skyrimse/combat_impact.hpp"
 #include "game_skyrimse/land.hpp"
 #include "game_skyrimse/perks.hpp"
 
@@ -67,6 +68,17 @@ namespace game_skyrimse
         std::uint16_t mCritDamage = 0; ///< +0
         float mCritMultiplier = 1.f; ///< +4 (1.0 for 3,160 of 3,262)
         std::vector<FormId> mKeywords; ///< KWDA (task 0179: the perk conditions ask HasKeyword of the weapon)
+        /// Task 0193 (stage S5-10), VERIFIED by the data (note in combat_impact.hpp): the impact data set when the
+        /// weapon
+        /// hits (INAM), when it bashes (BIDS), the material it counts as when it blocks (BAMT), and the swing, draw,
+        /// sheathe and attack sounds (TNAM, NAM9, NAM8, SNAM). 0 when absent.
+        FormId mImpactSet = kNullFormId;
+        FormId mBashImpactSet = kNullFormId;
+        FormId mBlockMaterial = kNullFormId;
+        FormId mSwingSound = kNullFormId;
+        FormId mDrawSound = kNullFormId;
+        FormId mSheatheSound = kNullFormId;
+        FormId mAttackSound = kNullFormId;
 
         [[nodiscard]] bool isMelee() const
         {
@@ -95,6 +107,8 @@ namespace game_skyrimse
         float mStaminaRegen = 0.f; ///< +92 (Nord 5)
         float mUnarmedDamage = 0.f; ///< +96 (Nord 4, dragon 25)
         float mUnarmedReach = 0.f; ///< +100 (Nord 96)
+        FormId mBodyMaterial = kNullFormId; ///< task 0193: NAM4, the MATT of the body (Nord: MaterialSkin)
+        FormId mUnarmedImpactSet = kNullFormId; ///< NAM5, the IPDS of the bare hands
     };
 
     /// A numeric GMST: the first letter of the editor id says the type (f float, i signed integer, b boolean as 0 or
@@ -175,6 +189,7 @@ namespace game_skyrimse
         std::vector<SpellRecord> mSpells; ///< task 0179: ability spells only
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
+        SoundRecords mSounds; ///< task 0193: IPCT, IPDS, MATT, SNDR and SOUN
         DecodeNotes mNotes;
         std::vector<Content::Error> mErrors;
         std::uint64_t mErrorsDropped = 0;
@@ -279,6 +294,8 @@ namespace game_skyrimse
         [[nodiscard]] const ArtRecord* art(FormId id) const; ///< task 0191
         [[nodiscard]] const AmmoRecord* ammo(FormId id) const; ///< task 0178
         [[nodiscard]] std::vector<FormId> ammoIds() const; ///< sorted
+        /// Task 0193: the impact, material and sound records.
+        [[nodiscard]] const SoundLibrary& sounds() const { return mSoundLibrary; }
         [[nodiscard]] std::size_t weaponCount() const { return mWeapons.size(); }
         [[nodiscard]] std::size_t raceCount() const { return mRaces.size(); }
         [[nodiscard]] std::vector<FormId> weaponIds() const; ///< sorted
@@ -305,6 +322,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, SpellRecord> mSpells;
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
+        SoundLibrary mSoundLibrary;
     };
 
     // ---- armour --------------------------------------------------------------------------------------------------

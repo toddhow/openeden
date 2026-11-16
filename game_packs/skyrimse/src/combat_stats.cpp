@@ -164,6 +164,30 @@ namespace game_skyrimse
                         out.mCritMultiplier = multiplier;
                     }
                     break;
+                case Content::fourCC("INAM"): // task 0193: the sounds and impact sets (4 byte form ids)
+                case Content::fourCC("BIDS"):
+                case Content::fourCC("BAMT"):
+                case Content::fourCC("TNAM"):
+                case Content::fourCC("NAM9"):
+                case Content::fourCC("NAM8"):
+                case Content::fourCC("SNAM"):
+                {
+                    if (data.size() != 4)
+                    {
+                        fields.odd(type);
+                        break;
+                    }
+                    const FormId id = fields.resolved(readLe<std::uint32_t>(data.data()));
+                    FormId& slot = type == Content::fourCC("INAM") ? out.mImpactSet
+                        : type == Content::fourCC("BIDS")          ? out.mBashImpactSet
+                        : type == Content::fourCC("BAMT")          ? out.mBlockMaterial
+                        : type == Content::fourCC("TNAM")          ? out.mSwingSound
+                        : type == Content::fourCC("NAM9")          ? out.mDrawSound
+                        : type == Content::fourCC("NAM8")          ? out.mSheatheSound
+                                                                   : out.mAttackSound;
+                    slot = id;
+                    break;
+                }
                 case Content::fourCC("KWDA"): // task 0179: the keywords the perk conditions ask about
                     if (data.size() % 4 != 0 || data.size() / 4 > 64)
                     {
@@ -201,6 +225,17 @@ namespace game_skyrimse
             {
                 if (!fields.zstring(type, data, out.mCommon.mEditorId))
                     return false;
+            }
+            else if (type == Content::fourCC("NAM4") || type == Content::fourCC("NAM5"))
+            {
+                // Task 0193: the body material and the bare hands' impact data set (4 byte form ids, VERIFIED).
+                if (data.size() != 4)
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                const FormId id = fields.resolved(readLe<std::uint32_t>(data.data()));
+                (type == Content::fourCC("NAM4") ? out.mBodyMaterial : out.mUnarmedImpactSet) = id;
             }
             else if (type == Content::fourCC("DATA"))
             {
@@ -610,7 +645,9 @@ namespace game_skyrimse
                 const std::uint32_t t = record.mType;
                 if (t != Content::fourCC("WEAP") && t != Content::fourCC("RACE") && t != Content::fourCC("GMST")
                     && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO") && t != Content::fourCC("PERK")
-                    && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("ARTO"))
+                    && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("IPCT")
+                    && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
+                    && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -687,6 +724,41 @@ namespace game_skyrimse
                     ok = decodeMagicEffect(bytes, record, mContext, m, why);
                     if (ok)
                         mOut.mMagicEffects.push_back(std::move(m));
+                }
+                else if (t == Content::fourCC("IPCT"))
+                {
+                    ImpactRecord r;
+                    ok = decodeImpact(bytes, record, mContext, r, why);
+                    if (ok)
+                        mOut.mSounds.mImpacts.push_back(std::move(r));
+                }
+                else if (t == Content::fourCC("IPDS"))
+                {
+                    ImpactSetRecord r;
+                    ok = decodeImpactSet(bytes, record, mContext, r, why);
+                    if (ok)
+                        mOut.mSounds.mImpactSets.push_back(std::move(r));
+                }
+                else if (t == Content::fourCC("MATT"))
+                {
+                    MaterialRecord r;
+                    ok = decodeMaterial(bytes, record, mContext, r, why);
+                    if (ok)
+                        mOut.mSounds.mMaterials.push_back(std::move(r));
+                }
+                else if (t == Content::fourCC("SOUN"))
+                {
+                    SoundRedirectRecord r;
+                    ok = decodeSoundRedirect(bytes, record, mContext, r, why);
+                    if (ok)
+                        mOut.mSounds.mRedirects.push_back(std::move(r));
+                }
+                else if (t == Content::fourCC("SNDR"))
+                {
+                    SoundDescriptorRecord r;
+                    ok = decodeSoundDescriptor(bytes, record, mContext, WeatherLimits(), r, why);
+                    if (ok)
+                        mOut.mSounds.mSounds.push_back(std::move(r));
                 }
                 else if (t == Content::fourCC("RACE"))
                 {
@@ -818,6 +890,7 @@ namespace game_skyrimse
 
     void CombatIndex::add(const CombatRecords& records)
     {
+        mSoundLibrary.add(records.mSounds);
         for (const WeaponRecord& w : records.mWeapons)
         {
             if (w.mCommon.deleted())

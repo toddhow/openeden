@@ -18,6 +18,7 @@
 // No engine, renderer, Jolt, Qt or OSG type. Main thread only; the vectors are reserved so that a frame allocates
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
+#include <game_skyrimse/combat_sound.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/magic.hpp>
 
@@ -72,6 +73,8 @@ namespace game_skyrimse
     /// Task 0179 (stage S5-7): `combat perks` (default true) turns perk evaluation on; the two lists are comma
     /// separated PERK editor ids given to the stand-in player and to every NPC fighter (empty: none).
     inline constexpr std::string_view kCombatPerksKey = "combat perks";
+    /// Task 0193 (stage S5-10): `combat sounds` (default true) plays the weapon, impact and bow sounds of a fight.
+    inline constexpr std::string_view kCombatSoundsKey = "combat sounds";
     inline constexpr std::string_view kCombatTestPlayerPerksKey = "combat test player perks";
     inline constexpr std::string_view kCombatTestNpcPerksKey = "combat test npc perks";
     /// Task 0186 (stage S5-8) test settings, all off by default. `combat test player spell`: the SPEL (editor id) the
@@ -217,6 +220,9 @@ namespace game_skyrimse
         float mAbilityDamageResist = 0.f;
         bool mHasWeaponSpeedAbility = false;
         float mAbilityWeaponSpeed = 1.f;
+        /// Task 0193: the body's material and the bare hands' impact data set (RACE NAM4 and NAM5).
+        FormId mBodyMaterial = kNullFormId;
+        FormId mUnarmedImpactSet = kNullFormId;
     };
 
     /// The bow draw speed of a fighter: bowDrawSpeed(weapon speed, test bonus), times the WeaponSpeedMult ability when
@@ -291,6 +297,14 @@ namespace game_skyrimse
         {
             (void)editorId;
             return kNullFormId;
+        }
+        /// Task 0193: the impact, material and sound records (null: no combat sounds), and whether a VFS path exists
+        /// (default: every file does). Called when the data is ready.
+        virtual const SoundLibrary* soundLibrary() { return nullptr; }
+        virtual bool soundFileExists(const std::string& vfsPath)
+        {
+            (void)vfsPath;
+            return true;
         }
     };
 
@@ -394,6 +408,10 @@ namespace game_skyrimse
         void setUsePerks(bool use) { mUsePerks = use; }
         void setTestPlayerPerks(std::string_view list) { mTestPlayerPerks = std::string(list); }
         void setTestNpcPerks(std::string_view list) { mTestNpcPerks = std::string(list); }
+        /// Task 0193 (stage S5-10): `combat sounds` (default true); the sounds' counters and trace (lines `CSOUND`).
+        void setUseSounds(bool use) { mSounds.setEnabled(use); }
+        [[nodiscard]] const CombatSounds& sounds() const { return mSounds; }
+        void setSoundTrace(std::function<void(const std::string&)> trace) { mSounds.setTrace(std::move(trace)); }
         [[nodiscard]] std::size_t perkEffectsApplied() const { return mPerkEffectsApplied; }
         void setTestPlayerBow(float holdSeconds);
 
@@ -802,6 +820,11 @@ namespace game_skyrimse
         std::size_t mClipsFinished = 0;
         std::size_t mClipsCompleted = 0;
         std::size_t mHitsResolved = 0;
+        // Task 0193 (stage S5-10): the sounds. Defined in combat_sound.cpp's companion block of combat.cpp.
+        CombatSounds mSounds;
+        void soundEvent(const openeden::sdk::game::ClipEvent& event);
+        void soundHit(openeden::sdk::game::CombatRequestWriter& writer, const Fighter& attacker, const Fighter& victim,
+            bool blocked, bool bash);
     };
 }
 

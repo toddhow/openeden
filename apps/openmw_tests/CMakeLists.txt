@@ -195,6 +195,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralcombatmany.cpp
     mwphysics/testneutralcombathit.cpp
     mwphysics/testneutralcombatreview.cpp
+    mwphysics/testneutralcombatsound.cpp
     mwrender/testskyrimcombatclips.cpp
     mwrender/testplayerclipmeta.cpp
     mwphysics/testneutralactorgoals.cpp

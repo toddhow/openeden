@@ -551,6 +551,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatcrowd.cpp
     skyrimse/testskyrimsecombatreview.cpp
     skyrimse/testskyrimsecombatindex.cpp
+    skyrimse/testskyrimsecombatsound.cpp
     skyrimse/testskyrimsecombatstats.cpp
     skyrimse/testskyrimsecombatstatsreal.cpp
     skyrimse/testskyrimsemagicreal.cpp
@@ -698,6 +699,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_stats.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_impact.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sound.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/perks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_mechanics.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey.cpp

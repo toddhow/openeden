@@ -437,6 +437,16 @@ namespace game_skyrimse
         return mCombatIndex.get();
     }
 
+    const SoundLibrary* SkyrimWorldView::soundLibrary()
+    {
+        return mCombatIndex == nullptr ? nullptr : &mCombatIndex->sounds();
+    }
+
+    bool SkyrimWorldView::soundFileExists(const std::string& vfsPath)
+    {
+        return mFiles == nullptr || mFiles->exists(vfsPath);
+    }
+
     FormId SkyrimWorldView::perkByEditorId(std::string_view editorId)
     {
         return mCombatIndex == nullptr ? kNullFormId : mCombatIndex->perkByEditorId(std::string(editorId));
@@ -455,6 +465,11 @@ namespace game_skyrimse
         out.mMitigationPercent = 0.f;
         out.mUnarmedDamage = 4.f;
         out.mUnarmedReach = 96.f;
+        if (mCombatIndex != nullptr) // task 0193: a Nord's body and bare hands
+        {
+            out.mBodyMaterial = mCombatIndex->sounds().materialByEditorId(kPlayerBodyMaterial);
+            out.mUnarmedImpactSet = mCombatIndex->sounds().impactSetByEditorId(kPlayerUnarmedImpactSet);
+        }
         out.mSkills.fill(15);
         return out;
     }
@@ -512,6 +527,8 @@ namespace game_skyrimse
                 out.mMagickaRegenPercent = race->mMagickaRegen;
                 out.mUnarmedDamage = race->mUnarmedDamage;
                 out.mUnarmedReach = race->mUnarmedReach;
+                out.mBodyMaterial = race->mBodyMaterial; // task 0193
+                out.mUnarmedImpactSet = race->mUnarmedImpactSet;
             }
         }
         return true;

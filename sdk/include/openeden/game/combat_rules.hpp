@@ -215,7 +215,8 @@ namespace openeden::sdk::game
         float range = 0.f; ///< the shot ends after this much path, > 0
         float stickDepth = 0.f; ///< a shot that hits the world is drawn this far into it, >= 0
         float stickSeconds = 0.f; ///< ... and stays that long before it is removed, >= 0
-        /// The model's VFS path (for example `meshes/weapons/iron/ironarrowprojectile.nif`); valid during the call only,
+        /// The model's VFS path (for example `meshes/weapons/iron/ironarrowprojectile.nif`); valid during the call
+        /// only,
         /// the core copies it. Empty: the shot is not drawn.
         std::string_view model;
         /// 0.5 (task 0191): a shot that is only drawn. The core flies it like any other (it ends on the first actor or
@@ -247,6 +248,23 @@ namespace openeden::sdk::game
         float distance = 0.f; ///< path length
         float speed = 0.f; ///< at the end, units a second
     };
+
+    /// Task 0193 (stage S5-10): a combat sound to play at a subject (an actor or the player). `file` is the VFS path of
+    /// the sound file in the engine's normalised form ("sound/fx/wpn/..."), `name` the sound descriptor's editor id
+    /// (for
+    /// the log), `volume` a linear gain from 0 (silent) to 1. The core plays it through the sound manager from the
+    /// subject; the call is refused (false) outside combatUpdate, for an unknown subject or an empty or over-long file.
+    /// Additive: the writer's default refuses, so a host that plays no sound is unchanged.
+    struct SoundRequest
+    {
+        CombatSubject subject;
+        std::string_view file;
+        std::string_view name;
+        float volume = 1.f;
+    };
+
+    /// The longest sound file path the core accepts (the VFS paths of the data are under 130 characters).
+    inline constexpr std::size_t kMaxCombatSoundPath = 192;
 
     /// The timing of a clip as its sidecar gives it, in playback seconds (task 0171 stage S5-3b, DRAFT 0.2): when the
     /// first HitFrame event fires and how long the clip runs. The pack uses it to run a swing that has no clip to carry
@@ -447,6 +465,13 @@ namespace openeden::sdk::game
         virtual bool hideEffect(std::uint32_t token)
         {
             (void)token;
+            return false;
+        }
+
+        /// Task 0193 (stage S5-10): plays a sound at a subject (see SoundRequest). Default: refused.
+        virtual bool playSound(const SoundRequest& request)
+        {
+            (void)request;
             return false;
         }
     };

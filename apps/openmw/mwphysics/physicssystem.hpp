@@ -309,7 +309,8 @@ namespace MWPhysics
         using NeutralClipMetaProvider = std::function<HavokPack::ClipProgress(const MWWorld::Ptr&)>;
         void setNeutralClipMetaProvider(NeutralClipMetaProvider provider);
         /// Task 0183: for repeatable test runs (fixed frame time) only: the same lookup, but it blocks for up to
-        /// `waitMilliseconds` for the meta of a clip that has just started, and the combat bridge asks it once per clip.
+        /// `waitMilliseconds` for the meta of a clip that has just started, and the combat bridge asks it once per
+        /// clip.
         using NeutralClipMetaWaitProvider = std::function<HavokPack::ClipProgress(const MWWorld::Ptr&, int)>;
         void setNeutralClipMetaWaitProvider(NeutralClipMetaWaitProvider provider, int waitMilliseconds);
         /// Task 0171 stage S5-3b: the sidecar meta of a clip for the player's hidden swing clock (null until read).
@@ -336,7 +337,19 @@ namespace MWPhysics
             float mMultiplier = 1.f;
         };
         const std::vector<NeutralClipSpeedOp>& getNeutralClipSpeedOps() const { return mNeutralClipSpeedOps; }
-        /// Task 0178: the projectiles the combat bridge started, moved or ended in the last updateNeutralActors, for the
+        /// Task 0193 (combat stage S5-10): the sounds the combat hooks asked for in the last updateNeutralActors, for
+        /// the
+        /// caller to play through the sound manager. `mPtr` is empty for the player.
+        struct NeutralSoundOp
+        {
+            MWWorld::Ptr mPtr;
+            std::string mFile; ///< a VFS path
+            std::string mName; ///< the sound descriptor's editor id (for the log)
+            float mVolume = 1.f;
+        };
+        const std::vector<NeutralSoundOp>& getNeutralSoundOps() const { return mNeutralSoundOps; }
+        /// Task 0178: the projectiles the combat bridge started, moved or ended in the last updateNeutralActors, for
+        /// the
         /// caller to draw (`mId` is the bridge's number).
         struct NeutralProjectileOp
         {
@@ -645,7 +658,8 @@ namespace MWPhysics
         std::uint64_t mNeutralCostFollowNs = 0; ///< inside followNeutralGoal (the path finder is called from there)
         std::uint64_t mNeutralCostWalkNs = 0; ///< inside walkNeutralActor (swept capsule)
         std::uint64_t mNeutralCostActorFrames = 0;
-        // Task 0192: the combat bridge's whole update, the pack's combatUpdate inside it, and the longest frame of each in
+        // Task 0192: the combat bridge's whole update, the pack's combatUpdate inside it, and the longest frame of
+        // each in
         // the window (all only with OPENEDEN_NEUTRAL_ACTOR_COST).
         std::uint64_t mNeutralCostCombatNs = 0;
         std::uint64_t mNeutralCostCombatMaxNs = 0;
@@ -701,6 +715,7 @@ namespace MWPhysics
             void stopClip(const void* key) override;
             void setHeading(const void* key, float heading) override;
             void setClipSpeed(const void* key, float multiplier) override;
+            void playSound(const void* key, std::string_view file, std::string_view name, float volume) override;
             void spawnProjectile(std::uint32_t id, std::string_view model, const NeutralProjectilePose& pose) override;
             void moveProjectile(std::uint32_t id, const NeutralProjectilePose& pose) override;
             void removeProjectile(std::uint32_t id) override;
@@ -742,6 +757,7 @@ namespace MWPhysics
         NeutralCombatWorldImpl mNeutralCombatWorld{ *this };
         std::vector<NeutralClipOp> mNeutralClipOps;
         std::vector<NeutralClipSpeedOp> mNeutralClipSpeedOps; // task 0178
+        std::vector<NeutralSoundOp> mNeutralSoundOps; // task 0193
         std::vector<NeutralProjectileOp> mNeutralProjectileOps; // task 0178
         bool mNeutralPlayerHeldPrev = false; // task 0178: the attack control as the pack last heard it
         const std::vector<JPH::BodyID>& neutralSightIgnore(); // the neutral actors' bodies, refilled once a frame
