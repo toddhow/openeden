@@ -17,10 +17,14 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
+#include "../mwbase/luamanager.hpp"
 #include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "cellstore.hpp"
+#include "neutraldoor.hpp"
+#include "neutralinventory.hpp"
+#include "neutralstore.hpp"
 
 namespace MWWorld
 {
@@ -31,6 +35,30 @@ namespace MWWorld
         const std::string& name = turn.speakerName.empty() ? speakerName : turn.speakerName;
         return "service not implemented: " + turn.service + " with "
             + (name.empty() ? std::string("the speaker") : name);
+    }
+
+    namespace
+    {
+        // Task 0189: the merchant's barter line replaces the conversation box with the barter window. The pack's Lua
+        // scripts open it from this event (placement and base of the speaker, its name); false when there is no
+        // speaker to name, so the turn is shown as before.
+        bool sendBarterEvent(const Ptr& speaker, const std::string& name)
+        {
+            if (speaker.isEmpty() || speaker.getType() != NeutralBase::sRecordId)
+                return false;
+            const auto placement = neutralPlacementOf(speaker.getCellRef().getRefNum());
+            if (!placement)
+                return false;
+            const NeutralBase& base = *speaker.get<NeutralBase>()->mBase;
+            std::vector<MWBase::LuaManager::ExtensionEventField> fields;
+            for (const NeutralInventoryEventField& f : neutralBarterEventFields(*placement, base.mBase, name))
+                fields.push_back({ f.mName, f.mText });
+            Log(Debug::Info) << "NINV barter " << neutralHexId(*placement) << " base " << neutralHexId(base.mBase)
+                             << " '" << name << "' opened";
+            MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
+                std::string(kNeutralBarterEvent), fields);
+            return true;
+        }
     }
 
     NeutralDialoguePager::NeutralDialoguePager(
@@ -428,6 +456,12 @@ namespace MWWorld
                 {
                     Log(Debug::Warning) << "Neutral dialogue: " << error;
                     close();
+                    return;
+                }
+                if (decideNeutralBarter(turn.service, Settings::game().mNeutralInventory)
+                    && sendBarterEvent(mSpeaker, mName))
+                {
+                    close(); // the barter menu replaces the dialogue
                     return;
                 }
                 if (const std::string note = neutralServiceNote(turn, mName); !note.empty())

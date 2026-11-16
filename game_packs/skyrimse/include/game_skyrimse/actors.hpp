@@ -252,13 +252,32 @@ namespace game_skyrimse
         inline constexpr std::uint32_t Neutral = 0, Enemy = 1, Ally = 2, Friend = 3;
     }
 
-    /// FACT: the relations to other factions and the flags. Ranks, crime values, vendor data are not read.
+    /// A FACT's vendor data (task 0189): VEND (4 bytes: an FLST of keywords, the list of what the vendor buys), VENC (4
+    /// bytes: a REFR, the vendor chest) and VENV (12 bytes: start hour u16, end hour u16, radius u32, byte 8 "buys
+    /// stolen items", byte 9 "buy/sell everything NOT in the list"). VERIFIED on Skyrim.esm: VEND and VENC are 4 bytes
+    /// in 149 and 145 records, VENV 12 bytes in 996; byte 9 is set for the miscellaneous vendors, whose list is the
+    /// no-sale exclusion list. A vendor has a list AND a chest (`isVendor()`).
+    struct VendorData
+    {
+        FormId mList = kNullFormId; ///< VEND
+        FormId mChest = kNullFormId; ///< VENC
+        std::uint16_t mStartHour = 0;
+        std::uint16_t mEndHour = 24;
+        std::uint32_t mRadius = 0;
+        bool mBuysStolen = false;
+        bool mListIsExclusion = false;
+        bool mHasValues = false; ///< a VENV of the right size was read
+        [[nodiscard]] bool isVendor() const { return mList != kNullFormId && mChest != kNullFormId; }
+    };
+
+    /// FACT: the relations to other factions, the flags and the vendor data. Ranks and crime values are not read.
     struct FactionRecord
     {
         RecordCommon mCommon;
         LString mName;
         std::uint32_t mFlags = 0; ///< DATA, 4 bytes (VERIFIED size 4 on 1,407 of 1,407)
         std::vector<FactionRelation> mRelations;
+        VendorData mVendor; ///< task 0189
     };
 
     struct OutfitRecord

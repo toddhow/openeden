@@ -1079,6 +1079,31 @@ namespace game_skyrimse
                             else
                                 oddType(type);
                             break;
+                        case Content::fourCC("VEND"): // task 0189: the vendor's buy list (an FLST)
+                            if (data.size() == 4)
+                                f.mVendor.mList = resolved(readLe<std::uint32_t>(data.data()));
+                            else
+                                oddType(type);
+                            break;
+                        case Content::fourCC("VENC"): // task 0189: the vendor chest (a REFR)
+                            if (data.size() == 4)
+                                f.mVendor.mChest = resolved(readLe<std::uint32_t>(data.data()));
+                            else
+                                oddType(type);
+                            break;
+                        case Content::fourCC("VENV"): // task 0189: hours, radius, buys stolen, list is an exclusion
+                            if (data.size() == 12)
+                            {
+                                f.mVendor.mStartHour = readLe<std::uint16_t>(data.data());
+                                f.mVendor.mEndHour = readLe<std::uint16_t>(data.data() + 2);
+                                f.mVendor.mRadius = readLe<std::uint32_t>(data.data() + 4);
+                                f.mVendor.mBuysStolen = static_cast<std::uint8_t>(data[8]) != 0;
+                                f.mVendor.mListIsExclusion = static_cast<std::uint8_t>(data[9]) != 0;
+                                f.mVendor.mHasValues = true;
+                            }
+                            else
+                                oddType(type);
+                            break;
                         case Content::fourCC("XNAM"): // VERIFIED size 12 (1,159 of 1,159): faction, modifier, reaction
                             if (data.size() == 12)
                             {

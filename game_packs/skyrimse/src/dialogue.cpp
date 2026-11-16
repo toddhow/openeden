@@ -1085,6 +1085,9 @@ namespace game_skyrimse
             case 161: // GetIsCurrentPackage
             case 255:
             { // GetOffersServicesNow
+                if (c.mFunction == 255 && mVendorServices && mSpeaker.mBase != kNullFormId
+                    && mVendorServices(mSpeaker.mBase))
+                    return true; // task 0189: a merchant offers its services
                 if (!mCurrentPackage || mSpeaker.mReference == kNullFormId)
                     return false;
                 return mCurrentPackage(mSpeaker.mReference).has_value() && (c.mFunction == 161 || mPackages != nullptr);
@@ -1583,6 +1586,8 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::offersServicesNow(conditions::Subject subject) const
     {
+        if (mVendorServices && isSpeaker(subject) && mSpeaker.mBase != kNullFormId && mVendorServices(mSpeaker.mBase))
+            return true; // task 0189: a merchant offers its services
         if (!mCurrentPackage || mPackages == nullptr)
             return false;
         const FormId reference = isSpeaker(subject) ? mSpeaker.mReference : referenceOf(subject);

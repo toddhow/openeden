@@ -19,6 +19,8 @@ openeden_add_game_pack(skyrimse
         src/placed_refs.cpp
         src/inventory.cpp
         src/inventory_service.cpp
+        src/barter.cpp
+        src/barter_service.cpp
         src/journal.cpp
         src/quest_script.cpp
         src/vmad.cpp
@@ -65,6 +67,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/placed_refs.hpp
         include/game_skyrimse/inventory.hpp
         include/game_skyrimse/inventory_service.hpp
+        include/game_skyrimse/barter.hpp
+        include/game_skyrimse/barter_service.hpp
         include/game_skyrimse/journal.hpp
         include/game_skyrimse/quest_script.hpp
         include/game_skyrimse/vmad.hpp

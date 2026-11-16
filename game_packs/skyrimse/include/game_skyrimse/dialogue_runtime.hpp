@@ -107,6 +107,10 @@ namespace game_skyrimse
         {
             mWorld.setCurrentPackageLookup(std::move(lookup));
         }
+        void setVendorServicesLookup(SkyrimConditionWorld::VendorServicesLookup lookup) // task 0189
+        {
+            mWorld.setVendorServicesLookup(std::move(lookup));
+        }
 
         /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a
         /// service.

@@ -349,6 +349,12 @@ namespace game_skyrimse
         /// actor (the condition then stays unanswered), 0 for "none". Null function (the default): unanswered.
         using CurrentPackageLookup = std::function<std::optional<FormId>(FormId reference)>;
         void setCurrentPackageLookup(CurrentPackageLookup lookup) { mCurrentPackage = std::move(lookup); }
+        /// Task 0189: whether the speaker's base is a merchant (a vendor faction with a chest). GetOffersServicesNow is
+        /// then true for it whatever its current package says: the innkeepers' packages (WhiterunInnkeeperPackage, flags
+        /// 0x2000) do not carry the "offers services" bit the other traders' do, yet their barter line must show.
+        /// RECALLED-VERIFY. Null function (the default): the package flags decide alone.
+        using VendorServicesLookup = std::function<bool(FormId speakerBase)>;
+        void setVendorServicesLookup(VendorServicesLookup lookup) { mVendorServices = std::move(lookup); }
 
         /// Subjects of other references: a placed reference (its load-order id in the low 32 bits) and an actor known
         /// by its base only (a unique actor of an alias that has no single placed reference).
@@ -477,6 +483,7 @@ namespace game_skyrimse
         const PlacedRefIndex* mPlacedRefs = nullptr;
         const PackageIndex* mPackages = nullptr;
         CurrentPackageLookup mCurrentPackage;
+        VendorServicesLookup mVendorServices; ///< task 0189
         mutable std::unordered_map<FormId, std::optional<ActorIndex::Resolved>> mResolvedCache;
         /// The speaker or the player: the two subjects whose fresh-game state is known.
         [[nodiscard]] bool isKnownActor(conditions::Subject subject) const

@@ -46,6 +46,7 @@ namespace game_skyrimse::inventory
         }
 
         constexpr std::size_t kMaxItemEffects = 16; // task 0184: effects read from one ALCH
+        constexpr std::size_t kMaxItemKeywords = 64; // task 0189: keywords read from one item
 
         class Parser final : public Content::Visitor
         {
@@ -166,6 +167,16 @@ namespace game_skyrimse::inventory
                             item.mEffects.push_back(effect);
                             effectFilled = false;
                         }
+                    }
+                    else if (sub.mType == Content::fourCC("KWDA"))
+                    {
+                        // Task 0189: the keywords the vendor lists name. A list of 4 byte ids; at most 64 are kept.
+                        if (sub.mData.size() % 4 != 0)
+                            ++mOut.mOddSubrecords;
+                        else
+                            for (std::size_t i = 0;
+                                 i + 4 <= sub.mData.size() && item.mKeywords.size() < kMaxItemKeywords; i += 4)
+                                item.mKeywords.push_back(resolved(le32(sub.mData.data() + i)));
                     }
                     else if (sub.mType == Content::fourCC("EFIT") && type == Content::fourCC("ALCH"))
                     {

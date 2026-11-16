@@ -2,6 +2,7 @@
 #include "game_skyrimse/speech.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
+#include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
@@ -400,6 +401,8 @@ namespace game_skyrimse
                     if (mInventory != nullptr)
                     {
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
+                        if (mBarter != nullptr)
+                            mBarter->poll(); // task 0189: a pending barter session asks again
                         syncEquipment();
                     }
                 });
@@ -480,6 +483,8 @@ namespace game_skyrimse
                     }
                     // Task 0182: the inventory state and its script bindings, off unless [extension.skyrimse] inventory.
                     startInventory(host, logger);
+                    // Task 0189: the barter session (the namespace skyrimse.barter); needs the inventory.
+                    startBarter(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
                     startJournal(host, logger);
                     std::string error;
@@ -689,6 +694,35 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "INV the inventory is on");
+            }
+
+            // Task 0189: the barter service over the inventory (on whenever the inventory is).
+            void startBarter(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                if (mInventory == nullptr)
+                    return;
+                barter::ServiceHooks hooks;
+                hooks.mVendorOf = [this](FormId npc, barter::VendorInfo& out) { return mWorldView.vendorOf(npc, out); };
+                hooks.mSpeech = [this]() { return static_cast<float>(mWorldView.standInPlayerSpeech()); };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mBarter = std::make_unique<barter::BarterService>(*mInventory, std::move(hooks));
+                // a merchant offers its services (the barter line's GetOffersServicesNow condition), see dialogue.hpp
+                mWorldView.setVendorServicesLookup([this](FormId base) {
+                    barter::VendorInfo info;
+                    return mWorldView.vendorOf(base, info) == barter::VendorLookup::Ready;
+                });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mBarter->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the barter bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "BARTER the barter service is on");
             }
 
             // Task 0184: what the player wields and wears reaches the combat rules whenever it changes. A weapon whose
@@ -1021,6 +1055,7 @@ namespace game_skyrimse
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
+            std::unique_ptr<barter::BarterService> mBarter; // task 0189; refers to the inventory and the world view
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
             bool mEquipPending = false;

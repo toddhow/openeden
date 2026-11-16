@@ -102,6 +102,7 @@ namespace game_skyrimse
             float mWeight = 0.f;
             bool mDecoded = false; ///< false when the DATA subrecord was missing or of an unexpected size
             std::vector<ItemEffect> mEffects; ///< task 0184: ALCH only
+            std::vector<FormId> mKeywords; ///< task 0189: KWDA (the vendor lists name keywords); at most 64 are kept
         };
 
         struct ContainerStat

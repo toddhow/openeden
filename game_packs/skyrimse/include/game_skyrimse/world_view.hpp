@@ -23,6 +23,7 @@
 // are located Content::Error values or the `error` text of loadCell.
 
 #include <game_skyrimse/anim_motion.hpp>
+#include <game_skyrimse/barter.hpp>
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
@@ -396,6 +397,19 @@ namespace game_skyrimse
         /// Reads the actor index like describeActor (main thread).
         [[nodiscard]] bool npcInventory(FormId base, std::vector<InventoryEntry>& out);
 
+        // ---- task 0189 (barter)
+        /// The vendor data of an NPC_ base: its first faction (templates followed, SNAM order) whose FACT has a buy list
+        /// and a chest, with the chest REFR's base from the placed-reference table and the list's keywords from the
+        /// form lists. Pending until the conversation records are read (there is always a conversation first: barter
+        /// is a dialogue service); NotVendor for an NPC with no such faction or a chest the data does not know. Main
+        /// thread; the actor index is read on the first call like describeActor.
+        [[nodiscard]] barter::VendorLookup vendorOf(FormId npcBase, barter::VendorInfo& out);
+        /// A merchant's GetOffersServicesNow is true whatever its package (see SkyrimConditionWorld); set before the
+        /// first conversation or any time after.
+        void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
+        /// The speech skill of the stand-in player (the pack setting `player speech`).
+        [[nodiscard]] std::uint8_t standInPlayerSpeech() const { return mStandInSpeech; }
+
         // ---- task 0176 (Papyrus wiring)
         /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
         /// call and never waits: false means "ask again next frame"). Main thread.
@@ -526,6 +540,7 @@ namespace game_skyrimse
         struct DialogueState; ///< the data, the string tables and the runtime
         std::unique_ptr<DialogueState> mDialogue;
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
+        std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         bool mPackageWired = true;
         std::atomic<std::uint64_t> mPlacedRefsMillis{ 0 };
         void fillSpeakerCell(DialogueSpeaker& speaker, FormId cell) const; ///< interior flag and location of a cell

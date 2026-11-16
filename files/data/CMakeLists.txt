@@ -143,6 +143,7 @@ set(BUILTIN_DATA_FILES
     openeden/hud/skyrimcombat.lua
     scripts/openeden/skyrim_combat_hud.lua
     openeden/skyrimse/inventory_windows.lua
+    openeden/skyrimse/barter_windows.lua
     openeden/skyrimse/journal_windows.lua
 
     builtin.omwscripts
@@ -182,6 +183,8 @@ set(BUILTIN_DATA_FILES
     scripts/omw/ui.lua
     scripts/openeden/skyrimse/inventory_global.lua
     scripts/openeden/skyrimse/inventory_player.lua
+    scripts/openeden/skyrimse/barter_global.lua
+    scripts/openeden/skyrimse/barter_player.lua
     scripts/openeden/skyrimse/journal_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua

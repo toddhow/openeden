@@ -28,6 +28,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testuiframe.cpp
     ui/testuilist.cpp
     ui/testskyrimseinventorywindows.cpp
+    ui/testskyrimsebarterwindows.cpp
     ui/testskyrimsejournalwindows.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testuiqueue.cpp
@@ -588,6 +589,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseplacedrefsreal.cpp
     skyrimse/testskyrimseinventory.cpp
     skyrimse/testskyrimseinventorybindings.cpp
+    skyrimse/testskyrimsebarter.cpp
+    skyrimse/testskyrimsebarterreal.cpp
     skyrimse/testskyrimseinventoryequip.cpp
     skyrimse/testskyrimseinventoryequipreal.cpp
     skyrimse/testskyrimseinventoryreal.cpp
@@ -661,6 +664,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/placed_refs.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/inventory.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/inventory_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/journal.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/vmad.cpp

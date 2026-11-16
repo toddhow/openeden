@@ -755,6 +755,8 @@ namespace game_skyrimse
         raw->mRuntime->setPackages(&raw->mData->mPackages);
         if (mCurrentPackageLookup)
             raw->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
+        if (mVendorServicesLookup)
+            raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
         mDialogue = std::move(state);
         return true;
     }
@@ -1071,6 +1073,13 @@ namespace game_skyrimse
                 break;
             }
         }
+    }
+
+    void SkyrimWorldView::setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup)
+    {
+        mVendorServicesLookup = std::move(lookup);
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setVendorServicesLookup(mVendorServicesLookup);
     }
 
     void SkyrimWorldView::setCurrentPackageLookup(std::function<std::optional<FormId>(FormId reference)> lookup)
@@ -1966,6 +1975,39 @@ namespace game_skyrimse
             for (const FormId item : outfit->mItems)
                 out.push_back({ item, 1 });
         return true;
+    }
+
+    barter::VendorLookup SkyrimWorldView::vendorOf(FormId npcBase, barter::VendorInfo& out)
+    {
+        out = barter::VendorInfo();
+        if (!awaitIndex() || !ensureActorIndex())
+            return barter::VendorLookup::Pending;
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return barter::VendorLookup::Pending; // the placed references and form lists come with the conversation
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(npcBase, mStandInPlayerLevel, static_cast<std::uint32_t>(npcBase), resolved)
+            != ActorIndex::ResolveStatus::Ok)
+            return barter::VendorLookup::NotVendor;
+        for (const FactionMembership& membership : resolved.mFactions)
+        {
+            const FactionRecord* faction = mActorIndex->faction(membership.mFaction);
+            if (faction == nullptr || !faction->mVendor.isVendor())
+                continue;
+            const PlacedEntry* chest = mDialogue->mData->mPlacedRefs.find(faction->mVendor.mChest);
+            if (chest == nullptr || chest->mBase == kNullFormId || chest->mDeleted)
+                continue; // a faction whose chest the data does not place is no vendor
+            out.mFaction = membership.mFaction;
+            out.mChestRef = faction->mVendor.mChest;
+            out.mChestBase = chest->mBase;
+            out.mListIsExclusion = faction->mVendor.mListIsExclusion;
+            out.mBuysStolen = faction->mVendor.mBuysStolen;
+            out.mStartHour = faction->mVendor.mStartHour;
+            out.mEndHour = faction->mVendor.mEndHour;
+            if (const FormListRecord* list = mDialogue->mData->mDialogue.formList(faction->mVendor.mList))
+                out.mKeywords = list->mEntries;
+            return barter::VendorLookup::Ready;
+        }
+        return barter::VendorLookup::NotVendor;
     }
 
     std::string SkyrimWorldView::displayNameOf(sdkgame::WorldId base)

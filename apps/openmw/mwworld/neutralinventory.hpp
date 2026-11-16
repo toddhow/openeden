@@ -55,6 +55,14 @@ namespace MWWorld
     /// The fields of the event: placement, base, kind ("container") and name, in that order.
     [[nodiscard]] std::vector<NeutralInventoryEventField> neutralInventoryEventFields(
         std::uint64_t placement, std::uint64_t base, std::string_view kind, std::string_view name);
+
+    /// Task 0189: the merchant's barter line (a dialogue turn whose service is "barter") opens the barter window
+    /// instead of the conversation box when the neutral inventory is on.
+    inline constexpr std::string_view kNeutralBarterEvent = "openeden_skyrimse_barter_opened";
+    [[nodiscard]] bool decideNeutralBarter(std::string_view service, bool settingOn);
+    /// The fields of the barter event: the speaker's placement and base (hex text) and its name, in that order.
+    [[nodiscard]] std::vector<NeutralInventoryEventField> neutralBarterEventFields(
+        std::uint64_t placement, std::uint64_t npcBase, std::string_view name);
 }
 
 #endif

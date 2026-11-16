@@ -31,6 +31,18 @@ namespace MWWorld
         return inventory && inventory(key);
     }
 
+    bool decideNeutralBarter(std::string_view service, bool settingOn)
+    {
+        return settingOn && service == "barter";
+    }
+
+    std::vector<NeutralInventoryEventField> neutralBarterEventFields(
+        std::uint64_t placement, std::uint64_t npcBase, std::string_view name)
+    {
+        return { { "placement", neutralHexId(placement) }, { "base", neutralHexId(npcBase) },
+            { "name", std::string(name) } };
+    }
+
     std::string neutralHexId(std::uint64_t id)
     {
         char buffer[24];
