@@ -102,6 +102,7 @@ namespace MWGui
         bool mWorldMouseOver = false;
         bool mIsDrowning = false;
         ReplacedHudParts mReplaced;
+        bool mMinimapWanted = true; // task 0244: what was last asked of the minimap, restored when it is no longer replaced
 
         void onWorldClicked(MyGUI::Widget* sender);
         void onWorldMouseOver(MyGUI::Widget* sender, int x, int y);

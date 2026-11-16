@@ -820,8 +820,16 @@ namespace game_skyrimse
             bool mDemoralized = false;
             std::uint8_t mWeaponClass = 0; ///< task 0214: the clip class the fighter swings with (0: unknown)
             bool mHasShield = false;
+            std::uint16_t mLevel = 1; ///< task 0244: the level of its profile (read only)
+            /// Task 0244: fighting now (a blow given or taken lately, or an engaged AI actor or test hostile).
+            bool mEngaged = false;
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
+        /// Task 0244 (read only): calls `visit` for every actor fighter that is ready (the player is left out). The
+        /// visitor must not call back into this object.
+        using FighterVisitor
+            = std::function<void(const openeden::sdk::game::CombatSubject&, const FighterView&)>;
+        void forEachFighter(const FighterVisitor& visit) const;
 
         // ---- task 0210 (waiting and sleeping)
         /// Queues a rest of `seconds` real seconds of regeneration (what the game hours stood for): at the next update
@@ -910,6 +918,7 @@ namespace game_skyrimse
             AbilityNumbers mAbilities; ///< task 0241: the player's held abilities and blessings (player only)
             bool mHasAbilities = false; ///< mAbilities holds something
         };
+        [[nodiscard]] bool isEngagedNow(const Fighter& f) const; // task 0244
         /// A bow event (BowDrawn or the release) seen since the last combatUpdate: acted on there.
         struct PendingBow
         {

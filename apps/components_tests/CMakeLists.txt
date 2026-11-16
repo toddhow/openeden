@@ -588,6 +588,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseeffectconditions2.cpp
     skyrimse/testskyrimsecombatbow.cpp
     skyrimse/testskyrimsecombathud.cpp
+    skyrimse/testskyrimsehudstyle.cpp
     skyrimse/testskyrimseprogression.cpp
     skyrimse/testskyrimseprogressionservice.cpp
     skyrimse/testskyrimsecrime.cpp
@@ -621,6 +622,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepickpocketcrime.cpp
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
+    ui/testuihudstyle.cpp
     ui/testuicombathudcrosshair.cpp
     skyrimse/testskyrimseactormechanics.cpp
     skyrimse/testskyrimseactormechanicsreal.cpp
@@ -833,6 +835,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/follower.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud_style.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime.cpp

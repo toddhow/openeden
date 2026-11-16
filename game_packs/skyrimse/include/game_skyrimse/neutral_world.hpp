@@ -15,6 +15,7 @@
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/hud.hpp>
+#include <game_skyrimse/hud_style.hpp>
 #include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
@@ -295,7 +296,7 @@ namespace game_skyrimse
             mCombat.onActorAdded(info);
             // Task 0180: the name the enemy bar shows (FULL name when the record has one, else the editor id).
             std::string name = displayNameOf(info.base);
-            mHud.actorAdded(info.handle, name.empty() ? info.editorId : std::string_view(name));
+            mHud.actorAdded(info.handle, name.empty() ? info.editorId : std::string_view(name), info.editorId);
         }
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override
         {
@@ -416,6 +417,8 @@ namespace game_skyrimse
             else
                 mCombat.combatUpdate(seconds, scriptWriter);
             mHud.update(seconds, writer);
+            if (mStyleHud != nullptr)
+                mStyleHud->update(seconds, writer); // task 0244: after the HUD's own update
         }
         /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
         void onClipFinished(
@@ -436,6 +439,7 @@ namespace game_skyrimse
         void setCrime(crime::CrimeSystem* system) { mCrime = system; }
         /// Task 0227: sneaking and detection (null: off). The system must outlive the cell source's use of it.
         void setSneak(sneak::SneakSystem* system) { mSneak = system; }
+        void setStyleHud(hudstyle::StyleHud* hud) { mStyleHud = hud; } // task 0244; not owned
         /// Task 0235: told the player's state once a combat update (empty: off).
         using StanceSink = std::function<void(const openeden::sdk::game::SubjectState&)>;
         void setStanceSink(StanceSink sink) { mStanceSink = std::move(sink); }
@@ -532,6 +536,7 @@ namespace game_skyrimse
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204
         sneak::SneakSystem* mSneak = nullptr; ///< task 0227
+        hudstyle::StyleHud* mStyleHud = nullptr; ///< task 0244
         StanceSink mStanceSink; ///< task 0235
         std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<bool(std::uint64_t)> mLockPicked; // task 0203

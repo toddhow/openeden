@@ -4,6 +4,8 @@
 -- and this script does nothing).
 local okUi, ui = pcall(require, 'openeden.ui')
 if not okUi then return {} end
+-- Task 0244: the restyled HUD (the pack setting `hud style`) draws everything this one does, so this one steps aside
+if pcall(require, 'core.skyrimse.hudstyle') then return {} end
 local combat = require('core.skyrimse.combat')
 local hud = require('openeden.hud.skyrimcombat').create(ui, combat)
 

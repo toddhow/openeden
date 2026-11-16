@@ -1383,6 +1383,8 @@ namespace game_skyrimse
                     // Task 0227: sneaking and detection (the namespace skyrimse.sneak), off unless
                     // [extension.skyrimse] sneak; crime and pickpocketing ask it who has noticed the player.
                     startSneak(host, logger);
+                    // Task 0244: the Skyrim-style combat HUD's numbers (the namespace skyrimse.hudstyle).
+                    startHudStyle(host, logger);
                     wirePapyrusWorld(host, logger);
                     // Task 0237: standing stones and shrines (the Papyrus host's spells, messages and blessings)
                     startStones(host, logger);
@@ -2701,6 +2703,37 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "CRIME crime rules are on");
             }
 
+            // Task 0244: the restyled combat HUD (the namespace skyrimse.hudstyle). Off unless
+            // [extension.skyrimse] hud style; it needs the combat rules ([Game] neutral combat) for its numbers.
+            void startHudStyle(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "hud style", false))
+                    return;
+                hudstyle::StyleHud::Source source;
+                source.mFighters = [this](const SkyrimCombat::FighterVisitor& visit) {
+                    mCellSource.combat().forEachFighter(visit);
+                };
+                source.mLookup = [this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
+                    return mCellSource.combat().fighterView(subject, out);
+                };
+                source.mIsAlly = [this](openeden::sdk::game::WorldId reference) {
+                    return mCellSource.isFollower(reference);
+                };
+                mStyleHud = std::make_unique<hudstyle::StyleHud>(mCellSource.hud(), std::move(source));
+                mCellSource.setStyleHud(mStyleHud.get());
+                mStyleBindings = std::make_unique<hudstyle::StyleBindings>(*mStyleHud);
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mStyleBindings->declareTo(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the HUD style bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "HUDSTYLE the Skyrim-style combat HUD is on");
+            }
+
             // Task 0227: sneaking and detection. Needs `[Game] neutral combat` (the engine hands the pack the player's
             // stance only through the combat bridge).
             void startSneak(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
@@ -3905,6 +3938,8 @@ namespace game_skyrimse
             bool mPlayerSpellFromSetting = false;
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
+            std::unique_ptr<hudstyle::StyleHud> mStyleHud; // task 0244; refers to the cell source's HUD and combat
+            std::unique_ptr<hudstyle::StyleBindings> mStyleBindings;
             std::unique_ptr<sneak::SneakSystem> mSneak; // task 0227; refers to the cell source, inventory, progression
             std::unique_ptr<sneak::SneakBindings> mSneakBindings;
             std::unique_ptr<barks::BarkSystem> mBarks; // task 0231; refers to the cell source and the world view

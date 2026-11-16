@@ -42,6 +42,8 @@ NPC,CREATURE: scripts/omw/music/actor.lua
 PLAYER REQUIRES=core.skyrimse.combat>=1.0: scripts/openeden/skyrim_combat_hud.lua
 # Task 0227: the sneak eye and the sneak attack message (the pack setting [extension.skyrimse] sneak)
 PLAYER REQUIRES=core.skyrimse.sneak>=1.0: scripts/openeden/skyrim_sneak_hud.lua
+# Task 0244: the restyled combat HUD (the pack setting [extension.skyrimse] hud style)
+PLAYER REQUIRES=core.skyrimse.hudstyle>=1.0: scripts/openeden/skyrim_hud_style.lua
 # Skyrim SE inventory and container windows (task 0182); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.inventory>=1.1: scripts/openeden/skyrimse/inventory_global.lua
 PLAYER REQUIRES=core.skyrimse.inventory>=1.1: scripts/openeden/skyrimse/inventory_player.lua

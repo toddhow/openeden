@@ -341,6 +341,11 @@
       "default": 0
     },
     {
+      "key": "hud style",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "sneak",
       "type": "bool",
       "default": false

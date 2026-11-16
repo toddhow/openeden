@@ -1,5 +1,6 @@
 #include <game_skyrimse/hud.hpp>
 
+#include <cctype>
 #include <cmath>
 
 namespace game_skyrimse
@@ -30,6 +31,30 @@ namespace game_skyrimse
         }
     }
 
+    bool hudBossRule(std::string_view editorId)
+    {
+        auto lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
+        constexpr std::string_view kBoss = "boss";
+        constexpr std::string_view kDragon = "dragon";
+        if (editorId.size() >= kDragon.size())
+        {
+            bool prefix = true;
+            for (std::size_t i = 0; i < kDragon.size() && prefix; ++i)
+                prefix = lower(editorId[i]) == kDragon[i];
+            if (prefix)
+                return true;
+        }
+        for (std::size_t i = 0; i + kBoss.size() <= editorId.size(); ++i)
+        {
+            bool match = true;
+            for (std::size_t j = 0; j < kBoss.size() && match; ++j)
+                match = lower(editorId[i + j]) == kBoss[j];
+            if (match)
+                return true;
+        }
+        return false;
+    }
+
     CombatHud::CombatHud()
     {
         mActors.reserve(kMaxHudActors);
@@ -53,6 +78,30 @@ namespace game_skyrimse
         if (mActors.size() >= kMaxHudActors)
             return;
         mActors.push_back(Entry{ handle, cutName(name) });
+    }
+
+    void CombatHud::actorAdded(ActorHandle handle, std::string_view name, std::string_view editorId)
+    {
+        actorAdded(handle, name);
+        for (Entry& entry : mActors)
+            if (entry.mHandle == handle)
+                entry.mBoss = hudBossRule(editorId);
+    }
+
+    std::string_view CombatHud::nameOf(ActorHandle handle) const
+    {
+        for (const Entry& entry : mActors)
+            if (entry.mHandle == handle)
+                return entry.mName;
+        return {};
+    }
+
+    bool CombatHud::isBoss(ActorHandle handle) const
+    {
+        for (const Entry& entry : mActors)
+            if (entry.mHandle == handle)
+                return entry.mBoss;
+        return false;
     }
 
     void CombatHud::actorRemoved(ActorHandle handle)

@@ -12,6 +12,7 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -497,7 +498,7 @@ namespace MWGui
 
     void HUD::setSneakVisible(bool visible)
     {
-        mSneakBox->setVisible(visible);
+        mSneakBox->setVisible(visible && !mReplaced.mSneak); // task 0244
         updatePositions();
     }
 
@@ -509,7 +510,8 @@ namespace MWGui
 
     void HUD::setMinimapVisible(bool visible)
     {
-        mMinimapBox->setVisible(visible);
+        mMinimapWanted = visible;
+        mMinimapBox->setVisible(visible && !mReplaced.mMinimap); // task 0244
         updatePositions();
     }
 
@@ -585,7 +587,13 @@ namespace MWGui
             const MWWorld::Ptr player = MWMechanics::getPlayer();
             neutral = !player.isEmpty() && player.isInCell() && player.getCell()->isNeutral();
         }
-        const ReplacedHudParts now = replacedHudParts(neutral, wanted, wanted);
+        // Task 0244: the pack's own settings (the pack reads them from [extension.skyrimse]; the engine only needs to know
+        // which Morrowind pieces its HUD style replaces).
+        const bool hudStyle
+            = wanted && Settings::Manager::getOrDefault<bool>("hud style", "extension.skyrimse", false);
+        const bool sneakEye = hudStyle && Settings::Manager::getOrDefault<bool>("sneak", "extension.skyrimse", false);
+        const bool compass = hudStyle && Settings::Manager::getOrDefault<bool>("map", "extension.skyrimse", false);
+        const ReplacedHudParts now = replacedHudParts(neutral, wanted, wanted, hudStyle, sneakEye, compass);
 
         // Parts that stop being replaced (a save of another game was loaded) come back.
         if (mReplaced.mStats && !now.mStats)
@@ -597,6 +605,11 @@ namespace MWGui
         }
         if (mReplaced.mCrosshair && !now.mCrosshair)
             mCrosshair->setVisible(Settings::hud().mCrosshair);
+        if (mReplaced.mMinimap && !now.mMinimap)
+        {
+            mReplaced = now;
+            setMinimapVisible(mMinimapWanted);
+        }
         mReplaced = now;
 
         if (mReplaced.mStats && mHealth->getVisible())
@@ -608,6 +621,13 @@ namespace MWGui
             if (mSpellBox->getVisible())
                 setSpellVisible(false);
             mWeaponSpellBox->setVisible(false); // the name that pops up when a weapon or spell is selected
+        }
+        if (mReplaced.mSneak && mSneakBox->getVisible())
+            mSneakBox->setVisible(false);
+        if (mReplaced.mMinimap && mMinimapBox->getVisible())
+        {
+            mMinimapBox->setVisible(false);
+            updatePositions();
         }
         if (mReplaced.mCrosshair && mCrosshair->getVisible())
             mCrosshair->setVisible(false); // WindowManager::showCrosshair shows it again on a mode change

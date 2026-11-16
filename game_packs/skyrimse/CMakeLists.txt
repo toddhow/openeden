@@ -66,6 +66,7 @@ openeden_add_game_pack(skyrimse
         src/combat_gear.cpp
         src/combat_skills.cpp
         src/hud.cpp
+        src/hud_style.cpp
         src/progression.cpp
         src/progression_service.cpp
         src/crime.cpp
@@ -268,6 +269,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_gear.cpp
     src/combat_skills.cpp
     src/hud.cpp
+    src/hud_style.cpp
     src/progression.cpp
     src/progression_service.cpp
     src/crime.cpp

@@ -919,7 +919,35 @@ namespace game_skyrimse
         out.mDemoralized = f->mDemoralizedUntil >= 0.f;
         out.mWeaponClass = mRealGear ? clipClassOf(*f) : std::uint8_t(0); // task 0214
         out.mHasShield = hasShield(*f);
+        out.mLevel = f->mProfile.mLevel;
+        out.mEngaged = isEngagedNow(*f);
         return true;
+    }
+
+    bool SkyrimCombat::isEngagedNow(const Fighter& f) const
+    {
+        if (f.mSubject.player)
+            return false;
+        if (mClock < f.mCombatUntil)
+            return true;
+        for (const AiActor& actor : mAiActors)
+            if (actor.mHandle == f.mSubject.actor && !actor.mGiveUp)
+                return true;
+        for (const ActorHandle& handle : mHostiles)
+            if (handle == f.mSubject.actor)
+                return true;
+        return false;
+    }
+
+    void SkyrimCombat::forEachFighter(const FighterVisitor& visit) const
+    {
+        FighterView view;
+        for (const Fighter& f : mFighters)
+        {
+            if (f.mSubject.player || !fighterView(f.mSubject, view))
+                continue;
+            visit(f.mSubject, view);
+        }
     }
 
     bool SkyrimCombat::ready(Fighter& fighter)

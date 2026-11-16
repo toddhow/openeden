@@ -11,8 +11,10 @@ namespace MWGui
         bool mWeaponSpell = false; ///< the selected weapon and spell icons (they name Morrowind items and spells)
         bool mEnemy = false; ///< the enemy health bar
         bool mCrosshair = false; ///< the MyGUI crosshair (the combat HUD draws its own)
+        bool mSneak = false; ///< task 0244: Morrowind's sneak icon (the sneak eye replaces it)
+        bool mMinimap = false; ///< task 0244: the minimap (the compass replaces it)
 
-        bool any() const { return mStats || mWeaponSpell || mEnemy || mCrosshair; }
+        bool any() const { return mStats || mWeaponSpell || mEnemy || mCrosshair || mSneak || mMinimap; }
     };
 
     /// `playerInNeutralCell`: the player stands in a cell of a game pack's neutral world (a Morrowind session never
@@ -20,7 +22,11 @@ namespace MWGui
     /// combat HUD is drawn by the RmlUi overlay for the player script of that combat, so it needs both.
     /// Everything else stays: the minimap, cell name, active effects, sneak indicator and drowning bar have no
     /// replacement. (The crosshair was kept while the combat HUD's own drew nothing: RmlUi's rgba() alpha is 0 to 255.)
-    ReplacedHudParts replacedHudParts(bool playerInNeutralCell, bool neutralCombat, bool rmlui);
+    ///
+    /// Task 0244: with the pack setting `hud style` (`hudStyle`) the sneak icon goes too when the pack's sneak eye is on
+    /// (`sneakEye`), and the minimap when its compass is (`compass`). Without `hudStyle` the answer is what it was.
+    ReplacedHudParts replacedHudParts(bool playerInNeutralCell, bool neutralCombat, bool rmlui, bool hudStyle = false,
+        bool sneakEye = false, bool compass = false);
 }
 
 #endif

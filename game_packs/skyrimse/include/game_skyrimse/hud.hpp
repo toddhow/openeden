@@ -36,6 +36,10 @@ namespace game_skyrimse
     /// Seconds the enemy bar stays after the last hit given or taken, and after its target dies (ours, tunable).
     inline constexpr float kHudEnemyBarSeconds = 6.f;
     inline constexpr float kHudDeadBarSeconds = 2.f;
+    /// Task 0244: the boss rule. The data has no boss flag (Skyrim.esm marks bosses only by name: DraugrBoss,
+    /// BanditBoss, LCharWarlock*Boss*, Dragon_Boss, and by the ActorTypeDragon keyword), so an actor is a boss when
+    /// its base editor id contains "boss" or starts with "dragon" (case-insensitive). The rule is ours.
+    [[nodiscard]] bool hudBossRule(std::string_view editorId);
     /// The longest actor name the HUD keeps (UTF-8 bytes); a longer one is cut at a character boundary.
     inline constexpr std::size_t kMaxHudNameBytes = 64;
     /// Actors whose names the HUD remembers; beyond it a new actor is shown with no name.
@@ -75,6 +79,8 @@ namespace game_skyrimse
 
         /// An actor entered or left the world. The name is what the bar says (cut to kMaxHudNameBytes).
         void actorAdded(openeden::sdk::game::ActorHandle handle, std::string_view name);
+        /// Task 0244: the same, with the editor id the boss rule reads (hudBossRule).
+        void actorAdded(openeden::sdk::game::ActorHandle handle, std::string_view name, std::string_view editorId);
         void actorRemoved(openeden::sdk::game::ActorHandle handle);
 
         /// A hit the pack resolved. The enemy is the other side when exactly one side is the player; a hit between
@@ -91,11 +97,18 @@ namespace game_skyrimse
         [[nodiscard]] std::string_view enemyName() const { return mEnemyName; }
         void values(std::array<double, kHudValueCount>& out) const;
 
+        /// Task 0244 (read only): the remembered name of an actor ("" when unknown) and whether the boss rule holds.
+        [[nodiscard]] std::string_view nameOf(openeden::sdk::game::ActorHandle handle) const;
+        [[nodiscard]] bool isBoss(openeden::sdk::game::ActorHandle handle) const;
+        /// The actor the enemy bar shows (an invalid handle when none).
+        [[nodiscard]] openeden::sdk::game::ActorHandle target() const { return mSnapshot.mEnemyShown ? mTarget : openeden::sdk::game::ActorHandle{}; }
+
     private:
         struct Entry
         {
             openeden::sdk::game::ActorHandle mHandle;
             std::string mName;
+            bool mBoss = false;
         };
         FighterLookup mLookup;
         std::vector<Entry> mActors;
