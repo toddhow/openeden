@@ -13,6 +13,7 @@
 
 #include "backgroundimage.hpp"
 #include "menureplacement.hpp"
+#include "sessionpolicy.hpp"
 
 namespace MWGui
 {
@@ -45,10 +46,14 @@ namespace MWGui
         }
     }
 
+    bool LoadingScreen::packLoadingScreen()
+    {
+        return !MenuReplacement::loadingTip().empty() || SessionPresentation::currentPolicy().usesPackTheme();
+    }
+
     void LoadingScreen::setLabel(const std::string& label, bool offset)
     {
-        mLoadingText->setCaptionWithReplacing(
-            MenuReplacement::loadingLabel(label, !MenuReplacement::loadingTip().empty()));
+        mLoadingText->setCaptionWithReplacing(MenuReplacement::loadingLabel(label, packLoadingScreen()));
         int padding = mLoadingBox->getWidth() - mLoadingText->getWidth();
         MyGUI::IntSize size(mLoadingText->getTextSize().width + padding, mLoadingBox->getHeight());
         size.width = std::max(300, size.width);
@@ -66,7 +71,9 @@ namespace MWGui
     {
         const std::string tip = MenuReplacement::loadingTip();
         // Task 0207: with a tip handed over (a game pack's own menus) the Morrowind wallpapers stay away
-        mSplashImage->setVisible(showWallpaper && tip.empty());
+        // Task 0215: and so do the pack's menus before the first tip is ready (a black screen, never Morrowind's art)
+        const bool packScreen = !tip.empty() || packLoadingScreen();
+        mSplashImage->setVisible(showWallpaper && !packScreen);
 
         // Task 0207: the tip a game pack's menu script handed over (text only; empty in every other session)
         if (tip != mShownTip)
@@ -76,7 +83,7 @@ namespace MWGui
             mTipText->setVisible(!tip.empty());
         }
         // black where the wallpaper would be (a load that shows the game behind it keeps showing it)
-        mTipBackground->setVisible(showWallpaper && !tip.empty());
+        mTipBackground->setVisible(showWallpaper && packScreen);
         if (showWallpaper)
         {
             mChangeWallpaperCountdown -= dt;

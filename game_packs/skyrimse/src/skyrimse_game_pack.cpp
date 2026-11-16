@@ -13,6 +13,7 @@
 #include "game_skyrimse/lockbooks_service.hpp"
 #include "game_skyrimse/rest.hpp"
 #include "game_skyrimse/menus.hpp"
+#include "game_skyrimse/presentation.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -1057,6 +1058,9 @@ namespace game_skyrimse
                     startRest(host, logger);
                     // Task 0207: the loading screen tips of the menu script, off unless [extension.skyrimse] menus.
                     startMenus(host, logger);
+                    // Task 0215: tells the scripts that the session has its own menus or music (Morrowind's music
+                    // script gives way), off unless [extension.skyrimse] menus or music.
+                    startPresentation(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1425,6 +1429,31 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MENUS the menus and loading tips are on");
+            }
+
+            // Task 0215: the namespace skyrimse.presentation, declared when menus or music is on.
+            void startPresentation(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr)
+                    return;
+                presentation::Flags flags;
+                flags.mMenus = settings->getBool(kPackId, "menus", false);
+                flags.mMusic = settings->getBool(kPackId, "music", false);
+                if (!flags.declared())
+                    return;
+                mPresentation = std::make_unique<presentation::PresentationService>(flags);
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mPresentation->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the presentation bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info,
+                        std::string("PRESENTATION menus ") + (flags.mMenus ? "on" : "off") + ", music "
+                            + (flags.mMusic ? "on" : "off") + ": Morrowind's music script gives way");
             }
 
             // Task 0210: waiting and sleeping. The rules are `rest.*`; this wires them to the combat (who may rest, who
@@ -2551,6 +2580,7 @@ namespace game_skyrimse
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
+            std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184

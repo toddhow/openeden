@@ -62,6 +62,7 @@
 #include <components/render/defaultsampler.hpp>
 
 #include "boot.hpp"
+#include "mwgui/sessionpolicy.hpp"
 #include "extensionhost.hpp"
 
 namespace
@@ -165,7 +166,11 @@ namespace OMW
                 {
                     mRmluiThemeSeen = theme;
                     mRmluiVariantsSeen = variants;
-                    mRmlUi->setTheme(theme, variants);
+                    // Task 0215: the theme the session's presentation policy picks for the configured one
+                    const auto& policy = MWGui::SessionPresentation::currentPolicy();
+                    mRmlUi->setTheme(MWGui::SessionPresentation::chooseTheme(policy, theme,
+                                         MWGui::SessionPresentation::packThemeSetting(mExtensionHost->gamePackId())),
+                        variants);
                 }
             }
         }
@@ -581,10 +586,14 @@ namespace OMW
                 overlayConfig.mPlainBitmapFont = std::string(Fallback::Map::getString("Fonts_Font_1")); // task 0208
                 overlayConfig.mEncoding = args.encoding;
                 overlayConfig.mGuiScale = Settings::gui().mScalingFactor;
-                overlayConfig.mTheme = Settings::gui().mRmluiTheme.get();
+                // Task 0215: a game pack's session with its own menus uses the pack's theme in place of the default one
+                // (the plain font, see files/data/ui/themes/skyrim); every other session keeps the configured theme.
+                overlayConfig.mTheme = MWGui::SessionPresentation::chooseTheme(
+                    MWGui::SessionPresentation::currentPolicy(), Settings::gui().mRmluiTheme.get(),
+                    MWGui::SessionPresentation::packThemeSetting(mExtensionHost->gamePackId()));
                 overlayConfig.mThemeVariants = Settings::gui().mRmluiThemeVariants.get();
                 overlayConfig.mThemeReloadSeconds = Settings::gui().mRmluiThemeReloadInterval;
-                mRmluiThemeSeen = overlayConfig.mTheme;
+                mRmluiThemeSeen = Settings::gui().mRmluiTheme.get(); // the configured name (compared each frame)
                 mRmluiVariantsSeen = overlayConfig.mThemeVariants;
                 overlayConfig.mDebugPanel = Settings::gui().mRmluiDebugPanel;
                 const VkExtent2D extent = mRenderEngine->extent2D();

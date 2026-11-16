@@ -1,3 +1,11 @@
+-- Task 0215: a game pack's session with its own menus or music has its own (or no) music: this script's playlists name
+-- Morrowind's folders (a Skyrim session that mounts Skyrim's sounds archive played Skyrim's files from them). The pack
+-- declares `core.skyrimse.presentation` only when its `menus` or `music` setting is on; without it, as before.
+local okPresentation, presentation = pcall(require, 'core.skyrimse.presentation')
+if okPresentation and presentation.owns_music() then
+    return {}
+end
+
 local ambient = require('openmw.ambient')
 local core = require('openmw.core')
 local self = require('openmw.self')

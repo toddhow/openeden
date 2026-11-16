@@ -3,6 +3,7 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/statemanager.hpp"
+#include "../mwgui/sessionpolicy.hpp"
 #include "../mwsound/constants.hpp"
 
 namespace MWState
@@ -19,7 +20,10 @@ namespace MWState
 
         // TODO: could we split up this class into Menu/MenuSplash classes, and retire the StateManager::mState
         // variable?
-        if (state == MWBase::StateManager::State_NoGame && !soundMgr->isMusicPlaying())
+        // Task 0215: a game pack's own menus or music replace Morrowind's title music (SoundManager::update plays the
+        // pack's theme)
+        if (state == MWBase::StateManager::State_NoGame && !soundMgr->isMusicPlaying()
+            && !MWGui::SessionPresentation::currentPolicy().replacesTitleMusic())
         {
             soundMgr->streamMusic(MWSound::titleMusic, MWSound::MusicType::Normal);
         }

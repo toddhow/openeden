@@ -7,8 +7,10 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/vfs/manager.hpp>
 
 #include "mwbase/soundmanager.hpp"
+#include "mwgui/sessionpolicy.hpp"
 #include "mwstate/executescript.hpp"
 #include "mwstate/loading.hpp"
 #include "mwstate/menu.hpp"
@@ -63,7 +65,16 @@ namespace OMW
             bool threadRunning = ThreadLoading::run(dt);
             if (!mPlayedLogo && !mArgs.skipMenu)
             {
-                auto logo = Fallback::Map::getString("Movies_Company_Logo");
+                // Task 0215: a game pack's session with its own menus plays no Morrowind movie (its own logo only,
+                // when the file is in the data); the trace line says which movie a session plays.
+                const MWGui::SessionPresentation::Policy& policy = MWGui::SessionPresentation::currentPolicy();
+                const std::string packLogo = "Video/" + std::string(MWGui::SessionPresentation::kPackLogoMovie);
+                const bool packLogoExists = policy.skipsMorrowindIntro()
+                    && mEngine.mVFS->exists(VFS::Path::Normalized(packLogo));
+                const std::string morrowindLogo = std::string(Fallback::Map::getString("Movies_Company_Logo"));
+                const std::string logo(MWGui::SessionPresentation::companyLogo(
+                    policy, morrowindLogo, MWGui::SessionPresentation::kPackLogoMovie, packLogoExists));
+                Log(Debug::Info) << "Intro movie: company logo '" << logo << "'";
                 if (!logo.empty())
                     mEnvironment.getWindowManager()->playVideo(logo, true);
                 mPlayedLogo = true;
@@ -90,7 +101,9 @@ namespace OMW
                 // The main menu state streams the title music, as OpenMW 0.51's engine did here.
                 mEngine.mStateManager->setNeutralStartPlace(mArgs.cellName); // task 0207: New Game of a neutral world
                 mEngine.mStateManager->mainMenu();
-                auto logo = Fallback::Map::getString("Movies_Morrowind_Logo");
+                const std::string logo(MWGui::SessionPresentation::gameLogo(
+                    MWGui::SessionPresentation::currentPolicy(), Fallback::Map::getString("Movies_Morrowind_Logo")));
+                Log(Debug::Info) << "Intro movie: game logo '" << logo << "'";
                 if (!logo.empty())
                     mEnvironment.getWindowManager()->playVideo(logo, true, false);
             }

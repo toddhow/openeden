@@ -19,6 +19,8 @@ namespace MWGui
 
         void setLabel(const std::string& label, bool offset);
         void update(float complete, float dt, bool showWallpaper);
+        /// Task 0215: a game pack's own menus draw the loading screen (a tip is there, or the pack's menus are on).
+        static bool packLoadingScreen();
 
     private:
         float mChangeWallpaperCountdown = 0;

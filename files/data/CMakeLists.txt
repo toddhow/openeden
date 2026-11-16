@@ -63,6 +63,7 @@ set(BUILTIN_DATA_FILES
     ui/document.rml
     ui/themes/neutral/theme.rcss
     ui/themes/high-contrast/theme.rcss
+    ui/themes/skyrim/theme.rcss
     ui/variants/large-text.rcss
     ui/variants/small-text.rcss
 
@@ -203,6 +204,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/journal_player.lua
     scripts/openeden/skyrimse/papyrus_player.lua
     scripts/openeden/skyrimse/skills_player.lua
+    scripts/openeden/skyrimse/presentation_player.lua
+    openeden/skyrimse/level_mirror.lua
     scripts/openeden/skyrimse/lockpick_global.lua
     scripts/openeden/skyrimse/lockpick_player.lua
     scripts/openeden/skyrimse/books_global.lua

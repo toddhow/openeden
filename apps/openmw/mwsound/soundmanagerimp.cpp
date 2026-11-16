@@ -25,6 +25,8 @@
 
 #include "../mwmechanics/actorutil.hpp"
 
+#include "../mwgui/sessionpolicy.hpp"
+
 #include "constants.hpp"
 #include "ffmpegdecoder.hpp"
 #include "openaloutput.hpp"
@@ -1116,8 +1118,17 @@ namespace MWSound
 
         if (isMainMenu && !isMusicPlaying())
         {
-            if (mVFS->exists(MWSound::titleMusic))
-                streamMusic(MWSound::titleMusic, MWSound::MusicType::Normal);
+            // Task 0215: a game pack's session with its own menus or music plays its main theme (or nothing), never
+            // Morrowind's title music; every other session is as before.
+            const MWGui::SessionPresentation::Policy& policy = MWGui::SessionPresentation::currentPolicy();
+            const VFS::Path::NormalizedView packTheme("music/special/mus_maintheme.xwm"); // kPackThemeFile
+            if (!policy.replacesTitleMusic())
+            {
+                if (mVFS->exists(MWSound::titleMusic))
+                    streamMusic(MWSound::titleMusic, MWSound::MusicType::Normal);
+            }
+            else if (policy.playsPackTheme() && mVFS->exists(packTheme))
+                streamMusic(packTheme, MWSound::MusicType::Normal);
         }
 
         updateSounds(duration);

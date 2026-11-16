@@ -108,6 +108,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testmapdepthrange.cpp
     mwgui/testlocalmapcell.cpp
     mwgui/testmenureplacement.cpp
+    mwgui/testsessionpresentation.cpp
     mwrender/testpartcontrollers.cpp
     mwrender/testpartclocks.cpp
     mwrender/testactorautoplay.cpp

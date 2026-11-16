@@ -68,6 +68,8 @@ PLAYER REQUIRES=core.skyrimse.lockbooks>=1.0: scripts/openeden/skyrimse/books_pl
 # Skyrim SE item pickup and pickpocketing (task 0208): the namespace is declared with the inventory.
 GLOBAL REQUIRES=core.skyrimse.pickup>=1.0: scripts/openeden/skyrimse/pickup_global.lua
 PLAYER REQUIRES=core.skyrimse.pickup>=1.0: scripts/openeden/skyrimse/pickup_player.lua
+# Skyrim SE: the player's level stat follows the progression so that saves show it (task 0215)
+PLAYER REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/presentation_player.lua
 # Skyrim SE waiting and sleeping (task 0210); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.rest>=1.0: scripts/openeden/skyrimse/rest_global.lua
 PLAYER REQUIRES=core.skyrimse.rest>=1.0: scripts/openeden/skyrimse/rest_player.lua

@@ -34,6 +34,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsemapwindows.cpp
     ui/testskyrimserestwindows.cpp
     ui/testskyrimsemenuswindows.cpp
+    ui/testskyrimsepresentationlua.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testskyrimselockpickwindow.cpp
     ui/testskyrimsebookwindow.cpp
@@ -643,6 +644,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimserest.cpp
     skyrimse/testskyrimsecombatrest.cpp
     skyrimse/testskyrimsemenus.cpp
+    skyrimse/testskyrimsepresentation.cpp
     skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
@@ -726,6 +728,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map_markers.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/rest.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/menus.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/presentation.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story_events.cpp
@@ -857,6 +860,7 @@ if (TARGET openeden_rmlui)
         ui_rml/testuirmlprotocol.cpp
         ui_rml/testuiinput.cpp
         ui_rml/testuitheme.cpp
+    ui_rml/testuithemeskyrim.cpp
         ui_rml/testuiwidgetsheet.cpp
         ui_rml/testuifontfamilies.cpp
         ui_rml/testuiwrappedtext.cpp

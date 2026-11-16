@@ -1,0 +1,50 @@
+/* OpenEden UI theme "skyrim" (task 0215): the "neutral" theme with the plain face. Morrowind's Magic Cards font draws a capital
+ * P that reads as a D, and the windows of a Skyrim session are full of them ("Pay", "Perks"), so the whole theme uses the game's
+ * second font (UiRml::kPlainFontFamily, Century Gothic) instead. A neutral session with [extension.skyrimse] menus uses it
+ * unless the user names another theme or sets [extension.skyrimse] ui theme = neutral. Every token as in "neutral". */
+body {
+    --font-family: MorrowindPlain;
+    --font-size-sm: 12dp;
+    --font-size-md: 16dp;
+    --font-size-lg: 20dp;
+
+    --space-1: 1dp;
+    --space-2: 2dp;
+    --space-3: 3dp;
+    --space-4: 4dp;
+    --space-5: 6dp;
+    --space-6: 8dp;
+    --space-7: 12dp;
+    --space-8: 16dp;
+
+    --radius-sm: 0dp;
+    --radius-md: 0dp;
+    --border-width: 0dp;
+    --control-height: 22dp;
+    --scrollbar-width: 8dp;
+
+    --color-surface: #000000b4;
+    --color-surface-sunken: #00000060;
+    --color-text: #dfc99a;
+    --color-text-strong: #ffffff;
+    --color-text-muted: #a89878;
+    --color-text-ok: #a8d8a0;
+    --color-text-info: #9ec3d8;
+    --color-control: #3a2f20;
+    --color-control-hover: #5a4a30;
+    --color-control-focus: #7a6030;
+    --color-control-text-focus: #ffffff;
+    --color-input: #101010;
+    --color-input-focus: #302818;
+    --color-input-text: #ffffff;
+    --color-border: #dfc99a;
+    --color-focus-border: #ffffff;
+    --color-scrollbar-track: #00000080;
+    --color-scrollbar-thumb: #dfc99a;
+
+    --color-track: #2a2418;
+    --color-accent: #a08040;
+    --color-tab: #2a2012;
+    --color-tab-active: #6a5428;
+    --size-check: 14dp;
+}

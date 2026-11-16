@@ -3,8 +3,8 @@
 <MyGUI type="Layout">
     <Widget type="Widget" layer="LoadingScreen" position="0 0 300 300" name="_Main" align="Stretch">
 
-        <!-- Task 0207: with a loading tip (a game pack's own menus) a black screen replaces the wallpaper -->
-        <Widget type="Widget" skin="BlackBG" position="0 0 300 300" align="Stretch" name="TipBackground">
+        <!-- Task 0207: with a loading tip (a game pack's own menus) a fully opaque black screen (FullBlackBG: BlackBG is partly transparent and the HUD showed through, task 0215) replaces the wallpaper -->
+        <Widget type="Widget" skin="FullBlackBG" position="0 0 300 300" align="Stretch" name="TipBackground">
             <Property key="Visible" value="false"/>
         </Widget>
         <Widget type="BackgroundImage" skin="ImageBox" position="0 0 300 300" name="Splash" align="Stretch" />

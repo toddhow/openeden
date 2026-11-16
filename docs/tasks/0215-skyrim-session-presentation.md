@@ -1,0 +1,51 @@
+# Task: Skyrim session presentation (intro movies, load list level, loading screen, font, music script)
+Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.24; tasks 0207 (menus and loading screens, decisions 1 and 9), 0208 (font, decision 1), 0209 (music, decision 1), 0200 (progression).
+Goal: a Skyrim session no longer shows Morrowind's intro or title music, the load list shows the progression's level, the loading screen is clean, the Skyrim windows use a legible face, and Morrowind's music script stays out of the way.
+Inherited code touched (at `3781e36eed`): `apps/openmw/boot.hpp` (`Boot::run`), `apps/openmw/mwstate/menu.cpp` (`Menu::run`), `apps/openmw/mwsound/soundmanagerimp.cpp` (`SoundManager::update`), `apps/openmw/vsgengine.cpp` (overlay theme, theme poll), `files/data/mygui/openmw_loading_screen.layout`, `files/data-mw/scripts/omw/music/music.lua`, `files/data/builtin.omwscripts`.
+Constraints: only for a neutral session (`[Game] neutral world` and a game pack) and only with the pack settings `menus` and `music` of `[extension.<game>]`; Morrowind unchanged; no clock; no change to the core `openeden.ui` components or to the shipped themes.
+
+## Survey
+1. **Intro movies.** `Boot::run` plays `Movies_Company_Logo` while the world loads (when not `--skip-menu`) and `Movies_Morrowind_Logo` after `mainMenu()`; both come from the Morrowind fallback map (`Fallback::Map::getString`), so a Skyrim session with the user's Morrowind config plays Morrowind's movies. The title music: `Menu::run` and `SoundManager::update` both stream `music/special/morrowind title.mp3` (`MWSound::titleMusic`) at the main menu. The data names no main-menu MUSC/MUST (the EDIDs with Menu/Title/Main in the five masters are `MUSSkillsMenu` only; `MUSSpecialIntro` is a cutscene type); the file `music/special/mus_maintheme.xwm` is in `Skyrim - Sounds.bsa` (and `mus_intro.xwm`), so the pack theme is that file by convention (RECALLED-VERIFY that the game uses it). The only Skyrim movie in this install is `Video/BGS_Logo.bik` (the studio logo).
+2. **Load list level.** `MWState::SaveGame::threadLoad` writes `profile.mPlayerLevel = NpcStats::getLevel()` (`PLLE`); `menuscripts.cpp` hands it to the list as `playerLevel`. The progression's level (task 0200) lives in the pack's chunk, so the stat stays 1.
+3. **Loading screen.** `MWGui::LoadingScreen` shows `TipBackground`, skin `BlackBG`, whose colour is `#{fontcolour=background}` (partly transparent), on layer `LoadingScreen`; the HUD (layer `HUD`) shows through it.
+4. **Font.** `files/data/ui/themes/neutral/theme.rcss` sets `--font-family: Morrowind`; `.plain-font` and `MorrowindPlain` exist (task 0208, `components/ui_rml/fontfamilies.*`, `OverlayConfig::mPlainBitmapFont` = `Fonts_Font_1`). The theme is `[GUI] rmlui theme` (`vsgengine.cpp`).
+5. **Music script.** `files/data-mw/scripts/omw/music/music.lua` is a PLAYER script from `builtin.omwscripts.in`; its playlists read `music/explore` and `music/battle`, which a Skyrim session that mounts the sounds archive also has. `MusicType::Neutral` (task 0209) only blocks a script's `streamMusic` once the director played something.
+
+## Design
+- **Policy (pure).** `apps/openmw/mwgui/sessionpresentation.hpp`: `Policy{neutral, menus, music}` from `makePolicy(neutralWorld, packId, menus, music)`; `skipsMorrowindIntro` = neutral and menus; `replacesTitleMusic` = neutral and (menus or music); `playsPackTheme` = neutral and music; `usesPackTheme` = neutral and menus. `titleMusic`, `companyLogo`, `gameLogo`, `chooseTheme` are pure. `sessionpolicy.hpp` reads the settings once (`currentPolicy()`).
+- **Intro.** `Boot::run`: no Morrowind movie when `skipsMorrowindIntro`; the pack's `Video/BGS_Logo.bik` plays instead if the VFS has it (ffmpeg's bink decoder; seen in game). An `Intro movie:` Info line says what plays.
+- **Title music.** `Menu::run` stops streaming Morrowind's when `replacesTitleMusic`; `SoundManager::update` streams `music/special/mus_maintheme.xwm` when `playsPackTheme` and the file exists, else nothing. Once a world starts the director (task 0209) takes the channel as before.
+- **Load list level.** `files/data/openeden/skyrimse/level_mirror.lua` + player script `presentation_player.lua` copy the progression's level into the engine's level stat each frame it differs, so the **save header's `PLLE`** (already read cheaply by the list) holds it. Gate: the pack's `progression` namespace (`player progression`).
+- **Loading screen.** `TipBackground` uses `FullBlackBG` (opaque).
+- **Font.** New theme `files/data/ui/themes/skyrim/theme.rcss` = neutral with `--font-family: MorrowindPlain`. `chooseTheme`: a neutral session with `menus` swaps the default `neutral` for `skyrim`; any other configured theme is kept; the pack setting `ui theme = neutral` asks for the Morrowind face. The shipped themes are untouched.
+- **Music script.** New pack namespace `core.skyrimse.presentation` (menuSafe; `menus()`, `music()`, `owns_music()`), declared when `menus` or `music` is on. `music.lua` returns no handlers when `owns_music()` is true. **Choice:** menus alone also silences the Morrowind script (a Skyrim session has no use for its playlists); with both settings off nothing changes.
+
+## Stages
+A. policy + engine wiring. B. pack namespace + music script. C. level mirror. D. skin and theme. E. in game, Morrowind unchanged.
+
+## Not changed / out of scope
+The 3D loading screens, a Skyrim intro cinematic (the install has no INTRO video), `.bk2` (not playable), Skyrim fonts.
+
+## Stage log
+Same hand wrote tests and code; tests first for the pure parts and the Lua halves and **run red against stubs** (stub `sessionpresentation.hpp` returning the old behaviour, a `declare` that declares nothing, a `level_mirror` that never writes, the old `music.lua`, an empty theme file): `components-tests` 7 of 12 new tests failed (`SkyrimPresentation` 2 of 4, `SkyrimPresentationLua` 2 of 5, `UiThemeSkyrim` 3 of 3), `openmw-tests` 5 of 7 (`SessionPresentation`); the passing ones test absence or the unchanged case. All pass with the code (components subset `Skyrim*:Ui*:Neutral*:Extension*:*Lua*:Frozen*` 2,350, `openmw-tests` without Slang 2,814, all pass). **No existing test was edited.** The loading-screen widget (`MWGui::LoadingScreen::packLoadingScreen`) and the engine call sites have no unit test (they need MyGUI or an Environment); they were seen in game.
+
+**In game** (five masters + `Skyrim - Sounds.bsa`, base config with Morrowind's `Movies_` lines kept, `[Sound] master volume 0`, `OPENEDEN_QUIET_WINDOW`, evidence in `I:\Projects\OpenEden-work\bow6\g1..g6`):
+- menus + music on, main menu: `Intro movie: company logo 'BGS_Logo.bik'` (decoded by ffmpeg, `binkvideo 1920x1080`), `Intro movie: game logo ''`, `Playing "music/special/mus_maintheme.xwm"`; no Morrowind movie or title music. Frame (`g1\user\screenshots\screenshot000.png`): main menu in Century Gothic.
+- menus only: no title music and, once loaded, no Morrowind music (`g3`); control with the build before (`integ2`, same config): `Playing "music/explore/mus_explore_day_05.xwm"` from Morrowind's script; the new build with `menus` on plays nothing from it (`g5`).
+- Load list: a Save with `player progression` and `player level = 5` shows `Player Level 5 WhiterunBanneredMare ...` (`g2\user\screenshots\screenshot003.png`); before: Level 1 (task 0207 `level_row.png`).
+- Loading screen after a click on a save: black, no HUD outlines (HUD corner pixels all 0 in 4 frames), label "Loading..." (`screenshot015.png`). A first run showed that before the first tip is ready (the first seconds of a session) the Morrowind wallpaper still drew: fixed (`packLoadingScreen`: the pack's menus alone give the black screen).
+- Theme: `ui theme = neutral` gives the Morrowind face (`g6`), default the plain one.
+- Morrowind unchanged: `tools/worldobjects_check` 111 lines OK against `integ2`'s build; the fixed Balmora frame `0d6dd39995b927fa` for the reference, this build, and this build with `[GUI] rmlui`; a Morrowind start from the menu logs `company logo 'bethesda logo.bik'`, `game logo 'mw_logo.bik'` and plays `music/special/morrowind title.mp3`.
+
+## Decisions for toddhow
+1. **Font.** Default for a neutral session with `menus` is the plain Century Gothic theme `skyrim` (the user can set `[extension.skyrimse] ui theme = neutral` or any `[GUI] rmlui theme` other than `neutral`). The plain face reads P correctly; its spacing in the title is slightly off ("Sky rim": the bitmap font's advance for `y`). MyGUI windows (engine settings, loading label) keep the Morrowind font.
+2. **Music script.** It gives way when `menus` OR `music` is on (not only `music`): a Skyrim session with menus but no music is silent rather than playing Skyrim files through Morrowind's playlists. Say if you want it silenced only by `music`.
+3. **Intro.** The only Skyrim movie in the data is `BGS_Logo.bik` (plays); there is no Skyrim intro video (`.bk2` and the cinematic are not here and not playable). The main menu theme is `music/special/mus_maintheme.xwm` by name: no MUSC/MUST in the data names a main menu type (RECALLED-VERIFY).
+4. **Level.** Written into the engine's level stat (so the save header's `PLLE` holds it), by a player script each frame it differs. A Skyrim session's engine level stat is no longer 1; nothing in the Skyrim rules reads it, but a Morrowind-record spell or script in a neutral session would (none exist).
+5. The loading screen is black with the label "Loading..." from the first load of a session when `menus` is on (not only when a tip exists).
+
+## Edits outside the new files (small)
+`apps/openmw/boot.hpp`, `mwstate/menu.cpp`, `mwsound/soundmanagerimp.cpp`, `vsgengine.cpp`, `mwgui/loadingscreen.{cpp,hpp}`, `game_packs/skyrimse/src/skyrimse_game_pack.cpp` and its CMake, `files/data/mygui/openmw_loading_screen.layout`, `files/data-mw/scripts/omw/music/music.lua`, `files/data/builtin.omwscripts`, the two `CMakeLists.txt` of the tests and `files/data`, `tools/testprofile/profile.cfg` (a comment).
+
+## Not run
+The Linux gate and GCC, clang-format 14 (formatted by hand), clang-tidy, the Lua integration tests, a fresh review, `mus_maintheme` heard on a real device (volume 0), a Skyrim session with `neutral world` off.
