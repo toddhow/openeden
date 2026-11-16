@@ -367,6 +367,7 @@ namespace game_skyrimse
         bool fighter(openeden::sdk::game::WorldId base, FighterProfile& out) override;
         bool fighterGear(
             openeden::sdk::game::WorldId base, const std::vector<ArmourPiece>& worn, FighterGear& out) override;
+        bool fighterFor(openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out) override;
         FighterProfile playerFighter() override;
         const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
         CombatSettings settings() override;

@@ -35,8 +35,6 @@ namespace
     {
         EXPECT_EQ(creatureProfileFor("actors\\character\\character assets\\skeleton.nif"), nullptr);
         EXPECT_EQ(creatureProfileFor("actors\\character\\character assets female\\skeleton_female.nif"), nullptr);
-        EXPECT_EQ(creatureProfileFor("actors\\canine\\character assets dog\\skeleton.nif"), nullptr);
-        EXPECT_EQ(creatureProfileFor("actors\\bear\\character assets\\skeleton.nif"), nullptr);
         EXPECT_EQ(creatureProfileFor(""), nullptr);
         // Not a prefix of some other path: a folder of the same name deeper down does not count.
         EXPECT_EQ(creatureProfileFor("dlc\\actors\\canine\\character assets wolf\\skeleton.nif"), nullptr);

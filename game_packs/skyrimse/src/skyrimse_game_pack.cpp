@@ -3347,7 +3347,8 @@ namespace game_skyrimse
                     if (settings->getBool(kPackId, kCreaturesKey, false))
                     {
                         mWorldView.setCreatures(true);
-                        say(openeden::sdk::LogLevel::Info, "creatures: on (the wolf)");
+                        say(openeden::sdk::LogLevel::Info,
+                            "creatures: on (" + std::to_string(creatureProfiles().size()) + " creatures)");
                     }
                     // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral player body).
                     if (settings->getBool(kPackId, kPlayerBodyKey, false))

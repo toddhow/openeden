@@ -551,18 +551,26 @@ namespace game_skyrimse
 
     bool SkyrimWorldView::fighter(openeden::sdk::game::WorldId base, FighterProfile& out)
     {
+        return fighterFor(base, 0, out);
+    }
+
+    bool SkyrimWorldView::fighterFor(
+        openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
+    {
         out = {};
+        // Task 0216: with `creatures` on the placement's own number picks a leveled template, as in describeActor.
+        const std::uint32_t pick = mCreatures ? variation : 0;
         if (mCombatIndex == nullptr || mActorIndex == nullptr)
             return false; // not read yet: combatReady() starts that and says when
         const FormId npc = static_cast<FormId>(base);
         openeden::sdk::game::ActorStats stats;
         std::string error;
-        if (!computeActorStats(*mActorIndex, npc, 0, mStandInPlayerLevel, stats, error))
+        if (!computeActorStats(*mActorIndex, npc, pick, mStandInPlayerLevel, stats, error))
             return false;
         const CombatSettings combat = mCombatIndex->settings().combatSettings();
         ArmourResult armour;
         std::string armourError;
-        if (computeActorArmour(*mActorIndex, combat, npc, 0, mStandInPlayerLevel, armour, armourError))
+        if (computeActorArmour(*mActorIndex, combat, npc, pick, mStandInPlayerLevel, armour, armourError))
             out.mMitigationPercent = armour.mMitigationPercent;
         out.mHealthMax = stats.health;
         out.mStaminaMax = stats.stamina;
@@ -574,16 +582,26 @@ namespace game_skyrimse
         out.mFemale = stats.female;
         {
             std::string pieceError;
-            (void)wornArmour(*mActorIndex, npc, 0, mStandInPlayerLevel, out.mPieces, pieceError);
+            (void)wornArmour(*mActorIndex, npc, pick, mStandInPlayerLevel, out.mPieces, pieceError);
         }
-        if (mActorIndex->resolve(npc, mStandInPlayerLevel, 0, resolved) == ActorIndex::ResolveStatus::Ok)
+        if (mActorIndex->resolve(npc, mStandInPlayerLevel, pick, resolved) == ActorIndex::ResolveStatus::Ok)
         {
             // Task 0179: what the perk conditions ask about. PRKR follows the template's "spell list" use flag
             // (RECALLED-VERIFY: the flag that covers it).
             out.mRace = resolved.mRace;
             if (mCreatures)
-                if (const RaceRecord* creatureRace = mActorIndex->race(resolved.mRace))
-                    out.mCreature = creatureProfileFor(creatureRace->skeleton(out.mFemale ? Sex::Female : Sex::Male));
+            {
+                // The creature on screen is resolved at the appearance's level with the same number (describeActor),
+                // not at the stand-in player's, so a leveled stand-in fights as the creature it shows.
+                ActorIndex::Resolved shown;
+                if (mActorIndex->resolve(npc, kAppearanceLevel, pick, shown) == ActorIndex::ResolveStatus::Ok)
+                    if (const RaceRecord* creatureRace = mActorIndex->race(shown.mRace))
+                    {
+                        out.mCreature = creatureProfileFor(creatureRace->skeleton(out.mFemale ? Sex::Female : Sex::Male));
+                        if (out.mCreature == nullptr)
+                            out.mCreature = creatureProfileFor(creatureRace->skeleton(Sex::Male));
+                    }
+            }
             if (const ActorNpc* source = mActorIndex->npc(resolved.mSpellsFrom))
             {
                 out.mPerks = source->mPerks;
@@ -629,7 +647,7 @@ namespace game_skyrimse
                 std::string dispositionError;
                 MechanicsOptions options;
                 options.mPlayerLevel = mStandInPlayerLevel;
-                if (computeActorDisposition(*mActorIndex, npc, 0, options, disposition, dispositionError))
+                if (computeActorDisposition(*mActorIndex, npc, pick, options, disposition, dispositionError))
                 {
                     out.mAi.mHostileOnSight = disposition.hostileOnSight;
                     out.mAi.mRelationToPlayer = static_cast<std::uint8_t>(disposition.relationToPlayer); // task 0197

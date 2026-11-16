@@ -1,7 +1,8 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_CREATURES_H
 #define OPENEDEN_GAME_SKYRIMSE_CREATURES_H
 
-// Task 0212 (creatures, first slice: the wolf): what the pack knows about a creature RACE that a person does not need.
+// Tasks 0212 and 0216 (creatures: the wolf, then nine more): what the pack knows about a creature RACE that a person
+// does not need.
 // Skyrim's animals and monsters are NPC_ records with a creature RACE: their own skeleton and skin model (no outfit, no
 // head parts), and their own animation project (a folder of clips next to the skeleton, with no male / female split).
 // The numbers below are read from the installed data (docs/tasks/0212-skyrim-creatures-wolf.md section 2) or are named
@@ -14,6 +15,10 @@
 //             not decoded: the pack takes walkforward_wolf and runforward by their names).
 // Nothing here is read unless the pack setting `creatures` is on.
 
+#include <openeden/game/combat_rules.hpp>
+
+#include <cstddef>
+#include <span>
 #include <string_view>
 
 namespace game_skyrimse
@@ -48,6 +53,15 @@ namespace game_skyrimse
         std::string_view mStagger;
         std::string_view mDeath;
     };
+
+    /// Task 0216: every profile the pack knows, in table order (the wolf first). The table is the one place to add a
+    /// creature: one row in creatures.cpp, with the numbers read as docs/tasks/0216-skyrim-creatures-more.md section 2
+    /// says.
+    [[nodiscard]] std::span<const CreatureProfile> creatureProfiles();
+
+    /// The clip of a combat slot for this creature (Attack, PowerAttack, Recoil, Stagger, Death), or empty: a creature
+    /// has no block, bash, cast or bow clips.
+    [[nodiscard]] std::string_view creatureClipFor(const CreatureProfile& profile, openeden::sdk::game::ClipSlot slot);
 
     /// The profile of a creature whose race names this skeleton file (any case, either slash), or null: a person, and
     /// every creature this slice does not know.

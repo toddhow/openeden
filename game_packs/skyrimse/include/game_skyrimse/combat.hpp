@@ -261,6 +261,15 @@ namespace game_skyrimse
         virtual ~CombatData() = default;
         /// The numbers of the NPC with base record `base`. False for an unknown base (that actor never fights).
         virtual bool fighter(openeden::sdk::game::WorldId base, FighterProfile& out) = 0;
+
+        /// Task 0216: the same, for one placement. `variation` is the placement's own number (the low 32 bits of its id),
+        /// the number the appearance of the actor was described with, so that an NPC whose template is a leveled list
+        /// is the same creature in combat as on screen. The default ignores it.
+        virtual bool fighterFor(openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
+        {
+            (void)variation;
+            return fighter(base, out);
+        }
         /// The stand-in for the player (level 1, skills 15, no armour: the player has no records).
         virtual FighterProfile playerFighter() = 0;
         /// The WEAP with this editor id (case-insensitive), or null. The pointer stays valid as long as the data.

@@ -82,7 +82,7 @@ namespace game_skyrimse
     std::string_view SkyrimCombat::clipOf(const Fighter& fighter, ClipSlot slot) const
     {
         if (fighter.mProfile.mCreature != nullptr)
-            return mWolfSlots.clipFor(slot, kWeaponAnimHandToHand);
+            return creatureClipFor(*fighter.mProfile.mCreature, slot); // task 0216: the row of its own creature
         return mSlots.clipFor(slot, kWeaponAnim1HSword);
     }
 
@@ -932,7 +932,13 @@ namespace game_skyrimse
         if (!fighter.mReady)
         {
             fighter.mReady = true;
-            fighter.mHasProfile = fighter.mSubject.player ? true : mData->fighter(fighter.mBase, fighter.mProfile);
+            fighter.mHasProfile = fighter.mSubject.player
+                ? true
+                : mData->fighterFor(fighter.mBase, static_cast<std::uint32_t>(fighter.mSubject.actor.reference),
+                    fighter.mProfile);
+            if (mTrace && fighter.mHasProfile && fighter.mProfile.mCreature != nullptr)
+                trace("COMBAT creature " + name(fighter.mSubject) + " is a "
+                    + std::string(fighter.mProfile.mCreature->mName));
             if (fighter.mSubject.player)
             {
                 fighter.mProfile = mData->playerFighter();
