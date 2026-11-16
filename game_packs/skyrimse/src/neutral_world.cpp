@@ -576,7 +576,7 @@ namespace game_skyrimse
         music::MusicRuntime* runtime = mMusicOn ? musicRuntimeOf(mView) : nullptr;
         if (runtime == nullptr || context.cell > 0xFFFFFFFFull)
             return false;
-        return runtime->type(static_cast<FormId>(context.cell), mCombat.playerInCombat(), out);
+        return runtime->type(static_cast<FormId>(context.cell), mCombat.playerEngagedByAi(), out);
     }
 
     bool SkyrimCellSource::musicPlan(openeden::sdk::game::WorldId typeId,

@@ -241,7 +241,7 @@ namespace game_skyrimse
         return a != nullptr ? a->mState.mMode : AiMode::Calm;
     }
 
-    bool SkyrimCombat::playerInCombat() const
+    bool SkyrimCombat::playerEngagedByAi() const
     {
         for (const AiActor& a : mAiActors)
             if (a.mTarget.player && !a.mGiveUp)
