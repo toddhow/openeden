@@ -269,6 +269,7 @@ namespace game_skyrimse::map
         static const BindingType queryParams[] = { BindingType::Int32, BindingType::Double, BindingType::Double,
             BindingType::Double, BindingType::Double, BindingType::Int32 };
         static const BindingType worldParam[] = { BindingType::Int32 };
+        static const BindingType nameParam[] = { BindingType::String };
         static const BindingType rowParams[] = { BindingType::Int32, BindingType::Int32 };
         static const BindingType visitParams[] = { BindingType::Int32, BindingType::Double, BindingType::Double };
 
@@ -433,6 +434,15 @@ namespace game_skyrimse::map
                 return arrayResult(BindingType::Int32);
             },
             BindingShape::Array);
+        // task 0223: the exterior world an interior belongs to by its location (the map is shown indoors for it)
+        add("interior_world", nameParam, true, BindingType::Int32, [self](std::span<const BindingValue> a) {
+            BindingResult r;
+            FormId world = kNullFormId;
+            if (!a[0].text.empty() && self->poll() && self->mAccess.mInteriorWorld)
+                world = self->mAccess.mInteriorWorld(a[0].text);
+            r.value = integer(static_cast<std::int32_t>(world));
+            return r;
+        });
         add("visit", visitParams, false, BindingType::Bool, [self](std::span<const BindingValue> a) {
             (void)self->visit(static_cast<FormId>(world32(a[0])), static_cast<float>(a[1].number),
                 static_cast<float>(a[2].number));
@@ -441,7 +451,7 @@ namespace game_skyrimse::map
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = kNamespace;
-        ns.version = { 1, 0 };
+        ns.version = { 1, 1 };
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

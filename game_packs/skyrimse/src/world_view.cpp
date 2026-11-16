@@ -1179,6 +1179,52 @@ namespace game_skyrimse
         return locationOfPlace(place, mDialogue->mData->mLocations);
     }
 
+    bool SkyrimWorldView::globalValue(FormId global, float& value) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return false;
+        const GlobalValue* g = mDialogue->mData->mDialogue.global(global);
+        if (g == nullptr)
+            return false;
+        value = g->mValue;
+        return true;
+    }
+
+    FormId SkyrimWorldView::worldOfInterior(std::string_view editorId) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return kNullFormId;
+        const auto it = mCellByEditorId.find(lowerAscii(editorId));
+        if (it == mCellByEditorId.end())
+            return kNullFormId;
+        const LocationIndex& locations = mDialogue->mData->mLocations;
+        FormId location = locationOfCell(it->second);
+        // the chain up from the cell's location: the first location that lists a grid square
+        std::vector<FormId> chain;
+        for (int step = 0; step < 64 && location != kNullFormId; ++step) // the same bound as LocationIndex::isWithin
+        {
+            chain.push_back(location);
+            FormId world = kNullFormId;
+            std::int32_t x = 0, y = 0;
+            if (locations.gridOf(location, world, x, y) && world != kNullFormId)
+                return world;
+            const LocationRecord* record = locations.location(location);
+            location = record != nullptr ? record->mParent : kNullFormId;
+        }
+        // a city's own record may list no cells (a later plugin's record replaces it whole): then a location inside it does
+        const std::vector<FormId> all = locations.ids();
+        for (const FormId ancestor : chain)
+            for (const FormId other : all)
+            {
+                FormId world = kNullFormId;
+                std::int32_t x = 0, y = 0;
+                if (other != ancestor && locations.isWithin(other, ancestor) && locations.gridOf(other, world, x, y)
+                    && world != kNullFormId)
+                    return world;
+            }
+        return kNullFormId;
+    }
+
     void SkyrimWorldView::setInfoFragmentSink(InfoFragmentSink sink)
     {
         mInfoFragmentSink = std::move(sink);
@@ -1665,6 +1711,7 @@ namespace game_skyrimse
         const DialogueData* data = mDialogue->mData.get();
         out.mMarkers = &data->mMapMarkers;
         out.mPlaced = &data->mPlacedRefs;
+        out.mInteriorWorld = [this](std::string_view editorId) { return worldOfInterior(editorId); };
         out.mCellWorld = [this](FormId cell, FormId& world, bool& interior) {
             const auto it = mCells.find(cell);
             if (it == mCells.end())

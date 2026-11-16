@@ -108,6 +108,8 @@ namespace game_skyrimse::map
         const QuestState* mState = nullptr;
         journal::TextFn mText;
         std::function<bool(FormId cell, FormId& world, bool& interior)> mCellWorld;
+        /// Task 0223: the exterior world an interior cell (by editor id) belongs to by its location; 0 when unknown.
+        std::function<FormId(std::string_view editorId)> mInteriorWorld;
         /// The parent worldspace of a world that borrows its land (0 for none): a world with no markers of its own uses
         /// its parent's.
         std::function<FormId(FormId world)> mParentOf;

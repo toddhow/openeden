@@ -7,6 +7,7 @@
 #include <array>
 #include <bit>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <deque>
 
@@ -118,6 +119,12 @@ namespace game_skyrimse
             className = mData.formClass(form);
             if (className.empty() && mData.isTopicInfo(form))
                 className = "TopicInfo";
+            if (className.empty()) // task 0223: a GLOB is a GlobalVariable (CarriageCost.value reaches GetValue)
+            {
+                float unused = 0.f;
+                if (mData.globalValue(form, unused))
+                    className = "GlobalVariable";
+            }
             if (className.empty() && mData.isScene(form))
                 className = "Scene";
             return !className.empty();
@@ -199,6 +206,22 @@ namespace game_skyrimse
                 return 0;
             return it->second.mIsAlias ? const_cast<Impl*>(this)->aliasHandle(it->second.mForm, it->second.mAlias)
                                        : it->second.mForm;
+        }
+
+        // Task 0223: the value of a quest as a script sees it. A scripted quest IS its script in Papyrus, so a cast to the
+        // script's type (the carriage topics' fragments: GetOwningQuest() as CarriageSystemScript) needs the attached
+        // instance; a quest of several scripts gives the first that is not a fragment script (QF_...).
+        PapyrusValue questValue(FormId quest)
+        {
+            if (quest == 0)
+                return PapyrusValue::makeNone();
+            for (const InstanceId instance : instancesOf(quest))
+            {
+                const auto it = mInstances.find(instance);
+                if (it != mInstances.end() && !it->second.mIsAlias && it->second.mScript.rfind("qf_", 0) != 0)
+                    return PapyrusValue::makeInstance(instance);
+            }
+            return formValue(quest);
         }
 
         PapyrusValue formValue(FormId form)
@@ -705,6 +728,11 @@ namespace game_skyrimse
                 descriptor,
                 [this, key, handler = std::move(handler)](const NativeCall& call) {
                     ++mCounters.mNatives[key];
+                    if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0223: OPENEDEN_PAPYRUS_NATIVE_TRACE
+                    {
+                        ++mTraceCount;
+                        say(false, "Papyrus native " + key + " self " + hex(formOf(call.self)));
+                    }
                     struct Depth
                     {
                         int& mValue;
@@ -951,7 +979,7 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(it != mObjectivesCompleted.end() && it->second));
             });
             reg("TopicInfo", "GetOwningQuest", false, [this](const NativeCall& c) {
-                return result(formValue(mData.questOfInfo(formOf(c.self))));
+                return result(questValue(mData.questOfInfo(formOf(c.self))));
             });
             // Task 0187: Keyword.SendStoryEvent(akLoc, akRef1, akRef2, aiValue1, aiValue2): the keyword is the event's K1
             const auto sendStory = [this](const NativeCall& c) {
@@ -971,7 +999,7 @@ namespace game_skyrimse
             reg("Alias", "GetOwningQuest", false, [this](const NativeCall& c) {
                 FormId quest = 0;
                 std::uint32_t alias = 0;
-                return result(aliasOf(formOf(c.self), quest, alias) ? formValue(quest) : PapyrusValue::makeNone());
+                return result(aliasOf(formOf(c.self), quest, alias) ? questValue(quest) : PapyrusValue::makeNone());
             });
             const auto reference = [this](const NativeCall& c) {
                 FormId quest = 0;
@@ -1046,6 +1074,54 @@ namespace game_skyrimse
             });
             registerInventoryNatives();
             registerActorNatives();
+            registerCarriageNatives();
+        }
+
+        // ---- task 0223: what the carriage scripts (CarriageSystemScript, CarriageDriverScript) call ------------------
+        // Game.FastTravel(akDestination) leaves the travel to the pack's travel service (a global script teleports the
+        // player and passes the game clock). The driver's script pays the fee itself (RemoveItem(Gold, CarriageCost.value
+        // as int)), so GlobalVariable.GetValue answers the GLOB's value. The fades, the player controls, the vehicle, the
+        // driver's idles and talk are no-ops that only count (the ride has no animation), the cart seat counts as taken
+        // at once (the player "sits" so the script goes straight to its travel), and nobody is in the BYOH faction or in a
+        // fight (Actor.IsInCombat stays tolerant: it answers false anyway, and an existing test names it as its example of a
+        // tolerant native). Signatures are the Creation Kit wiki's (recalled, RECALLED-VERIFY).
+        void registerCarriageNatives()
+        {
+            reg("Game", "FastTravel", true, [this](const NativeCall& c) {
+                const FormId destination = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (mFastTravel && destination != 0)
+                    (void)mFastTravel(destination);
+                return NativeResult{};
+            });
+            reg("GlobalVariable", "GetValue", false, [this](const NativeCall& c) {
+                const FormId global = formOf(c.self);
+                const auto set = mGlobalValues.find(global);
+                float value = 0.f;
+                if (set != mGlobalValues.end())
+                    value = set->second;
+                else
+                    (void)mData.globalValue(global, value);
+                return result(PapyrusValue::makeFloat(value));
+            });
+            reg("GlobalVariable", "SetValue", false, [this](const NativeCall& c) {
+                const FormId global = formOf(c.self);
+                if (global != 0 && (mGlobalValues.size() < kMaxAvOffsets || mGlobalValues.count(global) != 0))
+                    mGlobalValues[global] = static_cast<float>(argNumber(c, 0));
+                return NativeResult{};
+            });
+            const auto nothing = [](const NativeCall&) { return NativeResult{}; };
+            for (const char* name : { "DisablePlayerControls", "EnablePlayerControls", "FadeOutGame", "ForceFirstPerson",
+                     "ShowFirstPersonGeometry", "SetInChargen" })
+                reg("Game", name, true, nothing);
+            for (const char* name : { "Apply", "PopTo", "Remove" })
+                reg("ImageSpaceModifier", name, false, nothing);
+            for (const char* name : { "SetVehicle", "SetRestrained", "Say", "EvaluatePackage" })
+                reg("Actor", name, false, nothing);
+            reg("ObjectReference", "Say", false, nothing); // the declaring class of Say in the game's scripts
+            reg("Actor", "PlayIdle", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+            reg("Actor", "IsInFaction", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(false)); });
+            reg("ObjectReference", "IsFurnitureInUse", false,
+                [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
         }
 
         // ---- task 0198: inventory, actor values, deaths ------------------------------------------------------------
@@ -1271,6 +1347,11 @@ namespace game_skyrimse
         // ---- task 0198
         PapyrusWorldHooks* mHooks = nullptr;
         LocationKeywordData* mKeywordData = nullptr; ///< task 0217
+        PapyrusHost::FastTravelSink mFastTravel; ///< task 0223
+        bool mTraceNatives = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE") != nullptr; ///< a developer aid: one line a native
+        std::uint64_t mTraceCount = 0;
+        static constexpr std::uint64_t kMaxTracedNatives = 100000;
+        std::map<FormId, float> mGlobalValues; ///< task 0223: values scripts set (SetValue); the data gives the rest
         std::deque<std::string> mNotes;
         std::uint64_t mNoteCount = 0;
         std::map<std::pair<FormId, std::string>, double> mAvOffsets; ///< what scripts did to an actor value
@@ -1958,6 +2039,11 @@ namespace game_skyrimse
     void PapyrusHost::setLocationKeywordData(LocationKeywordData* data)
     {
         mImpl->mKeywordData = data;
+    }
+
+    void PapyrusHost::setFastTravelSink(FastTravelSink sink)
+    {
+        mImpl->mFastTravel = std::move(sink);
     }
 
     void PapyrusHost::onItemMoved(FormId from, FormId to, FormId item, std::int32_t count)

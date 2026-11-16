@@ -147,6 +147,7 @@ namespace game_skyrimse
             {
                 return mView.formFromFile(lowerFile, local);
             }
+            bool globalValue(FormId global, float& value) const override { return mView.globalValue(global, value); }
             bool isTopicInfo(FormId form) const override { return mView.isScriptedInfo(form); }
             bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
@@ -1399,7 +1400,10 @@ namespace game_skyrimse
             void unwirePapyrusWorld()
             {
                 if (mPapyrus != nullptr)
+                {
                     mPapyrus->host().setWorldHooks(nullptr);
+                    mPapyrus->host().setFastTravelSink({}); // task 0223
+                }
                 if (mInventory != nullptr)
                     mInventory->model().setChangeSink({});
                 mCellSource.scriptBridge().setSinks({}, {}, {});
@@ -1493,6 +1497,7 @@ namespace game_skyrimse
                     out.mMarkers = markers.mMarkers;
                     out.mPlaced = markers.mPlaced;
                     out.mCellWorld = markers.mCellWorld;
+                    out.mInteriorWorld = markers.mInteriorWorld; // task 0223
                     out.mQuests = quests.mQuests;
                     out.mState = quests.mState;
                     out.mText = quests.mText;
@@ -1589,6 +1594,11 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
                 mTravel = std::make_unique<travel::TravelService>(*mMap, std::move(hooks));
+                // Task 0223: the carriage drivers' Game.FastTravel (the Papyrus host, when it runs) leaves a request that the
+                // global travel script reads
+                if (mPapyrus != nullptr)
+                    mPapyrus->host().setFastTravelSink(
+                        [this](FormId destination) { return mTravel != nullptr && mTravel->queueRequest(destination); });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
                     const openeden::sdk::DeclareResult declared = mTravel->declare(*bindings);

@@ -9,7 +9,8 @@
 -- tests:
 --   env.ui        the `openeden.ui` library
 --   env.map       the `core.skyrimse.map` package
---   env.player()  { x, y, yaw, world } of the player, or nil
+--   env.player()  { x, y, yaw, world } of the player, or nil (indoors the world is the last exterior or the interior's
+--                 location's, and x and y may be nil: no player marker, task 0223)
 --   env.close()   leaves the interface mode (the host script's job)
 -- Fast travel (task 0218), only when both are given:
 --   env.travel          the `core.skyrimse.travel` package (marker_ref)
@@ -114,11 +115,12 @@ function M.create(env)
   local function refreshMarkers(p)
     lastRevision = map.revision()
     local used = 0
+    local qx, qy = p.x or 0, p.y or 0 -- indoors with no exterior place: the range is unlimited, so any point does
     for page = 0, MARKER_PAGES - 1 do
-      local xs = map.marker_x(p.world, p.x, p.y, 1e9, 0, page)
-      local ys = map.marker_y(p.world, p.x, p.y, 1e9, 0, page)
-      local names = map.marker_name(p.world, p.x, p.y, 1e9, 0, page)
-      local refs = travel and travel.marker_ref(p.world, p.x, p.y, 1e9, 0, page) or {}
+      local xs = map.marker_x(p.world, qx, qy, 1e9, 0, page)
+      local ys = map.marker_y(p.world, qx, qy, 1e9, 0, page)
+      local names = map.marker_name(p.world, qx, qy, 1e9, 0, page)
+      local refs = travel and travel.marker_ref(p.world, qx, qy, 1e9, 0, page) or {}
       for i = 1, #xs do
         if used < MARKER_SLOTS then
           used = used + 1
@@ -145,7 +147,11 @@ function M.create(env)
   end
 
   local function refreshPlayer(p)
-    lastPlayerPos = { p.x, p.y }
+    lastPlayerPos = { p.x or false, p.y or false }
+    if not p.x or not p.y then
+      playerSlot.shown:set(false) -- indoors with no exterior place to show (task 0223)
+      return
+    end
     local px, py = mapPixel(p.x, p.y)
     placeSlot(playerSlot, px, py, 4)
   end
@@ -294,7 +300,9 @@ function M.create(env)
     if not p then return end
     stepRaster(p)
     if lastRevision ~= map.revision() then refreshMarkers(p) end
-    if not lastPlayerPos or lastPlayerPos[1] ~= p.x or lastPlayerPos[2] ~= p.y then refreshPlayer(p) end
+    if not lastPlayerPos or lastPlayerPos[1] ~= (p.x or false) or lastPlayerPos[2] ~= (p.y or false) then
+      refreshPlayer(p)
+    end
   end
 
   return self

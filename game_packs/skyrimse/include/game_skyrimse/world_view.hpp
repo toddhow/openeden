@@ -556,6 +556,7 @@ namespace game_skyrimse
             const map::MarkerIndex* mMarkers = nullptr;
             const PlacedRefIndex* mPlaced = nullptr;
             std::function<bool(FormId cell, FormId& world, bool& interior)> mCellWorld;
+            std::function<FormId(std::string_view editorId)> mInteriorWorld; ///< task 0223
         };
         /// True once the dialogue data (and so the markers) is read; never waits. Main thread.
         [[nodiscard]] bool mapAccess(MapAccess& out);
@@ -598,6 +599,12 @@ namespace game_skyrimse
         [[nodiscard]] bool isScriptedInfo(FormId info) const;
         /// Task 0194: is the form a scene (SCEN)? (the class of a scene's fragment script's form)
         [[nodiscard]] bool isScene(FormId form) const;
+        /// Task 0223: the default value of a GLOB (a Papyrus GlobalVariable). False when the form is no global or the
+        /// dialogue data is not read yet.
+        [[nodiscard]] bool globalValue(FormId global, float& value) const;
+        /// Task 0223: the exterior world a player in the interior cell `editorId` belongs to by its location (its parent
+        /// chain up to the first location that lists a grid square): kNullFormId when none can be found.
+        [[nodiscard]] FormId worldOfInterior(std::string_view editorId) const;
         /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
         [[nodiscard]] FormId questOfInfo(FormId info) const;
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false

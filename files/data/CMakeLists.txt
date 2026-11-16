@@ -152,6 +152,7 @@ set(BUILTIN_DATA_FILES
     openeden/skyrimse/skills_windows.lua
     openeden/skyrimse/compass.lua
     openeden/skyrimse/worldmap.lua
+    openeden/skyrimse/mapplace.lua
     openeden/skyrimse/lockpick_window.lua
     openeden/skyrimse/book_window.lua
     openeden/skyrimse/rest_windows.lua

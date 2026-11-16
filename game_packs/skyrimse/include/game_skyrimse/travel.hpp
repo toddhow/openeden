@@ -124,6 +124,20 @@ namespace game_skyrimse::travel
         /// The Mutate call: refused (counted, logged) unless travel is allowed now; otherwise counted, logged and the
         /// arrival's neighbourhood is discovered. Returns whether it ran.
         bool commit(FormId world, bool interior, FormId marker, double fromX, double fromY);
+
+        // ---- task 0223: travel to a placed reference (Game.FastTravel of the carriage drivers' Papyrus) -------------
+        /// The arrival at the placed reference `destination` (an exterior REFR, e.g. a CarriageDestinationMarker) seen
+        /// from (fromX, fromY): its position, facing the way the player travels. False for no such reference, a deleted
+        /// one, one in an interior, or one outside the player's world (`world`) and its parents.
+        [[nodiscard]] bool planToRef(FormId world, FormId destination, double fromX, double fromY, Plan& out);
+        [[nodiscard]] Refusal refusalToRef(FormId world, bool interior, FormId destination, double fromX, double fromY);
+        /// Like commit: refused (counted, logged) unless travel is allowed now.
+        bool commitToRef(FormId world, bool interior, FormId destination, double fromX, double fromY);
+        /// Game.FastTravel(destination): remembers the request for the global travel script (which reads
+        /// `request_seq` and `request_ref`). False for a null form id. A later request replaces an earlier unread one.
+        bool queueRequest(FormId destination);
+        [[nodiscard]] std::uint32_t requestSequence() const { return mRequestSeq; }
+        [[nodiscard]] FormId requestedRef() const { return mRequested; }
         [[nodiscard]] std::size_t performed() const { return mPerformed; }
         [[nodiscard]] std::size_t refused() const { return mRefused; }
 
@@ -136,6 +150,8 @@ namespace game_skyrimse::travel
         Hooks mHooks;
         std::size_t mPerformed = 0;
         std::size_t mRefused = 0;
+        std::uint32_t mRequestSeq = 0;
+        FormId mRequested = kNullFormId;
     };
 }
 

@@ -35,6 +35,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsemapwindows.cpp
     ui/testskyrimserestwindows.cpp
     ui/testskyrimsetravelwindows.cpp
+    ui/testskyrimsecarriagewindows.cpp
     ui/testskyrimsemenuswindows.cpp
     ui/testskyrimsecharacterwindow.cpp
     ui/testskyrimsepresentationlua.cpp
@@ -660,6 +661,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimserest.cpp
     skyrimse/testskyrimsetravel.cpp
     skyrimse/testskyrimseservices.cpp
+    skyrimse/testskyrimsecarriage.cpp
     skyrimse/testskyrimsecombatrest.cpp
     skyrimse/testskyrimsemenus.cpp
     skyrimse/testskyrimsepresentation.cpp

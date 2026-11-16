@@ -26,6 +26,9 @@ local function playerPlace()
   return { x = pos.x, y = pos.y, yaw = self.rotation:getYaw(), world = world }
 end
 
+local mapPlace = require('openeden.skyrimse.mapplace').create{ place = playerPlace, map = map,
+  cellName = function() return self.cell and self.cell.name or '' end }
+
 local compass = require('openeden.skyrimse.compass').create{ ui = ui, map = map, player = playerPlace }
 local seenMode, waited = false, 0
 local worldMap
@@ -35,7 +38,8 @@ local function leave()
 end
 
 local worldmapLib = require('openeden.skyrimse.worldmap')
-worldMap = worldmapLib.create{ ui = ui, map = map, player = playerPlace, close = leave,
+-- task 0223: the map is shown indoors too (the last exterior world); the compass keeps the player's own place
+worldMap = worldmapLib.create{ ui = ui, map = map, player = mapPlace, close = leave,
   travel = okTravel and travel or nil,
   requestTravel = function(marker, name)
     print('[skyrimse map] travel requested to ' .. tostring(name))
@@ -44,8 +48,10 @@ worldMap = worldmapLib.create{ ui = ui, map = map, player = playerPlace, close =
 
 local function showMap()
   if I.UI.getMode() ~= nil then return end
+  local place = mapPlace()
   local opened = worldMap.open()
-  print('[skyrimse map] open ' .. tostring(opened))
+  print(string.format('[skyrimse map] open %s (world %s%s)', tostring(opened), tostring(place and place.world),
+    place and place.indoors and ', indoors' or ''))
   if opened then
     seenMode, waited = false, 0
     I.UI.setMode(MODE, { windows = {} })
@@ -60,8 +66,10 @@ return {
     end,
     SkyrimTravelDone = function(data)
       print('[skyrimse map] travelled to ' .. tostring(data.name))
-      worldMap.dismiss()
-      leave()
+      if worldMap.isOpen() then
+        worldMap.dismiss()
+        leave()
+      end
     end,
   },
   engineHandlers = {
@@ -72,6 +80,7 @@ return {
       end
     end,
     onFrame = function()
+      mapPlace() -- remembers the last exterior the player stood in (task 0223)
       local mode = I.UI.getMode()
       if worldMap.isOpen() then
         if not seenMode then

@@ -272,6 +272,91 @@ namespace game_skyrimse::travel
         return true;
     }
 
+    // ---- task 0223: travel to a placed reference --------------------------------------------------------------------
+
+    bool TravelService::planToRef(FormId world, FormId destination, double fromX, double fromY, Plan& out)
+    {
+        if (destination == kNullFormId || !mMap.poll())
+            return false;
+        const map::Access& access = mMap.access();
+        const PlacedEntry* ref = access.mPlaced != nullptr ? access.mPlaced->find(destination) : nullptr;
+        if (ref == nullptr || ref->mDeleted || !access.mCellWorld)
+            return false;
+        FormId refWorld = kNullFormId;
+        bool interior = false;
+        if (!access.mCellWorld(ref->mCell, refWorld, interior) || interior)
+            return false;
+        // the same world, or one that borrows its land from the other (the teleport lands in the player's world)
+        if (!contains(mMap.markerWorlds(world), refWorld) && !contains(mMap.markerWorlds(refWorld), world))
+            return false;
+        out.mWhere = Destination();
+        out.mWhere.mX = ref->mX;
+        out.mWhere.mY = ref->mY;
+        out.mWhere.mZ = ref->mZ;
+        out.mWhere.mYaw = yawToward(fromX, fromY, ref->mX, ref->mY);
+        const double dx = static_cast<double>(ref->mX) - fromX;
+        const double dy = static_cast<double>(ref->mY) - fromY;
+        out.mDistance = std::isfinite(dx) && std::isfinite(dy) ? std::hypot(dx, dy) : 0.0;
+        out.mHours = travelHours(out.mDistance);
+        return true;
+    }
+
+    Refusal TravelService::refusalToRef(FormId world, bool interior, FormId destination, double fromX, double fromY)
+    {
+        Inputs in;
+        in.mReady = mMap.poll() && mHooks.mReady && mHooks.mReady();
+        in.mInterior = interior;
+        if (in.mReady)
+        {
+            const map::Access& access = mMap.access();
+            const PlacedEntry* ref = destination != kNullFormId && access.mPlaced != nullptr
+                ? access.mPlaced->find(destination)
+                : nullptr;
+            in.mKnown = ref != nullptr && !ref->mDeleted;
+            in.mDiscovered = in.mKnown; // a carriage goes to a place whether or not the map knows it
+            in.mInCombat = mHooks.mInCombat && mHooks.mInCombat();
+            in.mEnemiesNear = mHooks.mEnemiesNear && mHooks.mEnemiesNear();
+            Plan unused;
+            in.mHasDestination = in.mKnown && planToRef(world, destination, fromX, fromY, unused);
+        }
+        return decideTravel(in);
+    }
+
+    bool TravelService::commitToRef(FormId world, bool interior, FormId destination, double fromX, double fromY)
+    {
+        const Refusal why = refusalToRef(world, interior, destination, fromX, fromY);
+        if (why != Refusal::None)
+        {
+            ++mRefused;
+            if (mHooks.mLog)
+                mHooks.mLog("TRAVEL refused: " + std::string(refusalName(why)));
+            return false;
+        }
+        Plan plan;
+        if (!planToRef(world, destination, fromX, fromY, plan))
+            return false; // refusalToRef() has just said it could be planned
+        (void)mMap.visit(world, plan.mWhere.mX, plan.mWhere.mY);
+        ++mPerformed;
+        if (mHooks.mLog)
+        {
+            const std::size_t followers = mHooks.mFollowerCount ? mHooks.mFollowerCount() : 0;
+            mHooks.mLog("TRAVEL to " + hex8(destination) + " at (" + std::to_string(static_cast<long>(plan.mWhere.mX))
+                + ", " + std::to_string(static_cast<long>(plan.mWhere.mY)) + ", "
+                + std::to_string(static_cast<long>(plan.mWhere.mZ)) + ") in " + std::to_string(plan.mHours)
+                + " hours, " + std::to_string(followers) + " followers");
+        }
+        return true;
+    }
+
+    bool TravelService::queueRequest(FormId destination)
+    {
+        if (destination == kNullFormId)
+            return false;
+        ++mRequestSeq;
+        mRequested = destination;
+        return true;
+    }
+
     openeden::sdk::DeclareResult TravelService::declare(openeden::sdk::BindingsService& service)
     {
         Impl& m = *mImpl;
@@ -373,9 +458,52 @@ namespace game_skyrimse::travel
             },
             BindingShape::Single, openeden::sdk::BindingAccess::Mutate);
 
+        // task 0223: the carriage's Game.FastTravel(reference). The global script reads `request_seq` and `request_ref`,
+        // asks `refusal_ref` and `plan_ref`, and calls `commit_ref`.
+        add("request_seq", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
+            BindingResult r;
+            r.value = integer(static_cast<std::int32_t>(std::min<std::uint32_t>(self->mRequestSeq, 0x7FFFFFFF)));
+            return r;
+        });
+        add("request_ref", {}, true, BindingType::String, [self, &m](std::span<const BindingValue>) {
+            m.mText = self->mRequested != kNullFormId ? hex8(self->mRequested) : std::string();
+            BindingResult r;
+            r.value = text(m.mText);
+            return r;
+        });
+        add("refusal_ref", refusalParams, true, BindingType::String,
+            [self, &m, markerOf](std::span<const BindingValue> a) {
+                m.mText = std::string(refusalName(self->refusalToRef(static_cast<FormId>(a[0].integer), a[1].boolean,
+                    markerOf(a[2]), a[3].number, a[4].number)));
+                BindingResult r;
+                r.value = text(m.mText);
+                return r;
+            });
+        add("plan_ref", planParams, true, BindingType::Double,
+            [self, &m, markerOf, arrayResult](std::span<const BindingValue> a) {
+                m.mElements.clear();
+                Plan p;
+                if (self->planToRef(static_cast<FormId>(a[0].integer), markerOf(a[1]), a[2].number, a[3].number, p))
+                {
+                    for (const double v : { static_cast<double>(p.mWhere.mX), static_cast<double>(p.mWhere.mY),
+                             static_cast<double>(p.mWhere.mZ), p.mWhere.mYaw, static_cast<double>(p.mHours),
+                             p.mDistance })
+                        m.mElements.push_back(number(v));
+                }
+                return arrayResult(BindingType::Double);
+            },
+            BindingShape::Array);
+        add("commit_ref", refusalParams, false, BindingType::Bool,
+            [self, markerOf](std::span<const BindingValue> a) {
+                (void)self->commitToRef(static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number,
+                    a[4].number);
+                return BindingResult();
+            },
+            BindingShape::Single, openeden::sdk::BindingAccess::Mutate);
+
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = kNamespace;
-        ns.version = { 1, 0 };
+        ns.version = { 1, 1 };
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

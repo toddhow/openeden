@@ -52,6 +52,13 @@ namespace game_skyrimse
     public:
         virtual ~PapyrusGameData() = default;
 
+        /// Task 0223: the default value of a GLOB (GlobalVariable.GetValue). False when the form is not a global.
+        [[nodiscard]] virtual bool globalValue(FormId global, float& value) const
+        {
+            (void)global, (void)value;
+            return false;
+        }
+
         /// The bytes of `scripts/<lowerName>.pex` ("" is never asked). False when there is no such file.
         virtual bool readPex(const std::string& lowerName, std::vector<std::uint8_t>& bytes) = 0;
 
@@ -327,6 +334,10 @@ namespace game_skyrimse
         // are
         /// tolerant (nothing stored, 0 read).
         void setLocationKeywordData(LocationKeywordData* data);
+        /// Task 0223: Game.FastTravel(destination reference). The sink queues the travel (the pack's travel service; a
+        /// global script does the teleport) and says whether it took it. Not set: the native does nothing but count.
+        using FastTravelSink = std::function<bool(FormId destination)>;
+        void setFastTravelSink(FastTravelSink sink);
 
         /// Task 0198: the events the inventory and combat can raise. `from` and `to` are the owners' reference ids (0:
         /// none, as when a script added the item). Queued like any event; run by the next tick.
