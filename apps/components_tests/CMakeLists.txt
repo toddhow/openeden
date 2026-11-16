@@ -581,6 +581,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseperks.cpp
     skyrimse/testskyrimseperksreal.cpp
     skyrimse/testskyrimsecombatperks.cpp
+    skyrimse/testskyrimsemagicconditions.cpp
     skyrimse/testskyrimsecombatbow.cpp
     skyrimse/testskyrimsecombathud.cpp
     skyrimse/testskyrimseprogression.cpp
@@ -816,6 +817,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic_status.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_status.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic_conditions.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_effect_conditions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sneak.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_poison.cpp

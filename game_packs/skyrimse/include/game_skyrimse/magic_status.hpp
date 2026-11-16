@@ -10,8 +10,9 @@
 //  - Frenzy is archetype 8 (AlchInfluenceAggUp: aggression up), Calm is 6 (AlchInfluenceAggDown);
 //  - Fear is archetype 7 (Demoralize, "confidence down": AlchInfluenceConfDown, InfluenceConfDownFFAimed (the Fear
 //    spell), HowlWerewolfFearEffect1..3; 21 effects); the MGEFs of Paralysis, Frenzy and Fear carry 2 to 6 CTDA
-//    conditions each (functions 560, 244, 700, 715, 365: target immunities and states) that the pack cannot
-//    evaluate, so the magic runtime skips such an effect unless `combat test spell conditions` is set (task 0186);
+//    conditions each (functions 560, 244, 700, 715, 365: target immunities and states) that the magic
+//    runtime evaluates since task 0236 (magic_conditions.hpp; before it skipped such an effect unless
+//    `combat test spell conditions` was set, task 0186);
 //  - a weakness is archetype 34 (Peak) with the Hostile, Recover and Detrimental flags (0x...07) on the resistance's
 //    actor value: poison 40, fire 41, shock 42, frost 43, magic 44 (disease 45): AlchWeaknessFire, AlchWeaknessShock,
 //    AlchWeaknessFrost, AlchWeaknessMagic, AlchWeaknessPoison.

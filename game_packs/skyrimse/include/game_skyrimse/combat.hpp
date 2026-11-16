@@ -26,6 +26,7 @@
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/magic.hpp>
+#include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
 #include <game_skyrimse/progression.hpp>
 
@@ -103,8 +104,8 @@ namespace game_skyrimse
     /// (a concentration spell lasts that long). `combat test cast` is a comma separated list of `actor:spell` (editor
     /// ids): that actor casts the spell every `combat test cast every` seconds (default 4, first cast after one period),
     /// a concentration spell for `combat test cast hold` seconds (default 3). `combat test spell conditions` applies
-    /// the effects of a spell that carry conditions the pack cannot evaluate (the perk-gated Stagger and Demoralize
-    /// effects of Firebolt), which are otherwise skipped.
+    /// every effect whatever its conditions say; with it unset (task 0236) an effect applies when its conditions hold
+    /// (magic_conditions.hpp) and one whose conditions fail, or cannot be answered, does nothing.
     inline constexpr std::string_view kCombatTestPlayerSpellKey = "combat test player spell";
     inline constexpr std::string_view kCombatTestPlayerCastEveryKey = "combat test player cast every";
     inline constexpr std::string_view kCombatTestPlayerCastHoldKey = "combat test player cast hold";
@@ -489,7 +490,13 @@ namespace game_skyrimse
         bool setTestCasts(std::string_view list);
         void setTestCastEvery(float seconds);
         void setTestCastHold(float seconds);
+        /// Task 0236: with it set every effect applies whatever its conditions say (the override); unset (the default)
+        /// the effects whose conditions hold apply and the others do not.
         void setTestSpellConditions(bool apply) { mApplyEffectConditions = apply; }
+        /// Task 0236: how the effect condition lists came out, for the traces and the tests.
+        [[nodiscard]] std::uint64_t effectConditionsPassed() const { return mEffectConditionsPassed; }
+        [[nodiscard]] std::uint64_t effectConditionsFailed() const { return mEffectConditionsFailed; }
+        [[nodiscard]] std::uint64_t effectConditionsUnanswered() const { return mEffectConditionsUnanswered; }
         /// Task 0191, off by default (see kCombatSpellBeamsKey).
         void setSpellBeams(bool on) { mSpellBeams = on; }
         void setSpellVisuals(bool on) { mSpellVisuals = on; }
@@ -862,6 +869,12 @@ namespace game_skyrimse
             const SpellRecord& spell, const openeden::sdk::game::RayRequest& ray, float length);
         [[nodiscard]] std::uint32_t showWardBody(
             openeden::sdk::game::CombatRequestWriter& writer, const Fighter& caster, const SpellRecord& spell);
+        /// Task 0236 (combat_effect_conditions.cpp): may this effect apply from `caster` to `target`? True with no
+        /// conditions or with the test setting; else the effect's and its record's conditions are evaluated over the
+        /// two actors (magic_conditions.hpp) and a list that cannot be (a damaged one, an unanswered function) says no.
+        [[nodiscard]] bool effectConditionsAllow(
+            const Fighter& caster, const Fighter& target, const SpellEffect& effect, const MagicEffectRecord& record);
+        [[nodiscard]] effectconditions::Participant effectParticipant(const Fighter& fighter, std::vector<FormId>& active) const;
         void applyPoisonOnHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
             const openeden::sdk::game::SweepHit& hit); // task 0229 (combat_poison.cpp)
         void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
@@ -1142,6 +1155,13 @@ namespace game_skyrimse
         float mCastPeriod = kDefaultCastPeriod;
         float mCastHold = kDefaultCastHold;
         bool mApplyEffectConditions = false;
+        std::unique_ptr<effectconditions::Evaluator> mEffectConditions; ///< task 0236, made on first use
+        std::vector<FormId> mActiveOfTarget; ///< task 0236: scratch, the effects running on the target
+        std::vector<FormId> mActiveOfCaster;
+        std::uint64_t mEffectConditionChecks = 0; ///< task 0236: lists evaluated (the seed of GetRandomPercent)
+        std::uint64_t mEffectConditionsPassed = 0;
+        std::uint64_t mEffectConditionsFailed = 0;
+        std::uint64_t mEffectConditionsUnanswered = 0;
         bool mSpellBeams = false;
         bool mSpellVisuals = false;
         std::vector<std::uint32_t> mPendingHides; ///< shown effects whose spell ended, hidden in the next update

@@ -45,6 +45,48 @@ namespace game_skyrimse
             }
         }
 
+        // Task 0236: the condition functions of effects whose first parameter is a form id of the record's own plugin
+        // (HasPerk, HasKeyword, GetIsID, GetIsRace, GetInFaction, WornHasKeyword, HasMagicEffect,
+        // HasMagicEffectKeyword, GetGlobalValue, GetEquipped, WornApparelHasKeywordCount, GetShouldAttack,
+        // IsHostileToActor, GetIsReference, GetInCurrentLocFormList, HasSpell, GetItemCount, GetStage, GetQuestRunning,
+        // GetInWorldspace). Functions of the perk list above are included.
+        bool effectParameterIsForm(std::uint16_t function)
+        {
+            switch (function)
+            {
+                case 699:
+                case 66:
+                case 719:
+                case 136:
+                case 444:
+                case 264:
+                case 47:
+                case 58:
+                case 56:
+                case 310:
+                    return true;
+                default:
+                    return firstParameterIsForm(function);
+            }
+        }
+
+        /// Decodes one CTDA of a spell effect or a magic effect into `list` (parameter resolved to the load order);
+        /// the caller counts it either way, so a damaged one leaves the list shorter than the count.
+        void pushEffectCondition(const Fields& fields, std::uint32_t type, std::span<const std::byte> data,
+            std::vector<survey::Ctda>& list)
+        {
+            survey::Ctda c;
+            if (!survey::decodeCtda(data, c))
+            {
+                fields.odd(type);
+                return;
+            }
+            if (effectParameterIsForm(c.mFunction) && c.mParam1 != 0)
+                c.mParam1 = fields.resolved(c.mParam1);
+            if (list.size() < kMaxPerkConditionsPerTab)
+                list.push_back(c);
+        }
+
         template <class T>
         bool contains(const std::vector<T>* list, T value)
         {
@@ -424,7 +466,10 @@ namespace game_skyrimse
                     break;
                 case Content::fourCC("CTDA"):
                     if (!out.mEffects.empty())
+                    {
                         ++out.mEffects.back().mConditions;
+                        pushEffectCondition(fields, type, data, out.mEffects.back().mConditionList); // task 0236
+                    }
                     break;
                 case Content::fourCC("EFIT"):
                     if (data.size() != kSpellEfitBytes || out.mEffects.empty())
@@ -480,6 +525,17 @@ namespace game_skyrimse
                     break;
                 case Content::fourCC("CTDA"):
                     ++out.mConditions;
+                    pushEffectCondition(fields, type, data, out.mConditionList); // task 0236
+                    break;
+                case Content::fourCC("KWDA"):
+                    // Task 0236: the effect's keywords (HasMagicEffectKeyword asks them of a running effect)
+                    if (data.size() % 4 != 0)
+                    {
+                        fields.odd(type);
+                        break;
+                    }
+                    for (std::size_t i = 0; i + 4 <= data.size() && out.mKeywords.size() < 64; i += 4)
+                        out.mKeywords.push_back(fields.resolved(readLe<std::uint32_t>(data.data() + i)));
                     break;
                 case Content::fourCC("DATA"):
                     if (data.size() != kMagicEffectDataBytes)

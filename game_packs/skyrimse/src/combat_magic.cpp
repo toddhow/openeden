@@ -650,13 +650,8 @@ namespace game_skyrimse
                 trace("COMBAT effect of " + spellName(spell) + ": no record");
                 continue;
             }
-            const std::uint32_t conditions = effect.mConditions + record->mConditions;
-            if (conditions > 0 && !mApplyEffectConditions)
-            {
-                trace("COMBAT effect " + record->mCommon.mEditorId + " skipped: " + std::to_string(conditions)
-                    + " conditions the pack cannot evaluate");
+            if (!effectConditionsAllow(caster, target, effect, *record)) // task 0236
                 continue;
-            }
             applyOneEffect(writer, caster, target, spell, effect, *record, blocked, where);
             if (target.mDead)
                 break;
@@ -745,7 +740,7 @@ namespace game_skyrimse
                 const MagicEffectRecord* record = mData->effectById(effect.mEffect);
                 if (record == nullptr || !record->mHasData)
                     continue;
-                if (effect.mConditions + record->mConditions > 0 && !mApplyEffectConditions)
+                if (!effectConditionsAllow(*f, *f, effect, *record)) // task 0236
                     continue;
                 if (record->mArchetype == MagicArchetype::AccumulateMagnitude)
                 {
@@ -1144,7 +1139,7 @@ namespace game_skyrimse
             const MagicEffectRecord* record = mData->effectById(effect.mEffect);
             if (record == nullptr || !record->mHasData)
                 continue;
-            if (effect.mConditions + record->mConditions > 0 && !mApplyEffectConditions)
+            if (!effectConditionsAllow(caster, *victim, effect, *record)) // task 0236
                 continue;
             const std::uint32_t archetype = record->mArchetype;
             const bool value = archetype == MagicArchetype::ValueModifier || archetype == MagicArchetype::Dual

@@ -126,10 +126,13 @@ namespace game_skyrimse
         float mMagnitude = 0.f;
         std::uint32_t mArea = 0;
         std::uint32_t mDuration = 0;
-        /// Task 0186: CTDA subrecords after this effect's EFIT (a perk, a race or a state gates the effect). The pack
-        /// cannot evaluate them for a spell, so the magic runtime skips an effect that has any (a test setting applies
-        /// them anyway).
+        /// Task 0186: CTDA subrecords after this effect's EFIT (a perk, a race or a state gates the effect). Since
+        /// task 0236 the magic runtime evaluates them (magic_conditions.hpp); the test setting applies the effect anyway.
         std::uint32_t mConditions = 0;
+        /// Task 0236: the decoded CTDAs (parameters resolved to the load order); `mConditions` counts every CTDA, so
+        /// the list is shorter than the count when one was damaged or beyond the cap, and then the effect cannot be
+        /// evaluated (it is skipped, as before this task).
+        std::vector<survey::Ctda> mConditionList;
     };
 
     /// A SPEL, what an ability perk needs: the spell type (SPIT +8: 4 is an ability) and its effects.
@@ -175,8 +178,12 @@ namespace game_skyrimse
         std::int32_t mSecondaryValue = -1;
         bool mHasScript = false; ///< the record carries a VMAD (its effect is a script, Firebolt's damage among them)
         /// CTDA subrecords of the record: a perk or a state gates the effect (the Stagger and Demoralize effects of
-        /// Firebolt are perk effects with conditions). The magic runtime skips such an effect unless told otherwise.
+        /// Firebolt are perk effects with conditions). The magic runtime evaluates them (task 0236).
         std::uint32_t mConditions = 0;
+        /// Task 0236: the decoded CTDAs of the record (see SpellEffect::mConditionList) and its keywords (KWDA, resolved:
+        /// HasMagicEffectKeyword asks them of a running effect).
+        std::vector<survey::Ctda> mConditionList;
+        std::vector<FormId> mKeywords;
         /// ValueModifier is 0 (VERIFIED: PerkQuickShot); PeakValueModifier is 34 (RECALLED-VERIFY, CommonLibSSE-NG).
         [[nodiscard]] bool modifiesAValue() const { return mHasData && (mArchetype == 0 || mArchetype == 34); }
     };
