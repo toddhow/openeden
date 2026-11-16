@@ -194,6 +194,10 @@ namespace game_skyrimse
             const SceneIndex* mScenes = nullptr;
             std::function<bool(const std::vector<survey::Ctda>&, FormId scene, FormId quest)> mEvaluate;
             std::function<bool(FormId topic, FormId speakerReference, std::uint32_t pick, SceneLine& out)> mLine;
+            /// task 0231: the line an actor says unprompted for a DIAL subtype ("HELO", "ATCK" ...), see
+            /// DialogueRuntime::barkLine; main thread
+            std::function<bool(std::string_view subtype, FormId speakerReference, std::uint32_t pick, SceneLine& out)>
+                mBark;
             std::function<void(std::function<bool(FormId scene, std::uint32_t action)>)> mSetSceneLookup;
             std::function<const PackageRecord*(FormId package)> mPackage;
             /// the base form of a placed reference (0 when unknown)
@@ -382,6 +386,9 @@ namespace game_skyrimse
         /// started by the first call; never blocks. The four answers above read nothing themselves: they answer
         /// "nothing" until this is true.
         bool combatReady() override;
+        /// Task 0231: the GMSTs of the load order (the bark timers read them); null until the combat records are read
+        /// (this asks for them like combatReady()).
+        [[nodiscard]] const SettingsTable* gameSettings();
         const PerkLibrary* perkLibrary() override; // task 0179
         FormId perkByEditorId(std::string_view editorId) override;
         const SoundLibrary* soundLibrary() override; // task 0193

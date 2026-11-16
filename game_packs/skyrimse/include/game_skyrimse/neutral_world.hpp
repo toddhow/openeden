@@ -313,6 +313,8 @@ namespace game_skyrimse
                     (void)writer.cancelGoal(move.mActor);
             }
             mActors.update(seconds, writer);
+            if (mBarks != nullptr)
+                updateBarks(seconds, writer); // task 0231
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
                 if (move.mKind == Kind::GoTo)
                     (void)writer.goTo(move.mActor, { move.mX, move.mY, move.mZ, move.mSpeed });
@@ -323,6 +325,9 @@ namespace game_skyrimse
             mCombat.aiGoalFinished(handle, result); // task 0190
         }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
+        /// Task 0231 (barks): null (the default) is off. The system must outlive the cell source's use of it; the cell
+        /// source feeds it the fight's moments (through the combat's bark sink) and, once an update, the roster.
+        void setBarks(barks::BarkSystem* system);
         /// Followers (task 0196): answered by the actor table (the package brain keeps who follows).
         [[nodiscard]] std::size_t followers(openeden::sdk::game::WorldId* out, std::size_t capacity) const override
         {
@@ -485,6 +490,9 @@ namespace game_skyrimse
         SkyrimActorTable mActors;
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
+        void updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer); ///< task 0231
+        barks::BarkSystem* mBarks = nullptr;
+        std::vector<barks::Actor> mBarkRoster; ///< reused
         SkyrimCombat mCombat;
         bool mMusicOn = false; ///< task 0209
         std::uint64_t mMusicSeed = 1;

@@ -27,6 +27,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace game_skyrimse
@@ -110,6 +111,13 @@ namespace game_skyrimse
         /// topic's INFO by the usual selection, its text and voice, and its script fragments through the sink. Does not
         /// touch an open conversation (the speaker, voice type and say-once of it are kept). False when no INFO passes.
         [[nodiscard]] bool sceneLine(FormId topic, const DialogueSpeaker& speaker, std::uint32_t pick,
+            openeden::sdk::game::DialogueTurn& out);
+
+        /// Task 0231: the line `speaker` says unprompted for a DIAL subtype ("HELO", "ATCK" ...): the topics of that
+        /// subtype by priority, the first INFO that passes (a Random one chosen by `pick`), its text, voice and script
+        /// fragments. Like sceneLine it leaves an open conversation alone (speaker, voice type and the conversation
+        /// flags are kept); say-once is shared with the conversations. False when no INFO passes.
+        [[nodiscard]] bool barkLine(std::string_view subtype, const DialogueSpeaker& speaker, std::uint32_t pick,
             openeden::sdk::game::DialogueTurn& out);
 
         /// Turns voice on: `probe` says which files exist. Without it no turn has voice.

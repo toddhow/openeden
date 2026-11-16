@@ -389,6 +389,11 @@ namespace game_skyrimse
         return mCombatIndex->settings().combatSettings();
     }
 
+    const SettingsTable* SkyrimWorldView::gameSettings()
+    {
+        return combatReady() && mCombatIndex != nullptr ? &mCombatIndex->settings() : nullptr;
+    }
+
     BlockSettings SkyrimWorldView::blockSettings()
     {
         if (mCombatIndex == nullptr)
@@ -1917,6 +1922,22 @@ namespace game_skyrimse
             speaker.mCell = entry->mCell;
             sdkgame::DialogueTurn turn;
             if (!state->mRuntime->sceneLine(topic, speaker, pick, turn))
+                return false;
+            line.mText = turn.text;
+            line.mVoice = turn.voice;
+            return true;
+        };
+        out.mBark = [this, state, data](std::string_view subtype, FormId reference, std::uint32_t pick, SceneLine& line) {
+            const PlacedEntry* entry = data->mPlacedRefs.find(reference);
+            if (entry == nullptr)
+                return false;
+            DialogueSpeaker speaker;
+            speaker.mReference = reference;
+            speaker.mBase = entry->mBase;
+            fillSpeakerCell(speaker, entry->mCell);
+            speaker.mCell = entry->mCell;
+            sdkgame::DialogueTurn turn;
+            if (!state->mRuntime->barkLine(subtype, speaker, pick, turn))
                 return false;
             line.mText = turn.text;
             line.mVoice = turn.voice;

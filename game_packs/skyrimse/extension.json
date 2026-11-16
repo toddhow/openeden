@@ -21,6 +21,21 @@
   "data": "data",
   "settings": [
     {
+      "key": "barks",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "barks test start",
+      "type": "float",
+      "default": 0.0
+    },
+    {
+      "key": "barks subtitles",
+      "type": "bool",
+      "default": true
+    },
+    {
       "key": "crime",
       "type": "bool",
       "default": false

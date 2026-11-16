@@ -1186,6 +1186,9 @@ namespace game_skyrimse
                     startServices(host, logger);
                     // Task 0204: crime, bounty and guards (the namespace skyrimse.crime).
                     startCrime(host, logger);
+                    // Task 0231: NPCs speak unprompted (hello, chatter, combat lines), off unless
+                    // [extension.skyrimse] barks.
+                    startBarks(host, logger);
                     // Task 0203: lock picking and books (the namespace skyrimse.lockbooks); needs the inventory.
                     startLockBooks(host, logger);
                     // Task 0208: picking up placed items and pickpocketing (needs the inventory).
@@ -2321,6 +2324,68 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "SNEAK sneaking and detection are on");
             }
 
+            // Task 0231: barks. Off unless [extension.skyrimse] barks. The rules are barks.* (pure); this wires them to the
+            // dialogue runtime (which line), the scene speech path of task 0194 (voice and subtitle) and the cell source
+            // (the roster and the combat's moments). Needs the dialogue data (about 25 s after start): until then no
+            // line is found and the actors try again.
+            void startBarks(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "barks", false))
+                    return;
+                mBarkSubtitles = settings->getBool(kPackId, "barks subtitles", true);
+                mBarkStartAt = std::max(0.f, settings->getFloat(kPackId, "barks test start", 0.f)); // a proof aid
+                barks::Hooks hooks;
+                hooks.mReady = [this] {
+                    if (mBarkLine)
+                        return true;
+                    SkyrimWorldView::PapyrusAccess access;
+                    if (!mWorldView.papyrusAccess(access) || !access.mBark)
+                        return false;
+                    mBarkLine = access.mBark;
+                    return true;
+                };
+                hooks.mChoose = [this](barks::Kind kind, std::uint64_t reference, std::uint32_t pick, barks::Line& out) {
+                    if (!mBarkConfigured)
+                        if (const SettingsTable* table = mWorldView.gameSettings())
+                        {
+                            mBarkConfigured = true;
+                            barks::Settings configured = barks::fromGameSettings(table);
+                            configured.mStartAt = mBarkStartAt;
+                            mBarks->configure(std::move(configured));
+                        }
+                    if (!mBarkLine)
+                    {
+                        SkyrimWorldView::PapyrusAccess access;
+                        if (!mWorldView.papyrusAccess(access) || !access.mBark)
+                            return false;
+                        mBarkLine = access.mBark;
+                    }
+                    SceneLine line;
+                    if (!mBarkLine(barks::subtypeOf(kind), static_cast<FormId>(reference), pick, line))
+                        return false;
+                    out.mText = std::move(line.mText);
+                    out.mVoice = std::move(line.mVoice);
+                    return true;
+                };
+                hooks.mSpeak = [this](std::uint64_t reference, const barks::Line& line) {
+                    // Skyrim's unsubtitled barks have a text of one space: no box for those.
+                    const bool blank = line.mText.find_first_not_of(" \t\r\n") == std::string::npos;
+                    return mCellSource.sceneSpeak(static_cast<openeden::sdk::game::WorldId>(reference),
+                        mBarkSubtitles && !blank ? line.mText : std::string(), line.mVoice);
+                };
+                hooks.mTrace = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                barks::Settings initial = barks::fromGameSettings(nullptr);
+                initial.mStartAt = mBarkStartAt;
+                mBarks = std::make_unique<barks::BarkSystem>(std::move(initial), std::move(hooks));
+                mCellSource.setBarks(mBarks.get());
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "BARK barks are on");
+            }
+
             // Task 0208: picking up placed items and pickpocketing. On with the inventory (no setting of its own); a
             // theft or a caught try is a crime only when the crime rules are on.
             void startPickup(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
@@ -3308,6 +3373,11 @@ namespace game_skyrimse
             std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
             std::unique_ptr<sneak::SneakSystem> mSneak; // task 0227; refers to the cell source, inventory, progression
             std::unique_ptr<sneak::SneakBindings> mSneakBindings;
+            std::unique_ptr<barks::BarkSystem> mBarks; // task 0231; refers to the cell source and the world view
+            std::function<bool(std::string_view, FormId, std::uint32_t, SceneLine&)> mBarkLine; // from papyrusAccess
+            bool mBarkSubtitles = true;
+            bool mBarkConfigured = false;
+            float mBarkStartAt = 0.f;
             std::unique_ptr<pickup::PickupService> mPickup; // task 0208; refers to the inventory, crime, progression
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;

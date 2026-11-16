@@ -18,6 +18,7 @@
 // No engine, renderer, Jolt, Qt or OSG type. Main thread only; the vectors are reserved so that a frame allocates
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
+#include <game_skyrimse/barks.hpp>
 #include <game_skyrimse/combat_gear.hpp>
 #include <game_skyrimse/combat_sound.hpp>
 #include <game_skyrimse/combat_factions.hpp>
@@ -639,6 +640,21 @@ namespace game_skyrimse
         /// A damage report as it went to the core: damage the player dealt to a living actor provokes it, whatever the
         /// means (a blow, an arrow, a spell; the neutral world's wrapper tells every report, AiDamageWriter below).
         void aiNoteDamage(const openeden::sdk::game::DamageReport& report);
+        /// Task 0231 (barks): told of the fight's moments (an engagement, a flight, the end of a fight, a hurt actor, a
+        /// death). Hook calls only; empty (the default) and nothing is looked at.
+        using BarkSink = std::function<void(barks::Kind, openeden::sdk::game::ActorHandle)>;
+        void setBarkSink(BarkSink sink) { mBarkSink = std::move(sink); }
+        /// A damage report as it went to the core: a living actor that lost health says a hurt line.
+        void barkNoteDamage(const openeden::sdk::game::DamageReport& report)
+        {
+            if (mBarkSink && !report.victimIsPlayer && report.amount > 0.f && report.healthAfter > 0.f)
+                mBarkSink(barks::Kind::Hit, report.victim);
+        }
+        void barkNoteDeath(openeden::sdk::game::ActorHandle actor)
+        {
+            if (mBarkSink)
+                mBarkSink(barks::Kind::Death, actor);
+        }
         [[nodiscard]] std::size_t aiEngaged() const { return mAiActors.size(); }
         /// A test aid: sets a fighter's current health (clamped to [0, maximum]; 0 kills it for the AI's purposes).
         bool setFighterHealth(openeden::sdk::game::CombatSubject subject, float health);
@@ -882,6 +898,7 @@ namespace game_skyrimse
             float mGuardClipEnds = -1.f; ///< the raised-guard clip plays until then
             std::uint32_t mGuardToken = 0;
             bool mFleeGoalOut = false; ///< a flee goal was issued and has not ended
+            bool mFleeBarked = false; ///< task 0231: the flight's cry was told to the bark sink
             int mGoalFails = 0; ///< goals in a row that ended NoPath or Blocked outside a flee
             bool mGiveUp = false; ///< too many failed goals: it lets go of the fight
             /// Task 0197: who it fights (the player until the factions rules pick another).
@@ -952,6 +969,7 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, std::uint32_t> mAiEngagements;
         std::map<openeden::sdk::game::WorldId, float> mAiCooldown; ///< the combat clock before which it does not engage
         std::vector<AiMoveIntent> mAiMoves;
+        BarkSink mBarkSink; ///< task 0231
 
         void startHostiles(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerSwing(openeden::sdk::game::CombatRequestWriter& writer);
@@ -1196,6 +1214,7 @@ namespace game_skyrimse
         {
             const bool ok = mInner.reportDamage(report);
             mCombat.aiNoteDamage(report);
+            mCombat.barkNoteDamage(report); // task 0231
             return ok;
         }
         bool faceHeading(openeden::sdk::game::CombatSubject subject, float heading) override
@@ -1224,7 +1243,11 @@ namespace game_skyrimse
         {
             return mInner.clipEventTime(clip, perSex, kind, out);
         }
-        bool reportDeath(openeden::sdk::game::ActorHandle actor) override { return mInner.reportDeath(actor); }
+        bool reportDeath(openeden::sdk::game::ActorHandle actor) override
+        {
+            mCombat.barkNoteDeath(actor); // task 0231
+            return mInner.reportDeath(actor);
+        }
         // Contract 0.5 (tasks 0191, 0193): a wrapper that does not forward a new virtual silently gives the pack the
         // default, which refuses.
         bool castRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,

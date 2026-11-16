@@ -31,6 +31,7 @@ openeden_add_game_pack(skyrimse
         src/travel.cpp
         src/services.cpp
         src/menus.cpp
+        src/barks.cpp
         src/presentation.cpp
         src/quest_script.cpp
         src/story.cpp
@@ -122,6 +123,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/map.hpp
         include/game_skyrimse/map_markers.hpp
         include/game_skyrimse/rest.hpp
+        include/game_skyrimse/barks.hpp
         include/game_skyrimse/travel.hpp
         include/game_skyrimse/services.hpp
         include/game_skyrimse/menus.hpp
@@ -208,6 +210,7 @@ add_library(game_skyrimse_world STATIC
     src/inventory.cpp
     src/map_markers.cpp
     src/menus.cpp
+    src/barks.cpp
     src/presentation.cpp
     src/quest_script.cpp
     src/story.cpp

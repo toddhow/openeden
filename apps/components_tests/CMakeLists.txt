@@ -636,6 +636,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimselocationsubject.cpp
     skyrimse/testskyrimsebounty.cpp
     skyrimse/testskyrimsebountyreal.cpp
+    skyrimse/testskyrimsebarks.cpp
+    skyrimse/testskyrimsebarkline.cpp
+    skyrimse/testskyrimsebarksreal.cpp
     skyrimse/testskyrimseradiantfill.cpp
     skyrimse/testskyrimseradiantreal.cpp
     skyrimse/testskyrimseradiantsurvey.cpp
@@ -762,6 +765,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/travel.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/services.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/menus.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/presentation.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/story.cpp

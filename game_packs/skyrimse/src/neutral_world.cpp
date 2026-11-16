@@ -627,4 +627,34 @@ namespace game_skyrimse
         return runtime->plan(static_cast<FormId>(typeId), facts, mMusicSeed, context.pick,
             [data](const std::string& path) { return data->musicFileExists(path); }, out);
     }
+
+    void SkyrimCellSource::setBarks(barks::BarkSystem* system)
+    {
+        mBarks = system;
+        if (system == nullptr)
+            mCombat.setBarkSink({});
+        else
+            mCombat.setBarkSink([system](barks::Kind kind, openeden::sdk::game::ActorHandle handle) {
+                system->onEvent(kind, static_cast<std::uint64_t>(handle.reference));
+            });
+    }
+
+    void SkyrimCellSource::updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer)
+    {
+        mBarkRoster.clear();
+        for (const openeden::sdk::game::WorldId reference : mActors.actorReferences())
+        {
+            const openeden::sdk::game::ActorHandle handle = mActors.handleOf(reference);
+            barks::Actor actor;
+            actor.mReference = static_cast<std::uint64_t>(reference);
+            if (!handle.valid() || !writer.actorPosition(handle, actor.mX, actor.mY, actor.mZ))
+                continue;
+            SkyrimCombat::FighterView view;
+            actor.mDead = mCombat.fighterView(openeden::sdk::game::CombatSubject::of(handle), view) && view.mDead;
+            mBarkRoster.push_back(actor);
+        }
+        double px = 0.0, py = 0.0, pz = 0.0;
+        const bool havePlayer = writer.playerPosition(px, py, pz);
+        mBarks->update(seconds, mBarkRoster, havePlayer, px, py, pz);
+    }
 }

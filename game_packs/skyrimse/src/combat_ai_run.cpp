@@ -302,6 +302,8 @@ namespace game_skyrimse
         intent.mKind = AiMoveIntent::Kind::Suspend;
         intent.mActor = actor.mHandle;
         mAiMoves.push_back(intent);
+        if (mBarkSink)
+            mBarkSink(assisted ? barks::Kind::EngageAlerted : barks::Kind::Engage, actor.mHandle); // task 0231
         fighter.mCombatUntil = mClock + kCombatLingerSeconds;
         if (mTrace)
         {
@@ -339,6 +341,11 @@ namespace game_skyrimse
         }
         intent.mKind = AiMoveIntent::Kind::Resume;
         mAiMoves.push_back(intent);
+        if (mBarkSink && std::strcmp(why, "dead") != 0) // task 0231: a death has its own cry
+            mBarkSink(std::strcmp(why, "no way to the target") == 0 || std::strcmp(why, "flee over or target gone") == 0
+                    ? barks::Kind::Lost
+                    : barks::Kind::Calm,
+                actor.mHandle);
         if (mTrace)
         {
             std::string id;
@@ -539,6 +546,11 @@ namespace game_skyrimse
                 break;
             }
             case AiMove::Flee:
+                if (mBarkSink && !actor.mFleeBarked)
+                {
+                    actor.mFleeBarked = true; // task 0231
+                    mBarkSink(barks::Kind::Flee, actor.mHandle);
+                }
                 if (!actor.mFleeGoalOut && mClock - actor.mGoalAt >= kAiRetargetPeriod)
                 {
                     const AiPoint p = aiAwayPoint(s, t, kAiFleeStep, actor.mState.mFleeTry);

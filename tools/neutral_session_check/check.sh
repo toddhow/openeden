@@ -99,6 +99,10 @@ echo "return { mode = '${NF_MODE:-guards}', attacker = ${NF_ATTACKER:-1048812}, 
 # takes a picture every AI_EVERY (0.5) seconds of real time for AI_WINDOW (60) seconds; the AI settings go in SETTINGS_EXTRA
 # (see luatest/scripts/n5/aiglobal.lua).
 [ "$SHOT" = n5ai ] && echo "content=n5ai.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0231 (barks): "n5bark" visits the Mare's actors one after the other (far, then near; luatest/scripts/n5/barkglobal.lua) and takes a picture
+# BARK_SHOT seconds after each arrival; BARK_TAGS="'b80803','b108144'" BARK_FAR BARK_NEAR BARK_WAIT BARK_APPROACH BARK_HOLD BARK_SHOT BARK_START. The bark settings go in SETTINGS_EXTRA.
+[ "$SHOT" = n5bark ] && echo "content=n5bark.omwscripts" >> "$WORK/config/openmw.cfg"
+echo "return { tags = { ${BARK_TAGS:-'b80803','b108144','b80802','b80807'} }, far = ${BARK_FAR:-900}, near = ${BARK_NEAR:-250}, wait = ${BARK_WAIT:-2}, approach = ${BARK_APPROACH:-1}, hold = ${BARK_HOLD:-8}, shot = ${BARK_SHOT:-2.5}, start = ${BARK_START:-30} }" > "$WORK/luatest/scripts/n5/barkcfg.lua"
 # Task 0212 (creatures): "n5wolf" is n5ai in daylight with a side camera between the player and the wolf (luatest/scripts/n5/wolfglobal.lua; same AI_* variables).
 [ "$SHOT" = n5wolf ] && echo "content=n5wolf.omwscripts" >> "$WORK/config/openmw.cfg"
 echo "return { start = ${AI_START:-0.3}, dist = ${AI_DIST:-300}, every = ${AI_EVERY:-0.5}, window = ${AI_WINDOW:-60}, target = '${AI_TARGET:-b80803}'${AI_CAM:+, cam = { $AI_CAM }} }" > "$WORK/luatest/scripts/n5/aicfg.lua"
@@ -227,7 +231,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5wolf|n5npcfight|n8crime|n9pick|n5gear|pbody) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|n5gear|pbody) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

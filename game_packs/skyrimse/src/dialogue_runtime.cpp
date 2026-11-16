@@ -279,6 +279,28 @@ namespace game_skyrimse
         return found;
     }
 
+    bool DialogueRuntime::barkLine(
+        std::string_view subtype, const DialogueSpeaker& speaker, std::uint32_t pick, openeden::sdk::game::DialogueTurn& out)
+    {
+        out = {};
+        const DialogueSpeaker savedSpeaker = mSpeaker;
+        const std::string savedVoice = mVoiceType;
+        mSpeaker = speaker;
+        mWorld.setSpeaker(speaker);
+        mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
+        // GetRandomPercent and the like draw from a generator seeded by the placement and the pick.
+        mWorld.setRandomSeed(
+            (speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase) ^ (std::uint64_t(pick) << 32));
+        const Selection s = pickFromTopics(mDialogue, std::string(subtype), mWorld, mSpeaker, options(pick));
+        const bool found = s.mInfo != nullptr;
+        if (found)
+            fillTurn(*s.mInfo, out);
+        mSpeaker = savedSpeaker;
+        mVoiceType = savedVoice;
+        mWorld.setSpeaker(savedSpeaker);
+        return found;
+    }
+
     bool DialogueRuntime::choose(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {
         out = {};
