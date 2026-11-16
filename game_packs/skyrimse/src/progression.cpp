@@ -305,6 +305,16 @@ namespace game_skyrimse::progression
         ++mRevision;
     }
 
+    void PlayerProgression::reset(std::uint16_t level, std::uint8_t skill)
+    {
+        setStart(level, skill);
+        mLevelXp = 0.f;
+        mPerkPoints = 0;
+        mVitalCount = {};
+        mOwned.clear();
+        mLevelUps.clear();
+    }
+
     std::uint8_t PlayerProgression::skill(std::size_t slot) const
     {
         return slot < kSkillCount ? mSkill[slot] : std::uint8_t(0);
@@ -597,7 +607,8 @@ namespace game_skyrimse::progression
         }
         if (!c.get(version) || version != kSaveVersion)
         {
-            error = "the progression save has version " + std::to_string(version) + ", not " + std::to_string(kSaveVersion);
+            error = "the progression save has version " + std::to_string(version) + ", not "
+                + std::to_string(kSaveVersion);
             return false;
         }
         bool ok = c.get(level) && c.get(points) && c.get(levelXp);

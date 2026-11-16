@@ -96,15 +96,19 @@ namespace game_skyrimse
         profile.mHealthMax = mStandProfile.mHealthMax + p.vitalBonus(progression::Vital::Health);
         profile.mMagickaMax = mStandProfile.mMagickaMax + p.vitalBonus(progression::Vital::Magicka);
         profile.mStaminaMax = mStandProfile.mStaminaMax + p.vitalBonus(progression::Vital::Stamina);
-        player->mStamina = std::min(profile.mStaminaMax, player->mStamina + std::max(0.f, profile.mStaminaMax - oldStaminaMax));
-        player->mMagicka = std::min(profile.mMagickaMax, player->mMagicka + std::max(0.f, profile.mMagickaMax - oldMagickaMax));
+        player->mStamina
+            = std::min(profile.mStaminaMax, player->mStamina + std::max(0.f, profile.mStaminaMax - oldStaminaMax));
+        player->mMagicka
+            = std::min(profile.mMagickaMax, player->mMagicka + std::max(0.f, profile.mMagickaMax - oldMagickaMax));
         // perks: the stand-in's own, the bought ones, the test settings' (preparePerks adds them and sorts)
         profile.mPerks = mStandProfile.mPerks;
         const std::vector<FormId> bought = p.ownedPerks();
         profile.mPerks.insert(profile.mPerks.end(), bought.begin(), bought.end());
-        profile.mAbilityDamageResist = mStandProfile.mAbilityDamageResist;
-        profile.mHasWeaponSpeedAbility = mStandProfile.mHasWeaponSpeedAbility;
-        profile.mAbilityWeaponSpeed = mStandProfile.mAbilityWeaponSpeed;
+        // preparePerks sums the abilities of the perks and spells again from nothing (the player's base profile has no
+        // ability of its own): leaving the first call's sums would count them twice
+        profile.mAbilityDamageResist = 0.f;
+        profile.mHasWeaponSpeedAbility = false;
+        profile.mAbilityWeaponSpeed = 1.f;
         preparePerks(*player);
         applyPlayerEquipment(); // armour scales with the armour skills
         const float gained = profile.mHealthMax - oldHealthMax;
@@ -127,8 +131,10 @@ namespace game_skyrimse
             }
         }
         if (mTrace)
-            trace("COMBAT progression synced: level " + std::to_string(p.level()) + " health max " + std::to_string(static_cast<int>(profile.mHealthMax))
-                + " magicka max " + std::to_string(static_cast<int>(profile.mMagickaMax)) + " stamina max " + std::to_string(static_cast<int>(profile.mStaminaMax)) + " perks "
+            trace("COMBAT progression synced: level " + std::to_string(p.level()) + " health max "
+                + std::to_string(static_cast<int>(profile.mHealthMax)) + " magicka max "
+                + std::to_string(static_cast<int>(profile.mMagickaMax)) + " stamina max "
+                + std::to_string(static_cast<int>(profile.mStaminaMax)) + " perks "
                 + std::to_string(profile.mPerks.size()));
     }
 }

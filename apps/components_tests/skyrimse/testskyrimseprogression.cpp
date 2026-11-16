@@ -582,4 +582,22 @@ namespace
         EXPECT_FLOAT_EQ(p.skillXp(0), 100.f);
         EXPECT_EQ(p.serialise(), good);
     }
+
+    TEST(SkyrimProgression, resetMakesANewCharacter)
+    {
+        Rig rig;
+        PlayerProgression& p = *rig.mP;
+        (void)p.useSkill(0, 1.0e6f);
+        ASSERT_TRUE(p.chooseLevelUp(Vital::Stamina));
+        std::string why;
+        ASSERT_TRUE(p.buyPerk(kA1, why));
+        p.reset(1, 15);
+        EXPECT_EQ(p.level(), 1u);
+        EXPECT_EQ(p.skill(0), 15u);
+        EXPECT_FLOAT_EQ(p.levelXp(), 0.f);
+        EXPECT_EQ(p.perkPoints(), 0u);
+        EXPECT_FLOAT_EQ(p.vitalBonus(Vital::Stamina), 0.f);
+        EXPECT_TRUE(p.ownedPerks().empty());
+        EXPECT_TRUE(p.takeLevelUps().empty());
+    }
 }

@@ -199,8 +199,9 @@ namespace game_skyrimse::progression
         const std::uint32_t increases = mProgression->useSkill(slot, amount);
         if (increases > 0 && mHooks.mLog)
             mHooks.mLog("PROGRESSION skill " + std::string(skillName(slot)) + " " + std::to_string(before) + " -> "
-                + std::to_string(mProgression->skill(slot)) + " (level xp " + std::to_string(static_cast<int>(mProgression->levelXp()))
-                + " of " + std::to_string(static_cast<int>(mProgression->levelNeed())) + ")");
+                + std::to_string(mProgression->skill(slot)) + " (level xp "
+                + std::to_string(static_cast<int>(mProgression->levelXp())) + " of "
+                + std::to_string(static_cast<int>(mProgression->levelNeed())) + ")");
     }
 
     bool ProgressionService::actorValue(std::uint32_t index, float& out) const
@@ -269,7 +270,12 @@ namespace game_skyrimse::progression
             return false;
         }
         if (size == 0)
+        {
+            // a save made before the progression existed: a new character (also when a game is already running)
+            if (mProgression != nullptr)
+                mProgression->reset(mHooks.mStartLevel, mHooks.mStartSkill);
             return true;
+        }
         if (mProgression != nullptr)
         {
             if (!mProgression->restore(bytes, mRefusal))
@@ -313,7 +319,8 @@ namespace game_skyrimse::progression
                     return r;
                 });
         };
-        const auto slotFn = [&](std::string_view name, std::function<std::int64_t(const PlayerProgression&, std::size_t)> get) {
+        using SlotGetter = std::function<std::int64_t(const PlayerProgression&, std::size_t)>;
+        const auto slotFn = [&](std::string_view name, SlotGetter get) {
             add(name, i1, true, BindingType::Int32, BindingAccess::Read,
                 [self, get = std::move(get)](std::span<const BindingValue> a) {
                     if (a[0].integer < 0 || a[0].integer >= static_cast<std::int32_t>(kSkillCount))
@@ -332,16 +339,20 @@ namespace game_skyrimse::progression
             r.value = boolean(self->poll());
             return r;
         });
-        intFn("revision", [](const PlayerProgression& p) { return static_cast<std::int64_t>(p.revision() & 0x7FFFFFFF); });
+        intFn("revision",
+            [](const PlayerProgression& p) { return static_cast<std::int64_t>(p.revision() & 0x7FFFFFFF); });
         intFn("level", [](const PlayerProgression& p) { return static_cast<std::int64_t>(p.level()); });
         intFn("level_xp", [](const PlayerProgression& p) { return static_cast<std::int64_t>(p.levelXp()); });
         intFn("level_need", [](const PlayerProgression& p) { return static_cast<std::int64_t>(p.levelNeed()); });
         intFn("level_up_ready", [](const PlayerProgression& p) { return p.levelUpReady() ? 1 : 0; });
         intFn("perk_points", [](const PlayerProgression& p) { return static_cast<std::int64_t>(p.perkPoints()); });
         intFn("skill_count", [](const PlayerProgression&) { return static_cast<std::int64_t>(kSkillCount); });
-        slotFn("skill_level", [](const PlayerProgression& p, std::size_t s) { return static_cast<std::int64_t>(p.skill(s)); });
-        slotFn("skill_xp", [](const PlayerProgression& p, std::size_t s) { return static_cast<std::int64_t>(p.skillXp(s)); });
-        slotFn("skill_need", [](const PlayerProgression& p, std::size_t s) { return static_cast<std::int64_t>(p.skillNeed(s)); });
+        slotFn("skill_level",
+            [](const PlayerProgression& p, std::size_t s) { return static_cast<std::int64_t>(p.skill(s)); });
+        slotFn("skill_xp",
+            [](const PlayerProgression& p, std::size_t s) { return static_cast<std::int64_t>(p.skillXp(s)); });
+        slotFn("skill_need",
+            [](const PlayerProgression& p, std::size_t s) { return static_cast<std::int64_t>(p.skillNeed(s)); });
         add("skill_name", i1, true, kStr, BindingAccess::Read, [](std::span<const BindingValue> a) {
             BindingResult r = ok();
             r.value = text(a[0].integer >= 0 ? skillName(static_cast<std::size_t>(a[0].integer)) : std::string_view());
@@ -377,71 +388,77 @@ namespace game_skyrimse::progression
                 return r;
             },
             openeden::sdk::BindingShape::Array);
-        const auto nodeFn = [&](std::string_view name, BindingType type,
-                                std::function<BindingValue(const PlayerProgression&, const PerkNode&, FormId,
-                                    const PerkRecord*, std::string& scratch)>
-                                    get) {
-            add(name, s1, true, type, BindingAccess::Read, [self, perkOf, &m, type, get = std::move(get)](std::span<const BindingValue> a) {
-                FormId perk = 0;
-                if (!perkOf(a[0], perk))
-                    return fail(BindingStatus::BadArgument, "not a perk id");
-                const PlayerProgression* p = self->progression();
-                const PerkNode* node = p != nullptr ? self->nodeOf(perk) : nullptr;
-                BindingResult r = ok();
-                if (node == nullptr)
-                {
-                    r.value.type = type;
-                    r.value.text = {};
-                    return r;
-                }
-                r.value = get(*p, *node, perk, self->perkRecord(perk), m.mText);
-                return r;
-            });
+        // what a perk function reads about one node of the trees
+        struct NodeCtx
+        {
+            const PlayerProgression& mProgression;
+            const PerkNode& mNode;
+            FormId mPerk;
+            const PerkRecord* mRecord;
+            std::string& mScratch;
         };
-        nodeFn("perk_name", kStr, [](const PlayerProgression&, const PerkNode&, FormId, const PerkRecord* rec, std::string& s) {
-            s = rec != nullptr ? prettyPerkName(rec->mCommon.mEditorId) : std::string();
-            return text(s);
+        using NodeGetter = std::function<BindingValue(const NodeCtx&)>;
+        const auto nodeFn = [&](std::string_view name, BindingType type, NodeGetter get) {
+            add(name, s1, true, type, BindingAccess::Read,
+                [self, perkOf, &m, type, get = std::move(get)](std::span<const BindingValue> a) {
+                    FormId perk = 0;
+                    if (!perkOf(a[0], perk))
+                        return fail(BindingStatus::BadArgument, "not a perk id");
+                    const PlayerProgression* p = self->progression();
+                    const PerkNode* node = p != nullptr ? self->nodeOf(perk) : nullptr;
+                    BindingResult r = ok();
+                    if (node == nullptr)
+                    {
+                        r.value.type = type;
+                        r.value.text = {};
+                        return r;
+                    }
+                    r.value = get(NodeCtx{ *p, *node, perk, self->perkRecord(perk), m.mText });
+                    return r;
+                });
+        };
+        nodeFn("perk_name", kStr, [](const NodeCtx& c) {
+            c.mScratch = c.mRecord != nullptr ? prettyPerkName(c.mRecord->mCommon.mEditorId) : std::string();
+            return text(c.mScratch);
         });
-        nodeFn("perk_rank", BindingType::Int32, [](const PlayerProgression& p, const PerkNode&, FormId perk, const PerkRecord*, std::string&) {
-            return integer(p.perkRank(perk));
-        });
-        nodeFn("perk_ranks", BindingType::Int32, [](const PlayerProgression& p, const PerkNode&, FormId perk, const PerkRecord*, std::string&) {
+        nodeFn("perk_rank", BindingType::Int32,
+            [](const NodeCtx& c) { return integer(c.mProgression.perkRank(c.mPerk)); });
+        nodeFn("perk_ranks", BindingType::Int32, [](const NodeCtx& c) {
             std::int64_t n = 0;
             for (std::size_t s = 0; s < kSkillCount; ++s)
-                for (const NodeView& v : p.nodes(s))
-                    if (v.mPerk == perk)
+                for (const NodeView& v : c.mProgression.nodes(s))
+                    if (v.mPerk == c.mPerk)
                         n = v.mRanks;
             return integer(n);
         });
-        nodeFn("perk_can_buy", BindingType::Bool, [](const PlayerProgression& p, const PerkNode&, FormId perk, const PerkRecord*, std::string&) {
+        nodeFn("perk_can_buy", BindingType::Bool, [](const NodeCtx& c) {
             std::string why;
-            return boolean(p.canBuyPerk(perk, why));
+            return boolean(c.mProgression.canBuyPerk(c.mPerk, why));
         });
-        nodeFn("perk_reason", kStr, [](const PlayerProgression& p, const PerkNode&, FormId perk, const PerkRecord*, std::string& s) {
-            s.clear();
-            if (p.canBuyPerk(perk, s))
-                s.clear();
-            return text(s);
+        nodeFn("perk_reason", kStr, [](const NodeCtx& c) {
+            c.mScratch.clear();
+            if (c.mProgression.canBuyPerk(c.mPerk, c.mScratch))
+                c.mScratch.clear();
+            return text(c.mScratch);
         });
-        nodeFn("perk_col", BindingType::Int32, [](const PlayerProgression&, const PerkNode& n, FormId, const PerkRecord*, std::string&) {
-            return integer(n.mColumn);
-        });
-        nodeFn("perk_row", BindingType::Int32, [](const PlayerProgression&, const PerkNode& n, FormId, const PerkRecord*, std::string&) {
-            return integer(n.mRow);
-        });
-        add("choose_level_up", s1, false, BindingType::Bool, BindingAccess::Mutate, [self](std::span<const BindingValue> a) {
-            const std::string_view name = a[0].text;
-            if (name != "health" && name != "magicka" && name != "stamina")
+        nodeFn("perk_col", BindingType::Int32, [](const NodeCtx& c) { return integer(c.mNode.mColumn); });
+        nodeFn("perk_row", BindingType::Int32, [](const NodeCtx& c) { return integer(c.mNode.mRow); });
+        add("choose_level_up", s1, false, BindingType::Bool, BindingAccess::Mutate,
+            [self](std::span<const BindingValue> a) {
+                const std::string_view name = a[0].text;
+                if (name != "health" && name != "magicka" && name != "stamina")
+                    return ok();
+                (void)self->chooseLevelUp(
+                    name == "magicka" ? Vital::Magicka : name == "stamina" ? Vital::Stamina : Vital::Health);
                 return ok();
-            (void)self->chooseLevelUp(name == "magicka" ? Vital::Magicka : name == "stamina" ? Vital::Stamina : Vital::Health);
-            return ok();
-        });
-        add("buy_perk", s1, false, BindingType::Bool, BindingAccess::Mutate, [self, perkOf](std::span<const BindingValue> a) {
-            FormId perk = 0;
-            if (perkOf(a[0], perk))
-                (void)self->buyPerk(perk);
-            return ok();
-        });
+            });
+        add("buy_perk", s1, false, BindingType::Bool, BindingAccess::Mutate,
+            [self, perkOf](std::span<const BindingValue> a) {
+                FormId perk = 0;
+                if (perkOf(a[0], perk))
+                    (void)self->buyPerk(perk);
+                return ok();
+            });
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = "skyrimse.progression";

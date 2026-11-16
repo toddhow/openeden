@@ -567,6 +567,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatbow.cpp
     skyrimse/testskyrimsecombathud.cpp
     skyrimse/testskyrimseprogression.cpp
+    skyrimse/testskyrimseprogressionservice.cpp
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
     ui/testuicombathudcrosshair.cpp

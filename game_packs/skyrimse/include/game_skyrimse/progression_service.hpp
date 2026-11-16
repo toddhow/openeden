@@ -73,7 +73,8 @@ namespace game_skyrimse
             /// A use of a skill (a fight, a trade, a craft): the amount is what the use reports. Ignored before ready.
             void skillUsed(std::size_t slot, float amount);
 
-            /// The value of an actor value for the Papyrus host and conditions: a skill at 6 to 23 (its level). False for
+            /// The value of an actor value for the Papyrus host and conditions: a skill at 6 to 23 (its level). False
+            /// for
             /// any other index or before ready.
             [[nodiscard]] bool actorValue(std::uint32_t index, float& out) const;
 

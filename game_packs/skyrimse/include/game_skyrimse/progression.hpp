@@ -59,7 +59,8 @@ namespace game_skyrimse::progression
     [[nodiscard]] std::string_view skillName(std::size_t slot); ///< "One-Handed" ...
     /// The slot of an AVIF editor id (case-insensitive), or kSkillCount when it is not one of the 18.
     [[nodiscard]] std::size_t slotOfSkillEditorId(std::string_view editorId);
-    /// The skill a magic effect trains: its MGEF associated skill (an actor value 18 to 22) as a slot, else kSkillCount.
+    /// The skill a magic effect trains: its MGEF associated skill (an actor value 18 to 22) as a slot, else
+    /// kSkillCount.
     [[nodiscard]] std::size_t slotOfMagicSkillValue(std::int32_t actorValue);
 
     struct PerkNode
@@ -141,6 +142,8 @@ namespace game_skyrimse::progression
         PlayerProgression(const SkillTable& skills, const PerkLibrary* perks, Settings settings = {});
 
         void setStart(std::uint16_t level, std::uint8_t skill); ///< a new game: before anything was used
+        /// A new character: setStart, and no experience, perk points, vital choices, perks or pending level events.
+        void reset(std::uint16_t level, std::uint8_t skill);
         [[nodiscard]] std::uint16_t level() const { return mLevel; }
         [[nodiscard]] std::uint8_t skill(std::size_t slot) const;
         [[nodiscard]] float skillXp(std::size_t slot) const; ///< experience towards the next increase

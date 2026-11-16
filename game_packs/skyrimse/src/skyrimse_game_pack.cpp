@@ -1103,9 +1103,9 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "INV the inventory is on");
             }
 
-            // Task 0200: the player's progression: the skills a fight, a trade or a craft trains, the level, the perks and
-            // their window's bindings; off unless [extension.skyrimse] player progression. The story event LEVL is raised
-            // for every level reached.
+            // Task 0200: the player's progression: the skills a fight, a trade or a craft trains, the level, the
+            // perks and their window's bindings; off unless [extension.skyrimse] player progression. The story event
+            // LEVL is raised for every level reached.
             void startProgression(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
@@ -1134,7 +1134,8 @@ namespace game_skyrimse
                 const int startLevel = settings->getInt(kPackId, kPlayerLevelKey, kStandInPlayerLevel);
                 hooks.mStartLevel = static_cast<std::uint16_t>(std::clamp(startLevel, 1, 65535));
                 mProgression = std::make_unique<progression::ProgressionService>(std::move(hooks));
-                // a developer aid: every use of a skill counts this many times (default 1) so that a short run shows levels
+                // a developer aid: every use of a skill counts this many times (default 1), so that a short run
+                // shows levels
                 float boost = settings->getFloat(kPackId, "progression test amount", 1.f);
                 if (!std::isfinite(boost) || boost < 0.f || boost > 10000.f)
                     boost = 1.f;
@@ -1187,7 +1188,8 @@ namespace game_skyrimse
                 hooks.mVendorOf = [this](FormId npc, barter::VendorInfo& out) { return mWorldView.vendorOf(npc, out); };
                 hooks.mSpeech = [this]() {
                     float speech = 0.f; // task 0200: the real skill with the progression on
-                    if (mProgression != nullptr && mProgression->actorValue(progression::kFirstSkillValue + progression::Slot::Speechcraft, speech))
+                    constexpr std::uint32_t kSpeechValue = progression::kFirstSkillValue + progression::Slot::Speechcraft;
+                    if (mProgression != nullptr && mProgression->actorValue(kSpeechValue, speech))
                         return speech;
                     return static_cast<float>(mWorldView.standInPlayerSpeech());
                 };

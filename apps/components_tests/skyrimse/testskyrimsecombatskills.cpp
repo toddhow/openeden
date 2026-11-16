@@ -20,6 +20,17 @@ namespace
     constexpr WorldId kAttackerBase = 100;
     constexpr WorldId kVictimBase = 200;
 
+    class FakePerkLibrary final : public PerkLibrary
+    {
+    public:
+        const PerkRecord* perk(FormId id) const override
+        {
+            const auto it = mPerks.find(id);
+            return it == mPerks.end() ? nullptr : &it->second;
+        }
+        std::map<FormId, PerkRecord> mPerks;
+    };
+
     class FakeData final : public CombatData
     {
     public:
@@ -62,7 +73,9 @@ namespace
             return editorId == "ironsword" ? &mSword : nullptr;
         }
         CombatSettings settings() override { return mSettings; }
+        const PerkLibrary* perkLibrary() override { return &mLibrary; }
 
+        FakePerkLibrary mLibrary;
         WeaponRecord mSword;
         std::map<WorldId, FighterProfile> mProfiles;
         FighterProfile mPlayer;
@@ -295,5 +308,42 @@ namespace
         const DamageReport* d = playerHitsVictim();
         ASSERT_NE(d, nullptr);
         EXPECT_NEAR(d->amount, 7.f * std::min(1.5f, 1.f + static_cast<float>(p.skill(0)) / 200.f) * 0.8f, 1e-3f);
+    }
+
+    // A bought perk reaches the PerkEngine: an entry point effect of rank 1 (CalculateWeaponDamage x 1.2) changes the
+    // hit.
+    TEST_F(CombatSkills, aBoughtPerkChangesTheHitThroughThePerkEngine)
+    {
+        constexpr FormId kPerk = 0x500;
+        PerkRecord perk;
+        perk.mCommon.mId = kPerk;
+        PerkEffect effect;
+        effect.mKind = PerkEffectKind::EntryPoint;
+        effect.mEntryPoint = PerkEntry::CalculateWeaponDamage;
+        effect.mFunction = PerkFunction::Multiply;
+        effect.mTabCount = 3;
+        effect.mParamType = 1;
+        effect.mHasParam = true;
+        effect.mValue = 1.2f;
+        perk.mEffects.push_back(effect);
+        mData.mLibrary.mPerks[kPerk] = perk;
+
+        progression::SkillTable table = makeTable();
+        progression::SkillRecord one = *table.skill(0);
+        progression::PerkNode node;
+        node.mIndex = 1;
+        node.mPerk = kPerk;
+        one.mNodes = { node };
+        table.add(one);
+        progression::PlayerProgression p(table, &mData.mLibrary);
+        (void)p.useSkill(5, 1.0e6f);
+        ASSERT_TRUE(p.chooseLevelUp(progression::Vital::Stamina));
+        std::string why;
+        ASSERT_TRUE(p.buyPerk(kPerk, why)) << why;
+        mCombat.setPlayerProgression(&p);
+        const DamageReport* d = playerHitsVictim();
+        ASSERT_NE(d, nullptr);
+        // One-Handed is still 15: 7 x 1.2 (the perk) x 1.075 (the skill) x 0.8 (the victim's armour)
+        EXPECT_NEAR(d->amount, 7.f * 1.2f * 1.075f * 0.8f, 1e-3f);
     }
 }
