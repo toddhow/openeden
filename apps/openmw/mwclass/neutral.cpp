@@ -164,6 +164,9 @@ namespace MWClass
             {
                 if (actor == MWMechanics::getPlayer())
                 {
+                    // Task 0255: a rider gets off before the door takes him (the horse stays; the pack releases him).
+                    if (MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem())
+                        physics->dismountNeutralRider();
                     const std::vector<MWWorld::Ptr> followers = MWWorld::collectNeutralFollowers(mGameId, actor);
                     (void)MWWorld::carryNeutralFollowers(mGameId, followers, *mDestination, mArrival);
                 }

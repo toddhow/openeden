@@ -1906,6 +1906,26 @@ namespace MWPhysics
         mNeutralBridge.setPlayerPosition(mNeutralFocusValid, mNeutralFocus.x, mNeutralFocus.y, mNeutralFocus.z);
         if (mNeutralBridge.size() != 0 && mNeutralRulesResolver)
             mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
+        // Task 0255: the horse the player sits on (an invalid handle on foot), for the mover's limits below.
+        mNeutralRidden = openeden::sdk::game::ActorHandle();
+        if (mNeutralRulesResolver)
+            if (const auto* riding = dynamic_cast<const openeden::sdk::game::RidingRules*>(mNeutralRulesResolver()))
+                mNeutralRidden = riding->mountedHorse();
+        // OPENEDEN_RIDING_DISMOUNT_AFTER=<n> (a developer aid, task 0255): the call a load door makes, after the player
+        // has ridden n frames: tools/ride_check checks the engine and pack path with it when no door is at hand.
+        static const int dismountAfter = [] {
+            const char* text = std::getenv("OPENEDEN_RIDING_DISMOUNT_AFTER");
+            return text != nullptr ? std::atoi(text) : 0;
+        }();
+        if (dismountAfter > 0)
+        {
+            mNeutralRiddenFrames = mNeutralRidden.valid() ? mNeutralRiddenFrames + 1 : 0;
+            if (mNeutralRiddenFrames == dismountAfter)
+            {
+                Log(Debug::Info) << "RIDING the dismount of a load door, asked by OPENEDEN_RIDING_DISMOUNT_AFTER";
+                dismountNeutralRider();
+            }
+        }
         // Task 0194: the lines the pack's scenes want said (an actor the core does not know any more is dropped)
         if (mNeutralRulesResolver)
             if (auto* speech = dynamic_cast<openeden::sdk::game::SceneSpeechSource*>(mNeutralRulesResolver()))
@@ -2409,7 +2429,11 @@ namespace MWPhysics
 
         const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
             object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR);
-        const NeutralMover::Result result = NeutralMover::step(feet, entry.mRequest, dt, sweeper);
+        // Task 0255: the horse the player sits on climbs and drops more than a person: its limits follow its capsule.
+        // Every other actor keeps the humanoid's (the pack names the ridden horse once a frame).
+        const bool ridden = mNeutralRidden.valid() && mNeutralBridge.handleOf(entry.mRef) == mNeutralRidden;
+        const NeutralMover::Result result = NeutralMover::step(
+            feet, entry.mRequest, dt, sweeper, NeutralMover::limitsFor(2.f * entry.mCapsule.mCentreZ, ridden));
         ++entry.mWalkFrames;
 
         // Face the way it was asked to go, whether or not a wall let it move (a turn never needs room).
@@ -2479,6 +2503,15 @@ namespace MWPhysics
         }
 
         return false;
+    }
+
+    void PhysicsSystem::dismountNeutralRider()
+    {
+        if (!mNeutralRulesResolver)
+            return;
+        auto* riding = dynamic_cast<openeden::sdk::game::RidingRules*>(mNeutralRulesResolver());
+        if (riding != nullptr)
+            mNeutralBridge.dismountRider(*riding);
     }
 
     void PhysicsSystem::setPlayerCollisionMode(bool on)

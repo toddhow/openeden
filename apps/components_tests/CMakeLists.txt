@@ -722,6 +722,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatshout.cpp
     skyrimse/testskyrimseshoutsreal.cpp
     skyrimse/testskyrimsespeechreal.cpp
+    skyrimse/testskyrimseridingstables.cpp
+    skyrimse/testskyrimseriding2.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsevmad.cpp

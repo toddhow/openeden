@@ -3980,6 +3980,21 @@ namespace game_skyrimse
                         mCellSource.riding().setLog(
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                         say(openeden::sdk::LogLevel::Info, "riding: on");
+                        // Task 0255: the camera package, and the chunk that puts a rider on his feet after a load.
+                        mRidingBindings = std::make_unique<RidingBindings>(mCellSource.riding());
+                        if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                        {
+                            const openeden::sdk::DeclareResult declared = mRidingBindings->declareTo(*bindings);
+                            if (!declared.ok)
+                                say(openeden::sdk::LogLevel::Warning,
+                                    "the riding bindings were refused: " + declared.message);
+                        }
+                        mRidingChunk = std::make_unique<RidingChunk>(
+                            [this] { return mCellSource.riding().savedState(); },
+                            [this](const RidingState& state) { mCellSource.riding().restoreState(state); });
+                        if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                            if (!chunks->registerHandler(*mRidingChunk))
+                                say(openeden::sdk::LogLevel::Warning, "the riding chunk was not registered");
                     }
                     // Task 0253: dragons (off by default; needs creatures and the combat AI to fight).
                     if (settings->getBool(kPackId, kCreaturesKey, false)
@@ -4244,6 +4259,8 @@ namespace game_skyrimse
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
             std::unique_ptr<travel::TravelService> mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
+            std::unique_ptr<RidingBindings> mRidingBindings; // task 0255; refers to the cell source's riding rules
+            std::unique_ptr<RidingChunk> mRidingChunk; // task 0255
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<harvest::HarvestService> mHarvest; // task 0221; refers to the view and the inventory
             std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver

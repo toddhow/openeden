@@ -237,6 +237,7 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/messages_player.lua
     scripts/openeden/skyrimse/journal_player.lua
     scripts/openeden/skyrimse/papyrus_player.lua
+    scripts/openeden/skyrimse/riding_player.lua
     scripts/openeden/skyrimse/diseases_player.lua
     scripts/openeden/skyrimse/skills_player.lua
     scripts/openeden/skyrimse/presentation_player.lua

@@ -24,6 +24,7 @@
 #include <components/render/pointshadowcache.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
+#include <components/vsgutil/computetransform.hpp>
 #include <components/vsgutil/operation.hpp>
 #include <components/vsgutil/removechild.hpp>
 #include <components/vsgutil/updatethreads.hpp>
@@ -33,6 +34,7 @@
 #include "../mwbase/environment.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/containerstore.hpp"
+#include "../mwworld/neutraldoor.hpp"
 #include "../mwworld/neutrallight.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
@@ -755,6 +757,34 @@ namespace MWRender
                 pose->setRate(multiplier);
                 return;
             }
+    }
+
+    MWWorld::Ptr Scene::findNeutralObject(std::uint32_t placement)
+    {
+        for (const CellMap* cells : { &mObjectCells, &mActorCells })
+            for (const auto& [store, data] : *cells)
+                for (const auto& [ptr, object] : data.objects)
+                {
+                    const auto id = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+                    if (id && *id == placement)
+                        return ptr;
+                }
+        return MWWorld::Ptr();
+    }
+
+    std::vector<const Anim::Transform*> Scene::neutralObjectBonePath(const MWWorld::Ptr& ptr, const std::string& bone)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return {};
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end() || !iter->second)
+            return {};
+        const std::vector<const Anim::Transform*> nodes = iter->second->worldTransform(bone);
+        if (nodes.size() < 2)
+            return {};
+        // The path starts with the object's own transform; the bone's place in the object's frame is the rest.
+        return std::vector<const Anim::Transform*>(nodes.begin() + 1, nodes.end());
     }
 
     HavokPack::ClipProgress Scene::neutralActorClipProgress(const MWWorld::Ptr& ptr)

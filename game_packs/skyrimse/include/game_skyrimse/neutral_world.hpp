@@ -419,6 +419,8 @@ namespace game_skyrimse
             return mRiding.canMount(handle);
         }
         void onMountRequested(openeden::sdk::game::ActorHandle handle) override { mRiding.onMountRequested(handle); }
+        void dismountNow(openeden::sdk::game::RidingWriter& player) override { mRiding.dismountNow(player); } // task 0255
+        [[nodiscard]] openeden::sdk::game::ActorHandle mountedHorse() const override { return mRiding.mountedHorse(); }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Task 0231 (barks): null (the default) is off. The system must outlive the cell source's use of it; the cell
         /// source feeds it the fight's moments (through the combat's bark sink) and, once an update, the roster.

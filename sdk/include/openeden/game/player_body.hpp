@@ -62,6 +62,10 @@ namespace openeden::sdk::game
         /// While the player rides, the clip his body loops instead of walking (a path under the actor's animations folder,
         /// for example `horse_rider/walkforward`); empty on foot. The pack changes it with the gait.
         std::string ridingClip;
+        // ---- Also 0.3 (task 0255, riding second slice). Fields the core only reads.
+        /// The placement id of the horse the player sits on (0 on foot). The core finds that horse's drawn object and
+        /// moves the player's body by how far its `SaddleBone` node has moved since the ride began (the gait's bob).
+        std::uint32_t ridingMount = 0;
     };
 
     class PlayerBodySource

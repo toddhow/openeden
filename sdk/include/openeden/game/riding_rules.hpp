@@ -23,7 +23,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kRidingRulesVersion{ 0, 1 };
+    inline constexpr Version kRidingRulesVersion{ 0, 2 };
 
     /// What the player asks of his mount in one frame. The core reads the player's real controls; while a menu is up
     /// (or controls are disabled) `valid` is true and every value is zero.
@@ -86,5 +86,15 @@ namespace openeden::sdk::game
 
         /// The player activated the mount: the pack mounts (in its next update) or dismounts when he is on it.
         virtual void onMountRequested(ActorHandle handle) = 0;
+
+        /// (0.2, task 0255) The core is about to move the player through a load door: a rider gets off NOW (the player
+        /// is released beside the horse through `player`, outside update()), so that the door takes a man on his feet. A
+        /// no-op for a player who is not riding. The default does nothing.
+        virtual void dismountNow(RidingWriter& player) { (void)player; }
+
+        /// (0.2, task 0255) The actor the player sits on now; an invalid handle on foot. The core gives that actor the
+        /// climb and drop limits of a mount (NeutralMover::limitsForHeight) and every other actor its own. Called once a
+        /// frame. The default says nobody is ridden.
+        [[nodiscard]] virtual ActorHandle mountedHorse() const { return ActorHandle(); }
     };
 }

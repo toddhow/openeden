@@ -20,10 +20,13 @@
 // Threading: main thread only (the core calls update() once a frame before the physics step).
 
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/bindings.hpp>
 #include <openeden/game/riding_rules.hpp>
+#include <openeden/game/save_chunks.hpp>
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -42,6 +45,21 @@ namespace game_skyrimse
     inline constexpr float kDismountSide = 110.f;
     /// A forward control above this starts the horse (below it the stick is at rest). OURS.
     inline constexpr float kRidingDeadZone = 0.15f;
+
+    /// Task 0255: the third person camera is pulled back to this many times the distance the player has on foot while
+    /// he rides (a horse is about twice as long as a person; the saddle is 135 units up). OURS.
+    inline constexpr float kRidingCameraScale = 2.2f;
+    /// The script package of the riding camera (task 0255).
+    inline constexpr std::string_view kRidingNamespace = "skyrimse.riding";
+
+    /// What a save keeps of a ride (task 0255): that the player rode, and which horse (its placement id). A load puts
+    /// the player on his feet where he was (the horse's own place is not saved: decision 0005's rule for actors).
+    struct RidingState
+    {
+        bool mMounted = false;
+        std::uint32_t mHorse = 0;
+        friend bool operator==(const RidingState&, const RidingState&) = default;
+    };
 
     /// Where the rider's origin goes, relative to the horse's origin, in the horse's frame (x to its right, y forward,
     /// z up), game units. MEASURED: the rest-pose world position of the `SaddleBone` node of the horse skeleton
@@ -123,6 +141,19 @@ namespace game_skyrimse
         // RidingRules
         [[nodiscard]] bool canMount(openeden::sdk::game::ActorHandle handle) const override;
         void onMountRequested(openeden::sdk::game::ActorHandle handle) override;
+        /// Task 0255: a load door is about to take the player: he gets off now (see RidingRules::dismountNow).
+        void dismountNow(openeden::sdk::game::RidingWriter& player) override;
+
+        /// Task 0255: what a save keeps, and the state a load brings back (the player is put on his feet, beside the
+        /// saddle's place, at the next update; nothing else of the ride returns).
+        [[nodiscard]] RidingState savedState() const;
+        void restoreState(const RidingState& state);
+        [[nodiscard]] openeden::sdk::game::ActorHandle mountedHorse() const override;
+        /// The placement id of the horse he sits on, 0 when on foot.
+        [[nodiscard]] std::uint32_t mountReference() const
+        {
+            return mMounted ? static_cast<std::uint32_t>(mHorse.reference) : 0u;
+        }
 
         /// Once a frame, after the actors' own rules. Does nothing unless a mount is requested or the player rides.
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
@@ -167,6 +198,8 @@ namespace game_skyrimse
         openeden::sdk::game::ActorHandle mRequest;
         bool mHasRequest = false;
 
+        bool mStopHorse = false; ///< dismountNow left the horse's movement request for the next update to clear
+        bool mRestorePending = false; ///< a load said he was riding: put him on his feet at the next update
         bool mMounted = false;
         openeden::sdk::game::ActorHandle mHorse;
         HorseInfo mHorseInfo;
@@ -178,6 +211,50 @@ namespace game_skyrimse
         Point mLastHorse; ///< where the horse was last seen
         std::uint32_t mMountCount = 0;
         std::uint32_t mDismountCount = 0;
+    };
+
+    /// The pack's save chunk "riding" (version 1, task 0255): u8 mounted (0 or 1) then u32 horse placement id; exactly
+    /// five bytes. Anything else is refused and changes nothing.
+    class RidingChunk final : public openeden::sdk::SaveChunkHandler
+    {
+    public:
+        static constexpr std::uint32_t kVersion = 1;
+        static constexpr std::string_view kName = "riding";
+
+        using Getter = std::function<RidingState()>;
+        using Setter = std::function<void(const RidingState&)>;
+
+        RidingChunk(Getter get, Setter set)
+            : mGet(std::move(get))
+            , mSet(std::move(set))
+        {
+        }
+
+        [[nodiscard]] std::string_view chunkName() const override { return kName; }
+        [[nodiscard]] std::uint32_t chunkVersion() const override { return kVersion; }
+        void write(openeden::sdk::ChunkWriter& writer) override;
+        [[nodiscard]] bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override;
+
+    private:
+        Getter mGet;
+        Setter mSet;
+    };
+
+    /// The script package `core.skyrimse.riding` 1.0 (task 0255), Read only: `active() -> bool` (the player sits on a
+    /// horse) and `camera_scale() -> number` (kRidingCameraScale). The player script of the riding camera reads it.
+    class RidingBindings
+    {
+    public:
+        explicit RidingBindings(const Riding& riding);
+        ~RidingBindings();
+        RidingBindings(const RidingBindings&) = delete;
+        RidingBindings& operator=(const RidingBindings&) = delete;
+
+        [[nodiscard]] openeden::sdk::DeclareResult declareTo(openeden::sdk::BindingsService& service);
+
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> mImpl;
     };
 }
 

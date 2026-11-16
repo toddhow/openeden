@@ -65,6 +65,31 @@ namespace MWPhysics::NeutralMover
     /// Horizontal distances under this are not moves.
     inline constexpr float kMinMove = 1e-4f;
 
+    /// The capsule height the constants above are for (NeutralActor::kStandingHeight).
+    inline constexpr float kReferenceHeight = 128.f;
+
+    /// Task 0255: how far an actor climbs and drops in one move, and the steepest ground it walks on. The constants
+    /// above are the humanoid's; a taller animal (a horse, a bear) has longer legs and a surer foot: `limitsForHeight`
+    /// scales the two distances with the capsule's height beyond kReferenceHeight (a step is about a fifth of the
+    /// height, a drop about half of it: the horse's legs are about half its shoulder height) and lets it walk ground
+    /// whose normal points up at least kAnimalMinFloorNormalZ (60 degrees from level). ESTIMATES, found by riding the
+    /// Whiterun plains: a route up the hill had 53 degree ground. Plain data, no allocation.
+    struct Limits
+    {
+        float mStepUp = kStepUp;
+        float mStepDown = kStepDown;
+        float mMinFloorNormalZ = kMinFloorNormalZ;
+    };
+    inline constexpr float kAnimalMinFloorNormalZ = 0.5f;
+    /// The limits of a capsule `height` units tall: the humanoid's up to kReferenceHeight (and for a height that is
+    /// not finite or not positive), above it step-up = height * kStepUp / kReferenceHeight, step-down = height / 2 and
+    /// the floor normal limit kAnimalMinFloorNormalZ.
+    [[nodiscard]] Limits limitsForHeight(float height);
+
+    /// The limits of an actor of `height`: those of a mount (`limitsForHeight`) when `ridden`, else the humanoid's (task
+    /// 0255: only the horse the player sits on has them, so nothing else in the world changes).
+    [[nodiscard]] Limits limitsFor(float height, bool ridden);
+
     /// The result of sweeping the actor's capsule: `mFraction` of the way along the motion is free.
     struct Sweep
     {
@@ -107,6 +132,9 @@ namespace MWPhysics::NeutralMover
     /// the rest of the motion along it (up to kMaxSlidePasses). A landing with no floor or a steep one refuses the
     /// pass. Deterministic: no clock, no random number, no container.
     [[nodiscard]] Result step(const vsg::vec3& feet, const Request& request, float dt, const Sweeper& world);
+    /// The same with the climb and drop limits of this actor (task 0255). `step` above is this with `Limits()`.
+    [[nodiscard]] Result step(
+        const vsg::vec3& feet, const Request& request, float dt, const Sweeper& world, const Limits& limits);
 
     /// The game's Sweeper: sweeps the actor's capsule shape through a Jolt system against the layers in `layerMask`,
     /// ignoring the actor's own body. Main thread; allocation-free.

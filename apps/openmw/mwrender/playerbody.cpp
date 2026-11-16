@@ -17,11 +17,18 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/ptr.hpp"
 
+#include "riderbob.hpp"
 #include "scene.hpp"
 #include "skyrimheldgear.hpp"
 
 namespace MWRender
 {
+    namespace
+    {
+        /// The node of the horse skeleton the rider sits on (actors/horse/character assets/skeleton.nif, task 0251).
+        const std::string kSaddleBoneName = "SaddleBone";
+    }
+
     namespace
     {
         // A source is looked for this often while none was found (a session of another game, or the pack not up yet).
@@ -122,6 +129,62 @@ namespace MWRender
         Anim::Transform& transform = *mBody->transform();
         transform.translation = playerTransform.translation;
         transform.rotation = playerTransform.rotation;
+
+        // Task 0255 (riding): the body is drawn where the saddle bone really is. The pack carries the player to the
+        // saddle's REST place; the gait moves the bone a few units, and the body follows (the player's own position,
+        // which the game rules read, does not change). The horse's drawn object is looked up every frame (a cell may
+        // unload under a stale Ptr).
+        if (state.ridingMount != 0)
+        {
+            if (!mWasRiding)
+            {
+                mSaddleWarned = false;
+                mHaveBaseline = false;
+            }
+            mWasRiding = true;
+            // The horse's drawn object and its saddle path are looked up when the mount or the scene's objects
+            // changed (a walk over every cell), never per frame; the nodes live as long as the object.
+            if (state.ridingMount != mMountId || mScene.changeCounter() != mSceneEpoch)
+            {
+                mMountId = state.ridingMount;
+                mSceneEpoch = mScene.changeCounter();
+                mMount = mScene.findNeutralObject(mMountId);
+                mSaddlePath = mMount.isEmpty() ? std::vector<const Anim::Transform*>()
+                                               : mScene.neutralObjectBonePath(mMount, kSaddleBoneName);
+            }
+            if (!mSaddlePath.empty())
+            {
+                const vsg::vec3 bone = vsgUtil::computePosition(mSaddlePath);
+                // The first sample of a ride (the horse stands idle) is where the pack's saddle point is: the body
+                // follows how far the bone has moved from there.
+                if (!mHaveBaseline)
+                {
+                    mBaseline = bone;
+                    mHaveBaseline = true;
+                }
+                const vsg::vec3 offset = riderBobOffset(bone, mBaseline, playerTransform.rotation);
+                transform.translation = vsg::vec3(playerTransform.translation.x + offset.x,
+                    playerTransform.translation.y + offset.y, playerTransform.translation.z + offset.z);
+                // OPENEDEN_RIDING_TRACE (a developer aid): the bob about twice a second.
+                static const bool trace = std::getenv("OPENEDEN_RIDING_TRACE") != nullptr;
+                if (trace && (++mBobFrames % 30) == 0)
+                    Log(Debug::Info) << "RIDING bob " << offset.x << " " << offset.y << " " << offset.z << " (bone "
+                                     << bone.x << " " << bone.y << " " << bone.z << ")";
+            }
+            else if (!mSaddleWarned)
+            {
+                mSaddleWarned = true;
+                Log(Debug::Warning) << "Player body: the horse's '" << kSaddleBoneName
+                                    << "' bone was not found: the rider does not follow the gait";
+            }
+        }
+        else
+        {
+            mWasRiding = false;
+            mMountId = 0;
+            mMount = MWWorld::Ptr();
+            mSaddlePath.clear();
+        }
 
         const float speed = mSpeed.update(playerTransform.translation.x, playerTransform.translation.y, dt);
         Scene::setNeutralObjectSpeed(*mBody, state.ridingClip.empty() ? speed : 0.f);

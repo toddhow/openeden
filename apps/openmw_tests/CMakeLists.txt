@@ -90,6 +90,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/weightedsearch.cpp
 
     mwrender/testbonepose.cpp
+    mwrender/testriderbob.cpp
     mwrender/testskyrimmodel.cpp
     mwrender/testlodneutralobjects.cpp
     mwrender/testskyrimmaterial.cpp
@@ -212,6 +213,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorbridge.cpp
     mwphysics/testneutralactorriding.cpp
     mwphysics/testneutralplacecorpse.cpp
+    mwphysics/testneutralactorriding2.cpp
     mwphysics/testneutralcombatbridge.cpp
     mwphysics/testneutralspellfire.cpp
     mwphysics/testneutralsweep.cpp
@@ -248,6 +250,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralplanelinks.cpp
     mwphysics/testneutralpathwaypointz.cpp
     mwphysics/testneutralmoversteep.cpp
+    mwphysics/testneutralmoverlimits.cpp
     mwworld/testneutralactoragent.cpp
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp

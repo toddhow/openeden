@@ -439,6 +439,9 @@ namespace MWPhysics
         [[nodiscard]] bool neutralCanMount(const MWWorld::Ptr& ptr) const;
         /// Task 0251: the player activated the mount: tells the pack, which acts in its next update.
         void requestNeutralMount(const MWWorld::Ptr& ptr);
+        /// Task 0255: a load door is about to take the player: a rider gets off now (the pack releases him). A no-op
+        /// for a player on foot or a session with no riding rules.
+        void dismountNeutralRider();
         /// Task 0184: the pack reported this neutral actor dead (a corpse the player may search).
         [[nodiscard]] bool isNeutralActorDead(const MWWorld::Ptr& ptr) const
         {
@@ -765,6 +768,8 @@ namespace MWPhysics
         NeutralRulesResolver mNeutralRulesResolver;
         NeutralActorBridge mNeutralBridge;
         NeutralRidingHooks mNeutralRidingHooks; // task 0251
+        openeden::sdk::game::ActorHandle mNeutralRidden; // task 0255: the horse the player sits on, set once a frame
+        int mNeutralRiddenFrames = 0; // task 0255: frames of the ride, for the developer aid above
         // Task 0170: the combat hooks' clips. The sink turns a clip request into an op for the renderer.
         class NeutralClipApplier final : public NeutralClipSink
         {

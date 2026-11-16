@@ -27,6 +27,7 @@
 
 #include <components/mwanimation/objectanim.hpp>
 
+#include "../mwworld/ptr.hpp"
 #include "playerbodytrack.hpp"
 #include "skyrimfirstperson.hpp"
 #include "skyrimhands.hpp"
@@ -94,6 +95,15 @@ namespace MWRender
         PlayerBodyTrack::GroundSpeed mSpeed;
         PlayerBodyTrack::SwingWatch mSwing;
         std::string mRidingClip; ///< task 0251: the rider clip the body loops now; empty when on foot
+        bool mSaddleWarned = false; ///< task 0255: the horse's saddle bone was not found (said once per ride)
+        bool mWasRiding = false;
+        MWWorld::Ptr mMount; ///< task 0255: the horse's drawn object, found again when the scene changed
+        std::vector<const Anim::Transform*> mSaddlePath; ///< the nodes down to its saddle bone
+        std::uint32_t mMountId = 0;
+        std::uint32_t mSceneEpoch = 0;
+        bool mHaveBaseline = false; ///< task 0255: mBaseline is the saddle bone's place at the start of the ride
+        vsg::vec3 mBaseline;
+        std::uint32_t mBobFrames = 0; ///< OPENEDEN_RIDING_TRACE: counts frames with a bob
         PlayerBodyTrack::RebuildGate mGate;
         std::uint32_t mBuilds = 0;
 

@@ -498,6 +498,7 @@ namespace game_skyrimse
             out.castHoldClip = hands.castHoldClip;
         }
         out.ridingClip = std::string(mRiding.clip()); // task 0251
+        out.ridingMount = mRiding.mountReference(); // task 0255
         return true;
     }
 

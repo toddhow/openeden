@@ -158,6 +158,11 @@ namespace MWPhysics
         /// pointed-to struct must outlive the bridge's use of it.
         void setRidingHooks(const NeutralRidingHooks* hooks) { mRidingHooks = hooks; }
 
+        /// Task 0255: asks the pack's riding rules to get the rider off NOW, outside update() (a load door is about to
+        /// take the player). While `rules.dismountNow` runs, the writer's riding calls reach the hooks as they do inside
+        /// update(); afterwards they are refused again. Main thread.
+        void dismountRider(openeden::sdk::game::RidingRules& rules);
+
         [[nodiscard]] std::size_t size() const { return mEntries.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
@@ -204,6 +209,7 @@ namespace MWPhysics
             bool carryPlayer(double x, double y, double z, float heading) override;
             bool releasePlayer(double x, double y, double z) override;
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
+            bool mSyncRiding = false; ///< true only while dismountRider() runs (task 0255)
 
         private:
             /// The key behind a valid handle while update() runs; counts the refusal otherwise.

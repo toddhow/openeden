@@ -57,6 +57,8 @@ PLAYER REQUIRES=core.skyrimse.crafting>=1.0: scripts/openeden/skyrimse/crafting_
 PLAYER REQUIRES=core.skyrimse.journal>=1.0: scripts/openeden/skyrimse/journal_player.lua
 # Skyrim SE Papyrus notifications on the HUD (task 0198); started only when the pack's Papyrus host declares the namespace
 PLAYER REQUIRES=core.skyrimse.papyrus>=1.0: scripts/openeden/skyrimse/papyrus_player.lua
+# Task 0255: the riding camera (the pack setting [extension.skyrimse] riding)
+PLAYER REQUIRES=core.skyrimse.riding>=1.0: scripts/openeden/skyrimse/riding_player.lua
 # Skyrim SE diseases: the contracted and cured messages and a status line (task 0240); started only when the pack setting `diseases` is on
 PLAYER REQUIRES=core.skyrimse.diseases>=1.0: scripts/openeden/skyrimse/diseases_player.lua
 # Skyrim SE skills and perks (task 0200); started only when the session's game pack has the namespace

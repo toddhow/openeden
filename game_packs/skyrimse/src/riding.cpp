@@ -1,8 +1,10 @@
 #include "game_skyrimse/riding.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
+#include <span>
 
 namespace game_skyrimse
 {
@@ -162,6 +164,143 @@ namespace game_skyrimse
         mHasRequest = true;
     }
 
+    void Riding::dismountNow(openeden::sdk::game::RidingWriter& player)
+    {
+        if (!mEnabled || !mMounted)
+            return;
+        // The horse's own place is the last one the ride saw (no update runs here): he stands beside it.
+        const Point down = dismountPoint(mLastHorse.mX, mLastHorse.mY, mLastHorse.mZ, mHeading);
+        (void)player.releasePlayer(down.mX, down.mY, down.mZ);
+        if (mBrainControl)
+            mBrainControl(mHorse.reference, false);
+        log("RIDING dismounted by a load door");
+        mMounted = false;
+        mGait = Gait::Stand;
+        mStopHorse = !mHorseLost; // its movement request is cleared by the next update (it has a writer)
+        mHorseLost = false;
+        mDismountRequested = false;
+        ++mDismountCount;
+    }
+
+    openeden::sdk::game::ActorHandle Riding::mountedHorse() const
+    {
+        return mMounted ? mHorse : openeden::sdk::game::ActorHandle();
+    }
+
+    RidingState Riding::savedState() const
+    {
+        RidingState state;
+        state.mMounted = mMounted;
+        state.mHorse = mountReference();
+        return state;
+    }
+
+    void Riding::restoreState(const RidingState& state)
+    {
+        // A load replaced the world under a ride in progress: that ride is over (the load put the player where he was
+        // saved, the horse stands where its placement does), and the brain takes the horse back.
+        if (mMounted)
+        {
+            if (mBrainControl)
+                mBrainControl(mHorse.reference, false);
+            log("RIDING ride ended by a load");
+            mMounted = false;
+            mGait = Gait::Stand;
+            mStopHorse = !mHorseLost;
+            ++mDismountCount;
+        }
+        mHasRequest = false;
+        mDismountRequested = false;
+        mHorseLost = false;
+        mRestorePending = state.mMounted;
+    }
+
+    void RidingChunk::write(openeden::sdk::ChunkWriter& writer)
+    {
+        const RidingState state = mGet ? mGet() : RidingState();
+        writer.writeValue(static_cast<std::uint8_t>(state.mMounted ? 1 : 0));
+        writer.writeValue(state.mHorse);
+    }
+
+    bool RidingChunk::read(openeden::sdk::ChunkReader& reader, std::uint32_t version)
+    {
+        if (version != kVersion || reader.remaining() != sizeof(std::uint8_t) + sizeof(std::uint32_t))
+            return false;
+        std::uint8_t flag = 0;
+        RidingState state;
+        if (!reader.readValue(flag) || !reader.readValue(state.mHorse) || flag > 1)
+            return false;
+        state.mMounted = flag == 1;
+        if (mSet)
+            mSet(state);
+        return true;
+    }
+
+    struct RidingBindings::Impl
+    {
+        using BindingResult = openeden::sdk::BindingResult;
+        using BindingValue = openeden::sdk::BindingValue;
+        using BindingType = openeden::sdk::BindingType;
+
+        struct ActiveHandler final : openeden::sdk::BindingHandler
+        {
+            const Riding& mRiding;
+            explicit ActiveHandler(const Riding& riding)
+                : mRiding(riding)
+            {
+            }
+            BindingResult call(std::span<const BindingValue>) override
+            {
+                BindingResult result;
+                result.value.type = BindingType::Bool;
+                result.value.boolean = mRiding.riding();
+                return result;
+            }
+        };
+
+        struct ScaleHandler final : openeden::sdk::BindingHandler
+        {
+            BindingResult call(std::span<const BindingValue>) override
+            {
+                BindingResult result;
+                result.value.type = BindingType::Double;
+                result.value.number = static_cast<double>(kRidingCameraScale);
+                return result;
+            }
+        };
+
+        explicit Impl(const Riding& riding)
+            : mActive(riding)
+        {
+        }
+
+        ActiveHandler mActive;
+        ScaleHandler mScale;
+        std::array<openeden::sdk::FunctionDescriptor, 2> mFunctions;
+    };
+
+    RidingBindings::RidingBindings(const Riding& riding)
+        : mImpl(std::make_unique<Impl>(riding))
+    {
+    }
+
+    RidingBindings::~RidingBindings() = default;
+
+    openeden::sdk::DeclareResult RidingBindings::declareTo(openeden::sdk::BindingsService& service)
+    {
+        using namespace openeden::sdk;
+        mImpl->mFunctions[0] = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read,
+            &mImpl->mActive, 0 };
+        mImpl->mFunctions[1] = FunctionDescriptor{ "camera_scale", {}, true, BindingType::Double, BindingAccess::Read,
+            &mImpl->mScale, 0 };
+        NamespaceDescriptor ns;
+        ns.name = kRidingNamespace;
+        ns.version = Version{ 1, 0 };
+        ns.functions = mImpl->mFunctions;
+        ns.menuSafe = false;
+        return service.declareNamespace(ns);
+    }
+
     void Riding::dismount(
         openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player, const std::string& why)
     {
@@ -186,7 +325,27 @@ namespace game_skyrimse
 
     void Riding::update(float seconds, openeden::sdk::game::ActorRequestWriter& writer)
     {
-        if (!mEnabled || (!mMounted && !mHasRequest))
+        if (!mEnabled)
+            return;
+        if (!mMounted && (mStopHorse || mRestorePending))
+        {
+            // Task 0255: what a dismount outside update() (a load door) or a load left for the next update.
+            if (mStopHorse)
+            {
+                (void)writer.setMovement(mHorse, 0.f, 0.f);
+                mStopHorse = false;
+            }
+            double px = 0.0, py = 0.0, pz = 0.0;
+            auto* restorer = dynamic_cast<openeden::sdk::game::RidingWriter*>(&writer);
+            if (mRestorePending && restorer != nullptr && writer.playerPosition(px, py, pz))
+            {
+                // He was saved on the saddle; he stands on the ground below it.
+                (void)restorer->releasePlayer(px, py, pz - static_cast<double>(kSaddleZ));
+                mRestorePending = false;
+                log("RIDING restored on foot after a load");
+            }
+        }
+        if (!mMounted && !mHasRequest)
             return;
         auto* player = dynamic_cast<openeden::sdk::game::RidingWriter*>(&writer);
         if (player == nullptr)

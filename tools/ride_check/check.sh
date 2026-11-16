@@ -8,6 +8,8 @@
 # env: START (default @WhiterunWorld,18000,-12400), RIDE_PLAN (a Lua table text for cfg.lua), INPUT (an input script),
 #      OWNED (default *), SETTINGS_EXTRA, CHECK_TIMEOUT, WIDTH, HEIGHT, TRACE (1: OPENEDEN_NEUTRAL_ACTOR_TRACE).
 # <work dir> must be under I:/Projects/OpenEden-work.
+# task 0255: PHASE=save runs the ride and saves it (a step { ['do'] = 'save' } in RIDE_PLAN; needs
+# SETTINGS_EXTRA='[Game]\nneutral saves = true\n'); PHASE=load starts from that save: LOADARG="--load-savegame <path>".
 set -e
 export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; FRAMES=${5:-3000}
@@ -17,7 +19,12 @@ case "$(native "$WORK")" in
     *) echo "refused: $WORK must be under I:/Projects/OpenEden-work"; exit 2 ;;
 esac
 HERE=$(cd "$(dirname "$0")" && pwd)
-rm -rf "$WORK"; mkdir -p "$WORK/config" "$WORK/user" "$WORK/luatest"
+if [ "${PHASE:-none}" = load ]; then
+    # task 0255: the load phase reuses the work folder (and the save) of the save phase
+    rm -rf "$WORK/luatest" "$WORK/log.txt"; mkdir -p "$WORK/luatest"
+else
+    rm -rf "$WORK"; mkdir -p "$WORK/config" "$WORK/user" "$WORK/luatest"
+fi
 cp -r "$HERE/luatest/." "$WORK/luatest/"
 echo "return { ${RIDE_PLAN:-} }" > "$WORK/luatest/scripts/ride/cfg.lua"
 B=$(native "$BUILD")
@@ -59,7 +66,7 @@ export OPENMW_DISABLE_CRASH_CATCHER=${OPENMW_DISABLE_CRASH_CATCHER:-1}
 cd "$BUILD"
 set +e
 timeout "${CHECK_TIMEOUT:-280}" ./${EXE:-openmw.exe} --replace=config --config "$(native "$WORK/config")" \
-    --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "${START:-@WhiterunWorld,18000,-12400}" \
+    --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "${START:-@WhiterunWorld,18000,-12400}"} \
     --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e

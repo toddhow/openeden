@@ -1,2 +1,3 @@
 GLOBAL: scripts/ride/global.lua
 PLAYER: scripts/ride/player.lua
+MENU: scripts/ride/menu.lua

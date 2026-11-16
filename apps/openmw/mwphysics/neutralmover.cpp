@@ -44,7 +44,28 @@ namespace MWPhysics::NeutralMover
         return std::atan2(velX, velY);
     }
 
+    Limits limitsForHeight(float height)
+    {
+        Limits limits;
+        if (!std::isfinite(height) || !(height > kReferenceHeight))
+            return limits;
+        limits.mStepUp = height * kStepUp / kReferenceHeight;
+        limits.mStepDown = std::max(kStepDown, height * 0.5f);
+        limits.mMinFloorNormalZ = kAnimalMinFloorNormalZ;
+        return limits;
+    }
+
+    Limits limitsFor(float height, bool ridden)
+    {
+        return ridden ? limitsForHeight(height) : Limits();
+    }
+
     Result step(const vsg::vec3& feet, const Request& request, float dt, const Sweeper& world)
+    {
+        return step(feet, request, dt, world, Limits());
+    }
+
+    Result step(const vsg::vec3& feet, const Request& request, float dt, const Sweeper& world, const Limits& limits)
     {
         Result result;
         result.mFeet = feet;
@@ -71,8 +92,8 @@ namespace MWPhysics::NeutralMover
             // contact reports a hit at fraction 0, in any direction: lift the start by the skin first (task 0135 stage
             // S4: an actor in the Bannered Mare stood for ever with a rise of 0 and every sweep stopped at once).
             const vsg::vec3 base(pos.x, pos.y, pos.z + kSkin);
-            const Sweep up = world.sweep(base, vsg::vec3(0.f, 0.f, kStepUp));
-            const float rise = up.mHit ? std::max(0.f, up.mFraction * kStepUp - kSkin) : kStepUp;
+            const Sweep up = world.sweep(base, vsg::vec3(0.f, 0.f, limits.mStepUp));
+            const float rise = up.mHit ? std::max(0.f, up.mFraction * limits.mStepUp - kSkin) : limits.mStepUp;
             const vsg::vec3 raised(base.x, base.y, base.z + rise);
 
             const float length = length2d(remaining.x, remaining.y);
@@ -83,7 +104,7 @@ namespace MWPhysics::NeutralMover
             const vsg::vec3 landing(raised.x + remaining.x * fraction, raised.y + remaining.y * fraction, raised.z);
 
             // Put the capsule down on whatever is below: within the raise and kStepDown.
-            const float drop = rise + kSkin + kStepDown;
+            const float drop = rise + kSkin + limits.mStepDown;
             const Sweep down = world.sweep(landing, vsg::vec3(0.f, 0.f, -drop));
             if (!down.mHit)
             {
@@ -94,7 +115,7 @@ namespace MWPhysics::NeutralMover
             const vsg::vec3 rest(landing.x, landing.y, landing.z - drop * down.mFraction);
             // The capsule's rim may rest on the corner of a step, whose normal is no floor normal: ask for the ground
             // under its centre. No ground there (a ledge) refuses the pass; a slope that is too steep does too.
-            float probeDepth = kProbeLift + kStepDown;
+            float probeDepth = kProbeLift + limits.mStepDown;
             Sweep ground = world.probeDown(vsg::vec3(rest.x, rest.y, rest.z + kProbeLift), probeDepth);
             if (!ground.mHit && rest.z - pos.z > kRimMinClimb)
             {
@@ -124,7 +145,7 @@ namespace MWPhysics::NeutralMover
                 // capsule, i.e. its own floor (a capsule hanging by the rim of a raised object has the floor 15 or
                 // more below it and is not bridged).
                 const auto supported = [&](const Sweep& s) {
-                    return s.mHit && s.mNormal.z >= kMinFloorNormalZ
+                    return s.mHit && s.mNormal.z >= limits.mMinFloorNormalZ
                         && s.mFraction * probeDepth - kProbeLift <= kBridgeSupport;
                 };
                 bridged = supported(ahead) && supported(behind);
@@ -139,7 +160,7 @@ namespace MWPhysics::NeutralMover
             // Task 0159: a pass that carries the capsule up (its rim on the nosing of a steep dirt step) is not refused
             // for the steepness of the face under its centre; a level or descending pass is (a slope is a slope).
             const bool climbing = rest.z - pos.z > kRimMinClimb;
-            if (!bridged && ground.mNormal.z < kMinFloorNormalZ && groundBelowRest > kBevelSlack && !climbing)
+            if (!bridged && ground.mNormal.z < limits.mMinFloorNormalZ && groundBelowRest > kBevelSlack && !climbing)
             {
                 result.mBlocked = true;
                 break;
