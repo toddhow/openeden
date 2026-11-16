@@ -582,6 +582,14 @@ namespace game_skyrimse
             if (mPlaceSink)
                 mPlaceSink(place);
         }
+        /// Task 0260: where the player stands as the effect conditions' place (IsInInterior, GetInWorldspace); false
+        /// until the core has told a place.
+        [[nodiscard]] bool currentPlace(effectconditions::Place& out) const;
+        /// Task 0260: a hook that is asked, for a player activating an actor that cannot talk (asleep or getting up),
+        /// whether the activation is a FEEDING (a vampire bites the sleeper); true makes the conversation one closing
+        /// line and leaves the sleeper asleep. Empty (the default): conversations are prepared as before.
+        void setFeedHook(std::function<bool(openeden::sdk::game::WorldId)> hook) { mFeedHook = std::move(hook); }
+        [[nodiscard]] static openeden::sdk::game::DialogueTurn feedTurn();
         /// Task 0181: what a script made of a placement's enabled state (nullopt when it never touched it). A cell built
         /// afterwards comes out with it (WorldObject::initiallyDisabled), so Enable and Disable reach cells that were not
         /// loaded when the script ran. Main thread.
@@ -664,6 +672,8 @@ namespace game_skyrimse
         std::function<void(const openeden::sdk::game::PlayerPlace&)> mPlaceSink; ///< task 0211
         openeden::sdk::game::PlayerPlace mPlayerPlace; ///< task 0238: the last place the core told
         bool mHavePlayerPlace = false;
+        std::function<bool(openeden::sdk::game::WorldId)> mFeedHook; ///< task 0260
+        openeden::sdk::game::WorldId mFeeding = openeden::sdk::game::kNoWorldId; ///< task 0260: the sleeper being fed on
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         std::string mTestDragonPlace; ///< task 0253
         std::string mTestDragonReplace;

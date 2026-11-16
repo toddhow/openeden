@@ -1515,6 +1515,10 @@ namespace game_skyrimse
             reg("Actor", "PlayIdle", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
             reg("ObjectReference", "IsFurnitureInUse", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+            // Task 0260: the vampire quest's game-time update only acts while the player's controls work (the pack has
+            // no control lock: always enabled)
+            for (const char* name : { "IsMovementControlsEnabled", "IsFightingControlsEnabled" })
+                reg("Game", name, true, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
         }
 
         // ---- task 0198: inventory, actor values, deaths ------------------------------------------------------------
@@ -3199,5 +3203,79 @@ namespace game_skyrimse
             mImpl->say(true, "Papyrus: " + std::string(function) + ": " + r.error.format());
         }
         return r.ok;
+    }
+
+    bool PapyrusHost::callFunctionWith(FormId form, std::string_view script, std::string_view function,
+        std::span<const CallArgument> arguments)
+    {
+        Impl& m = *mImpl;
+        const InstanceId instance = m.findInstance(form, script);
+        if (instance == 0 || m.mInTick || arguments.size() > 8)
+            return false;
+        std::vector<PapyrusValue> values;
+        values.reserve(arguments.size());
+        for (const CallArgument& a : arguments)
+        {
+            switch (a.mKind)
+            {
+                case CallArgument::Kind::Form:
+                    values.push_back(m.formValue(a.mForm));
+                    break;
+                case CallArgument::Kind::Float:
+                    values.push_back(PapyrusValue::makeFloat(a.mFloat));
+                    break;
+                case CallArgument::Kind::Int:
+                    values.push_back(PapyrusValue::makeInt(a.mInt));
+                    break;
+            }
+        }
+        const openeden::script::CallResult r = m.mRuntime->call(instance, function, values);
+        (void)m.runDeferred();
+        if (!r.ok)
+        {
+            ++m.mCounters.mScriptErrors;
+            m.say(true, "Papyrus: " + std::string(function) + ": " + r.error.format());
+        }
+        return r.ok;
+    }
+
+    bool PapyrusHost::sendEventTo(FormId form, std::string_view script, std::string_view event)
+    {
+        const InstanceId instance = mImpl->findInstance(form, script);
+        return instance != 0 && mImpl->sendEvent(instance, std::string(event));
+    }
+
+    void PapyrusHost::setGlobalValue(FormId global, float value)
+    {
+        Impl& m = *mImpl;
+        if (global != 0 && (m.mGlobalValues.size() < kMaxAvOffsets || m.mGlobalValues.count(global) != 0))
+            m.mGlobalValues[global] = value;
+    }
+
+    bool PapyrusHost::setNumberVariable(FormId form, std::string_view script, std::string_view name, double value)
+    {
+        Impl& m = *mImpl;
+        const InstanceId instance = m.findInstance(form, script);
+        if (instance == 0)
+            return false;
+        const auto current = variableOf(m, instance, name);
+        if (!current)
+            return false;
+        PapyrusValue next;
+        switch (current->kind)
+        {
+            case PapyrusKind::Int:
+                next = PapyrusValue::makeInt(static_cast<std::int32_t>(value));
+                break;
+            case PapyrusKind::Bool:
+                next = PapyrusValue::makeBool(value != 0.0);
+                break;
+            case PapyrusKind::Float:
+                next = PapyrusValue::makeFloat(static_cast<float>(value));
+                break;
+            default:
+                return false;
+        }
+        return m.mRuntime->setVariable(instance, name, next);
     }
 }

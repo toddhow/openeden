@@ -581,6 +581,17 @@ namespace game_skyrimse
     bool SkyrimCellSource::beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
         openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {
+        if (mFeeding != openeden::sdk::game::kNoWorldId)
+        {
+            // Task 0260: the activation was a feeding: one closing line, and the sleeper keeps sleeping
+            const bool mine = mFeeding == reference;
+            mFeeding = openeden::sdk::game::kNoWorldId;
+            if (mine)
+            {
+                out = feedTurn();
+                return true;
+            }
+        }
         auto* source = dynamic_cast<openeden::sdk::game::DialogueSource*>(&mView);
         if (source == nullptr)
         {
@@ -626,8 +637,32 @@ namespace game_skyrimse
         }
     }
 
+    bool SkyrimCellSource::currentPlace(effectconditions::Place& out) const
+    {
+        if (!mHavePlayerPlace)
+            return false;
+        out.mKnown = true;
+        out.mInterior = mPlayerPlace.interior;
+        out.mWorld = mPlayerPlace.interior ? kNullFormId : static_cast<FormId>(mPlayerPlace.world);
+        return true;
+    }
+
+    openeden::sdk::game::DialogueTurn SkyrimCellSource::feedTurn()
+    {
+        openeden::sdk::game::DialogueTurn turn;
+        turn.text = "You sink your fangs into the sleeper's neck and drink deeply.";
+        turn.endsConversation = true;
+        return turn;
+    }
+
     bool SkyrimCellSource::prepareConversation(openeden::sdk::game::WorldId reference)
     {
+        // Task 0260: a vampire activating a sleeper feeds on it (the sleeper is not woken for a talk)
+        if (mFeedHook && !mActors.readyToTalk(reference) && mFeedHook(reference))
+        {
+            mFeeding = reference;
+            return true;
+        }
         return mActors.prepareTalk(reference);
     }
 
@@ -638,6 +673,11 @@ namespace game_skyrimse
 
     void SkyrimCellSource::cancelPreparedConversation(openeden::sdk::game::WorldId reference)
     {
+        if (mFeeding == reference)
+        {
+            mFeeding = openeden::sdk::game::kNoWorldId; // task 0260: nothing was prepared
+            return;
+        }
         mActors.onConversation(reference, false);
     }
 

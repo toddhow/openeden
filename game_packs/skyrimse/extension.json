@@ -589,6 +589,16 @@
       "key": "dragons test kill at",
       "type": "float",
       "default": 0
+    },
+    {
+      "key": "vampirism",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "vampirism test stage",
+      "type": "int",
+      "default": 0
     }
   ],
   "licence": "GPL-3.0-or-later"

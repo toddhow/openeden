@@ -22,6 +22,7 @@
 #include "game_skyrimse/rest.hpp"
 #include "game_skyrimse/stones.hpp"
 #include "game_skyrimse/diseases.hpp"
+#include "game_skyrimse/vampirism.hpp" // task 0260
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
@@ -1244,6 +1245,62 @@ namespace game_skyrimse
 
         // Owns the content loader it registers (the host keeps a reference until stop()), the world view and the
         // neutral world source over it (the source is declared after the view it refers to).
+        // Task 0260: the vampire quest's script as the vampirism service sees it (PlayerVampireQuest, 0x0EAFD5, whose
+        // PlayerVampireQuestScript the Papyrus host attached from the record's VMAD).
+        class VampireQuestPort final : public vampirism::ScriptPort
+        {
+        public:
+            explicit VampireQuestPort(PapyrusHost& host)
+                : mHost(host)
+            {
+            }
+            bool ready() const override
+            {
+                return mHost.numberVariable(vampirism::kQuest, vampirism::kQuestScript, "VampireStatus").has_value();
+            }
+            bool change() override
+            {
+                const PapyrusHost::CallArgument args[] = { PapyrusHost::CallArgument::form(vampirism::kPlayerReference) };
+                return mHost.callFunctionWith(vampirism::kQuest, vampirism::kQuestScript, "VampireChange", args);
+            }
+            bool feed() override
+            {
+                return mHost.callFunction(vampirism::kQuest, vampirism::kQuestScript, "VampireFeed");
+            }
+            bool tick() override
+            {
+                return mHost.sendEventTo(vampirism::kQuest, vampirism::kQuestScript, "OnUpdateGameTime");
+            }
+            bool progress(int stage) override
+            {
+                const PapyrusHost::CallArgument args[] = { PapyrusHost::CallArgument::form(vampirism::kPlayerReference),
+                    PapyrusHost::CallArgument::integer(stage) };
+                return mHost.callFunctionWith(vampirism::kQuest, vampirism::kQuestScript, "VampireProgression", args);
+            }
+            int status() const override
+            {
+                const auto v = mHost.numberVariable(vampirism::kQuest, vampirism::kQuestScript, "VampireStatus");
+                return v ? static_cast<int>(*v) : -1;
+            }
+            bool setStage(int stage, double lastFeedDays) override
+            {
+                return mHost.setNumberVariable(vampirism::kQuest, vampirism::kQuestScript, "VampireStatus", stage)
+                    && mHost.setNumberVariable(vampirism::kQuest, vampirism::kQuestScript, "LastFeedTime", lastFeedDays);
+            }
+            void setDays(double days) override
+            {
+                if (mDaysGlobal == kNullFormId)
+                    if (const auto f = mHost.formVariable(vampirism::kQuest, vampirism::kQuestScript, "GameDaysPassed"))
+                        mDaysGlobal = *f;
+                if (mDaysGlobal != kNullFormId)
+                    mHost.setGlobalValue(mDaysGlobal, static_cast<float>(days));
+            }
+
+        private:
+            PapyrusHost& mHost;
+            FormId mDaysGlobal = kNullFormId;
+        };
+
         class SkyrimGamePack final : public openeden::sdk::Extension
         {
         public:
@@ -1262,6 +1319,7 @@ namespace game_skyrimse
                     syncFollowerAlias();
                     syncStones(); // task 0237
                     syncDiseases(); // task 0240
+                    syncVampirism(); // task 0260
                     syncEffectNumbers(); // task 0248
                     if (mProgression != nullptr)
                         pollProgression(); // task 0200
@@ -1490,6 +1548,9 @@ namespace game_skyrimse
                     // Task 0240: diseases (a creature carries one with neutral combat and creatures), off unless
                     // [extension.skyrimse] diseases
                     startDiseases(host, logger);
+                    // Task 0260: vampirism (the game's own PlayerVampireQuest scripts), off unless
+                    // [extension.skyrimse] vampirism
+                    startVampirism(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
@@ -1740,7 +1801,12 @@ namespace game_skyrimse
                     progression::Settings settings;
                     return mWorldView.progressionInputs(skills, perks, settings) ? perks : nullptr;
                 };
-                hooks.mPersistent = [this] { return mPapyrus->host().spellsOf(kPapyrusPlayerReference); };
+                hooks.mPersistent = [this] {
+                    std::vector<FormId> spells = mPapyrus->host().spellsOf(kPapyrusPlayerReference);
+                    if (mVampirism != nullptr) // task 0260: the sun damage abilities only in the sun; the race ability
+                        return vampirism::filterAbilities(spells, mVampirism->vampire(), mVampireSun);
+                    return spells;
+                };
                 // task 0241: the game clock (a wait or a sleep moves it) once the rest script gave it; else the host's
                 hooks.mNow = [this] {
                     return mRest != nullptr && mRest->now() > 0.0 ? mRest->now() : mPapyrus->host().gameSeconds();
@@ -1865,6 +1931,93 @@ namespace game_skyrimse
                 mDiseases->poll();
             }
 
+            // Task 0260: vampirism. The game's own PlayerVampireQuestScript runs on the Papyrus host; the service adds
+            // the clocks the scripts left to the engine, the sunlight test and the feeding (vampirism.hpp).
+            double vampireClockSeconds() const
+            {
+                return mRest != nullptr && mRest->now() > 0.0 ? mRest->now() : mPapyrus->host().gameSeconds();
+            }
+
+            void startVampirism(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "vampirism", false))
+                    return;
+                if (mPapyrus == nullptr || mStones == nullptr)
+                {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "vampirism needs the Papyrus host (papyrus = true)");
+                    return;
+                }
+                mVampireLog = logger;
+                mVampirePort = std::make_unique<VampireQuestPort>(mPapyrus->host());
+                vampirism::VampirismService::Hooks hooks;
+                hooks.mDays = [this] { return vampireClockSeconds() / 86400.0; };
+                hooks.mSanguinare = [this] { return mDiseases != nullptr && mDiseases->has(vampirism::kSanguinare); };
+                hooks.mCureSanguinare = [this] {
+                    if (mDiseases != nullptr)
+                        (void)mDiseases->cureOne(vampirism::kSanguinare, false);
+                };
+                hooks.mSafe = [this] { return !mCellSource.combat().playerInCombat(); };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mVampirism = std::make_unique<vampirism::VampirismService>(*mVampirePort, std::move(hooks));
+                if (const int stage = settings->getInt(kPackId, "vampirism test stage", 0); stage > 0)
+                    mVampirism->startAs(stage);
+                // a sleeper activated by a vampire is fed on, not woken for a talk
+                mCellSource.setFeedHook([this](openeden::sdk::game::WorldId) {
+                    return mVampirism != nullptr && mVampirism->feed();
+                });
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(mVampirism->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the vampirism chunk was not registered");
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "VAMPIRE vampirism is on");
+            }
+
+            void syncVampirism()
+            {
+                if (mVampirism == nullptr)
+                    return;
+                mVampirism->poll();
+                // sunlight: the data's own conditions, re-evaluated when the game minute or the place changes
+                bool sun = false;
+                effectconditions::Place place;
+                const PerkLibrary* library = mVampirism->vampire() ? diseaseLibrary() : nullptr;
+                if (library != nullptr && mCellSource.currentPlace(place))
+                {
+                    const double clock = vampireClockSeconds();
+                    const std::int64_t minute = static_cast<std::int64_t>(clock / 60.0);
+                    const std::uint64_t placeKey = (place.mInterior ? 1ull : 0ull) | (static_cast<std::uint64_t>(place.mWorld) << 1);
+                    if (minute != mVampireSunMinute || placeKey != mVampireSunPlace)
+                    {
+                        mVampireSunMinute = minute;
+                        mVampireSunPlace = placeKey;
+                        mVampireSunValue = vampirism::sunlit(*library, vampirism::kSunDamageSpells[0], clock, place,
+                            [this](FormId global, float& value) {
+                                return mPapyrus->host().globalSetByScript(global, value)
+                                    || mWorldView.globalDefault(global, value);
+                            });
+                    }
+                    sun = mVampireSunValue;
+                }
+                else
+                    mVampireSunMinute = -1;
+                if (sun != mVampireSun)
+                {
+                    mVampireSun = sun;
+                    mLogVampireSun(sun);
+                }
+            }
+
+            void mLogVampireSun(bool sun) const
+            {
+                if (mVampireLog != nullptr)
+                    mVampireLog->log(openeden::sdk::LogLevel::Info, sun ? "VAMPIRE sunlight burns" : "VAMPIRE out of the sun");
+            }
+
             void syncStones()
             {
                 if (mStones == nullptr || mPapyrus == nullptr)
@@ -1896,6 +2049,9 @@ namespace game_skyrimse
                 mCellSource.scriptBridge().setSinks({}, {}, {});
                 if (mProgression != nullptr)
                     mProgression->setSkillUseScale({});
+                mCellSource.setFeedHook({}); // task 0260
+                mVampirism.reset();
+                mVampirePort.reset();
                 mStones.reset();
                 mCellSource.combat().setPlayerHitHook({}); // task 0240
                 mDiseases.reset();
@@ -4408,6 +4564,13 @@ namespace game_skyrimse
             std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver
             std::unique_ptr<diseases::DiseaseService> mDiseases; // task 0240; refers to the combat and the view
             FormId mDiseaseTestInfect = kNullFormId; // task 0240: a test aid
+            std::unique_ptr<VampireQuestPort> mVampirePort; // task 0260; outlives mVampirism
+            std::unique_ptr<vampirism::VampirismService> mVampirism; // task 0260; refers to the host, the diseases, the combat
+            bool mVampireSun = false; // task 0260: the sun damage abilities count now
+            bool mVampireSunValue = false;
+            std::int64_t mVampireSunMinute = -1;
+            std::uint64_t mVampireSunPlace = 0;
+            openeden::sdk::Logger* mVampireLog = nullptr;
             std::uint64_t mPerksSynced = 0; // task 0241: the host's perk revision the combat last read
             std::uint64_t mSkillModsSynced = 0; // task 0248
             FormId mStonesTestCast = kNullFormId; // task 0248: a proof aid, a hex form id cast once as a blessing

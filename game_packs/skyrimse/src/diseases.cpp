@@ -378,6 +378,20 @@ namespace game_skyrimse::diseases
         return count;
     }
 
+    bool DiseaseService::cureOne(FormId disease, bool announce)
+    {
+        const auto it = std::find(mInfected.begin(), mInfected.end(), disease);
+        if (it == mInfected.end())
+            return false;
+        const std::string name = nameOf(disease);
+        mInfected.erase(it);
+        ++mRevision;
+        if (announce)
+            note("You have been cured of " + name);
+        log("DISEASE cured " + name);
+        return true;
+    }
+
     DiseaseService::HitResult DiseaseService::onHit(std::span<const FormId> attackSpells, std::uint32_t attacker)
     {
         const PerkLibrary* library = mHooks.mLibrary ? mHooks.mLibrary() : nullptr;

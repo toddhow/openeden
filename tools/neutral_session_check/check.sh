@@ -139,6 +139,11 @@ echo "return { base = '${N9_BASE:-}', near = { ${N9_NEAR:-0, 0, 0} }, from = { $
 # clicks come from OPENEDEN_RMLUI_INPUT_SCRIPT (needs [GUI] rmlui = true and the pack settings papyrus and player progression in SETTINGS_EXTRA).
 # Task 0241: STN_ADV_T / STN_ADV_H advance the game clock by STN_ADV_H hours at that simulation second (a wait; needs the pack setting rest).
 [ "$SHOT" = stn ] && echo "content=stn.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0260 (vampirism): "vamp" runs the plan V_PLAN (steps at simulation seconds; see luatest/scripts/vamp/global.lua) in the Mare: clock jumps, hour, the front door, standing before a
+# sleeper and activating it, pictures, a save. The settings (vampirism, diseases test infect, rest, papyrus ...) go in SETTINGS_EXTRA.
+[ "$SHOT" = vamp ] && echo "content=vamp.omwscripts" >> "$WORK/config/openmw.cfg"
+mkdir -p "$WORK/luatest/scripts/vamp"
+echo "return { plan = { ${V_PLAN:-} } }" > "$WORK/luatest/scripts/vamp/cfg.lua"
 # Task 0257 (Night Eye): "ne" leaves the Mare into WhiterunWorld at game hour NE_HOUR (default 23, clock stopped) and takes a picture every NE_EVERY (3) simulation
 # seconds, NE_COUNT (30) times, from NE_FIRST (3) seconds after the door, looking along NE_YAW / NE_PITCH (radians). The cast is the pack test rule, e.g.
 # SETTINGS_EXTRA with [extension.skyrimse] combat test player spell = PowerKhajiitNightEye, combat test player cast every = 15, night eye = true, and [Game] neutral image space effects = true.
@@ -247,7 +252,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|bqtalk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|ne|n5gear|pbody|seqdoor|seqwalk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|bqtalk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|ne|vamp|n5gear|pbody|seqdoor|seqwalk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

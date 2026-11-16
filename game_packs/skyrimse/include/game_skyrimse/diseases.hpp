@@ -131,6 +131,9 @@ namespace game_skyrimse::diseases
         bool infect(FormId disease);
         /// Cures every disease; returns how many went. A notification each.
         std::size_t cure();
+        /// Task 0260: cures one disease (Sanguinare Vampiris at the turn); `announce` false leaves out the "cured"
+        /// notification. False when the player does not have it.
+        bool cureOne(FormId disease, bool announce);
         /// Once a frame: gives combat the modifiers when they changed (or were never sent).
         void poll();
 

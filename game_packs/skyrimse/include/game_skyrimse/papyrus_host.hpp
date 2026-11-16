@@ -652,6 +652,53 @@ namespace game_skyrimse
         /// to its end or its first wait; natives it calls are answered as usual). Not for use inside a tick.
         bool callFunction(FormId form, std::string_view script, std::string_view function);
 
+        // ---- task 0260 (vampirism). Additive.
+        /// One argument of callFunctionWith: a form (an Actor, a Quest ...), an int or a float.
+        struct CallArgument
+        {
+            enum class Kind : std::uint8_t
+            {
+                Form,
+                Int,
+                Float
+            };
+            Kind mKind = Kind::Int;
+            FormId mForm = 0;
+            std::int32_t mInt = 0;
+            float mFloat = 0.f;
+            static CallArgument form(FormId f)
+            {
+                CallArgument a;
+                a.mKind = Kind::Form;
+                a.mForm = f;
+                return a;
+            }
+            static CallArgument integer(std::int32_t v)
+            {
+                CallArgument a;
+                a.mKind = Kind::Int;
+                a.mInt = v;
+                return a;
+            }
+            static CallArgument number(float v)
+            {
+                CallArgument a;
+                a.mKind = Kind::Float;
+                a.mFloat = v;
+                return a;
+            }
+        };
+        /// callFunction with arguments (a function that takes the player, a stage ...). Same rules as callFunction.
+        bool callFunctionWith(FormId form, std::string_view script, std::string_view function,
+            std::span<const CallArgument> arguments);
+        /// Queues an event (for example "OnUpdateGameTime", which nothing here raises by itself: the pack owns the game
+        /// clock) for the instance of  script attached to  form. False when there is no such instance.
+        bool sendEventTo(FormId form, std::string_view script, std::string_view event);
+        /// Gives a GLOB the value the game's clock (or any pack rule) says, as if a script had called SetValue.
+        void setGlobalValue(FormId global, float value);
+        /// Sets a numeric variable of an instance (an Int, Float or Bool; a test aid and the pack's own state sync).
+        bool setNumberVariable(FormId form, std::string_view script, std::string_view name, double value);
+
         struct Impl;
 
     private:

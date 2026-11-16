@@ -108,7 +108,8 @@ namespace game_skyrimse
             return spell.mHasData && (spell.mType == kSpellTypePower || spell.mType == kSpellTypeLesserPower);
         }
 
-        SkyrimCombat::PowerSupport powerSupportOf(CombatData& data, const SpellRecord& spell, bool applyConditions)
+        SkyrimCombat::PowerSupport powerSupportOf(
+            CombatData& data, const SpellRecord& spell, bool applyConditions, bool summonsOn)
         {
             bool works = false;
             bool status = false;
@@ -135,7 +136,13 @@ namespace game_skyrimse
                     case StatusArchetype::Invisibility: // task 0241: the Shadow stone's power
                     case StatusArchetype::Paralysis: // task 0241: the Serpent stone's power
                     case werewolf::kArchetypeWerewolf: // task 0259: Beast Form (the pack turns the player into the beast)
+                    case StatusArchetype::Calm: // task 0260: Vampire's Seduction (applyOneEffect has run Calm since task 0248)
                         works = true;
+                        break;
+                    case SummonArchetype::SummonCreature: // task 0260: Vampire's Servant; only when the summons run
+                    case SummonArchetype::Reanimate:
+                        if (summonsOn)
+                            works = true;
                         break;
                     default:
                         break;
@@ -159,7 +166,7 @@ namespace game_skyrimse
             RacePower power;
             power.mId = id;
             power.mName = spellName(*spell);
-            power.mSupport = powerSupportOf(*mData, *spell, true); // a power applies its effects' conditions
+            power.mSupport = powerSupportOf(*mData, *spell, true, mSummonsOn); // a power applies its effects' conditions
             out.push_back(std::move(power));
         }
         return out;

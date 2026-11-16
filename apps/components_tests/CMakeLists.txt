@@ -708,6 +708,10 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsediseases.cpp
     skyrimse/testskyrimsediseasescombat.cpp
     skyrimse/testskyrimsediseasesuse.cpp
+    skyrimse/testskyrimsevampirism.cpp
+    skyrimse/testskyrimsevampirismhost.cpp
+    skyrimse/testskyrimsevampirismreal.cpp
+    skyrimse/testskyrimsevampirismfeed.cpp
     skyrimse/testskyrimsestonenumbers.cpp
     skyrimse/testskyrimseraceeffects.cpp
     skyrimse/testskyrimsetravel.cpp
@@ -895,6 +899,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_disease.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_race_effects.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/diseases.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/vampirism.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_summons.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_deaths.cpp

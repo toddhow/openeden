@@ -1,0 +1,3 @@
+PLAYER: scripts/n5/shot.lua
+GLOBAL: scripts/vamp/global.lua
+MENU: scripts/n8/menu.lua

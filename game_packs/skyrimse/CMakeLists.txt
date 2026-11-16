@@ -30,6 +30,7 @@ openeden_add_game_pack(skyrimse
         src/rest.cpp
         src/stones.cpp
         src/diseases.cpp
+        src/vampirism.cpp
         src/travel.cpp
         src/services.cpp
         src/menus.cpp
@@ -321,6 +322,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_disease.cpp
     src/combat_race_effects.cpp
     src/diseases.cpp
+    src/vampirism.cpp
     src/combat_scroll.cpp
     src/combat_summons.cpp
     src/combat_deaths.cpp
