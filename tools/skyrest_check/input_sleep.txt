@@ -1,0 +1,8 @@
+# task 0210: activate the bed in front of the player with the real activate key (Space), then look at the window and sleep.
+3800 key Space down
+3802 key Space up
+3860 shot
+3900 mouse 62 119
+3904 down L 62 119
+3906 up L 62 119
+3980 shot

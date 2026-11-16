@@ -585,6 +585,21 @@ namespace game_skyrimse
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
 
+        // ---- task 0210 (waiting and sleeping)
+        /// Queues a rest of `seconds` real seconds of regeneration (what the game hours stood for): at the next update
+        /// every living fighter gets health, magicka and stamina back by its own regeneration rates, out of combat. The
+        /// player's health goes through a report that takes none off, as a level up's does. A number that is not
+        /// finite or not above 0 queues nothing; the sum of queued seconds is capped at kMaxRestSeconds.
+        void requestRest(float seconds);
+        /// The player fought a moment ago (the combat linger time of a blow given or taken).
+        [[nodiscard]] bool playerInCombat() const;
+        /// A living hostile is engaged with the player (the combat AI's engaged actors and the test hostiles).
+        [[nodiscard]] bool enemiesNear() const;
+        [[nodiscard]] std::size_t restsApplied() const { return mRestsApplied; }
+        /// The combat records are read (true too when there is no data at all: nothing is then waited for).
+        [[nodiscard]] bool dataReady() const { return mData == nullptr || mData->combatReady(); }
+        static constexpr float kMaxRestSeconds = 24.f * 3600.f;
+
         /// The actor hooks forwarded by the cell source (the combat rules need the handles of the actors).
         void onActorAdded(const openeden::sdk::game::ActorInfo& info);
         void onActorRemoved(openeden::sdk::game::ActorHandle handle);
@@ -682,6 +697,9 @@ namespace game_skyrimse
         [[nodiscard]] const Fighter* find(openeden::sdk::game::CombatSubject subject) const;
         bool ready(Fighter& fighter);
         void regenerate(float seconds);
+        void applyRest(openeden::sdk::game::CombatRequestWriter& writer); // task 0210
+        float mRestSeconds = 0.f; ///< queued, applied by the next combatUpdate
+        std::size_t mRestsApplied = 0;
         void beginAttack(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, AttackKind kind);
         void loadSettings();
         // Task 0179: perks. All of it does nothing for a fighter with no perks, no armour perk and no ability.

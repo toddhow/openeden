@@ -909,6 +909,87 @@ namespace game_skyrimse
         }
     }
 
+    // ---- task 0210: waiting and sleeping.
+    void SkyrimCombat::requestRest(float seconds)
+    {
+        if (!std::isfinite(seconds) || seconds <= 0.f)
+            return;
+        mRestSeconds = std::min(kMaxRestSeconds, mRestSeconds + std::min(seconds, kMaxRestSeconds));
+    }
+
+    bool SkyrimCombat::playerInCombat() const
+    {
+        const Fighter* player = find(CombatSubject::ofPlayer());
+        return player != nullptr && mClock < player->mCombatUntil;
+    }
+
+    bool SkyrimCombat::enemiesNear() const
+    {
+        for (const AiActor& actor : mAiActors)
+        {
+            const Fighter* f = find(CombatSubject::of(actor.mHandle));
+            if (f != nullptr && !f->mDead && !actor.mGiveUp && actor.mTarget.player)
+                return true;
+        }
+        for (const ActorHandle& handle : mHostiles)
+        {
+            const Fighter* f = find(CombatSubject::of(handle));
+            if (f != nullptr && !f->mDead)
+                return true;
+        }
+        return false;
+    }
+
+    void SkyrimCombat::applyRest(CombatRequestWriter& writer)
+    {
+        if (!(mRestSeconds > 0.f))
+            return;
+        const float seconds = mRestSeconds;
+        mRestSeconds = 0.f;
+        ++mRestsApplied;
+        float playerGain = 0.f;
+        for (Fighter& f : mFighters)
+        {
+            if (!f.mReady || !f.mHasProfile || f.mDead)
+                continue;
+            const float health = regenAmount(f.mProfile.mHealthMax, f.mProfile.mHealthRegenPercent,
+                mCombatSettings.mCombatHealthRegenRateMult, false, seconds);
+            if (f.mSubject.player)
+                playerGain = health;
+            else
+                f.mHealth = std::min(f.mProfile.mHealthMax, f.mHealth + health);
+            f.mStamina = std::min(f.mProfile.mStaminaMax,
+                f.mStamina
+                    + regenAmount(f.mProfile.mStaminaMax, f.mProfile.mStaminaRegenPercent,
+                        mCombatSettings.mCombatStaminaRegenRateMult, false, seconds));
+            if (f.mProfile.mMagickaMax > 0.f)
+                f.mMagicka = std::min(f.mProfile.mMagickaMax,
+                    f.mMagicka
+                        + regenAmount(f.mProfile.mMagickaMax, f.mProfile.mMagickaRegenPercent,
+                            mCombatSettings.mCombatMagickaRegenRateMult, false, seconds));
+        }
+        // The player's health is the engine's: the same report that takes none off as a level up's gain.
+        Fighter* player = find(CombatSubject::ofPlayer());
+        if (player == nullptr || !player->mReady || !player->mHasProfile || player->mDead || !(playerGain > 0.f))
+            return;
+        openeden::sdk::game::SubjectState state;
+        if (!writer.subjectState(CombatSubject::ofPlayer(), state) || !(state.healthMax > 0.f))
+            return;
+        openeden::sdk::game::DamageReport report;
+        report.attackerIsPlayer = true;
+        report.victimIsPlayer = true;
+        report.amount = 0.f;
+        report.healthMax = std::max(state.healthMax, player->mProfile.mHealthMax);
+        report.healthAfter = std::min(report.healthMax, std::max(state.health, 0.f) + playerGain);
+        if (!(report.healthAfter > state.health))
+            return; // already at its maximum: nothing to send
+        report.x = state.x;
+        report.y = state.y;
+        report.z = state.z;
+        if (writer.reportDamage(report))
+            player->mHealth = report.healthAfter;
+    }
+
     void SkyrimCombat::beginAttack(CombatRequestWriter& writer, Fighter& fighter, AttackKind kind)
     {
         mSounds.weaponDraw(writer, fighter.mSubject, weaponFor(fighter)); // task 0193: once per fighter
@@ -1729,6 +1810,7 @@ namespace game_skyrimse
             // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
+            applyRest(writer); // task 0210: does nothing unless a rest was queued
             syncProgression(writer); // task 0200
             applyPlayerHeal(writer); // task 0184
             updateMagic(writer, step); // task 0186: ticks, casts that go, the player's and the test casters' casts

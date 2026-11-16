@@ -1,0 +1,22 @@
+# task 0210: the three bars after the real attack control (a spell): full, spent, refused while in combat, then (after the
+# ten seconds of combat have passed) a one hour wait gives them back.
+2300 shot
+2400 down L 400 300
+2404 up L 400 300
+2440 down L 400 300
+2444 up L 400 300
+2480 down L 400 300
+2484 up L 400 300
+2520 shot
+2700 key T down
+2702 key T up
+2740 shot
+2760 mouse 57 87
+2764 down L 57 87
+2766 up L 57 87
+3500 key T down
+3502 key T up
+3540 mouse 62 119
+3544 down L 62 119
+3546 up L 62 119
+3620 shot

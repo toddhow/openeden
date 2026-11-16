@@ -246,6 +246,16 @@
       "default": false
     },
     {
+      "key": "rest",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "rest test ignore owner",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "journal test quests",
       "type": "int",
       "default": 0

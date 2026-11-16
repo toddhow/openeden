@@ -11,6 +11,7 @@
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/map.hpp"
 #include "game_skyrimse/lockbooks_service.hpp"
+#include "game_skyrimse/rest.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -792,6 +793,9 @@ namespace game_skyrimse
                     startJournal(host, logger);
                     // Task 0201: the compass and world map's bindings, off unless [extension.skyrimse] map.
                     startMap(host, logger);
+                    // Task 0210: waiting and sleeping (the namespace skyrimse.rest), off unless
+                    // [extension.skyrimse] rest.
+                    startRest(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1132,6 +1136,66 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Warning, "the map chunk was not registered");
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MAP the map and compass are on");
+            }
+
+            // Task 0210: waiting and sleeping. The rules are `rest.*`; this wires them to the combat (who may rest, who
+            // is restored), the world view (is that furniture a bed, who owns it), the progression (Rested multiplies
+            // skill experience) and the save chunk `rest`.
+            void startRest(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "rest", false))
+                    return;
+                const bool ignoreOwner = settings->getBool(kPackId, "rest test ignore owner", false);
+                rest::Hooks hooks;
+                hooks.mReady = [this] { return mCellSource.combat().dataReady(); };
+                hooks.mInCombat = [this] { return mCellSource.combat().playerInCombat(); };
+                hooks.mEnemiesNear = [this] { return mCellSource.combat().enemiesNear(); };
+                hooks.mBed = [this, ignoreOwner](std::uint64_t placement, std::uint64_t base) {
+                    if (!mWorldView.furnitureIsBed(static_cast<FormId>(base)))
+                        return rest::BedState::NotABed;
+                    bool owned = false;
+                    const auto owner = mWorldView.ownerOfPlacement(static_cast<FormId>(placement));
+                    if (owner && owner->owner != openeden::sdk::game::kNoWorldId && !ignoreOwner)
+                    {
+                        const FormId who = static_cast<FormId>(owner->owner);
+                        owned = !(who == crime::kPlayerNpcId || who == kPlayerFactionId);
+                    }
+                    return rest::bedStateOf(true, owned);
+                };
+                hooks.mApply = [this](double seconds, int, bool) {
+                    mCellSource.combat().requestRest(static_cast<float>(seconds));
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mRest = std::make_unique<rest::RestService>(std::move(hooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mRest->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the rest bindings were refused: " + declared.message);
+                }
+                if (mProgression != nullptr)
+                    mProgression->setGainMultiplier([this] {
+                        return mRest != nullptr ? mRest->rested().skillGain(mRest->now()) : 1.f;
+                    });
+                mRestChunk = std::make_unique<rest::RestChunk>(mRest->rested());
+                mRestChunk->setRefusalSink([logger](const std::string& reason) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Error, "the rest chunk is refused: " + reason);
+                });
+                mRestChunk->setRestoredSink([logger](const std::string& what) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, "REST " + what);
+                });
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(*mRestChunk) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the rest chunk was not registered");
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "REST waiting and sleeping are on");
             }
 
             // Task 0182: the inventory service (item table, model, save chunk) and the namespace skyrimse.inventory.
@@ -2176,6 +2240,8 @@ namespace game_skyrimse
             std::uint64_t mProgressionPushed = 0;
             std::unique_ptr<map::MapService> mMap; // task 0201; refers to the world view
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
+            std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
+            std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184

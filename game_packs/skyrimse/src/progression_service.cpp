@@ -216,7 +216,10 @@ namespace game_skyrimse::progression
         if (mProgression == nullptr)
             return;
         const std::uint8_t before = mProgression->skill(slot);
-        const std::uint32_t increases = mProgression->useSkill(slot, amount);
+        float gain = mGain ? mGain() : 1.f;
+        if (!std::isfinite(gain) || !(gain > 0.f))
+            gain = 1.f;
+        const std::uint32_t increases = mProgression->useSkill(slot, amount * gain);
         if (increases > 0 && mHooks.mLog)
             mHooks.mLog("PROGRESSION skill " + std::string(skillName(slot)) + " " + std::to_string(before) + " -> "
                 + std::to_string(mProgression->skill(slot)) + " (level xp "

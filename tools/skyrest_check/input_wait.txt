@@ -1,0 +1,16 @@
+# task 0210: wait 3 hours with the real rest key and clicks (the window is at left 24, top 24: "+" at (291, 87), "Wait" at (62, 119)).
+2400 key T down
+2402 key T up
+2450 shot
+2460 mouse 291 87
+2464 down L 291 87
+2466 up L 291 87
+2480 down L 291 87
+2482 up L 291 87
+2500 shot
+2520 mouse 62 119
+2524 down L 62 119
+2526 up L 62 119
+2560 shot
+3000 shot
+3600 shot

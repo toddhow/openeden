@@ -1,0 +1,4 @@
+# task 0210: discovery: open the wait window with the engine's rest key and look at it.
+2400 key T down
+2402 key T up
+2450 shot

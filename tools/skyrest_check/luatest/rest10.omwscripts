@@ -1,0 +1,3 @@
+GLOBAL: scripts/rest10/global.lua
+MENU: scripts/rest10/menu.lua
+PLAYER: scripts/rest10/player.lua

@@ -152,6 +152,7 @@ set(BUILTIN_DATA_FILES
     openeden/skyrimse/worldmap.lua
     openeden/skyrimse/lockpick_window.lua
     openeden/skyrimse/book_window.lua
+    openeden/skyrimse/rest_windows.lua
 
     builtin.omwscripts
 
@@ -208,6 +209,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/skills_global.lua
     scripts/openeden/skyrimse/map_global.lua
     scripts/openeden/skyrimse/map_player.lua
+    scripts/openeden/skyrimse/rest_global.lua
+    scripts/openeden/skyrimse/rest_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua
     scripts/omw/input/settings.lua

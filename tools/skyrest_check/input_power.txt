@@ -1,0 +1,11 @@
+# task 0210: a held attack (a power attack at half a second of holding) spends stamina; ten seconds later a one hour wait gives it back.
+2300 shot
+2400 down L 400 300
+2600 up L 400 300
+2620 shot
+3500 key T down
+3502 key T up
+3540 mouse 62 119
+3544 down L 62 119
+3546 up L 62 119
+3620 shot

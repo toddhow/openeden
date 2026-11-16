@@ -26,6 +26,7 @@ openeden_add_game_pack(skyrimse
         src/journal.cpp
         src/map.cpp
         src/map_markers.cpp
+        src/rest.cpp
         src/quest_script.cpp
         src/story.cpp
         src/scene.cpp
@@ -98,6 +99,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/journal.hpp
         include/game_skyrimse/map.hpp
         include/game_skyrimse/map_markers.hpp
+        include/game_skyrimse/rest.hpp
         include/game_skyrimse/quest_script.hpp
         include/game_skyrimse/vmad.hpp
         include/game_skyrimse/papyrus_host.hpp

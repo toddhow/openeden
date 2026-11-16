@@ -462,6 +462,10 @@ namespace game_skyrimse
         /// Where the JAIL marker of a crime faction sends the player: the XTEL of that REFR (its destination cell's
         /// editor id, position and heading). False when the marker or its teleport is not known.
         [[nodiscard]] bool jailDestination(FormId faction, crime::JailDestination& out);
+        // ---- task 0210 (waiting and sleeping)
+        /// True when the base form's model is a bed: its furniture markers include a sleep marker (the model is read
+        /// once and cached). False for a base that is not a model record, has no model or cannot be read. Main thread.
+        [[nodiscard]] bool furnitureIsBed(FormId base);
         /// The speech skill of the stand-in player (the pack setting `player speech`).
         [[nodiscard]] std::uint8_t standInPlayerSpeech() const { return mStandInSpeech; }
 

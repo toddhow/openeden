@@ -1149,6 +1149,22 @@ namespace game_skyrimse
         return markers;
     }
 
+    bool SkyrimWorldView::furnitureIsBed(FormId base)
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId)
+            return false;
+        const auto it = mBases.find(base);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return false;
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        if (m.mModel.empty())
+            return false;
+        for (const FurnitureMarker& marker : markersOf(m.mModel))
+            if (marker.mType == MarkerType::Sleep)
+                return true;
+        return false;
+    }
+
     void SkyrimWorldView::slotsNear(FormId actorReference, double x, double y, double z, double radius,
         sdkgame::FurniturePose pose, double fromX, double fromY, double fromZ, std::vector<FurnitureSlot>& out)
     {
