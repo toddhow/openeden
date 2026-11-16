@@ -88,8 +88,39 @@ wrapper forwarding), plus a gated demo-script writer. No existing test edited.
 
 ## 5. Results
 
-See the changelog row of this task and the final report for the numbers (tolerant calls before and after, in game checks,
-determinism, Morrowind unchanged).
+Tolerant calls (the no-ops), same scenarios and settings, parent against this branch:
+
+| Scenario | tolerant natives | tolerant calls | native calls answered |
+| --- | --- | --- | --- |
+| Mare, before | 14 | 68 | 217 |
+| Mare, after | 12 | 46 | 239 |
+| Whiterun street, before | 19 | 102 | 217 |
+| Whiterun street, after | 16 | 70 | 251 |
+
+The calls that disappeared are `GetActorValuePercentage`, `AddInventoryEventFilter` and `GetLinkedRef` (10 in Whiterun). What is
+left is other systems' (the lists are in the `PAPYRUS tolerantcalls` lines of the logs kept in
+`I:\Projects\OpenEden-work\papyrus\keep198`).
+
+In game (`tools/neutral_session_check/papyrusdemo.sh` with a generated `oedemotick.pex` written by the gated
+`SkyrimPapyrusNatives2Demo`, five masters, Bannered Mare, `inventory`, `combat ai`, `neutral combat`): a script gives the
+player 50 gold (the player's own 100 goes to 150), takes 20 (130), reads his health 100 and stamina 100, damages the stamina
+to 90, says `Debug.Notification` (shown on the HUD: `keep198\notification_hud.png`), and kills Hulda by placement id (`IsDead`
+false then true); the pack logs `PAPYRUS item 0000000F x50 from 00000000 to 00000014` for each change, `PAPYRUS death of
+0001A66E killer 00000000`, and `PAPYRUS hit on ... by ...` for every blow of a Hulda fight (12 hits both ways in 26 s). 40 item
+events reached real quest scripts in the Mare. Three runs (fixed frame time): the item, hit, death and OEDEMO198 lines are
+identical; only the last summary line and wall-clock build times differ with the run's end. Papyrus on against off, same combat
+scenario (`n5ai`, `OPENEDEN_NEUTRAL_COMBAT_TRACE`): the 107 NCOMBAT lines are identical (md5 68aa1d2f...). Morrowind:
+`tools/worldobjects_check` 110 lines OK against the `integ2` build (a build of main, not of this exact parent) and the fixed
+Balmora frame is `1c5d47ad0b5dc32d`, the parent's recorded hash.
+
+Tests: `Skyrim*:*Papyrus*:*Inventory*:*Combat*:*Extension*:*Frozen*` in `components-tests` 2,094 pass; `openmw-tests`
+`*Neutral*:*Skyrim*:*Extension*:*Lua*` 812 pass. `CI/check_tests_registered`, `check_layer_rules` (104), `check_extension_sdk`
+and `tools/testprofile/coverage.sh` pass.
+
+**Edits outside `papyrus_host*`** (small and additive): `inventory.hpp/cpp` (the one hook: `add` and `setChangeSink`);
+`neutral_world.hpp` (the wrapper writer in `combatUpdate` and a bridge member: the only combat-side edit; `combat.*` untouched);
+`world_view.*` (`formFromFile`); `components/script_papyrus` (`Stats::unregisteredByName`); `skyrimse_game_pack.cpp` (the
+wiring); `files/data` (one Lua script and its builtin line).
 
 ## Not done, and decisions for toddhow
 
