@@ -18,6 +18,7 @@
 // No engine, renderer, Jolt, Qt or OSG type. Main thread only; the vectors are reserved so that a frame allocates
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
+#include <game_skyrimse/ability_numbers.hpp>
 #include <game_skyrimse/barks.hpp>
 #include <game_skyrimse/combat_gear.hpp>
 #include <game_skyrimse/combat_sound.hpp>
@@ -627,6 +628,19 @@ namespace game_skyrimse
         /// Task 0237 (standing stones, shrine blessings): spells the player has beyond his record's, worked into his
         /// ability sums (damage resistance) and the resist lookups like the race's. A copy; replaces the last list.
         void setPlayerExtraAbilities(std::vector<FormId> spells);
+        /// Task 0241: perks the player has beyond his progression's (Actor.AddPerk of the Papyrus host: the Ritual
+        /// stone's). A copy; replaces the last list; the perks join his list like the test setting's.
+        void setPlayerExtraPerks(std::vector<FormId> perks);
+        /// Task 0241 (combat_abilities.cpp): the numbers the player's held abilities and blessings give (the sum over
+        /// his spell list, ability_numbers.hpp). Everything is zero when he holds none or the perk rules are off.
+        [[nodiscard]] AbilityNumbers playerAbilityNumbers() const;
+        /// Moves whenever those numbers change (the pack gives the carry weight bonus to the inventory when it does).
+        [[nodiscard]] std::uint64_t abilityRevision() const { return mAbilityRevision; }
+        /// The player's resistance and weakness in percent against an effect whose MGEF resist value is `resistValue`.
+        [[nodiscard]] float playerResistPercent(std::int32_t resistValue);
+        [[nodiscard]] float playerWeaknessPercent(std::int32_t resistValue);
+        /// An Invisibility effect (a stone's power) is running on the player: observers do not notice him.
+        [[nodiscard]] bool playerInvisible() const;
 
         // ---- task 0240 (diseases; combat_disease.cpp) ---------------------------------------------------------------
         /// Told once for each landed, unblocked, non-bash blow of a non-player fighter on the player: the spells its race's
@@ -870,6 +884,8 @@ namespace game_skyrimse
             std::vector<std::pair<std::uint32_t, float>> mPerkValues; ///< task 0179: base actor values for conditions
             std::vector<FormId> mWornKeywords; ///< task 0179
             FighterGear mGear; ///< task 0214: filled with `combat real gear`
+            AbilityNumbers mAbilities; ///< task 0241: the player's held abilities and blessings (player only)
+            bool mHasAbilities = false; ///< mAbilities holds something
         };
         /// A bow event (BowDrawn or the release) seen since the last combatUpdate: acted on there.
         struct PendingBow
@@ -1325,6 +1341,15 @@ namespace game_skyrimse
         PlayerValueModifiers mValueModsApplied; ///< what the profile carries now (0 after a progression rewrite)
         bool mValueModsDirty = false;
         std::vector<FormId> mAppliedExtra; ///< task 0237: what the profile's spell list holds of them now
+        // Task 0241 (combat_abilities.cpp)
+        void applyAbilityNumbers(Fighter& fighter, const PerkLibrary& library);
+        void flushAbilityVitals(openeden::sdk::game::CombatRequestWriter& writer);
+        std::vector<FormId> mExtraPerks;
+        std::vector<FormId> mAppliedExtraPerks; ///< what the profile's perk list holds of them now
+        float mAppliedVital[3] = { 0.f, 0.f, 0.f }; ///< the Fortify share the profile's maximums hold now
+        float mPendingHealthDelta = 0.f; ///< the engine's health maximum must change by this (the next update says)
+        bool mVitalReportPending = false;
+        std::uint64_t mAbilityRevision = 0;
         std::vector<FormId> mNpcTestPerks;
         bool mPerksResolved = false;
         std::unique_ptr<PerkEngine> mPerkEngine;

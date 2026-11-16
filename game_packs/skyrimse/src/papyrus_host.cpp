@@ -871,8 +871,8 @@ namespace game_skyrimse
             });
             reg("Actor", "AddPerk", false, [this](const NativeCall& c) {
                 const FormId perk = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
-                if (perk != 0 && mPerks.size() < kMaxRecordedPerks)
-                    mPerks.emplace(formOf(c.self), perk);
+                if (perk != 0 && mPerks.size() < kMaxRecordedPerks && mPerks.emplace(formOf(c.self), perk).second)
+                    ++mPerkRevision; // task 0241: the pack gives the player's perks to the combat when this moves
                 return NativeResult{};
             });
             // Spell.Cast(source, target): queued for the pack, which applies the spell's effects to the target
@@ -1635,7 +1635,8 @@ namespace game_skyrimse
         std::set<std::pair<FormId, FormId>> mSpells; ///< Actor.AddSpell (the pack reads it: spellsOf)
         // task 0237
         std::uint64_t mSpellRevision = 0;
-        std::set<std::pair<FormId, FormId>> mPerks; ///< Actor.AddPerk (recorded, not saved)
+        std::set<std::pair<FormId, FormId>> mPerks; ///< Actor.AddPerk (task 0241: saved, state version 3)
+        std::uint64_t mPerkRevision = 0;
         std::vector<PapyrusHost::SpellCast> mCasts;
         PapyrusHost::MessageSink mMessageSink;
         std::map<FormId, std::int32_t> mAnswers; ///< message -> the button answered, until Message.Show takes it
@@ -1770,9 +1771,9 @@ namespace game_skyrimse
         // ---- the host's state as bytes (task 0181) -----------------------------------------------------------------
         // Little endian, canonical (maps and sets in key order), ended by an FNV-1a 64 checksum of everything before it.
         constexpr std::uint32_t kStateMagic = 0x31534850u; // "PHS1"
-        // 3 (task 0202) adds created references and angles; 2 (task 0198) adds actor value changes and deaths; 1 and 2
-        // are still read
-        constexpr std::uint32_t kStateVersion = 3;
+        // 4 (task 0241) adds the perks; 3 (task 0202) adds created references and angles; 2 (task 0198) adds actor
+        // value changes and deaths; 1, 2 and 3 are still read
+        constexpr std::uint32_t kStateVersion = 4;
         constexpr std::uint32_t kMaxEntries = 1u << 22; // a hostile count never allocates more than the bytes allow
 
         std::uint64_t fnv1a(const std::uint8_t* data, std::size_t size)
@@ -1919,7 +1920,8 @@ namespace game_skyrimse
 
         ByteWriter w;
         w.u32(kStateMagic);
-        w.u32(kStateVersion);
+        // version 4 only when perks are held: a state with none keeps the version 3 layout byte for byte
+        w.u32(mPerks.empty() ? 3u : kStateVersion);
         w.f64(mTime);
         w.u64(mTimerSeq);
         const PapyrusHostCounters& c = mCounters;
@@ -2073,6 +2075,15 @@ namespace game_skyrimse
             for (const double v : angles)
                 w.f64(v);
         }
+        if (!mPerks.empty())
+        {
+            w.u32(static_cast<std::uint32_t>(mPerks.size())); // version 4 (task 0241)
+            for (const auto& [actor, perk] : mPerks)
+            {
+                w.u32(actor);
+                w.u32(perk);
+            }
+        }
         return w.finish();
     }
 
@@ -2095,7 +2106,7 @@ namespace game_skyrimse
         if (r.u32() != kStateMagic)
             return refuse("this is not a Papyrus state");
         const std::uint32_t version = r.u32();
-        if (version != 1 && version != 2 && version != kStateVersion)
+        if (version != 1 && version != 2 && version != 3 && version != kStateVersion)
             return refuse("the Papyrus state has version " + std::to_string(version));
 
         struct LedgerEntry
@@ -2294,6 +2305,16 @@ namespace game_skyrimse
                 angleOverrides[ref] = angles;
             }
         }
+        std::set<std::pair<FormId, FormId>> perks;
+        if (version >= 4)
+            for (std::uint32_t i = 0, n = r.count(8); i < n; ++i)
+            {
+                const FormId actor = r.u32();
+                const FormId perk = r.u32();
+                if (perks.size() >= kMaxRecordedPerks)
+                    return refuse("the Papyrus state holds too many perks");
+                perks.emplace(actor, perk);
+            }
         if (r.failed())
             return refuse("the Papyrus state is damaged (a field runs past the end)");
         if (r.remaining() != 0)
@@ -2359,6 +2380,8 @@ namespace game_skyrimse
         mAngles = std::move(angleOverrides);
         mSpells = std::move(spells);
         ++mSpellRevision; // task 0237: the pack reads the list again
+        mPerks = std::move(perks);
+        ++mPerkRevision; // task 0241: so it reads the perks again
         mAvOffsets = std::move(avOffsets);
         mDead = std::move(dead);
         mInvFilters = std::move(filters);
@@ -2827,6 +2850,11 @@ namespace game_skyrimse
             if (who == actor)
                 out.push_back(perk);
         return out;
+    }
+
+    std::uint64_t PapyrusHost::perkRevision() const
+    {
+        return mImpl->mPerkRevision;
     }
 
     double PapyrusHost::gameSeconds() const

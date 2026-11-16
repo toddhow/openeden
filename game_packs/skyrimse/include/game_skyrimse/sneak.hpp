@@ -144,6 +144,8 @@ namespace game_skyrimse::sneak
         std::function<float()> mArmourWeight;
         /// Sneak experience.
         std::function<void(float amount)> mTrain;
+        /// Task 0241: an Invisibility effect (the Shadow stone's power) runs on the player: no observer notices him.
+        std::function<bool()> mInvisible;
         std::function<void(const std::string&)> mLog;
     };
 

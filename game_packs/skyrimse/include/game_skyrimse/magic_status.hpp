@@ -27,6 +27,8 @@ namespace game_skyrimse
     namespace StatusArchetype
     {
         inline constexpr std::uint32_t Calm = 6, Demoralize = 7, Frenzy = 8, Paralysis = 21;
+        /// Task 0241 (VERIFIED: doomShadowEffect, the Shadow stone's power, is archetype 11 on actor value 54).
+        inline constexpr std::uint32_t Invisibility = 11;
     }
 
     /// Actor values of the resistances (MGEF DATA +68 of the weakness effects, VERIFIED).
@@ -94,6 +96,7 @@ namespace game_skyrimse
         float mParalyzedUntil = -1.f;
         float mFrenzyUntil = -1.f;
         float mFearUntil = -1.f;
+        float mInvisibleUntil = -1.f; ///< task 0241: an Invisibility effect (the Shadow stone's power) runs until then
         float mFrenzyRetargetAt = 0.f; ///< the combat clock at which a frenzied actor looks again for a target
         bool mParalysisClipHeld = false; ///< the held fall clip is playing and must be ended by a recovery clip
     };

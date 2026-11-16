@@ -144,6 +144,17 @@ namespace game_skyrimse::inventory
             mThread.join();
     }
 
+    float InventoryService::capacity() const
+    {
+        return std::max(0.f, kBaseCarryWeight + mCapacityBonus);
+    }
+
+    void InventoryService::setCapacityBonus(float bonus)
+    {
+        if (std::isfinite(bonus))
+            mCapacityBonus = std::clamp(bonus, -kBaseCarryWeight, 100000.f);
+    }
+
     bool InventoryService::poll()
     {
         if (mReady)
@@ -529,9 +540,9 @@ namespace game_skyrimse::inventory
             r.value = number(self->mModel.weightOf(kPlayerOwner, self->mTable));
             return r;
         });
-        add("capacity", {}, true, BindingType::Double, BindingAccess::Read, [](std::span<const BindingValue>) {
+        add("capacity", {}, true, BindingType::Double, BindingAccess::Read, [self](std::span<const BindingValue>) {
             BindingResult r = ok();
-            r.value = number(kBaseCarryWeight);
+            r.value = number(self->capacity()); // task 0241: a stone's Steed sign adds to it
             return r;
         });
         // ---- task 0184 (version 1.1)

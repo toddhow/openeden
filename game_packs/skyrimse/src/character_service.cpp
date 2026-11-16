@@ -292,10 +292,25 @@ namespace game_skyrimse::character
 
     std::vector<PowerInfo> CharacterService::powers() const
     {
-        if (!mDone || mCreator == nullptr || !mHooks.mPowers)
+        if (!mHooks.mPowers)
             return {};
-        const RaceOption* race = mCreator->race();
-        return race != nullptr ? mHooks.mPowers(race->mAbilities) : std::vector<PowerInfo>();
+        std::vector<PowerInfo> out;
+        if (mDone && mCreator != nullptr)
+        {
+            const RaceOption* race = mCreator->race();
+            if (race != nullptr)
+                out = mHooks.mPowers(race->mAbilities);
+        }
+        // task 0241: the powers of the spells the player holds beyond his race's (the stones), after the race's
+        if (mHooks.mExtraPowerSpells)
+        {
+            const std::vector<FormId> held = mHooks.mExtraPowerSpells();
+            if (!held.empty())
+                for (PowerInfo& power : mHooks.mPowers(held))
+                    if (std::none_of(out.begin(), out.end(), [&](const PowerInfo& p) { return p.mId == power.mId; }))
+                        out.push_back(std::move(power));
+        }
+        return out;
     }
 
     bool CharacterService::powerReady(std::size_t index, std::int64_t nowSeconds) const

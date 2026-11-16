@@ -634,8 +634,26 @@ namespace game_skyrimse
         }
         const std::vector<FormId>& extra = fighter.mSubject.player ? mPlayerTestPerks : mNpcTestPerks;
         p.mPerks.insert(p.mPerks.end(), extra.begin(), extra.end());
+        if (fighter.mSubject.player)
+        {
+            // task 0241: the perks Actor.AddPerk gave the player replace the ones the last call added
+            p.mPerks.erase(std::remove_if(p.mPerks.begin(), p.mPerks.end(),
+                               [this](FormId id) {
+                                   return std::find(mAppliedExtraPerks.begin(), mAppliedExtraPerks.end(), id)
+                                       != mAppliedExtraPerks.end();
+                               }),
+                p.mPerks.end());
+            mAppliedExtraPerks.clear();
+            for (const FormId id : mExtraPerks)
+                if (std::find(p.mPerks.begin(), p.mPerks.end(), id) == p.mPerks.end())
+                {
+                    p.mPerks.push_back(id);
+                    mAppliedExtraPerks.push_back(id);
+                }
+        }
         std::sort(p.mPerks.begin(), p.mPerks.end());
         p.mPerks.erase(std::unique(p.mPerks.begin(), p.mPerks.end()), p.mPerks.end());
+        applyAbilityNumbers(fighter, *library); // task 0241: the held abilities' and blessings' numbers (player only)
         if (p.mPerks.empty() && p.mSpells.empty())
             return;
         std::vector<FormId> spells = p.mSpells;
@@ -1150,7 +1168,8 @@ namespace game_skyrimse
                     f.mHealth
                         + regenAmount(f.mProfile.mHealthMax, healthRate, mCombatSettings.mCombatHealthRegenRateMult,
                             inCombat, seconds));
-            else if (anyRate) // the engine regenerates the player's health; only what the effects add is ours
+            else if (anyRate || (f.mHasAbilities && f.mAbilities.hasRegen()))
+                // the engine regenerates the player's health; only what the effects and abilities add is ours
                 addPlayerHealthRegen(regenAmount(f.mProfile.mHealthMax, healthRate - f.mProfile.mHealthRegenPercent,
                     mCombatSettings.mCombatHealthRegenRateMult, inCombat, seconds));
             f.mStamina = std::min(f.mProfile.mStaminaMax,
@@ -1212,20 +1231,22 @@ namespace game_skyrimse
         {
             if (!f.mReady || !f.mHasProfile || f.mDead)
                 continue;
-            const float health = regenAmount(f.mProfile.mHealthMax, f.mProfile.mHealthRegenPercent,
-                mCombatSettings.mCombatHealthRegenRateMult, false, seconds);
+            const float health = regenAmount(f.mProfile.mHealthMax,
+                regenRateFor(f, 0, f.mProfile.mHealthRegenPercent, false), mCombatSettings.mCombatHealthRegenRateMult,
+                false, seconds); // task 0241: the abilities' rates count in a rest
             if (f.mSubject.player)
                 playerGain = health;
             else
                 f.mHealth = std::min(f.mProfile.mHealthMax, f.mHealth + health);
             f.mStamina = std::min(f.mProfile.mStaminaMax,
                 f.mStamina
-                    + regenAmount(f.mProfile.mStaminaMax, f.mProfile.mStaminaRegenPercent,
+                    + regenAmount(f.mProfile.mStaminaMax, regenRateFor(f, 2, f.mProfile.mStaminaRegenPercent, false),
                         mCombatSettings.mCombatStaminaRegenRateMult, false, seconds));
             if (f.mProfile.mMagickaMax > 0.f)
                 f.mMagicka = std::min(f.mProfile.mMagickaMax,
                     f.mMagicka
-                        + regenAmount(f.mProfile.mMagickaMax, f.mProfile.mMagickaRegenPercent,
+                        + regenAmount(f.mProfile.mMagickaMax,
+                            regenRateFor(f, 1, f.mProfile.mMagickaRegenPercent, false),
                             mCombatSettings.mCombatMagickaRegenRateMult, false, seconds));
         }
         // The player's health is the engine's: the same report that takes none off as a level up's gain.
@@ -2098,6 +2119,7 @@ namespace game_skyrimse
             regenerate(step);
             applyRest(writer); // task 0210: does nothing unless a rest was queued
             flushPlayerHealthRegen(writer); // task 0238: the rate effects' share of the player's health
+            flushAbilityVitals(writer); // task 0241: the engine's health maximum follows a Fortify Health
             syncProgression(writer); // task 0200
             applyPlayerHeal(writer); // task 0184
             updateMagic(writer, step); // task 0186: ticks, casts that go, the player's and the test casters' casts

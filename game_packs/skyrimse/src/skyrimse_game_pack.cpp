@@ -1629,7 +1629,10 @@ namespace game_skyrimse
                     return mWorldView.progressionInputs(skills, perks, settings) ? perks : nullptr;
                 };
                 hooks.mPersistent = [this] { return mPapyrus->host().spellsOf(kPapyrusPlayerReference); };
-                hooks.mNow = [this] { return mPapyrus->host().gameSeconds(); };
+                // task 0241: the game clock (a wait or a sleep moves it) once the rest script gave it; else the host's
+                hooks.mNow = [this] {
+                    return mRest != nullptr && mRest->now() > 0.0 ? mRest->now() : mPapyrus->host().gameSeconds();
+                };
                 hooks.mApply = [this](std::span<const FormId> spells) {
                     mCellSource.combat().setPlayerExtraAbilities(std::vector<FormId>(spells.begin(), spells.end()));
                 };
@@ -1755,6 +1758,20 @@ namespace game_skyrimse
                 for (const PapyrusHost::SpellCast& cast : mPapyrus->host().takeCasts())
                     (void)mStones->cast(cast.mSpell, cast.mTarget);
                 mStones->poll();
+                // task 0241: the perks Actor.AddPerk gave the player (the Ritual stone's) reach the combat; the carry
+                // weight a stone gives (the Steed's) reaches the inventory
+                const std::uint64_t perkRevision = mPapyrus->host().perkRevision();
+                if (perkRevision != mPerksSynced)
+                {
+                    mPerksSynced = perkRevision;
+                    mCellSource.combat().setPlayerExtraPerks(mPapyrus->host().perksOf(kPapyrusPlayerReference));
+                }
+                const std::uint64_t abilityRevision = mCellSource.combat().abilityRevision();
+                if (mInventory != nullptr && abilityRevision != mAbilitiesSynced)
+                {
+                    mAbilitiesSynced = abilityRevision;
+                    mInventory->setCapacityBonus(mCellSource.combat().playerAbilityNumbers().mCarry);
+                }
             }
 
             void unwirePapyrusWorld()
@@ -2055,6 +2072,9 @@ namespace game_skyrimse
                     return out;
                 };
                 hooks.mCastPower = [this](FormId spell) { return mCellSource.combat().castPlayerPower(spell); };
+                hooks.mExtraPowerSpells = [this] { // task 0241: the powers of the stones the player holds
+                    return mStones != nullptr ? mStones->active() : std::vector<FormId>();
+                };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
@@ -2712,6 +2732,7 @@ namespace game_skyrimse
                     if (mProgression != nullptr)
                         mProgression->skillUsed(progression::Slot::Sneak, amount);
                 };
+                hooks.mInvisible = [this] { return mCellSource.combat().playerInvisible(); }; // task 0241
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
@@ -3917,6 +3938,8 @@ namespace game_skyrimse
             std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver
             std::unique_ptr<diseases::DiseaseService> mDiseases; // task 0240; refers to the combat and the view
             FormId mDiseaseTestInfect = kNullFormId; // task 0240: a test aid
+            std::uint64_t mPerksSynced = 0; // task 0241: the host's perk revision the combat last read
+            std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared

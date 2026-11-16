@@ -568,8 +568,10 @@ namespace game_skyrimse
         /// (AddSpell, RemoveSpell).
         [[nodiscard]] std::vector<FormId> spellsOf(FormId actor) const;
         [[nodiscard]] std::uint64_t spellRevision() const;
-        /// The perks Actor.AddPerk gave the actor (recorded; not saved).
+        /// The perks Actor.AddPerk gave the actor (task 0241: saved in the host's state, version 3).
         [[nodiscard]] std::vector<FormId> perksOf(FormId actor) const;
+        /// Moves whenever the perk list changes (a new perk, a state restored): the pack reads it again then.
+        [[nodiscard]] std::uint64_t perkRevision() const;
         /// The game seconds a script sees (script time at the host's time scale).
         [[nodiscard]] double gameSeconds() const;
         /// Message.Show of a message box asks the player through this sink and answers the last button (the usual

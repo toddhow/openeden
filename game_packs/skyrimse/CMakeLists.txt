@@ -86,6 +86,8 @@ openeden_add_game_pack(skyrimse
         src/magic_conditions.cpp
         src/combat_effect_conditions.cpp
         src/combat_regen.cpp
+        src/combat_abilities.cpp
+        src/ability_numbers.cpp
         src/combat_magic.cpp
         src/combat_sneak.cpp
         src/combat_poison.cpp
@@ -134,6 +136,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/inventory_service.hpp
         include/game_skyrimse/poison.hpp
         include/game_skyrimse/magic_status.hpp
+        include/game_skyrimse/ability_numbers.hpp
         include/game_skyrimse/magic_conditions.hpp
         include/game_skyrimse/barter.hpp
         include/game_skyrimse/barter_service.hpp
@@ -284,6 +287,8 @@ add_library(game_skyrimse_world STATIC
     src/magic_conditions.cpp
     src/combat_effect_conditions.cpp
     src/combat_regen.cpp
+    src/combat_abilities.cpp
+    src/ability_numbers.cpp
     src/combat_magic.cpp
     src/combat_sneak.cpp
     src/combat_poison.cpp

@@ -134,9 +134,10 @@ echo "return { base = '${N9_BASE:-}', near = { ${N9_NEAR:-0, 0, 0} }, from = { $
 # Task 0237 (standing stones and shrines): "stn" stands the player in front of the objects of STN_STEPS (Lua table text: { t = 6, base = "skyrimse:b860973",
 # near = { 2454, -59141, 1430 }, from = { 0, -1 }, dist = 90 }, ...) at those simulation seconds and takes a picture at each STN_SHOTS time; the activations and
 # clicks come from OPENEDEN_RMLUI_INPUT_SCRIPT (needs [GUI] rmlui = true and the pack settings papyrus and player progression in SETTINGS_EXTRA).
+# Task 0241: STN_ADV_T / STN_ADV_H advance the game clock by STN_ADV_H hours at that simulation second (a wait; needs the pack setting rest).
 [ "$SHOT" = stn ] && echo "content=stn.omwscripts" >> "$WORK/config/openmw.cfg"
 mkdir -p "$WORK/luatest/scripts/stn"
-echo "return { steps = { ${STN_STEPS:-} }, shots = { ${STN_SHOTS:-} }, saveAt = ${STN_SAVE:-nil} }" > "$WORK/luatest/scripts/stn/cfg.lua"
+echo "return { steps = { ${STN_STEPS:-} }, shots = { ${STN_SHOTS:-} }, saveAt = ${STN_SAVE:-nil}, advanceAt = ${STN_ADV_T:-nil}, advanceHours = ${STN_ADV_H:-0} }" > "$WORK/luatest/scripts/stn/cfg.lua"
 # Task 0135 stage S3 (actor hooks): the same scenario, but the pack walks the actor: put "[extension.skyrimse]" and
 # "actor test walk = <editor id>" into SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1 in the environment; the NACTWALK
 # lines then follow the pacing actor. Leave OPENEDEN_NEUTRAL_ACTOR_WALK unset.

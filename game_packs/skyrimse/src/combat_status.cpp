@@ -84,7 +84,10 @@ namespace game_skyrimse
             if (e.mValue == resistValue || e.mValue == ResistValue::Magic)
                 sum += e.mPerSecond; // a weakness is stored negative (the effect is Detrimental)
         }
-        return weaknessPercent(sum);
+        float percent = weaknessPercent(sum);
+        if (target.mSubject.player && target.mHasAbilities) // task 0241: a held ability's weakness (the Apprentice's)
+            percent += abilityWeaknessPercent(target.mAbilities, resistValue);
+        return std::min(percent, kMaxWeaknessPercent);
     }
 
     void SkyrimCombat::holdActor(ActorHandle handle)

@@ -78,6 +78,9 @@ namespace game_skyrimse::character
         /// Task 0228: the powers among a race's spells, and the cast of one. Without them the race has no powers.
         std::function<std::vector<PowerInfo>(const std::vector<FormId>& raceSpells)> mPowers;
         std::function<bool(FormId)> mCastPower;
+        /// Task 0241: the spells the player holds beyond his race's (the standing stones' powers); asked for the powers
+        /// among them like the race's. Without it the list is the race's alone.
+        std::function<std::vector<FormId>()> mExtraPowerSpells;
         std::function<void(const std::string&)> mLog;
     };
 

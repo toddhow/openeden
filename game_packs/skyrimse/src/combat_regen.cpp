@@ -40,16 +40,18 @@ namespace game_skyrimse
 
     float SkyrimCombat::regenRateFor(const Fighter& fighter, int vital, float baseRate, bool anyRunning) const
     {
-        if (!anyRunning)
+        // task 0241: a held ability's or blessing's rates (the player's) join the running effects'
+        const bool held = fighter.mHasAbilities && fighter.mAbilities.hasRegen();
+        if (!anyRunning && !held)
             return baseRate;
-        float rate = 0.f;
-        float mult = 0.f;
+        float rate = held ? fighter.mAbilities.mRegenRate[vital] : 0.f;
+        float mult = held ? fighter.mAbilities.mRegenMult[vital] : 0.f;
         // A spell cast again on the same target replaces its earlier effect: newest first, and an (spell, effect) pair
         // that was already counted is skipped (the remembered pairs are few; past the table nothing is skipped).
         std::array<std::pair<FormId, FormId>, 16> counted{};
         std::size_t countedSize = 0;
         const std::vector<ActiveEffect>& list = mEffects.effects();
-        for (std::size_t i = list.size(); i-- > 0;)
+        for (std::size_t i = anyRunning ? list.size() : 0; i-- > 0;)
         {
             const ActiveEffect& e = list[i];
             if (e.mTiming != EffectTiming::Timed || !(e.mTarget == fighter.mSubject)

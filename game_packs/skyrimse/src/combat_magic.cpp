@@ -131,6 +131,8 @@ namespace game_skyrimse
                         break;
                     case MagicArchetype::Stagger:
                     case MagicArchetype::Demoralize:
+                    case StatusArchetype::Invisibility: // task 0241: the Shadow stone's power
+                    case StatusArchetype::Paralysis: // task 0241: the Serpent stone's power
                         works = true;
                         break;
                     default:
@@ -377,7 +379,11 @@ namespace game_skyrimse
 
     float SkyrimCombat::resistOf(const Fighter& fighter, std::int32_t resistValue)
     {
-        if (resistValue < 0 || !mUsePerks || mData == nullptr || !fighter.mHasProfile)
+        if (!mUsePerks || mData == nullptr || !fighter.mHasProfile)
+            return 0.f;
+        if (fighter.mSubject.player && fighter.mHasAbilities)
+            return abilityResistPercent(fighter.mAbilities, resistValue); // task 0241: element and magic, net
+        if (resistValue < 0)
             return 0.f;
         const PerkLibrary* library = mData->perkLibrary();
         if (library == nullptr)
@@ -596,6 +602,17 @@ namespace game_skyrimse
                     + (timing == EffectTiming::Instant ? " instant"
                                                        : timing == EffectTiming::PerSecond ? " a second for " : " for ")
                     + (timing == EffectTiming::Instant ? std::string() : num(seconds) + " s"));
+                return;
+            }
+            case StatusArchetype::Invisibility:
+            {
+                // task 0241: the Shadow stone's power: observers do not notice the actor while it runs (sneak.cpp asks)
+                ++mEffectsApplied;
+                if (seconds > 0.f && !hostile && active(0.f, 0.f, false))
+                {
+                    target.mStatus.mInvisibleUntil = extendStatus(target.mStatus.mInvisibleUntil, mClock, seconds);
+                    trace("COMBAT effect invisibility on " + who(target.mSubject) + " for " + num(seconds) + " s");
+                }
                 return;
             }
             case MagicArchetype::Stagger:

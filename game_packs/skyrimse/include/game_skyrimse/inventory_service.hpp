@@ -114,6 +114,10 @@ namespace game_skyrimse
             [[nodiscard]] bool ready() const { return mReady; }
 
             [[nodiscard]] InventoryModel& model() { return mModel; }
+            /// Task 0241: the carry weight: the base plus what the player's abilities give (a stone's Steed sign). A
+            /// bonus that is not finite changes nothing; the capacity is never below 0.
+            [[nodiscard]] float capacity() const;
+            void setCapacityBonus(float bonus);
             [[nodiscard]] const ItemTable& table() const { return mTable; }
             /// Task 0199: adds an item made in game to the table (after the table was built; the crafting service calls
             /// it again for every saved item once `ready()`).
@@ -153,6 +157,7 @@ namespace game_skyrimse
             struct Impl;
             std::unique_ptr<Impl> mImpl;
             Hooks mHooks;
+            float mCapacityBonus = 0.f; // task 0241
             ItemTable mTable;
             InventoryModel mModel;
             InventoryChunk mChunk;

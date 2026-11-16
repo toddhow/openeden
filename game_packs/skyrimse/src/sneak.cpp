@@ -331,6 +331,7 @@ namespace game_skyrimse::sneak
             return mRoster[a.mIndex].mHandle.reference < mRoster[b.mIndex].mHandle.reference;
         });
 
+        const bool invisible = mHooks.mInvisible && mHooks.mInvisible(); // task 0241
         mNext.clear();
         std::size_t rays = 0;
         std::size_t hidden = 0;
@@ -357,7 +358,7 @@ namespace game_skyrimse::sneak
                 const double facing = std::fabs(wrapAngle(static_cast<double>(c.mState.heading) - std::atan2(dx, dy)));
                 const bool inView = near2d || facing <= static_cast<double>(mSettings.mHalfView);
                 bool sees = false;
-                if (inView && c.mDistance <= static_cast<double>(mRange))
+                if (inView && !invisible && c.mDistance <= static_cast<double>(mRange))
                 {
                     if (rays < mSettings.mMaxRays)
                     {

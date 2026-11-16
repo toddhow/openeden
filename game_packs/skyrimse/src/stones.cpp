@@ -1,5 +1,6 @@
 #include "game_skyrimse/stones.hpp"
 
+#include "game_skyrimse/ability_numbers.hpp"
 #include "game_skyrimse/diseases.hpp"
 
 #include <algorithm>
@@ -317,8 +318,10 @@ namespace game_skyrimse::stones
             mTimed.push_back({ spell, now + duration });
         std::string detail;
         const Support support = supportOf(*library, spell, &detail);
+        const FormId one[] = { spell };
         log("STONES blessing " + record->mCommon.mEditorId + " for " + std::to_string(static_cast<long long>(duration))
-            + " s: " + std::string(supportName(support)) + (detail.empty() ? "" : " (" + detail + ")"));
+            + " s: " + std::string(supportName(support)) + (detail.empty() ? "" : " (" + detail + ")")
+            + (sumAbilityNumbers(*library, one).any() ? "; its numbers are applied (task 0241)" : ""));
         ++mRevision;
         return true;
     }

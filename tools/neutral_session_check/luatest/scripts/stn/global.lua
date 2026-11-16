@@ -45,10 +45,17 @@ return {
                     print(string.format('STN t %.1f stand at %.1f,%.1f facing %s at %.1f,%.1f,%.1f', t, px, py, s.base, p.x, p.y, p.z))
                     player:teleport(player.cell, util.vector3(px, py, p.z + (s.dz or 0)), { onGround = true, rotation = util.transform.rotateZ(yaw) })
                     player:sendEvent('StnPitch', { pitch = s.pitch or 0 })
-                    if s.activate then -- task 0240: activate it from the script (no key press needed)
+                    if s.activate then -- task 0241: the activation through the engine (aiming at a stone's carved mesh is not needed)
+                        print('STN activating ' .. s.base)
                         target:activateBy(player)
                     end
                 end
+            end
+            if cfg.advanceAt and not advanced and t >= cfg.advanceAt then
+                advanced = true -- task 0241: a wait of cfg.advanceHours game hours (the rest script gives the pack the clock)
+                print(string.format('STN advancing the clock %d hours at %.1f (game time %.0f)', cfg.advanceHours, t, core.getGameTime()))
+                world.advanceTime(cfg.advanceHours)
+                print(string.format('STN game time now %.0f', core.getGameTime()))
             end
             if cfg.saveAt and not saved and t >= cfg.saveAt then
                 saved = true
