@@ -38,6 +38,29 @@ namespace game_skyrimse
             std::uint32_t mSlotMask = 0;
         };
 
+        // What he holds (the rule of an NPC's, task 0220: melee types 1 to 6 with a model; a two-handed weapon gives no
+        // shield). Shared by the third-person body and the first-person arms (task 0245).
+        void holdGear(const ActorIndex& index, const PlayerBodyRequest& request, const ArmatureRecord* shieldAddon,
+            Sex sex, const AppearanceLimits& limits, ActorAppearance& out)
+        {
+            if (!limits.mHeldGear)
+                return;
+            bool twoHanded = false;
+            if (request.mWeapon != kNullFormId)
+            {
+                const WeaponLook* look = index.weaponLook(request.mWeapon);
+                if (look != nullptr && look->mHasData && look->mHasDnam && look->mAnimType >= 1 && look->mAnimType <= 6
+                    && fits(look->mModel, limits))
+                {
+                    out.heldWeaponModel = look->mModel;
+                    out.heldWeaponType = look->mAnimType;
+                    twoHanded = look->mAnimType == 5 || look->mAnimType == 6;
+                }
+            }
+            if (shieldAddon != nullptr && !twoHanded)
+                out.heldShieldModel = shieldAddon->model(sex);
+        }
+
         void addHeadPart(const ActorIndex& index, FormId id, std::uint32_t depth, const AppearanceLimits& limits,
             std::set<FormId>& seen, ActorAppearance& out)
         {
@@ -186,26 +209,116 @@ namespace game_skyrimse
                     addHeadPart(index, choice.second, 0, limits, seen, out);
         }
 
-        // What he holds (the rule of an NPC's, task 0220: melee types 1 to 6 with a model; a two-handed weapon gives no
-        // shield).
-        if (limits.mHeldGear)
+        holdGear(index, request, shieldAddon, sex, limits, out);
+
+        if (out.parts.size() > limits.mMaxParts)
+            out.parts.resize(limits.mMaxParts);
+        error.clear();
+        return true;
+    }
+
+    // Task 0245: the first-person arms.
+    bool makeFirstPersonAppearance(const ActorIndex& index, const PlayerBodyRequest& request, ActorAppearance& out,
+        std::string& error, const AppearanceLimits& limits)
+    {
+        out = {};
+        const RaceRecord* race = index.race(request.mRace);
+        if (race == nullptr)
         {
-            bool twoHanded = false;
-            if (request.mWeapon != kNullFormId)
-            {
-                const WeaponLook* look = index.weaponLook(request.mWeapon);
-                if (look != nullptr && look->mHasData && look->mHasDnam && look->mAnimType >= 1 && look->mAnimType <= 6
-                    && fits(look->mModel, limits))
-                {
-                    out.heldWeaponModel = look->mModel;
-                    out.heldWeaponType = look->mAnimType;
-                    twoHanded = look->mAnimType == 5 || look->mAnimType == 6;
-                }
-            }
-            if (shieldAddon != nullptr && !twoHanded)
-                out.heldShieldModel = shieldAddon->model(sex);
+            error = "the player's race is not a known RACE";
+            return false;
+        }
+        const Sex sex = request.mFemale ? Sex::Female : Sex::Male;
+        out.skeletonPath = std::string(kFirstPersonSkeleton);
+        out.female = request.mFemale;
+        {
+            const float scale = race->mHeight[sex == Sex::Male ? 0 : 1];
+            out.heightScale = std::isfinite(scale) ? std::clamp(scale, kMinHeightScale, kMaxHeightScale) : 1.0f;
         }
 
+        // The equipped pieces first (sorted, as the third-person body): a piece with a first-person model is drawn
+        // and covers its slots; a shield is held, not worn; a piece without a first-person model is not drawn.
+        std::vector<FormId> equipped = request.mWornArmour;
+        std::sort(equipped.begin(), equipped.end());
+        equipped.erase(std::unique(equipped.begin(), equipped.end()), equipped.end());
+        if (equipped.size() > kMaxWorn)
+            equipped.resize(kMaxWorn);
+
+        std::vector<Piece> worn;
+        std::uint32_t covered = 0;
+        const ArmatureRecord* shieldAddon = nullptr;
+        for (const FormId id : equipped)
+        {
+            const ArmorExtra* armor = index.armor(id);
+            if (armor == nullptr)
+                continue;
+            const ArmatureRecord* addon = addonFor(index, *armor, request.mRace, sex);
+            if (addon == nullptr)
+                continue;
+            if (limits.mHeldGear && (armor->mSlotMask & kShieldSlot) != 0)
+            {
+                if (shieldAddon == nullptr && fits(addon->model(sex), limits))
+                    shieldAddon = addon;
+                continue;
+            }
+            const std::string& model = addon->model(sex, true);
+            if (!fits(model, limits))
+                continue;
+            worn.push_back({ model, addon->mSlotMask });
+            covered |= addon->mSlotMask;
+        }
+        if (const OutfitRecord* outfit = index.outfit(request.mStartOutfit))
+        {
+            std::vector<Piece> start;
+            std::uint32_t startCovered = 0;
+            for (const FormId id : outfit->mItems)
+            {
+                const ArmorExtra* armor = index.armor(id);
+                if (armor == nullptr)
+                    continue;
+                const ArmatureRecord* addon = addonFor(index, *armor, request.mRace, sex);
+                if (addon == nullptr)
+                    continue;
+                const std::string& model = addon->model(sex, true);
+                if (!fits(model, limits) || (addon->mSlotMask & covered) != 0)
+                    continue;
+                start.push_back({ model, addon->mSlotMask });
+                startCovered |= addon->mSlotMask;
+            }
+            worn.insert(worn.begin(), start.begin(), start.end());
+            covered |= startCovered;
+        }
+
+        if (const ArmorExtra* skin = index.armor(race->mSkin))
+        {
+            for (const FormId armatureId : skin->mArmatures)
+            {
+                const ArmatureRecord* addon = index.armature(armatureId);
+                if (addon == nullptr || !addon->appliesTo(request.mRace) || (addon->mSlotMask & covered) != 0
+                    || !fits(addon->model(sex, true), limits))
+                    continue;
+                ActorPart part;
+                part.modelPath = addon->model(sex, true);
+                part.kind = ActorPartKind::Skin;
+                part.slotMask = addon->mSlotMask;
+                out.parts.push_back(std::move(part));
+            }
+        }
+        for (const Piece& piece : worn)
+        {
+            ActorPart part;
+            part.modelPath = piece.mModel;
+            part.kind = ActorPartKind::Armor;
+            part.slotMask = piece.mSlotMask;
+            out.parts.push_back(std::move(part));
+        }
+        if (out.parts.empty())
+        {
+            error = "no first-person arm model for this race, sex and outfit";
+            out = {};
+            return false;
+        }
+        holdGear(index, request, shieldAddon, sex, limits, out);
         if (out.parts.size() > limits.mMaxParts)
             out.parts.resize(limits.mMaxParts);
         error.clear();

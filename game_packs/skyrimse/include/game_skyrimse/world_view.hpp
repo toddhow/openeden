@@ -439,6 +439,10 @@ namespace game_skyrimse
         /// records are read (a worker reads them, adopted here).
         bool playerBody(openeden::sdk::game::PlayerBodyState& out) override;
         bool describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        /// Task 0245 (`[extension.skyrimse] first person body`, needs `player body`): the player's first-person arms.
+        void setFirstPersonBody(bool on) { mFirstPersonBodyOn = on; }
+        [[nodiscard]] bool firstPersonBodyOn() const { return mFirstPersonBodyOn; }
+        bool describeFirstPersonBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override;
         // ---- openeden::sdk::game::PlayerIdentitySource (task 0228) ----
         /// The name the player chose: the core writes it into his record. An empty name is no name.
         void setPlayerName(std::string name);
@@ -792,6 +796,7 @@ namespace game_skyrimse
         bool mCreatures = false; ///< task 0212
         bool mHeldGear = false; ///< task 0220
         bool mPlayerBodyOn = false; ///< task 0222
+        bool mFirstPersonBodyOn = false; ///< task 0245
         bool mPlayerLookSet = false; ///< task 0225
         FormId mPlayerRace = kNullFormId; ///< task 0225
         bool mPlayerFemale = false; ///< task 0225

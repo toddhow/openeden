@@ -20,9 +20,15 @@
 
 #include <vsg/core/ref_ptr.h>
 
+#include <vector>
+
+#include <vsg/maths/quat.h>
+#include <vsg/maths/vec3.h>
+
 #include <components/mwanimation/objectanim.hpp>
 
 #include "playerbodytrack.hpp"
+#include "skyrimfirstperson.hpp"
 
 namespace vsg
 {
@@ -58,8 +64,22 @@ namespace MWRender
         /// The body's scene graph node, or null before it exists. Changes when the body is made again.
         [[nodiscard]] vsg::ref_ptr<vsg::Node> node() const;
 
+        /// Task 0245: the first-person arms. Called every frame the player body is on, before the camera's update.
+        /// `active` is true while the camera is in first person: only then are the arms built and updated. `orient`
+        /// is the camera's orientation and `yaw` its yaw (Camera::getOrientation, getYaw). The arms are turned by the
+        /// whole orientation, about the rig's camera node, and stand so that node is at the eye.
+        void updateFirstPerson(float dt, const MWWorld::Ptr& player, const Anim::Transform& playerTransform,
+            const vsg::quat& orient, float yaw, bool active);
+
+        /// The arms' scene graph node, or null while there are none.
+        [[nodiscard]] vsg::ref_ptr<vsg::Node> firstPersonNode() const;
+        /// The path (root first) to the arms' camera node, for Camera::setFirstPersonBodyPath; empty while there are
+        /// no arms.
+        [[nodiscard]] std::vector<vsg::ref_ptr<const Anim::Transform>> cameraPath() const;
+
         /// Test and trace aids.
         [[nodiscard]] std::uint32_t builds() const { return mBuilds; }
+        [[nodiscard]] std::uint32_t armsBuilds() const { return mArmsBuilds; }
 
     private:
         openeden::sdk::game::PlayerBodySource* findSource();
@@ -74,6 +94,23 @@ namespace MWRender
         PlayerBodyTrack::SwingWatch mSwing;
         PlayerBodyTrack::RebuildGate mGate;
         std::uint32_t mBuilds = 0;
+
+        // ---- Task 0245: the first-person arms
+        void rebuildArms(openeden::sdk::game::PlayerBodySource& source, const MWWorld::Ptr& player,
+            std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken);
+        std::unique_ptr<MWAnim::ObjectAnimation> mArms;
+        vsg::ref_ptr<SkyrimFirstPerson::ArmsController> mArmsController;
+        std::vector<vsg::ref_ptr<const Anim::Transform>> mArmsCameraPath;
+        vsg::vec3 mCameraRest; ///< the camera node's place in the rig at rest (root space)
+        PlayerBodyTrack::RebuildGate mArmsGate;
+        PlayerBodyTrack::SwingWatch mArmsSwing;
+        PlayerBodyTrack::SwingWatch mArmsCast;
+        std::uint8_t mArmsWeaponType = 0;
+        float mArmsClock = 0.f; ///< seconds of first-person time; the stance holds are on it
+        float mWeaponUntil = -1.f;
+        float mSpellUntil = -1.f;
+        std::uint32_t mArmsBuilds = 0;
+        int mTraceSecond = -1;
     };
 }
 

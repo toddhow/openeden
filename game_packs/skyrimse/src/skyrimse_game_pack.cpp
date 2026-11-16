@@ -3748,6 +3748,12 @@ namespace game_skyrimse
                     {
                         mWorldView.setPlayerBody(true);
                         say(openeden::sdk::LogLevel::Info, "player body: on");
+                        // Task 0245: the player's first-person arms (needs the player body).
+                        if (settings->getBool(kPackId, kFirstPersonBodyKey, false))
+                        {
+                            mWorldView.setFirstPersonBody(true);
+                            say(openeden::sdk::LogLevel::Info, "first person body: on");
+                        }
                     }
                     // Task 0220: an actor's melee weapon and shield are drawn (off by default).
                     if (settings->getBool(kPackId, kHeldGearKey, false))

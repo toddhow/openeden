@@ -3764,6 +3764,15 @@ namespace MWRender
             if (!mPlayerBody)
                 mPlayerBody = std::make_unique<PlayerBody>(*mScene); // task 0222
             mPlayerBody->update(dt, mPlayer->getPtr(), *mPlayer->transform());
+            // Task 0245: the first-person arms, and the camera on their camera node.
+            const bool firstPerson = mCamera->getMode() == Camera::Mode::FirstPerson;
+            // OPENEDEN_FIRSTPERSON_FORCE (developer aid): the arms are built and placed in any camera mode and drawn
+            // in the world group, to look at them from outside.
+            static const bool forceArms = std::getenv("OPENEDEN_FIRSTPERSON_FORCE") != nullptr;
+            mPlayerBody->updateFirstPerson(dt, mPlayer->getPtr(), *mPlayer->transform(), mCamera->getOrientation(),
+                mCamera->getYaw(), firstPerson || forceArms);
+            mCamera->setFirstPersonBodyPath(firstPerson ? mPlayerBody->cameraPath()
+                                                        : std::vector<vsg::ref_ptr<const Anim::Transform>>());
         }
         setFirstPersonMode(mCamera->getMode() == Camera::Mode::FirstPerson);
 
@@ -4342,6 +4351,9 @@ namespace MWRender
             }
             mPlayerGroup->children = { { Mask_FirstPerson, mFirstPersonProjection } };
             mFirstPersonProjection->children = { mPlayer->node() };
+            // Task 0245: the player's arms
+            if (mPlayerBody && mPlayerBody->firstPersonNode())
+                mFirstPersonProjection->children.push_back(mPlayerBody->firstPersonNode());
         }
         else
         {
@@ -4349,6 +4361,9 @@ namespace MWRender
             // Task 0222: the player's Skyrim body beside the stub player (no body in first person).
             if (mPlayerBody && mPlayerBody->node())
                 mPlayerGroup->children.push_back({ Mask_Player, mPlayerBody->node() });
+            static const bool forceArms = std::getenv("OPENEDEN_FIRSTPERSON_FORCE") != nullptr;
+            if (forceArms && mPlayerBody && mPlayerBody->firstPersonNode())
+                mPlayerGroup->children.push_back({ Mask_Player, mPlayerBody->firstPersonNode() });
         }
     }
 

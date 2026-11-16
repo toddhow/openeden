@@ -852,6 +852,11 @@ namespace game_skyrimse
             cast.mToken = request.token;
             caster.mSwinging = false;
         }
+        if (caster.mSubject.player)
+        {
+            ++mPlayerCastCount; // task 0245: the first-person arms play the cast clip
+            mPlayerCastClip.assign(clip);
+        }
         mCasts.push_back(cast);
         trace("COMBAT cast begin " + name + " by " + who(caster.mSubject) + " clip " + std::string(clip) + " token "
             + std::to_string(cast.mToken));

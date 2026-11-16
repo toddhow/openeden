@@ -835,7 +835,35 @@ namespace game_skyrimse
             return true;
         }
         out.revision = mPlayerBodyRevision + 1; // never 0
+        out.firstPerson = mFirstPersonBodyOn; // task 0245
         return true;
+    }
+
+    bool SkyrimWorldView::describeFirstPersonBody(openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        out = {};
+        if (!mPlayerBodyOn || !mFirstPersonBodyOn)
+        {
+            error = "the first-person body is off";
+            return false;
+        }
+        if (mActorIndex == nullptr)
+        {
+            error = "the actor records are not read yet";
+            return false;
+        }
+        PlayerBodyRequest request;
+        request.mFemale = mStandInFemale;
+        if (mPlayerLookSet)
+        {
+            request.mRace = mPlayerRace;
+            request.mFemale = mPlayerFemale;
+        }
+        request.mWornArmour = mPlayerArmour;
+        request.mWeapon = mPlayerWeapon;
+        AppearanceLimits limits;
+        limits.mHeldGear = true;
+        return makeFirstPersonAppearance(*mActorIndex, request, out, error, limits);
     }
 
     bool SkyrimWorldView::describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error)

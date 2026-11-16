@@ -21,6 +21,8 @@ namespace game_skyrimse
 {
     /// The pack setting that gives the player a body (task 0222).
     inline constexpr std::string_view kPlayerBodyKey = "player body";
+    /// The pack setting that gives the player first-person arms (task 0245; needs `player body`).
+    inline constexpr std::string_view kFirstPersonBodyKey = "first person body";
 
     /// The race of the player's body: NordRace of Skyrim.esm (form 0x13746; VERIFIED on the installed data: its two
     /// skeleton models and the head parts of both sexes exist).
@@ -52,6 +54,20 @@ namespace game_skyrimse
     /// shield). False with `error` when the race is unknown or has no skeleton for the sex. Deterministic: the same
     /// request gives the same appearance.
     [[nodiscard]] bool makePlayerAppearance(const ActorIndex& index, const PlayerBodyRequest& request,
+        openeden::sdk::game::ActorAppearance& out, std::string& error, const AppearanceLimits& limits = {});
+
+    /// Task 0245: the player's first-person skeleton (VERIFIED in `Skyrim - Animations.bsa`: the only first-person
+    /// skeleton model; it has the camera node `Camera1st [Cam1]`, the hand nodes WEAPON and SHIELD and the sheath nodes
+    /// of the third-person skeleton, and the same bone names). The same file serves both sexes.
+    inline constexpr std::string_view kFirstPersonSkeleton = "Actors\\Character\\_1stPerson\\skeleton.nif";
+
+    /// The player's first-person arms (task 0245): the skeleton above and the parts made for the first-person view, the
+    /// ARMA models MOD4 (male) and MOD5 (female): the race's skin addons that have one, the start clothes and the
+    /// equipped armour that have one. A piece without a first-person model is not drawn and covers nothing (its skin
+    /// stays), a piece with one covers the skin addons that share a biped slot. No head parts. The held weapon and shield
+    /// are named as in makePlayerAppearance. False with `error` when the race is unknown, or when no first-person arm
+    /// model results at all. Deterministic.
+    [[nodiscard]] bool makeFirstPersonAppearance(const ActorIndex& index, const PlayerBodyRequest& request,
         openeden::sdk::game::ActorAppearance& out, std::string& error, const AppearanceLimits& limits = {});
 }
 

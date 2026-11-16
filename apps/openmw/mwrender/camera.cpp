@@ -57,6 +57,12 @@ namespace MWRender
     {
         if (mTrackingPtr.isEmpty())
             return vsg::dvec3();
+        // Task 0245: the first-person arms' camera node, when the player has arms
+        if (mMode == Mode::FirstPerson && !mFirstPersonBodyPath.empty())
+        {
+            const auto eye = vsgUtil::computePosition(mFirstPersonBodyPath);
+            return { eye.x, eye.y, eye.z };
+        }
         // if (usingDoubleTransformInMwrenderObject) vsg::computeTransform(
         auto res = vsgUtil::computePosition(mTrackingPath);
         if (mMode != Mode::FirstPerson)
@@ -71,6 +77,12 @@ namespace MWRender
         offset.y = mFocalPointCurrentOffset.x * sin(mYaw);
         offset.z = mFocalPointCurrentOffset.y;
         return offset;
+    }
+
+    vsg::quat Camera::getOrientation() const
+    {
+        return vsg::quat(mRoll + mExtraRoll, vsg::vec3(0, 1, 0)) * vsg::quat(mPitch + mExtraPitch, vsg::vec3(1, 0, 0))
+            * vsg::quat(mYaw + mExtraYaw, vsg::vec3(0, 0, 1));
     }
 
     void Camera::updateCamera(vsg::LookAt& lookAt)

@@ -443,6 +443,8 @@ namespace game_skyrimse
             return false;
         out.swingToken = mCombat.playerSwingCount();
         out.swingClip = mCombat.playerSwingClip();
+        out.castToken = mCombat.playerCastCount(); // task 0245
+        out.castClip = mCombat.playerCastClip();
         return true;
     }
 
@@ -463,6 +465,18 @@ namespace game_skyrimse
             return false;
         }
         return source->describePlayerBody(out, error);
+    }
+
+    bool SkyrimCellSource::describeFirstPersonBody(openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::PlayerBodySource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view has no player body";
+            return false;
+        }
+        return source->describeFirstPersonBody(out, error);
     }
 
     bool SkyrimCellSource::actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation,

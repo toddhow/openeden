@@ -43,6 +43,7 @@
 #include "npc.hpp"
 #include "skyrimactor.hpp"
 #include "skyrimclipmeta.hpp"
+#include "skyrimfirstperson.hpp"
 #include "skyrimheldgear.hpp"
 #include "skyrimidle.hpp"
 #include "skyrimlip.hpp"
@@ -579,6 +580,55 @@ namespace MWRender
                                     << (held.mShieldAttached ? "yes" : "no")
                                     << (held.mFailure.empty() ? "" : " | " + held.mFailure);
         }
+        return anim;
+    }
+
+    std::unique_ptr<MWAnim::ObjectAnimation> Scene::makeFirstPersonArms(
+        const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance)
+    {
+        // Task 0245: the first-person arms. The same builder as any neutral actor (skeleton plus skinned parts), the
+        // first-person skeleton and models, and one controller that plays the arms' own clips (not the third-person
+        // idle, walk and run).
+        Misc::LoadTrace::Scope traceCreate("firstperson.create");
+        Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+        if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
+            return nullptr;
+        const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,
+            Bin_DepthSorted, "actor", {} };
+        SkyrimActor::Report report;
+        vsg::ref_ptr<vsg::Node> node
+            = SkyrimActor::buildActorNode(appearance, *resources->getVFS(), buildContext, report);
+        if (!node)
+        {
+            Log(Debug::Warning) << "Skyrim first-person arms not drawn: " << report.mFailure;
+            return nullptr;
+        }
+        std::unique_ptr<MWAnim::ObjectAnimation> anim
+            = MWAnim::create<MWAnim::ObjectAnimation>(context, node, nullptr, true);
+        Log(Debug::Verbose) << "Skyrim first-person arms: " << report.mPartsDrawn << " of " << report.mPartsAsked
+                            << " parts drawn, " << report.mBones << " bones, " << report.mDraws << " draws";
+        if (anim->animation)
+        {
+            SkyrimIdle::Controller::BoneMap bones;
+            anim->animation->bones.forEach([&bones](const std::string& name, Anim::Bone& bone) {
+                if (!bone.path.empty())
+                    bones.emplace(name, bone.path.back());
+            });
+            auto arms = vsg::ref_ptr<SkyrimFirstPerson::ArmsController>(
+                new SkyrimFirstPerson::ArmsController(*resources->getVFS(), std::move(bones)));
+            arms->setIdle(SkyrimFirstPerson::idleClipFor(0, SkyrimFirstPerson::Stance::Sheathed));
+            anim->addController(arms, anim->transform());
+            anim->keepAlive.push_back(arms);
+        }
+        else
+            Log(Debug::Warning) << "Skyrim first-person arms: the skeleton gave no bones; the arms stay still";
+        SkyrimHeldGear::Report held;
+        SkyrimHeldGear::attach(*anim, appearance, *resources->getVFS(), buildContext, held);
+        if (held.mWeaponAttached || held.mShieldAttached || !held.mFailure.empty())
+            Log(Debug::Verbose) << "Skyrim first-person held gear: weapon "
+                                << (held.mWeaponAttached ? held.mSheathNode : std::string("none")) << ", shield "
+                                << (held.mShieldAttached ? "yes" : "no")
+                                << (held.mFailure.empty() ? "" : " | " + held.mFailure);
         return anim;
     }
 

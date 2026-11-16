@@ -272,6 +272,7 @@ namespace game_skyrimse
         /// Task 0222: the player's body. The picture comes from the view; the swing state is the combat rules'.
         bool playerBody(openeden::sdk::game::PlayerBodyState& out) override;
         bool describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        bool describeFirstPersonBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override; // 0245
         bool playerIdentity(openeden::sdk::game::PlayerIdentityState& out) override; // task 0228
         /// Actor numbers and relations (task 0154): forwarded to the view when it has them (SkyrimWorldView does).
         bool actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation, std::uint16_t playerLevel,

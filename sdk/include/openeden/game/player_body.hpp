@@ -14,12 +14,13 @@
 // What the pack shows is its own choice (race, sex, worn armour, held weapon and shield); the core draws the
 // ActorAppearance the way it draws any actor and plays the clips the state names. Plain values only.
 //
-// Version policy: DRAFT 0.1. Additive changes (a trailing virtual with a default, a trailing field the core only
-// reads) raise the minor number. Threading: main thread only.
+// Version policy: DRAFT 0.2 (0.2, task 0245: the first-person arms: PlayerBodyState::firstPerson, castToken and castClip
+// at the end, and a trailing describeFirstPersonBody with a default that refuses). Additive changes (a trailing virtual
+// with a default, a trailing field the core only reads) raise the minor number. Threading: main thread only.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kPlayerBodyVersion{ 0, 1 };
+    inline constexpr Version kPlayerBodyVersion{ 0, 2 };
 
     struct PlayerBodyState
     {
@@ -31,6 +32,15 @@ namespace openeden::sdk::game
         /// changes. 0 and empty: no swing yet.
         std::uint32_t swingToken = 0;
         std::string swingClip;
+
+        // ---- Added in 0.2 (task 0245). Fields the core only reads.
+        /// True when the pack also describes the player's first-person arms (describeFirstPersonBody); the core then
+        /// draws them in first person and puts the camera on their camera node.
+        bool firstPerson = false;
+        /// The player's spell casts, like swingToken: grows by one for each cast the pack began, with the clip that
+        /// cast plays (a clip file name without extension). 0 and empty: no cast yet.
+        std::uint32_t castToken = 0;
+        std::string castClip;
     };
 
     class PlayerBodySource
@@ -44,5 +54,16 @@ namespace openeden::sdk::game
         /// The player's appearance now. False with `error` when it cannot be made. May read the pack's actor records
         /// the first time (a pause the core accepts once, when the player is first drawn).
         [[nodiscard]] virtual bool describePlayerBody(ActorAppearance& out, std::string& error) = 0;
+
+        /// Added in 0.2 (task 0245). The player's first-person arms: ActorAppearance::skeletonPath is the first-person
+        /// skeleton, `parts` are the arm models (and worn gloves, sleeves) made for the view, `heldWeaponModel` and
+        /// `heldShieldModel` what the hands hold. Asked for only when `playerBody()` said `firstPerson` and the revision
+        /// changed. The default has none.
+        [[nodiscard]] virtual bool describeFirstPersonBody(ActorAppearance& out, std::string& error)
+        {
+            out = {};
+            error = "this game has no first-person body";
+            return false;
+        }
     };
 }

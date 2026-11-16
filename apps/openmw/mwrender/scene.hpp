@@ -100,6 +100,11 @@ namespace MWRender
         /// placed or compiled; null when it cannot be drawn. `player` is the player's own body (see scene.cpp).
         std::unique_ptr<MWAnim::ObjectAnimation> makeNeutralActorObject(const MWWorld::Ptr& ptr,
             const openeden::sdk::game::ActorAppearance& appearance, bool player);
+        /// Task 0245: the player's first-person arms: the first-person skeleton and parts of `appearance`, the arms'
+        /// clip controller (a SkyrimFirstPerson::ArmsController, in keepAlive) and the held gear. Made but not placed or
+        /// compiled; null when it cannot be drawn.
+        std::unique_ptr<MWAnim::ObjectAnimation> makeFirstPersonArms(
+            const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance);
         /// The gait speed and a combat clip of an object made by makeNeutralActorObject (what the Ptr versions do).
         static void setNeutralObjectSpeed(MWAnim::Object& object, float unitsPerSecond);
         static void playNeutralObjectClip(MWAnim::Object& object, std::string_view clip, bool perSex);

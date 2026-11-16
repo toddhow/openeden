@@ -861,6 +861,9 @@ namespace game_skyrimse
         /// core to draw the swing on the player's body. The pack's own hidden clock still decides the hit.
         [[nodiscard]] std::uint32_t playerSwingCount() const { return mPlayerSwingCount; }
         [[nodiscard]] const std::string& playerSwingClip() const { return mPlayerSwingClip; }
+        /// Task 0245: the player's casts, like his swings (the first-person arms play the clip).
+        [[nodiscard]] std::uint32_t playerCastCount() const { return mPlayerCastCount; }
+        [[nodiscard]] const std::string& playerCastClip() const { return mPlayerCastClip; }
         [[nodiscard]] std::size_t eventsSeen() const { return mEventsSeen; }
         [[nodiscard]] std::size_t clipsFinished() const { return mClipsFinished; }
         [[nodiscard]] std::size_t clipsCompleted() const { return mClipsCompleted; }
@@ -1260,6 +1263,8 @@ namespace game_skyrimse
         std::uint32_t mPlayerSwingToken = 0;
         std::uint32_t mPlayerSwingCount = 0; ///< task 0222
         std::string mPlayerSwingClip; ///< task 0222
+        std::uint32_t mPlayerCastCount = 0; ///< task 0245
+        std::string mPlayerCastClip; ///< task 0245
         // Reserved for the usual cell; a cell with more actors makes onActorAdded grow it (an allocation per added
         // actor beyond that, never one per frame). kMaxCombatFighters bounds it.
         std::vector<Fighter> mFighters; ///< index 0 is the player

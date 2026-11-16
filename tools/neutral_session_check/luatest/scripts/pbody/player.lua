@@ -40,6 +40,7 @@ local function aim(pos, look)
     camera.setPitch(math.atan2(pos.z - look.z, math.sqrt(dx * dx + dy * dy)))
 end
 
+local pitchImpulse = 0 -- task 0245: a one-frame look up or down
 local follow = false -- the static camera keeps the player at the side while he moves
 local drive = { move = 0, run = false } -- written to the controls every frame (the engine clears them)
 local plan = {}
@@ -60,6 +61,21 @@ local function setup()
                 print(string.format('PBODY probe %d moved %.0f yaw %.2f', k, (p - anchor):length(), self.rotation:getAnglesZYX()))
             end)
         end
+        return
+    end
+    if cfg.plan == 'fp' then
+        -- task 0245: the first-person arms. The camera stays in first person all the time.
+        at(1.0, function() debug.takeScreenshot(); print('PBODY shot fp idle') end)
+        at(2.0, function() pitchImpulse = 0.6 end)
+        at(2.6, function() debug.takeScreenshot(); print('PBODY shot fp looking') end)
+        at(3.0, function() pitchImpulse = -0.6 end)
+        at(4.0, function()
+            for _, id in ipairs(cfg.items) do core.sendGlobalEvent('SkyrimInventoryEquip', { item = id }) end
+            print('PBODY equip ' .. table.concat(cfg.items, ','))
+        end)
+        at(6.0, function() debug.takeScreenshot(); print('PBODY shot fp equipped') end)
+        -- swings: the real attack key (OPENEDEN_RMLUI_INPUT_SCRIPT) or the pack's test rule; a picture every 0.1 s
+        for i = 0, 29 do at(cfg.swingAt + 0.1 * i, function() debug.takeScreenshot(); print('PBODY shot fp swing ' .. i) end) end
         return
     end
     local f0 = dir()
@@ -110,6 +126,8 @@ return {
             local t = now - start
             self.controls.movement = drive.move
             self.controls.run = drive.run
+            self.controls.pitchChange = pitchImpulse
+            pitchImpulse = 0
             if follow then
                 local p = self.position
                 aim(p + right * cfg.sideDistance + util.vector3(0, 0, cfg.sideHeight), p + util.vector3(0, 0, 60))

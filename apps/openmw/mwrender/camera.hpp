@@ -3,9 +3,11 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <vsg/core/ref_ptr.h>
 
+#include <components/animation/transform.hpp>
 #include <components/misc/vsgmath.hpp>
 
 #include "../mwworld/ptr.hpp"
@@ -106,6 +108,15 @@ namespace MWRender
         void setFirstPersonOffset(const vsg::vec3& v) { mFirstPersonOffset = v; }
         vsg::vec3 getFirstPersonOffset() const { return mFirstPersonOffset; }
 
+        /// Task 0245: the first-person camera follows this path (the first-person arms' camera node, root first)
+        /// instead of the tracked object's. An empty path (the default) leaves the camera as it was.
+        void setFirstPersonBodyPath(std::vector<vsg::ref_ptr<const Anim::Transform>> path)
+        {
+            mFirstPersonBodyPath = std::move(path);
+        }
+        /// The view's orientation: what updateCamera turns the view by (forward is its +Y, up its +Z).
+        vsg::quat getOrientation() const;
+
         int getCollisionType() const { return mCollisionType; }
         void setCollisionType(int collisionType) { mCollisionType = collisionType; }
 
@@ -114,6 +125,7 @@ namespace MWRender
     private:
         MWWorld::Ptr mTrackingPtr;
         std::vector<vsg::ref_ptr<const Anim::Transform>> mTrackingPath;
+        std::vector<vsg::ref_ptr<const Anim::Transform>> mFirstPersonBodyPath; ///< task 0245
         vsg::dvec3 mTrackedPosition;
         float mHeightScale;
         int mCollisionType;

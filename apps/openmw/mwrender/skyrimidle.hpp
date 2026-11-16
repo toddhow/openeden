@@ -56,6 +56,12 @@ namespace MWRender::SkyrimIdle
     [[nodiscard]] ClipFuture loadIdleAsync(const VFS::Manager& vfs, const std::string& skeletonNifPath,
         std::string_view sexFolder, std::string_view clipName);
 
+    /// Task 0245: the same worker load for files named outright (the first-person arms' skeleton and clips do not
+    /// follow the third-person folder layout). `skeletonHkxPath` and `clipHkxPath` are VFS paths; an empty one gives a
+    /// future that holds null. Shared and cached by the pair like loadIdleAsync.
+    [[nodiscard]] ClipFuture loadClipAsync(
+        const VFS::Manager& vfs, const std::string& skeletonHkxPath, const std::string& clipHkxPath);
+
     /// Writes one Havok transform into a scene graph transform (translation, rotation, scale). The scene transform
     /// stores the transposed rotation matrix; Anim::Transform::setAttitude takes care of it.
     void apply(const HavokPack::Transform& from, Anim::Transform& to);

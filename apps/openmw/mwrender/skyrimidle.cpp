@@ -111,8 +111,12 @@ namespace MWRender::SkyrimIdle
     ClipFuture loadIdleAsync(const VFS::Manager& vfs, const std::string& skeletonNifPath, std::string_view sexFolder,
         std::string_view clipName)
     {
-        const std::string skeletonPath = HavokPack::skeletonHkxPath(skeletonNifPath);
-        const std::string clipPath = HavokPack::clipHkxPath(skeletonNifPath, clipName, sexFolder);
+        return loadClipAsync(vfs, HavokPack::skeletonHkxPath(skeletonNifPath),
+            HavokPack::clipHkxPath(skeletonNifPath, clipName, sexFolder));
+    }
+
+    ClipFuture loadClipAsync(const VFS::Manager& vfs, const std::string& skeletonPath, const std::string& clipPath)
+    {
         if (skeletonPath.empty() || clipPath.empty())
         {
             std::promise<std::shared_ptr<const HavokPack::BoundClip>> none;

@@ -481,6 +481,11 @@
       "default": false
     },
     {
+      "key": "first person body",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "character creation",
       "type": "bool",
       "default": false

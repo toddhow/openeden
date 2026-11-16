@@ -97,6 +97,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimsequence.cpp
     mwrender/testskyrimheldgear.cpp
     mwrender/testplayerbodytrack.cpp
+    mwrender/testskyrimfirstperson.cpp
     mwrender/testskyrimidle.cpp
     mwrender/testskyrimlocomotion.cpp
     mwrender/testskyrimlip.cpp

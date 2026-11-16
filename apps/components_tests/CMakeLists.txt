@@ -733,6 +733,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseappearancereal.cpp
     skyrimse/testskyrimseheldgear.cpp
     skyrimse/testskyrimseplayerbody.cpp
+    skyrimse/testskyrimsefirstperson.cpp
     skyrimse/testskyrimsecharacter.cpp
     skyrimse/testskyrimsecharacterservice.cpp
     skyrimse/testskyrimseactorsreal.cpp
