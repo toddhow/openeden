@@ -1406,6 +1406,9 @@ namespace game_skyrimse
                     // Task 0231: NPCs speak unprompted (hello, chatter, combat lines), off unless
                     // [extension.skyrimse] barks.
                     startBarks(host, logger);
+                    // Task 0257: Night Eye changes the picture (the core polls the cell source's image space).
+                    if (const openeden::sdk::SettingsService* const settings = host.getSettingsService())
+                        mCellSource.combat().setNightEyeView(settings->getBool(kPackId, "night eye", false));
                     // Task 0203: lock picking and books (the namespace skyrimse.lockbooks); needs the inventory.
                     startLockBooks(host, logger);
                     // Task 0208: picking up placed items and pickpocketing (needs the inventory).

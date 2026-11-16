@@ -20,6 +20,7 @@
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/combat_impact.hpp"
 #include "game_skyrimse/combat_style.hpp"
+#include "game_skyrimse/image_space_mod.hpp"
 #include "game_skyrimse/land.hpp"
 #include "game_skyrimse/perks.hpp"
 #include "game_skyrimse/progression.hpp"
@@ -221,6 +222,7 @@ namespace game_skyrimse
         std::vector<AmmoRecord> mAmmo; ///< task 0178
         std::vector<ShoutRecord> mShouts; ///< task 0205
         std::vector<WordRecord> mWords; ///< task 0205
+        std::vector<ImageModifierRecord> mImageModifiers; ///< task 0257: IMAD
         SoundRecords mSounds; ///< task 0193: IPCT, IPDS, MATT, SNDR and SOUN
         std::vector<progression::SkillRecord> mSkills; ///< task 0200: AVIF with skill data
         std::vector<CombatStyleRecord> mStyles; ///< task 0190
@@ -341,6 +343,8 @@ namespace game_skyrimse
         [[nodiscard]] const SettingsTable& settings() const { return mSettings; }
         /// Task 0205: the shouts and words of the load order.
         [[nodiscard]] const ShoutIndex& shouts() const { return mShoutIndex; }
+        /// Task 0257: the IMAD with this editor id (case-insensitive; the highest form id when two share a name), or null.
+        [[nodiscard]] const ImageModifierRecord* imageModifierByEditorId(const std::string& editorId) const;
         // PerkLibrary (task 0179)
         [[nodiscard]] const PerkRecord* perk(FormId id) const override;
         [[nodiscard]] const SpellRecord* spell(FormId id) const override;
@@ -369,6 +373,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
         ShoutIndex mShoutIndex;
+        std::unordered_map<FormId, ImageModifierRecord> mImageModifiers; ///< task 0257
         SoundLibrary mSoundLibrary;
         progression::SkillTable mSkillTable;
     };

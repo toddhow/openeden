@@ -50,6 +50,7 @@
 #include "defaultglobals.hpp"
 #include "neutraldialogue.hpp"
 #include "neutralmusicdriver.hpp"
+#include "neutralimagespace.hpp"
 #include "neutralplayername.hpp"
 #include "neutralscenespeech.hpp"
 #include "neutralprojectiles.hpp"
@@ -2096,6 +2097,7 @@ namespace MWWorld
         if (!paused)
             updateNeutralMusic(duration);
         updateNeutralPlayerName();
+        updateNeutralImageSpace();
         {
             Misc::LoadTrace::Scope trace("world.navigator.update");
             updateNavigator();
@@ -2140,6 +2142,19 @@ namespace MWWorld
             mNavigator->wait(DetourNavigator::WaitConditionType::requiredTilesPresent, &dummy);
             mWorldScene->resetCellLoaded();
         }
+    }
+
+    void World::updateNeutralImageSpace()
+    {
+        // Task 0257: with [Game] neutral world and [Game] neutral image space effects a game pack's effects (Night Eye)
+        // change the picture; otherwise nothing is made and nothing runs.
+        if (!mNeutralImageSpaceTried)
+        {
+            mNeutralImageSpaceTried = true;
+            mNeutralImageSpace = NeutralImageSpaceDriver::make();
+        }
+        if (mNeutralImageSpace)
+            mNeutralImageSpace->update(*mRendering);
     }
 
     void World::updateNeutralPlayerName()

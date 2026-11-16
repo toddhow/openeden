@@ -81,6 +81,28 @@ namespace game_skyrimse
         return player != nullptr && statusActive(player->mStatus.mNightEyeUntil, mClock);
     }
 
+    bool SkyrimCombat::playerImageSpace(openeden::sdk::game::PlayerImageSpaceState& out)
+    {
+        out = openeden::sdk::game::PlayerImageSpaceState();
+        if (!mNightEyeView)
+            return false;
+        if (!mNightEyeRecordsTried && mData != nullptr && mData->combatReady())
+        {
+            // The game's own records: the script of NightEyeEffect names them as IntroFX, MainFX and OutroFX (VERIFIED
+            // in the VMAD); the held state is the last key of the intro (docs/tasks/0257-skyrim-night-eye.md).
+            mNightEyeRecordsTried = true;
+            mNightEyeTracker.setNeutralContrast(true); // see NightEyeTracker::setNeutralContrast
+            mNightEyeTracker.setRecords(
+                mData->imageModifierByEditorId("NightEyeImodIntro"), mData->imageModifierByEditorId("NightEyeImodOutro"));
+            if (!mNightEyeTracker.hasRecords())
+                trace("COMBAT night eye: the image space modifiers NightEyeImodIntro and Outro were not found");
+        }
+        if (!mNightEyeTracker.hasRecords())
+            return false;
+        out = mNightEyeTracker.update(playerNightEye(), mClock);
+        return out.active;
+    }
+
     bool SkyrimCombat::calmed(CombatSubject subject) const
     {
         const Fighter* f = find(subject);
@@ -250,7 +272,7 @@ namespace game_skyrimse
                 (void)running(kNullFormId, 0.f);
                 target.mStatus.mNightEyeUntil = extendStatus(target.mStatus.mNightEyeUntil, mClock, seconds);
                 trace("COMBAT effect night eye on " + who(target.mSubject) + " for " + num(seconds)
-                    + " s (a status only: nothing draws a brighter view)");
+                    + " s (the view: the image space modifier, with [extension.skyrimse] night eye)");
                 return true;
             case race_effects::ScriptKind::CommandAnimal:
             {

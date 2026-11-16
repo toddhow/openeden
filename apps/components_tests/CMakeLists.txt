@@ -371,6 +371,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testhdrmath.cpp
     render/testtonemap.cpp
     render/testimagespace.cpp
+    render/testimagespacemodifier.cpp
     render/testvelocity.cpp
     render/testtaamath.cpp
     render/testtaapass.cpp
@@ -715,6 +716,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatrest.cpp
     skyrimse/testskyrimsemenus.cpp
     skyrimse/testskyrimsepresentation.cpp
+    skyrimse/testskyrimseimagespacemod.cpp
+    skyrimse/testskyrimseimagespacemodreal.cpp
     skyrimse/testskyrimseshouts.cpp
     skyrimse/testskyrimsecombatshout.cpp
     skyrimse/testskyrimseshoutsreal.cpp
@@ -894,6 +897,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_delivery.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_shout.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/image_space_mod.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp

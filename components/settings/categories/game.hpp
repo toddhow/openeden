@@ -111,6 +111,7 @@ namespace Settings
         SettingValue<int> mNeutralWeatherCloudLayers{ mIndex, "Game", "neutral weather cloud layers",
             makeClampSanitizerInt(0, 8) };
         SettingValue<bool> mNeutralWeatherImageSpace{ mIndex, "Game", "neutral weather image space" };
+        SettingValue<bool> mNeutralImageSpaceEffects{ mIndex, "Game", "neutral image space effects" };
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
         SettingValue<bool> mNeutralHavokCollision{ mIndex, "Game", "neutral havok collision" };
         SettingValue<bool> mNeutralTreeSway{ mIndex, "Game", "neutral tree sway" };

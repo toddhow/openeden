@@ -508,6 +508,11 @@ namespace game_skyrimse
         return source != nullptr && source->playerIdentity(out);
     }
 
+    bool SkyrimCellSource::playerImageSpace(openeden::sdk::game::PlayerImageSpaceState& out)
+    {
+        return mCombat.playerImageSpace(out); // task 0257
+    }
+
     bool SkyrimCellSource::describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error)
     {
         auto* source = dynamic_cast<openeden::sdk::game::PlayerBodySource*>(&mView);

@@ -440,6 +440,11 @@ namespace game_skyrimse
         return mCombatIndex == nullptr ? nullptr : mCombatIndex->spellByEditorId(std::string(editorId));
     }
 
+    const ImageModifierRecord* SkyrimWorldView::imageModifierByEditorId(std::string_view editorId)
+    {
+        return mCombatIndex == nullptr ? nullptr : mCombatIndex->imageModifierByEditorId(std::string(editorId));
+    }
+
     const ShoutRecord* SkyrimWorldView::shoutById(FormId id)
     {
         return mCombatIndex == nullptr ? nullptr : mCombatIndex->shouts().shout(id);

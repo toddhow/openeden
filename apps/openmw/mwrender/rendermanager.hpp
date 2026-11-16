@@ -32,6 +32,7 @@
 #include <components/render/aotemporal.hpp>
 #include <components/render/cloudgpu.hpp>
 #include <components/render/covermath.hpp>
+#include <components/render/imagespacemath.hpp>
 #include <components/render/probes.hpp>
 #include <components/render/reflectionprobes.hpp>
 #include <components/render/scenecensus.hpp>
@@ -263,6 +264,10 @@ namespace MWRender
         /// on the picture after the tonemap. `on` false (a weather without a grade) switches it off. Only has an effect
         /// when [Game] neutral weather image space put the grade into the tonemap's shader at start (and hdr is on).
         void setImageSpaceGrade(bool on, float saturation, float contrast, float tintAmount, const vsg::vec3& tint);
+        /// Task 0257: a game pack's effect on the picture (Night Eye), laid over the weather's image space with
+        /// Render::ImageSpace::combine. An inactive modifier changes nothing. Needs hdr and the grade in the shader
+        /// ([Game] neutral weather image space or [Game] neutral image space effects at start).
+        void setImageSpaceModifier(const Render::ImageSpace::Modifier& modifier);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;
         int skyGetSecundaPhase() const;
@@ -628,6 +633,7 @@ namespace MWRender
             friend bool operator==(const ImageSpaceGradeState&, const ImageSpaceGradeState&) = default;
         };
         ImageSpaceGradeState mImageSpaceGrade; // wanted (task 0127 stage W-S4)
+        Render::ImageSpace::Modifier mImageSpaceModifier; // wanted (task 0257)
         ImageSpaceGradeState mImageSpaceGradeApplied; // what the tonemap's parameters hold now
         bool mTonemapSteppedAside = false; // a post-processing technique that sets `hdr` is enabled
         vsg::ref_ptr<vsg::RenderGraph> mTonemapGraph;

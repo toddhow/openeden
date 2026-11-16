@@ -21,6 +21,11 @@
   "data": "data",
   "settings": [
     {
+      "key": "night eye",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "barks",
       "type": "bool",
       "default": false

@@ -70,6 +70,7 @@ namespace MWWorld
     class NeutralSceneSpeech;
     class NeutralMusicDriver; // task 0209
     class NeutralPlayerNameDriver; // task 0228
+    class NeutralImageSpaceDriver; // task 0257
 
     /// \brief The game world and its visual representation
 
@@ -104,6 +105,8 @@ namespace MWWorld
         bool mNeutralMusicTried = false;
         std::unique_ptr<NeutralPlayerNameDriver> mNeutralPlayerName; // task 0228: the pack's player name
         bool mNeutralPlayerNameTried = false;
+        std::unique_ptr<NeutralImageSpaceDriver> mNeutralImageSpace; // task 0257: a game pack's effects on the picture
+        bool mNeutralImageSpaceTried = false;
 
         bool mGodMode;
         bool mScriptsEnabled;
@@ -148,6 +151,7 @@ namespace MWWorld
         void updateWeather(float duration, bool paused = false);
         void updateNeutralMusic(float duration);
         void updateNeutralPlayerName();
+        void updateNeutralImageSpace();
 
         void initObjectInCell(const Ptr& ptr, CellStore& cell, bool adjustPos);
         Ptr moveObjectToCell(const Ptr& ptr, CellStore* cell, ESM::Position pos, bool adjustPos);

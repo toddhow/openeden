@@ -80,6 +80,78 @@ namespace Render::ImageSpace
             v = std::clamp((v - kContrastPivot) * contrast + kContrastPivot, 0.f, 1.f);
         return c;
     }
+
+    // ---- a modifier on top of the weather's image space (OpenEden task 0257) --------------------------------------
+    //
+    // A game's spells and effects can change the picture while they run (Skyrim's Night Eye). The pack describes the
+    // change as a multiply and an add per value (the form the game's image space modifiers have), and `combine` puts
+    // it on what the weather already gives: value' = value * mult + add. Brightness is a linear multiplier of the
+    // exposure (the weather manager hands the renderer its logarithm, in stops). A modifier that is not active returns
+    // the weather's values untouched, bit for bit, so a session without one draws what it always drew.
+
+    struct Modifier
+    {
+        bool active = false;
+        float saturationMult = 1.f;
+        float saturationAdd = 0.f;
+        float brightnessMult = 1.f;
+        float brightnessAdd = 0.f;
+        float contrastMult = 1.f;
+        float contrastAdd = 0.f;
+        float tintAmount = 0.f;
+        Rgb tint{ 1.f, 1.f, 1.f };
+    };
+
+    /// What the renderer holds: whether a grade applies at all, the exposure in stops and the grade.
+    struct Effective
+    {
+        bool on = false;
+        float stops = 0.f;
+        Grade grade;
+    };
+
+    inline constexpr float kMinBrightness = 0.25f; ///< the same floor the weather manager gives the brightness
+    inline constexpr float kMaxStops = 2.f; ///< RenderManager::setImageSpaceStops clamps to this
+    inline constexpr float kMaxGradeValue = 4.f; ///< saturation and contrast are clamped to 0 .. this
+
+    inline Effective combine(const Effective& weather, const Modifier& modifier)
+    {
+        if (!modifier.active)
+            return weather;
+        const auto finite = [](float value, float fallback) { return detail::finiteOr(value, fallback); };
+
+        Effective out;
+        out.on = true;
+        // The weather's own values when it has no grade are the neutral ones (Effective's defaults).
+        const float weatherStops = weather.on ? finite(weather.stops, 0.f) : 0.f;
+        const Grade base = weather.on ? weather.grade : Grade{};
+
+        const float saturation = finite(base.saturation, 1.f) * finite(modifier.saturationMult, 1.f)
+            + finite(modifier.saturationAdd, 0.f);
+        const float contrast
+            = finite(base.contrast, 1.f) * finite(modifier.contrastMult, 1.f) + finite(modifier.contrastAdd, 0.f);
+        out.grade.saturation = std::clamp(saturation, 0.f, kMaxGradeValue);
+        out.grade.contrast = std::clamp(contrast, 0.f, kMaxGradeValue);
+
+        const float brightness = std::exp2(weatherStops) * finite(modifier.brightnessMult, 1.f)
+            + finite(modifier.brightnessAdd, 0.f);
+        out.stops = std::clamp(std::log2(std::max(brightness, kMinBrightness)), -kMaxStops, kMaxStops);
+
+        const float weatherAmount = std::clamp(finite(base.tintAmount, 0.f), 0.f, 1.f);
+        const float modifierAmount = std::clamp(finite(modifier.tintAmount, 0.f), 0.f, 1.f);
+        const float amount = modifierAmount + weatherAmount * (1.f - modifierAmount);
+        out.grade.tintAmount = amount;
+        out.grade.tint = base.tint;
+        if (amount > 0.f)
+        {
+            const float weatherShare = weatherAmount * (1.f - modifierAmount);
+            for (std::size_t i = 0; i < 3; ++i)
+                out.grade.tint[i] = (std::clamp(finite(modifier.tint[i], 0.f), 0.f, 1.f) * modifierAmount
+                                        + std::clamp(finite(base.tint[i], 0.f), 0.f, 1.f) * weatherShare)
+                    / amount;
+        }
+        return out;
+    }
 }
 
 #endif

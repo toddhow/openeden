@@ -667,6 +667,20 @@ namespace game_skyrimse
         return settings;
     }
 
+    const ImageModifierRecord* CombatIndex::imageModifierByEditorId(const std::string& editorId) const
+    {
+        const std::string wanted = lower(editorId);
+        const ImageModifierRecord* found = nullptr;
+        for (const auto& entry : mImageModifiers)
+        {
+            // The highest form id when two share a name, so that the unordered iteration cannot change the answer.
+            if (lower(entry.second.mCommon.mEditorId) == wanted
+                && (found == nullptr || entry.first > found->mCommon.mId))
+                found = &entry.second;
+        }
+        return found;
+    }
+
     const SpellRecord* CombatIndex::spellByEditorId(const std::string& editorId) const
     {
         const std::string wanted = lower(editorId);
@@ -734,7 +748,7 @@ namespace game_skyrimse
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
                     && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO") && t != Content::fourCC("EXPL")
                     && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL")
-                    && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP"))
+                    && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP") && t != Content::fourCC("IMAD"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -839,6 +853,13 @@ namespace game_skyrimse
                     ok = decodeShout(bytes, record, mContext, sh, why);
                     if (ok)
                         mOut.mShouts.push_back(std::move(sh));
+                }
+                else if (t == Content::fourCC("IMAD"))
+                {
+                    ImageModifierRecord im; // task 0257
+                    ok = decodeImageModifier(bytes, record, mContext, im, why);
+                    if (ok)
+                        mOut.mImageModifiers.push_back(std::move(im));
                 }
                 else if (t == Content::fourCC("WOOP"))
                 {
@@ -1100,6 +1121,13 @@ namespace game_skyrimse
                 mMagicEffects[m.mCommon.mId] = m;
         }
         mShoutIndex.add(records.mShouts, records.mWords);
+        for (const ImageModifierRecord& im : records.mImageModifiers)
+        {
+            if (im.mCommon.deleted())
+                mImageModifiers.erase(im.mCommon.mId);
+            else
+                mImageModifiers[im.mCommon.mId] = im;
+        }
         mSettings.add(records);
     }
 

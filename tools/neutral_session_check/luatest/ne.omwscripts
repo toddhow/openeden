@@ -1,0 +1,2 @@
+GLOBAL: scripts/ne/global.lua
+PLAYER: scripts/ne/player.lua

@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralweather.cpp
     mwworld/testneutralweathersound.cpp
     mwworld/testneutralmusic.cpp
+    mwworld/testneutralimagespace.cpp
     mwworld/testneutralplayername.cpp
     mwworld/testweatherparams.cpp
     mwworld/testneutralcell.cpp

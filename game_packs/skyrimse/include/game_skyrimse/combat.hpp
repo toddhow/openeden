@@ -27,6 +27,7 @@
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/dragons.hpp>
+#include <game_skyrimse/image_space_mod.hpp>
 #include <game_skyrimse/magic.hpp>
 #include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
@@ -326,6 +327,12 @@ namespace game_skyrimse
         /// Task 0186: the SPEL with this editor id (case-insensitive), or null; a SPEL and an MGEF by form id (default:
         /// the perk library's); a PROJ by form id; the ward and magicka regeneration numbers.
         virtual const SpellRecord* spellByEditorId(std::string_view editorId)
+        {
+            (void)editorId;
+            return nullptr;
+        }
+        /// Task 0257: the IMAD with this editor id (case-insensitive), or null. Default: none.
+        virtual const ImageModifierRecord* imageModifierByEditorId(std::string_view editorId)
         {
             (void)editorId;
             return nullptr;
@@ -713,6 +720,12 @@ namespace game_skyrimse
         [[nodiscard]] float playerShoutRecoveryScale() const;
         /// Night Eye runs on the player (a status only: nothing draws a brighter view).
         [[nodiscard]] bool playerNightEye() const;
+        /// Task 0257: Night Eye on screen. `setNightEyeView(true)` turns the view on; `playerImageSpace` then gives the
+        /// state to draw now (the intro of the game's own image space modifier while Night Eye runs, its last key held,
+        /// the outro when it ends); `active` false in `out` means no change. Reads the combat clock, so it moves with
+        /// combat updates.
+        void setNightEyeView(bool on) { mNightEyeView = on; }
+        [[nodiscard]] bool playerImageSpace(openeden::sdk::game::PlayerImageSpaceState& out);
         [[nodiscard]] bool calmed(openeden::sdk::game::CombatSubject subject) const;
         [[nodiscard]] bool commanded(openeden::sdk::game::CombatSubject subject) const;
         /// Does the fighter hold this perk now (a timed one a running effect gave included)?
@@ -1417,6 +1430,9 @@ namespace game_skyrimse
         bool mSpellDelivery = false;
         // Task 0250 (combat_summons.cpp). Every entry point does nothing while mSummonsOn is false.
         bool mSummonsOn = false;
+        bool mNightEyeView = false; ///< task 0257
+        imagespace::NightEyeTracker mNightEyeTracker; ///< task 0257
+        bool mNightEyeRecordsTried = false; ///< task 0257: the IMADs were looked up (once the data is ready)
         std::size_t mMaxSummons = kDefaultMaxSummons;
         std::uint32_t mSummonCount = 0; ///< summons made: the pick of a leveled list
         std::string mTestKill; ///< lower case; cleared once the actor was killed

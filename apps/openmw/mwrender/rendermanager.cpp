@@ -275,7 +275,8 @@ namespace MWRender
             parameters.sssStrength = rendering.mSssStrength;
             parameters.sssWidth = rendering.mSssWidth;
             // Task 0127 stage W-S4: the grade is in the shader only when a game pack's image space is asked for.
-            parameters.gradeShader = Settings::game().mNeutralWeatherImageSpace.get();
+            parameters.gradeShader
+                = Settings::game().mNeutralWeatherImageSpace.get() || Settings::game().mNeutralImageSpaceEffects.get();
             // Task 0026: the G-buffer's debug view (only with the G-buffer on; checked where the setting is read).
             if (rendering.mGBuffer)
             {
@@ -2012,6 +2013,11 @@ namespace MWRender
         mImageSpaceStops = std::isfinite(stops) ? std::clamp(stops, -2.f, 2.f) : 0.f;
     }
 
+    void RenderManager::setImageSpaceModifier(const Render::ImageSpace::Modifier& modifier)
+    {
+        mImageSpaceModifier = modifier;
+    }
+
     void RenderManager::setImageSpaceGrade(
         bool on, float saturation, float contrast, float tintAmount, const vsg::vec3& tint)
     {
@@ -3447,25 +3453,47 @@ namespace MWRender
             }
         }
         updateVelocity();
-        if (mTonemap && std::abs(mImageSpaceStops - mImageSpaceStopsApplied) > 0.002f)
+        // Task 0257: a game pack's modifier laid over the weather's image space. With no active modifier the wanted
+        // values are exactly the weather's (Render::ImageSpace::combine returns them untouched), so nothing below
+        // differs from the build without the feature.
+        float wantedStops = mImageSpaceStops;
+        ImageSpaceGradeState wantedGrade = mImageSpaceGrade;
+        if (mImageSpaceModifier.active)
+        {
+            Render::ImageSpace::Effective weather;
+            weather.on = mImageSpaceGrade.on;
+            weather.stops = mImageSpaceStops;
+            weather.grade.saturation = mImageSpaceGrade.saturation;
+            weather.grade.contrast = mImageSpaceGrade.contrast;
+            weather.grade.tintAmount = mImageSpaceGrade.tintAmount;
+            weather.grade.tint = mImageSpaceGrade.tint;
+            const Render::ImageSpace::Effective combined = Render::ImageSpace::combine(weather, mImageSpaceModifier);
+            wantedStops = combined.stops;
+            wantedGrade.on = combined.on;
+            wantedGrade.saturation = combined.grade.saturation;
+            wantedGrade.contrast = combined.grade.contrast;
+            wantedGrade.tintAmount = combined.grade.tintAmount;
+            wantedGrade.tint = combined.grade.tint;
+        }
+        if (mTonemap && std::abs(wantedStops - mImageSpaceStopsApplied) > 0.002f)
         {
             // The weather's image space brightness (task 0127): add the change to the tonemap's exposure.
             auto parameters = mTonemap->parameters();
-            parameters.exposureStops += mImageSpaceStops - mImageSpaceStopsApplied;
+            parameters.exposureStops += wantedStops - mImageSpaceStopsApplied;
             mTonemap->setParameters(parameters);
-            mImageSpaceStopsApplied = mImageSpaceStops;
+            mImageSpaceStopsApplied = wantedStops;
         }
-        if (mTonemap && mTonemap->parameters().gradeShader && mImageSpaceGrade != mImageSpaceGradeApplied)
+        if (mTonemap && mTonemap->parameters().gradeShader && wantedGrade != mImageSpaceGradeApplied)
         {
             // The grade of a game pack's image space (task 0127 stage W-S4): only when the shader has it.
             auto parameters = mTonemap->parameters();
-            parameters.gradeOn = mImageSpaceGrade.on;
-            parameters.gradeSaturation = mImageSpaceGrade.saturation;
-            parameters.gradeContrast = mImageSpaceGrade.contrast;
-            parameters.gradeTintAmount = mImageSpaceGrade.tintAmount;
-            parameters.gradeTint = mImageSpaceGrade.tint;
+            parameters.gradeOn = wantedGrade.on;
+            parameters.gradeSaturation = wantedGrade.saturation;
+            parameters.gradeContrast = wantedGrade.contrast;
+            parameters.gradeTintAmount = wantedGrade.tintAmount;
+            parameters.gradeTint = wantedGrade.tint;
             mTonemap->setParameters(parameters);
-            mImageSpaceGradeApplied = mImageSpaceGrade;
+            mImageSpaceGradeApplied = wantedGrade;
         }
         if (mSssEnabled && mTonemap && mHdrTarget)
         {
