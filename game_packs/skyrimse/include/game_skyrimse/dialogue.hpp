@@ -390,6 +390,15 @@ namespace game_skyrimse
         [[nodiscard]] FormId resolveLocationForm(std::uint32_t stored) const override;
         [[nodiscard]] bool locationHasRefType(FormId location, FormId refType) const override;
         [[nodiscard]] bool locationWithin(FormId location, FormId ancestor) const override;
+        // task 0226
+        [[nodiscard]] FormId aliasReference(std::uint32_t alias) const override;
+        [[nodiscard]] FormId locationAncestorWithKeyword(FormId location, FormId keyword) const override;
+        [[nodiscard]] FormId editorLocationOfReference(FormId reference) const override;
+        /// The story filler's view of the aliases it has filled so far in the quest being planned (empty: the saved state
+        /// only). Set around the evaluation of a location alias's conditions.
+        void setAliasView(std::function<FormId(std::uint32_t)> view) { mAliasView = std::move(view); }
+        /// The location of a reference no location lists (its cell's location); empty: none.
+        void setReferenceLocation(std::function<FormId(FormId)> lookup) { mReferenceLocation = std::move(lookup); }
         /// Task 0194: fn_550 reads the scene runner through this lookup (scene, action index).
         void setSceneActionLookup(std::function<bool(FormId, std::uint32_t)> lookup) { mSceneAction = std::move(lookup); }
         [[nodiscard]] bool sceneActionComplete(FormId scene, std::uint32_t actionIndex) const override
@@ -460,6 +469,8 @@ namespace game_skyrimse
     private:
         const StoryEvent* mStoryEvent = nullptr;
         FormId mSubjectLocation = kNullFormId; ///< task 0211
+        std::function<FormId(std::uint32_t)> mAliasView; ///< task 0226
+        std::function<FormId(FormId)> mReferenceLocation; ///< task 0226
         std::function<bool(FormId, std::uint32_t)> mSceneAction; ///< task 0194
         // ---- task 0160 helpers
         struct ActorView

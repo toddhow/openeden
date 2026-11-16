@@ -140,12 +140,27 @@ namespace game_skyrimse
         /// Does the location (its own lists only) have a special reference of this type?
         [[nodiscard]] bool hasRefType(FormId location, FormId refType) const;
 
+        // ---- task 0226 (bounty quests) -----------------------------------------------------------------------------
+        /// The location itself or the first ancestor that carries `keyword` (the parent chain, at most 64 steps);
+        /// kNullFormId when none does.
+        [[nodiscard]] FormId ancestorWithKeyword(FormId location, FormId keyword) const;
+        /// The location below `location` (its descendants, not itself) that carries `keyword` and is nearest in the tree
+        /// (fewest parent steps), ties to the lower form id; kNullFormId when none.
+        [[nodiscard]] FormId descendantWithKeyword(FormId location, FormId keyword) const;
+        /// The "editor location" of a placed reference: the location whose special or persistent reference list names
+        /// it; the most deeply nested one when several do, ties to the lower form id (RECALLED-VERIFY: the reference's own
+        /// persistent-location field is not decoded). kNullFormId when no location lists it.
+        [[nodiscard]] FormId editorLocationOf(FormId reference) const;
+
     private:
         void rebuildGrids() const;
         std::unordered_map<FormId, LocationRecord> mLocations;
         std::uint32_t mAdded = 0; ///< how many plugins were added: the next plugin's index
         mutable bool mGridsDirty = true;
         mutable std::map<std::tuple<FormId, std::int32_t, std::int32_t>, FormId> mGridOwner;
+        void rebuildRefOwners() const;
+        mutable bool mRefOwnersDirty = true;
+        mutable std::unordered_map<FormId, FormId> mRefOwner;
     };
 }
 

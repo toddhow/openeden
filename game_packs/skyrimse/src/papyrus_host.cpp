@@ -2059,8 +2059,18 @@ namespace game_skyrimse
     bool PapyrusHost::startQuestForTest(FormId quest, std::int32_t stage)
     {
         Impl& m = *mImpl;
-        if (m.mState == nullptr || !m.mState->exists(quest) || m.mState->running(quest) || m.mState->completed(quest))
+        if (m.mState == nullptr || !m.mState->exists(quest) || m.mState->completed(quest))
             return false;
+        if (m.mState->running(quest))
+        {
+            // task 0226: a quest the story manager started already: the aid only sets the stage (what a dialogue line
+            // would do), it does not start anything
+            if (stage < 0)
+                return false;
+            m.say(false, "Papyrus: quest " + hex(quest) + " stage set by the test aid");
+            (void)m.setStage(quest, static_cast<std::uint32_t>(stage));
+            return true;
+        }
         m.startQuest(quest);
         m.say(false, "Papyrus: quest " + hex(quest) + " started by the test aid");
         if (stage >= 0)

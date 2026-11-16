@@ -17,6 +17,14 @@
 //    base is an NPC_, in id order) up to a cap; an alias with no usable candidate source stays empty and is counted;
 //  - an alias that fails stays empty; an optional alias (0x02) is not an error.
 //
+// Task 0226 (bounty quests): the data's location aliases that search by another alias (ALFA, 48 of them on the five masters)
+// ALL name a REFERENCE alias, never a location alias, and 46 carry a keyword (KNAM). Rules (RECALLED-VERIFY, each):
+//  - such an alias is the nearest location, going up from the reference's editor location (the location whose special or
+//    persistent reference list names it, else the location of its cell), that carries the keyword; when no ancestor does,
+//    the nearest location below it that does; with no keyword, the reference's location itself;
+//  - the keyword also filters the old child search (an ALFA naming a location alias; none in the data);
+//  - a find-matching location alias whose conditions call HasSameEditorLocAsRefAlias (fn_181) waits for that alias.
+//
 // Task 0211 (radiant quests) adds, all RECALLED-VERIFY and each a named rule:
 //  - a LOCATION alias (ALLS) keeps its location in AliasFill::mReference (the save format is unchanged: a location alias
 //    holds a form, not a placed reference). SpecificLocation (ALFL) is filled from the data; FromEvent takes the event's
@@ -104,6 +112,13 @@ namespace game_skyrimse
             LocationMatcher mLocationMatcher; ///< empty: every location passes
             std::function<PlayerSite()> mPlayer; ///< empty: the player's place is unknown
             std::function<CellFacts(FormId cell)> mCell; ///< empty: nothing is known about a cell
+            /// Task 0226: the location of a placed reference that no location lists (the location of its cell); empty:
+            /// none.
+            std::function<FormId(FormId reference)> mReferenceLocation;
+            /// Task 0226: told, around the evaluation of a location alias's conditions, which reference an alias of the
+            /// quest holds so far (this plan's fills first, then the saved state; kNullFormId: none), and told an empty
+            /// function afterwards. HasSameEditorLocAsRefAlias (fn_181) reads it. Empty: nothing is told.
+            std::function<void(const std::function<FormId(std::uint32_t alias)>&)> mSetAliasView;
         };
         /// The size of the grid square of an exterior cell, in units (the position of a location is the centre of the first
         /// cell it lists).
@@ -155,6 +170,10 @@ namespace game_skyrimse
         bool anchorOf(const PlayerSite& site, FormId& world, double& x, double& y) const;
         Result pickLocation(const QuestRecord& quest, const QuestAlias& alias, const QuestState& state,
             const FillMap& plan, FormId parent, bool dry, AliasFill& out);
+        /// Task 0226: a location alias found from a REFERENCE alias (ALFA names a reference alias): the location of that
+        /// reference, or its nearest ancestor (else descendant) that carries the alias's keyword (KNAM).
+        Result pickLocationOfReference(const QuestRecord& quest, const QuestAlias& alias, const QuestAlias& source,
+            const QuestState& state, const FillMap& plan, bool dry, AliasFill& out);
         bool eventFill(const QuestRecord& quest, const QuestAlias& alias, const StoryEvent& event, AliasFill& out) const;
         Result pick(const QuestRecord& quest, const QuestAlias& alias, const QuestState& state, const FillMap& plan,
             const StoryEvent* event, bool matching, bool dry, AliasFill& out);

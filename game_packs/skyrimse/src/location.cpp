@@ -319,6 +319,7 @@ namespace game_skyrimse
                 mLocations[l.mCommon.mId] = std::move(l);
         }
         mGridsDirty = true;
+        mRefOwnersDirty = true;
     }
 
     std::vector<FormId> LocationIndex::ids() const
@@ -430,5 +431,103 @@ namespace game_skyrimse
         const LocationRecord* l = location(loc);
         return l != nullptr && keyword != kNullFormId
             && std::find(l->mKeywords.begin(), l->mKeywords.end(), keyword) != l->mKeywords.end();
+    }
+
+    FormId LocationIndex::ancestorWithKeyword(FormId location, FormId keyword) const
+    {
+        if (keyword == kNullFormId)
+            return kNullFormId;
+        FormId at = location;
+        for (int step = 0; step < 64 && at != kNullFormId; ++step)
+        {
+            const LocationRecord* l = this->location(at);
+            if (l == nullptr)
+                return kNullFormId;
+            if (hasKeyword(at, keyword))
+                return at;
+            at = l->mParent;
+        }
+        return kNullFormId;
+    }
+
+    FormId LocationIndex::descendantWithKeyword(FormId location, FormId keyword) const
+    {
+        if (location == kNullFormId || keyword == kNullFormId)
+            return kNullFormId;
+        FormId best = kNullFormId;
+        int bestDepth = 0;
+        for (const FormId id : ids())
+        {
+            if (id == location || !hasKeyword(id, keyword))
+                continue;
+            // the number of parent steps from id up to `location`
+            int depth = 0;
+            FormId at = id;
+            bool inside = false;
+            for (; depth < 64 && at != kNullFormId; ++depth)
+            {
+                if (at == location)
+                {
+                    inside = true;
+                    break;
+                }
+                const LocationRecord* l = this->location(at);
+                if (l == nullptr)
+                    break;
+                at = l->mParent;
+            }
+            if (inside && (best == kNullFormId || depth < bestDepth))
+            {
+                best = id;
+                bestDepth = depth;
+            }
+        }
+        return best;
+    }
+
+    void LocationIndex::rebuildRefOwners() const
+    {
+        mRefOwner.clear();
+        const auto depthOf = [this](FormId id) {
+            int depth = 0;
+            for (FormId at = id; depth < 64 && at != kNullFormId;)
+            {
+                const LocationRecord* l = location(at);
+                if (l == nullptr)
+                    break;
+                at = l->mParent;
+                ++depth;
+            }
+            return depth;
+        };
+        std::unordered_map<FormId, int> depth;
+        const auto offer = [&](FormId ref, FormId owner, int ownerDepth) {
+            if (ref == kNullFormId || ref == kUnresolvedFormId)
+                return;
+            const auto it = mRefOwner.find(ref);
+            if (it == mRefOwner.end() || ownerDepth > depth[ref])
+            {
+                mRefOwner[ref] = owner;
+                depth[ref] = ownerDepth;
+            }
+        };
+        for (const FormId id : ids()) // ascending: a tie keeps the lower id
+        {
+            const LocationRecord& l = mLocations.at(id);
+            const int d = depthOf(id);
+            for (const LocationSpecialRef& r : l.mSpecialRefs)
+                offer(r.mRef, id, d);
+            for (const LocationPersistentRef& r : l.mPersistentRefs)
+                offer(r.mRef, id, d);
+        }
+        mRefOwnersDirty = false;
+    }
+
+    FormId LocationIndex::editorLocationOf(FormId reference) const
+    {
+        if (mRefOwnersDirty)
+            rebuildRefOwners();
+        const auto it = mRefOwner.find(reference);
+        return it == mRefOwner.end() ? kNullFormId : it->second;
     }
 }

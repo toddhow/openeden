@@ -27,6 +27,32 @@ namespace game_skyrimse
             return fill.mKnown && (fill.mReference != kNullFormId || fill.mActor != kNullFormId);
         }
 
+        constexpr std::uint16_t kHasSameEditorLocAsRefAlias = 181;
+
+        /// Tells the environment which reference each alias holds while a location alias's conditions are evaluated.
+        class AliasViewScope
+        {
+        public:
+            AliasViewScope(const QuestAliasFiller::Environment& environment, std::function<FormId(std::uint32_t)> view)
+                : mEnvironment(environment)
+                , mView(std::move(view))
+            {
+                if (mEnvironment.mSetAliasView)
+                    mEnvironment.mSetAliasView(mView);
+            }
+            ~AliasViewScope()
+            {
+                if (mEnvironment.mSetAliasView)
+                    mEnvironment.mSetAliasView(std::function<FormId(std::uint32_t)>());
+            }
+            AliasViewScope(const AliasViewScope&) = delete;
+            AliasViewScope& operator=(const AliasViewScope&) = delete;
+
+        private:
+            const QuestAliasFiller::Environment& mEnvironment;
+            std::function<FormId(std::uint32_t)> mView;
+        };
+
         /// The kinds this filler decides: a required alias of one of them that cannot fill blocks a start.
         bool blockingKind(const QuestAlias& alias)
         {
@@ -99,9 +125,19 @@ namespace game_skyrimse
             FormId mLocation;
         };
         std::vector<Candidate> candidates;
+        // the fill of an alias so far: this plan's, else the saved state's
+        const auto fillOf = [&](std::uint32_t aliasId) {
+            const auto it = plan.find(aliasId);
+            return it != plan.end() ? it->second : state.aliasFill(questId, aliasId);
+        };
+        for (const survey::Ctda& c : alias.mConditions) // task 0226: HasSameEditorLocAsRefAlias reads another alias
+            if (c.mFunction == kHasSameEditorLocAsRefAlias && !filled(fillOf(c.mParam1)))
+                return Result::Waiting;
         for (const FormId id : locations->ids())
         {
             if (usable(parent) && (id == parent || !locations->isWithin(id, parent)))
+                continue;
+            if (usable(alias.mKeyword) && !locations->hasKeyword(id, alias.mKeyword))
                 continue;
             double distance = 0.0;
             if (anchored)
@@ -132,6 +168,7 @@ namespace game_skyrimse
             }
             return false;
         };
+        const AliasViewScope view(mEnvironment, [&](std::uint32_t aliasId) { return fillOf(aliasId).mReference; });
         std::uint32_t evaluated = 0;
         for (const Candidate& c : candidates)
         {
@@ -152,6 +189,67 @@ namespace game_skyrimse
         }
         ++st.mUnmatched;
         return Result::Empty;
+    }
+
+    QuestAliasFiller::Result QuestAliasFiller::pickLocationOfReference(const QuestRecord& quest, const QuestAlias& alias,
+        const QuestAlias& source, const QuestState& state, const FillMap& plan, bool dry, AliasFill& out)
+    {
+        Stats& st = dry ? mDryStats : mStats;
+        const LocationIndex* locations = mEnvironment.mLocations;
+        if (locations == nullptr)
+            return Result::Empty;
+        const FormId questId = quest.mCommon.mId;
+        const auto fillOf = [&](std::uint32_t aliasId) {
+            const auto it = plan.find(aliasId);
+            return it != plan.end() ? it->second : state.aliasFill(questId, aliasId);
+        };
+        const AliasFill where = fillOf(source.mId);
+        if (!where.mKnown || !usable(where.mReference))
+            return Result::Waiting;
+        FormId at = locations->editorLocationOf(where.mReference);
+        if (!usable(at) && mEnvironment.mReferenceLocation)
+            at = mEnvironment.mReferenceLocation(where.mReference);
+        FormId found = kNullFormId;
+        if (usable(at))
+        {
+            if (usable(alias.mKeyword))
+            {
+                found = locations->ancestorWithKeyword(at, alias.mKeyword);
+                if (!usable(found))
+                    found = locations->descendantWithKeyword(at, alias.mKeyword);
+            }
+            else
+            {
+                found = at;
+            }
+        }
+        if (!usable(found))
+        {
+            ++st.mUnmatched;
+            return Result::Empty;
+        }
+        if ((alias.mFlags & AliasFlags::AllowReuseInQuest) == 0)
+            for (const QuestAlias& other : quest.mAliases)
+                if (other.mId != alias.mId && other.mIsLocation && fillOf(other.mId).mReference == found)
+                {
+                    ++st.mUnmatched;
+                    return Result::Empty;
+                }
+        {
+            const AliasViewScope view(mEnvironment, [&](std::uint32_t aliasId) { return fillOf(aliasId).mReference; });
+            ++st.mEvaluated;
+            if (mEnvironment.mLocationMatcher && !mEnvironment.mLocationMatcher(quest, alias, found))
+            {
+                ++st.mUnmatched;
+                return Result::Empty;
+            }
+        }
+        out = AliasFill();
+        out.mKnown = true;
+        out.mReference = found;
+        ++st.mFilled;
+        ++st.mLocationsFilled;
+        return Result::Filled;
     }
 
     bool QuestAliasFiller::eventFill(
@@ -248,6 +346,9 @@ namespace game_skyrimse
                 {
                     if (!matching)
                         return Result::Empty;
+                    const QuestAlias* source = quest.alias(alias.mOtherAlias);
+                    if (source != nullptr && !source->mIsLocation)
+                        return pickLocationOfReference(quest, alias, *source, state, plan, dry, out);
                     const AliasFill parent = currentOf(alias.mOtherAlias);
                     if (!parent.mKnown || !usable(parent.mReference))
                         return Result::Waiting;

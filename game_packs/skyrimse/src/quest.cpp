@@ -479,7 +479,8 @@ namespace game_skyrimse
                         || type == Content::fourCC("ALEA") || type == Content::fourCC("ALNA")
                         || type == Content::fourCC("ALRT") || type == Content::fourCC("ALCO")
                         || type == Content::fourCC("ALCA") || type == Content::fourCC("ALCL")
-                        || type == Content::fourCC("ALFE") || type == Content::fourCC("ALFD");
+                        || type == Content::fourCC("ALFE") || type == Content::fourCC("ALFD")
+                        || type == Content::fourCC("KNAM");
                     if (type == Content::fourCC("FNAM") && section == Section::Objective && objective != nullptr)
                     {
                         std::uint32_t flags = 0;
@@ -491,7 +492,7 @@ namespace game_skyrimse
                         return; // VMAD, KSIZ, NEXT, SCHR, and the alias subrecords not used here
                     if (section != Section::Alias || alias == nullptr)
                     {
-                        if (type != Content::fourCC("FNAM"))
+                        if (type != Content::fourCC("FNAM") && type != Content::fourCC("KNAM"))
                             odd(type);
                         return;
                     }
@@ -544,6 +545,9 @@ namespace game_skyrimse
                             return;
                         case Content::fourCC("ALRT"):
                             formField(type, data, alias->mReferenceType);
+                            return;
+                        case Content::fourCC("KNAM"):
+                            formField(type, data, alias->mKeyword);
                             return;
                         case Content::fourCC("ALCO"):
                         case Content::fourCC("ALCA"):

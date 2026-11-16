@@ -631,6 +631,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsequestscriptsreal.cpp
     skyrimse/testskyrimselocationlists.cpp
     skyrimse/testskyrimselocationsubject.cpp
+    skyrimse/testskyrimsebounty.cpp
+    skyrimse/testskyrimsebountyreal.cpp
     skyrimse/testskyrimseradiantfill.cpp
     skyrimse/testskyrimseradiantreal.cpp
     skyrimse/testskyrimseradiantsurvey.cpp

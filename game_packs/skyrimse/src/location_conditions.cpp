@@ -29,12 +29,41 @@ namespace game_skyrimse
                 return 0.f;
             return source->locationWithin(location, source->resolveLocationForm(c.mParam1)) ? 1.f : 0.f;
         }
+
+        // 181 HasSameEditorLocAsRefAlias(alias, keyword): the candidate location and the editor location of the alias's
+        // reference have the same nearest ancestor-or-self carrying the keyword
+        float hasSameEditorLocAsRefAlias(
+            const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
+        {
+            const LocationSubjectSource* source = dynamic_cast<const LocationSubjectSource*>(&world);
+            if (source == nullptr || subject == 0)
+                return 0.f;
+            const FormId location = source->locationSubject();
+            if (location == kNullFormId)
+                return 0.f;
+            const FormId keyword = source->resolveLocationForm(c.mParam2);
+            const FormId reference = source->aliasReference(c.mParam1);
+            if (keyword == kNullFormId || reference == kNullFormId)
+                return 0.f;
+            const FormId referenceLocation = source->editorLocationOfReference(reference);
+            if (referenceLocation == kNullFormId)
+                return 0.f;
+            const FormId mine = source->locationAncestorWithKeyword(location, keyword);
+            return mine != kNullFormId && mine == source->locationAncestorWithKeyword(referenceLocation, keyword) ? 1.f
+                                                                                                                  : 0.f;
+        }
     }
 
     const std::vector<conditions::ExtraFunction>& locationExtraFunctions()
     {
         static const std::vector<conditions::ExtraFunction> table = { { 563, &locationHasRefType },
             { 565, &getIsEditorLocation } };
+        return table;
+    }
+
+    const std::vector<conditions::ExtraFunction>& aliasLocationExtraFunctions()
+    {
+        static const std::vector<conditions::ExtraFunction> table = { { 181, &hasSameEditorLocAsRefAlias } };
         return table;
     }
 

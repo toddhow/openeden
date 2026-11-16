@@ -944,6 +944,28 @@ namespace game_skyrimse
         return mLocations != nullptr && mLocations->isWithin(location, ancestor);
     }
 
+    FormId SkyrimConditionWorld::aliasReference(std::uint32_t alias) const
+    {
+        if (mAliasView)
+            return mAliasView(alias);
+        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+            return kNullFormId;
+        return mQuestState->aliasFill(mContextQuest, alias).mReference;
+    }
+
+    FormId SkyrimConditionWorld::locationAncestorWithKeyword(FormId location, FormId keyword) const
+    {
+        return mLocations != nullptr ? mLocations->ancestorWithKeyword(location, keyword) : kNullFormId;
+    }
+
+    FormId SkyrimConditionWorld::editorLocationOfReference(FormId reference) const
+    {
+        FormId at = mLocations != nullptr ? mLocations->editorLocationOf(reference) : kNullFormId;
+        if (at == kNullFormId && mReferenceLocation)
+            at = mReferenceLocation(reference);
+        return at;
+    }
+
     bool SkyrimConditionWorld::locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const
     {
         // task 0211: a candidate location of a location alias

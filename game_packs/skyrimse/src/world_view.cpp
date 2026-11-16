@@ -1062,6 +1062,7 @@ namespace game_skyrimse
             static const std::vector<conditions::ExtraFunction> extras = [] {
                 std::vector<conditions::ExtraFunction> all = storyAndLocationExtraFunctions(); // task 0211
                 all.insert(all.end(), sceneExtraFunctions().begin(), sceneExtraFunctions().end());
+                all.insert(all.end(), aliasLocationExtraFunctions().begin(), aliasLocationExtraFunctions().end());
                 return all;
             }();
             raw->mQuestEvaluator.setExtraFunctions(extras);
@@ -1092,6 +1093,16 @@ namespace game_skyrimse
                     const bool ok = raw->mQuestEvaluator.evaluate(alias.mConditions, *world);
                     world->setSubjectLocation(kNullFormId);
                     return ok;
+                };
+                // task 0226: the location of a reference that no location lists is the location of its cell
+                const auto referenceLocation = [this, raw](FormId reference) {
+                    const PlacedEntry* entry = raw->mData->mPlacedRefs.find(reference);
+                    return entry != nullptr ? locationOfCell(entry->mCell) : kNullFormId;
+                };
+                env.mReferenceLocation = referenceLocation;
+                world->setReferenceLocation(referenceLocation);
+                env.mSetAliasView = [world](const std::function<FormId(std::uint32_t)>& view) {
+                    world->setAliasView(view);
                 };
                 env.mPlayer = [this] { return mPlayerSite ? mPlayerSite() : QuestAliasFiller::PlayerSite(); };
                 env.mCell = [this](FormId cell) {

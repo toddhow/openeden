@@ -48,8 +48,8 @@
 //    and conditions, so it is an extra, not a way of filling; the name is xEdit's, RECALLED-VERIFY), ALEQ + ALEA an
 //    alias of another quest, ALCO/ALCA/ALCL a created object, ALFE + ALFD from an event, ALNA + ALNT near another
 //    alias; no fill subrecord at all means "find a matching reference" by the alias's CTDA conditions. Other alias
-//    subrecords (ALFC factions, ALPC packages, ALSP spells, CNTO/COCT items, VTCK voice types, KNAM, ECOR, ALDN, ALEQ
-//    ...) are not used here.
+//    subrecords (ALFC factions, ALPC packages, ALSP spells, CNTO/COCT items, VTCK voice types, ECOR, ALDN, ALEQ
+//    ...) are not used here. KNAM (task 0226) is a location alias's keyword: the location it finds must carry it.
 //
 // A form id stored in a QUST is a plugin-local id; the parser resolves the ones it stores as fields (ALFR, ALUA, ...)
 // with the plugin's resolver. The CTDA lists keep plugin-local ids (like dialogue.hpp), resolved at query time.
@@ -172,6 +172,7 @@ namespace game_skyrimse
         std::uint32_t mOtherAlias = 0; ///< ALEA (external), ALFA (in location alias), ALNA (near)
         std::uint32_t mForceIntoAlias = 0; ///< ALFI: also put the reference into this alias when filled (0: none)
         FormId mReferenceType = kNullFormId; ///< ALRT
+        FormId mKeyword = kNullFormId; ///< KNAM (task 0226): a location alias's search keyword (LocTypeHold ...)
         std::uint32_t mEventData = 0; ///< ALFD (task 0194): the event member that fills a FromEvent alias, two characters like 'R1' 
         std::vector<survey::Ctda> mConditions;
         /// The data alone says who fills it: a specific reference or a unique actor.
