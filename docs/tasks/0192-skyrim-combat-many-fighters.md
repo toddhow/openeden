@@ -74,3 +74,10 @@ The Linux gate and GCC `-Werror` (hand-checked against the pitfalls in CLAUDE.md
 2. Friendly fire in the real game: the pack now has a crowd-only `mayHit`; a real rule needs the enemy relation of task 0190. Add an ignore list to `SweepRequest` so a crowd's blow does not lose the player among friends (additive)?
 3. Ragdoll slots: let a settled corpse give its slot to a new death (keeps its last pose), or raise the 8?
 4. Is `kMaxConcurrentAttacks` = 64 (the bridge's clip table) the right ceiling, or should the bridge's own tables grow with the world?
+
+## Decisions of toddhow (2026-11-15, "Yes, approve")
+
+1. The pinned test `CombatReview.aFullSweepTableIsReportedOnceAndNothingIsSpent` now uses `kMaxConcurrentAttacks` in place of its three `32` values.
+2. Friendly fire: the real enemy and ally relation comes from task 0190's combat AI. An additive ignore list on `SweepRequest`, so that a crowd's blow cannot lose the player among friends, is a later follow-up.
+3. Ragdoll slots: a settled corpse gives its slot to a new death and keeps its last pose (follow-up). The cap of 8 stays.
+4. 64 swings a frame (the bridge's clip table) is the ceiling.

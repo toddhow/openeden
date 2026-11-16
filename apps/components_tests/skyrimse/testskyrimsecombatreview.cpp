@@ -235,18 +235,18 @@ namespace
     {
         std::vector<std::string> warnings;
         mCombat.setWarning([&](const std::string& line) { warnings.push_back(line); });
-        // Fill the table in one update: 32 hits (the most remembered between updates).
-        for (std::uint32_t i = 0; i < 32; ++i)
+        // Fill the table in one update: kMaxConcurrentAttacks hits (the most remembered between updates).
+        for (std::uint32_t i = 0; i < kMaxConcurrentAttacks; ++i)
             mCombat.onClipEvent(hitEvent(CombatSubject::of(mA), 300 + i));
         mCombat.combatUpdate(0.f, mWriter);
-        ASSERT_EQ(mCombat.pendingSweeps(), 32u);
+        ASSERT_EQ(mCombat.pendingSweeps(), kMaxConcurrentAttacks);
         SkyrimCombat::FighterView before;
         ASSERT_TRUE(mCombat.fighterView(CombatSubject::of(mA), before));
         mCombat.onClipEvent(hitEvent(CombatSubject::of(mA), 400));
         mCombat.combatUpdate(0.f, mWriter);
         mCombat.onClipEvent(hitEvent(CombatSubject::of(mA), 401));
         mCombat.combatUpdate(0.f, mWriter);
-        EXPECT_EQ(mWriter.mSweeps.size(), 32u); // no sweep was asked for that nobody could remember
+        EXPECT_EQ(mWriter.mSweeps.size(), kMaxConcurrentAttacks); // no sweep was asked for that nobody could remember
         EXPECT_EQ(warnings.size(), 1u); // once
         SkyrimCombat::FighterView after;
         ASSERT_TRUE(mCombat.fighterView(CombatSubject::of(mA), after));
