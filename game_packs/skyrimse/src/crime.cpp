@@ -54,6 +54,8 @@ namespace game_skyrimse::crime
                 return "murder";
             case Kind::Trespass:
                 return "trespass";
+            case Kind::Pickpocket:
+                return "pickpocket";
         }
         return "";
     }
@@ -68,6 +70,8 @@ namespace game_skyrimse::crime
                 return values.mAssault;
             case Kind::Trespass:
                 return values.mTrespass;
+            case Kind::Pickpocket:
+                return values.mPickpocket;
             case Kind::Theft:
                 break;
         }
@@ -336,6 +340,12 @@ namespace game_skyrimse::crime
         (void)mLedger.markStolen(item, count);
         if (mPending.size() < kMaxPending)
             mPending.push_back({ Kind::Theft, item, count, {} });
+    }
+
+    void CrimeSystem::onPickpocketCaught(std::uint32_t victimReference)
+    {
+        if (mPending.size() < kMaxPending)
+            mPending.push_back({ Kind::Pickpocket, kNullFormId, 0, { victimReference, 0 } });
     }
 
     void CrimeSystem::onDamage(const openeden::sdk::game::DamageReport& report)

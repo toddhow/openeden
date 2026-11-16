@@ -43,6 +43,15 @@ namespace MWWorld
         const std::function<bool(openeden::sdk::game::WorldId)>& keyRing,
         const std::function<bool(openeden::sdk::game::WorldId)>& inventory);
 
+    /// Task 0208: a placed item the player activates is picked up (the pack's scripts do it), and a living actor a
+    /// sneaking player activates has its pockets picked. Both only with the setting on; the pack decides what is an item.
+    inline constexpr std::string_view kNeutralPickupEvent = "openeden_skyrimse_item_activated";
+    inline constexpr std::string_view kNeutralPickpocketEvent = "openeden_skyrimse_pickpocket_opened";
+    [[nodiscard]] NeutralInventoryDecision decideNeutralPickup(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn);
+    [[nodiscard]] NeutralInventoryDecision decideNeutralPickpocket(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead, bool sneaking);
+
     /// An id as lower-case hex of at least 8 digits (the form the pack's bindings read).
     [[nodiscard]] std::string neutralHexId(std::uint64_t id);
 

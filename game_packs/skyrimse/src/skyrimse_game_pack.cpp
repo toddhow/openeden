@@ -4,6 +4,7 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/crime_service.hpp"
+#include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/journal.hpp"
@@ -782,6 +783,8 @@ namespace game_skyrimse
                     startCrime(host, logger);
                     // Task 0203: lock picking and books (the namespace skyrimse.lockbooks); needs the inventory.
                     startLockBooks(host, logger);
+                    // Task 0208: picking up placed items and pickpocketing (needs the inventory).
+                    startPickup(host, logger);
                     wirePapyrusWorld(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
@@ -812,6 +815,7 @@ namespace game_skyrimse
             void stop() override
             {
                 mCellSource.setCrime(nullptr); // task 0204: before the crime service goes
+                mCellSource.setTakenLookup({}); // task 0208: before the pickup service goes
                 unwirePapyrusWorld();
                 if (mPapyrus != nullptr)
                 {
@@ -1387,6 +1391,90 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "CRIME crime rules are on");
+            }
+
+            // Task 0208: picking up placed items and pickpocketing. On with the inventory (no setting of its own); a
+            // theft or a caught try is a crime only when the crime rules are on.
+            void startPickup(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                if (mInventory == nullptr)
+                    return;
+                pickup::Hooks hooks;
+                hooks.mItem = [this](FormId item, std::int32_t& value, float& weight) {
+                    const inventory::ItemStat* stat = mInventory->table().item(item);
+                    if (stat == nullptr)
+                        return false;
+                    value = stat->mValue;
+                    weight = stat->mWeight;
+                    return true;
+                };
+                hooks.mCount = [this](FormId placement) { return mWorldView.itemCountOfPlacement(placement); };
+                hooks.mAddToPlayer = [this](FormId item, std::int32_t count) {
+                    return mInventory->model().add(inventory::kPlayerOwner, item, count)
+                        == inventory::TransferStatus::Ok;
+                };
+                hooks.mDisable = [this](FormId placement) {
+                    if (mWorldSources == nullptr)
+                        return false;
+                    FormId cell = kNullFormId;
+                    if (const PlacedRefIndex* refs = mWorldView.placedRefs())
+                        if (const PlacedEntry* entry = refs->find(placement))
+                            cell = entry->mCell;
+                    return mWorldSources->setObjectEnabled(mCellSource, cell, placement, false);
+                };
+                hooks.mActivated = [this](FormId placement) { mCellSource.notifyActivated(placement); };
+                hooks.mTaken = [this](FormId placement, FormId item, std::int32_t count) {
+                    onContainerTaken(placement, item, count);
+                };
+                hooks.mHeldBy = [this](std::uint64_t owner, FormId item) {
+                    return mInventory->model().count(owner, item);
+                };
+                hooks.mMoveToPlayer = [this](std::uint64_t owner, FormId item, std::int32_t count) {
+                    return mInventory->model().transfer(owner, inventory::kPlayerOwner, item, count)
+                        == inventory::TransferStatus::Ok;
+                };
+                hooks.mSkill = [this]() {
+                    float skill = 0.f;
+                    constexpr std::uint32_t kPickpocketValue
+                        = progression::kFirstSkillValue + progression::Slot::Pickpocket;
+                    if (mProgression != nullptr && mProgression->actorValue(kPickpocketValue, skill))
+                        return skill;
+                    return pickup::kStandInPickpocket;
+                };
+                hooks.mTrain = [this](float amount) {
+                    if (mProgression != nullptr)
+                        mProgression->skillUsed(progression::Slot::Pickpocket, amount);
+                };
+                hooks.mCaught = [this](std::uint64_t owner, FormId, std::int32_t) {
+                    if (mCrime != nullptr)
+                        mCrime->system().onPickpocketCaught(static_cast<std::uint32_t>(owner));
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mPickup = std::make_unique<pickup::PickupService>(std::move(hooks));
+                mCellSource.setTakenLookup([this](openeden::sdk::game::WorldId placement) {
+                    return mPickup != nullptr && mPickup->book().taken(static_cast<FormId>(placement));
+                });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mPickup->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the pickup bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    mPickup->chunk().setRefusalSink([logger](const std::string& why) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Warning, "PICKUP " + why);
+                    });
+                    if (!chunks->registerHandler(mPickup->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the pickups chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "PICKUP picking up items and pickpocketing are on");
             }
 
             // Task 0204: the player took an item out of a container: theft when somebody else owns the placement.
@@ -2081,6 +2169,7 @@ namespace game_skyrimse
             bool mPlayerSpellFromSetting = false;
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
+            std::unique_ptr<pickup::PickupService> mPickup; // task 0208; refers to the inventory, crime, progression
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;
             float mProgressionBoost = 1.f; // task 0206: the test multiplier of `progression test amount`

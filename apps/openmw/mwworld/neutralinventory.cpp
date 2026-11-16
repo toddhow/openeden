@@ -29,6 +29,22 @@ namespace MWWorld
         return NeutralInventoryDecision::Open;
     }
 
+    NeutralInventoryDecision decideNeutralPickup(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn)
+    {
+        if (!settingOn || !byPlayer || kind != openeden::sdk::game::ObjectKind::Item)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
+    NeutralInventoryDecision decideNeutralPickpocket(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead, bool sneaking)
+    {
+        if (!settingOn || !byPlayer || dead || !sneaking || kind != openeden::sdk::game::ObjectKind::Actor)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
     bool neutralKeyHeld(openeden::sdk::game::WorldId key,
         const std::function<bool(openeden::sdk::game::WorldId)>& keyRing,
         const std::function<bool(openeden::sdk::game::WorldId)>& inventory)

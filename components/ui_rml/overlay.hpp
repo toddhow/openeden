@@ -37,6 +37,9 @@ namespace UiRml
         /// The Morrowind bitmap font to use, as the file name without folder and extension ("Magic_Cards"); the game's
         /// `Fonts_Font_0`. If it cannot be loaded the overlay falls back to the DejaVu TrueType font of the engine.
         std::string mBitmapFont;
+        /// Task 0208: the second bitmap font, the game's `Fonts_Font_1` (Century Gothic), registered as the family
+        /// `MorrowindPlain` (fontfamilies.hpp) for the class `plain-font`. Empty: the main font stands in.
+        std::string mPlainBitmapFont;
         /// The data files' encoding (the font code page follows it).
         ToUTF8::FromType mEncoding = ToUTF8::WINDOWS_1252;
         /// `[GUI] scaling factor`: the density-independent pixel ratio of the context (task 0111; uiscale.hpp).

@@ -195,6 +195,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/crafting_player.lua
     scripts/openeden/skyrimse/barter_player.lua
     scripts/openeden/skyrimse/crime_global.lua
+    scripts/openeden/skyrimse/pickup_global.lua
+    scripts/openeden/skyrimse/pickup_player.lua
     scripts/openeden/skyrimse/crime_player.lua
     scripts/openeden/skyrimse/journal_player.lua
     scripts/openeden/skyrimse/papyrus_player.lua

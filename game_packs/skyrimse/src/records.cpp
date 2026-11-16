@@ -858,6 +858,13 @@ namespace game_skyrimse
                         case Content::fourCC("XSCL"):
                             ok = floatField(type, data, r.mScale);
                             break;
+                        // XCNT (task 0208): the count of a placed stack, a 4 byte i32 (VERIFIED size on Skyrim.esm).
+                        case Content::fourCC("XCNT"):
+                            if (data.size() != 4)
+                                odd("XCNT");
+                            else
+                                r.mItemCount = static_cast<std::int32_t>(readLe<std::uint32_t>(data.data()));
+                            break;
                         // XOWN, XRNK, XLOC and XTEL (task 0099 N4). Sizes VERIFIED on the installed plugins
                         // (tools/skyrimse_records_check) and corroborated by upstream's ESM4 reader (cc9cii, from UESP,
                         // components/esm4/loadrefr.cpp: XOWN 4 bytes in Skyrim, XTEL 32, XLOC level + key positions;

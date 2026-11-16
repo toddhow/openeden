@@ -20,6 +20,7 @@ h2 { font-size: var(--font-size-md); color: var(--color-text-strong); margin-bot
 
 .panel { background-color: var(--color-surface); padding: var(--space-6) var(--space-7); }
 .sunken { background-color: var(--color-surface-sunken); }
+.plain-font { font-family: MorrowindPlain; }
 .title { color: var(--color-text-strong); margin-bottom: var(--space-4); }
 .muted { color: var(--color-text-muted); }
 .ok { color: var(--color-text-ok); }

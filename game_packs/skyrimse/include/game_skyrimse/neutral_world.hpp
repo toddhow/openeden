@@ -65,7 +65,10 @@ namespace game_skyrimse
         /// The light of a LIGH base (task 0113, stage N3a-5), filled by the view from the placement's base.
         std::optional<openeden::sdk::game::LightComponent> light;
 
-        [[nodiscard]] bool empty() const { return !owner && !lock && !teleport && !light; }
+        /// The XCNT of a placed item stack (task 0208), 0 when none.
+        std::int32_t itemCount = 0;
+
+        [[nodiscard]] bool empty() const { return !owner && !lock && !teleport && !light && itemCount == 0; }
         friend bool operator==(const PlacementComponents&, const PlacementComponents&) = default;
     };
 
@@ -402,6 +405,15 @@ namespace game_skyrimse
         {
             mEnableOverride = std::move(lookup);
         }
+        /// Task 0208: the placements the player picked up; a cell built afterwards (a load, a return) comes out with
+        /// them disabled, whether or not the Papyrus host is on. Main thread.
+        void setTakenLookup(std::function<bool(openeden::sdk::game::WorldId)> lookup) { mTaken = std::move(lookup); }
+        /// Task 0208: tells the script sink (when the Papyrus host is on) that the player activated a placement.
+        void notifyActivated(openeden::sdk::game::WorldId reference)
+        {
+            if (mActivated)
+                mActivated(reference);
+        }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
@@ -425,6 +437,7 @@ namespace game_skyrimse
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
+        std::function<bool(openeden::sdk::game::WorldId)> mTaken; ///< task 0208
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

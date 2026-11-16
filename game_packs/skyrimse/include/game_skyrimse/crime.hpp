@@ -32,6 +32,7 @@ namespace game_skyrimse::crime
         Assault,
         Murder,
         Trespass,
+        Pickpocket, ///< a pickpocket try the victim noticed (task 0208)
     };
 
     [[nodiscard]] std::string_view kindName(Kind kind);
@@ -240,6 +241,9 @@ namespace game_skyrimse::crime
         /// The player took `count` of `item` out of a container somebody else owns. The item is marked stolen at once;
         /// the bounty waits for the next update's witnesses.
         void onTheft(FormId item, std::int32_t count);
+        /// A pickpocket try that was caught (task 0208): the victim is a witness; nothing was taken, so no item is
+        /// marked stolen. The bounty waits for the next update, like a theft's.
+        void onPickpocketCaught(std::uint32_t victimReference);
         /// A damage report as it passed through the combat chain, BEFORE the victim is provoked.
         void onDamage(const openeden::sdk::game::DamageReport& report);
         /// An actor died (reportDeath), seen before the report goes on.

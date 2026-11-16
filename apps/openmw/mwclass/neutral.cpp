@@ -29,6 +29,7 @@
 #include "../mwbase/world.hpp"
 #include "../mwgui/tooltips.hpp"
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/creaturestats.hpp"
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwphysics/skyrimshape.hpp"
 #include "../mwrender/renderinginterface.hpp"
@@ -262,8 +263,11 @@ namespace MWClass
                     fields.push_back({ f.mName, f.mText });
                 Log(Debug::Info) << "NINV " << mKind << " " << MWWorld::neutralHexId(mPlacement) << " base "
                                  << MWWorld::neutralHexId(mBase) << " '" << mName << "' opened";
-                const std::string_view eventName
-                    = mKind == "bench" ? MWWorld::kNeutralBenchEvent : MWWorld::kNeutralInventoryEvent;
+                // Task 0208: "item" is a placed item picked up, "pickpocket" a living actor's pockets.
+                const std::string_view eventName = mKind == "bench" ? MWWorld::kNeutralBenchEvent
+                    : mKind == "item"                               ? MWWorld::kNeutralPickupEvent
+                    : mKind == "pickpocket"                         ? MWWorld::kNeutralPickpocketEvent
+                                                                    : MWWorld::kNeutralInventoryEvent;
                 MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(eventName), fields);
             }
 
@@ -365,6 +369,28 @@ namespace MWClass
                 && MWWorld::decideNeutralLoot(base.mKind, true, true, dead) == MWWorld::NeutralInventoryDecision::Open)
                 return std::make_unique<OpenInventoryAction>(
                     ptr, *placement, base.mBase, std::string(getName(ptr)), "actor");
+        }
+        // Task 0208: a sneaking player picks a living actor's pockets (only with [Game] neutral inventory); a placed item
+        // is picked up by the pack's scripts.
+        if ((base.mKind == ObjectKind::Actor || base.mKind == ObjectKind::Item) && actor == MWMechanics::getPlayer())
+        {
+            const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            const bool inventoryOn = Settings::game().mNeutralInventory.get();
+            if (placement != std::nullopt)
+            {
+                const MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem();
+                const bool dead = physics != nullptr && physics->isNeutralActorDead(ptr);
+                const bool sneaking = actor.getClass().getCreatureStats(actor).getStance(
+                    MWMechanics::CreatureStats::Stance_Sneak);
+                if (MWWorld::decideNeutralPickpocket(base.mKind, true, inventoryOn, dead, sneaking)
+                    == MWWorld::NeutralInventoryDecision::Open)
+                    return std::make_unique<OpenInventoryAction>(
+                        ptr, *placement, base.mBase, std::string(getName(ptr)), "pickpocket");
+                if (MWWorld::decideNeutralPickup(base.mKind, true, inventoryOn)
+                    == MWWorld::NeutralInventoryDecision::Open)
+                    return std::make_unique<OpenInventoryAction>(
+                        ptr, *placement, base.mBase, std::string(getName(ptr)), "item");
+            }
         }
         // Task 0141: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
         // same setting that draws them, and only by the player).
@@ -578,7 +604,7 @@ namespace MWClass
         const ObjectKind kind = baseOf(ptr).mKind;
         // task 0199: a furniture shows its name when the neutral inventory is on (a crafting bench may be among them)
         return kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container
-            || (kind == ObjectKind::Furniture && Settings::game().mNeutralInventory.get());
+            || ((kind == ObjectKind::Furniture || kind == ObjectKind::Item) && Settings::game().mNeutralInventory.get());
     }
 
     MWGui::ToolTipInfo Neutral::getToolTipInfo(const MWWorld::ConstPtr& ptr, int /*count*/) const

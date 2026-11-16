@@ -98,6 +98,8 @@ namespace game_skyrimse
                 ++stats.mOwnersDropped;
         }
 
+        c.itemCount = ref.mItemCount;
+
         if (ref.mLock)
         {
             // The 20 byte XLOC has no separate "locked" state (its flag byte is 0 or 4, "leveled lock"), so a lock
@@ -389,6 +391,12 @@ namespace game_skyrimse
             for (openeden::sdk::game::WorldObject& object : out.objects)
                 if (const std::optional<bool> enabled = mEnableOverride(object.id))
                     object.initiallyDisabled = !*enabled;
+        }
+        if (built && mTaken)
+        {
+            for (openeden::sdk::game::WorldObject& object : out.objects)
+                if (mTaken(object.id))
+                    object.initiallyDisabled = true; // task 0208: the player picked it up
         }
         if (built && mCellBuilt)
             mCellBuilt(cell);

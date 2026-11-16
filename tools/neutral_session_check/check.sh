@@ -105,6 +105,13 @@ echo "return { start = ${AI_START:-0.3}, dist = ${AI_DIST:-300}, every = ${AI_EV
 # is chosen N8_DELAY seconds after the guard's offer (luatest/scripts/n8/crimeglobal.lua). The crime settings go in SETTINGS_EXTRA.
 [ "$SHOT" = n8crime ] && echo "content=n8crime.omwscripts" >> "$WORK/config/openmw.cfg"
 echo "return { mode = '${N8_MODE:-theft}', target = '${N8_TARGET:-b80803}', dist = ${N8_DIST:-100}, placement = '${N8_PLACEMENT:-0009cafb}', base = '${N8_BASE:-0009cafa}', tCrime = ${N8_T:-4}, choice = '${N8_CHOICE:-}', choiceDelay = ${N8_DELAY:-2}, every = ${N8_EVERY:-5}, maxShots = ${N8_SHOTS:-30}, guard = '${N8_GUARD:-}', phase = '${N8_PHASE:-none}', saveT = ${N8_SAVE_T:-10} }" > "$WORK/luatest/scripts/n8/cfg.lua"
+# Task 0208 (pickup, pickpocket): "n9pick" stands the player N9_DIST (default 60) units from the nearest object whose record id is N9_BASE
+# (default: any skyrimse object near N9_NEAR "x,y,z"), on the side of N9_FROM "x,y" and tilted to N9_PITCH (radians, down is positive), and logs
+# N9 lines every second (the count of N9_ITEM (8 hex digits) in the inventory, whether the object is still enabled, the pickup state, the bounty);
+# the activate key comes from OPENEDEN_RMLUI_INPUT_SCRIPT (needs [GUI] rmlui = true). N9_SNEAK=1 holds the sneak control. N9_SHOTS: real seconds of pictures.
+[ "$SHOT" = n9pick ] && echo "content=n9pick.omwscripts" >> "$WORK/config/openmw.cfg"
+mkdir -p "$WORK/luatest/scripts/n9"
+echo "return { base = '${N9_BASE:-}', near = { ${N9_NEAR:-0, 0, 0} }, from = { ${N9_FROM:-1, 0} }, dist = ${N9_DIST:-60}, drop = ${N9_DROP:-0}, pitch = ${N9_PITCH:-0}, yaw = ${N9_YAW:-0}, phase = '${N9_PHASE:-none}', saveT = ${N9_SAVE_T:-20}, item = '${N9_ITEM:-}', sneak = $([ -n "${N9_SNEAK:-}" ] && echo true || echo false), shots = { ${N9_SHOTS:-8, 14} } }" > "$WORK/luatest/scripts/n9/cfg.lua"
 [ "$SHOT" = n5sightprobe ] && echo "content=n5sightprobe.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S3 (actor hooks): the same scenario, but the pack walks the actor: put "[extension.skyrimse]" and
 # "actor test walk = <editor id>" into SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1 in the environment; the NACTWALK
@@ -206,7 +213,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5npcfight|n8crime) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5npcfight|n8crime|n9pick) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

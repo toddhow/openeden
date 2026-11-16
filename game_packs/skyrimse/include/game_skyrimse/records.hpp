@@ -259,6 +259,7 @@ namespace game_skyrimse
         std::optional<EnableParent> mEnableParent; ///< XESP
         std::optional<RefOwner> mOwner; ///< XOWN (+ XRNK)
         std::optional<RefLock> mLock; ///< XLOC
+        std::int32_t mItemCount = 0; ///< XCNT (task 0208): the count of a placed stack, 0 when none
         std::optional<RefTeleport> mTeleport; ///< XTEL
         std::vector<RefLink> mLinks; ///< XLKR (stage S6f), file order
         /// XPRD (stage S6f): the seconds a patrolling actor idles at this marker. VERIFIED size 4 (a float: 10.0, 3.0,

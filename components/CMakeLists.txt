@@ -587,7 +587,7 @@ add_component_dir (ui_lua
 if (TARGET openeden_rmlui)
     add_component_dir (ui_rml
         bitmapfont codepage fontengine fileinterface renderinterface systeminterface uigeometry overlay debugpanel
-        uiscale inputmap inputrouter ime clipboard controllerfocus themesheet themehost rmlprotocol
+        uiscale inputmap inputrouter ime clipboard controllerfocus themesheet themehost rmlprotocol fontfamilies
         )
 endif()
 

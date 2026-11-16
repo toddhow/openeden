@@ -29,7 +29,7 @@ function M.create(env)
   end
 
   local function build()
-    return ui.Document{ name = 'skyrim-crime-offer', class = 'panel',
+    return ui.Document{ name = 'skyrim-crime-offer', class = 'panel plain-font',
       style = { position = 'absolute', left = 24, top = 24, width = WINDOW_WIDTH },
       build = function()
         return ui.Column{

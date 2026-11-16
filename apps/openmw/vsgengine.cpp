@@ -556,6 +556,7 @@ namespace OMW
             {
                 UiRml::OverlayConfig overlayConfig;
                 overlayConfig.mBitmapFont = std::string(Fallback::Map::getString("Fonts_Font_0"));
+                overlayConfig.mPlainBitmapFont = std::string(Fallback::Map::getString("Fonts_Font_1")); // task 0208
                 overlayConfig.mEncoding = args.encoding;
                 overlayConfig.mGuiScale = Settings::gui().mScalingFactor;
                 overlayConfig.mTheme = Settings::gui().mRmluiTheme.get();

@@ -2643,6 +2643,10 @@ namespace game_skyrimse
                 for (const auto& [placement, component] : components)
                     if (component.owner)
                         mOwners[placement] = *component.owner; // task 0204
+            if (mItemCounts.size() < 1024u * 1024u)
+                for (const auto& [placement, component] : components)
+                    if (component.itemCount > 0)
+                        mItemCounts[placement] = component.itemCount; // task 0208
             mLastComponents = std::move(components);
             if (entry.mLighting && entry.mInfo.interior)
                 mLastLighting = makeCellLighting(*entry.mLighting);
@@ -2664,6 +2668,12 @@ namespace game_skyrimse
         if (it == mOwners.end())
             return std::nullopt;
         return it->second;
+    }
+
+    std::int32_t SkyrimWorldView::itemCountOfPlacement(FormId placement) const
+    {
+        const auto it = mItemCounts.find(placement);
+        return it == mItemCounts.end() ? 0 : it->second;
     }
 
     bool SkyrimWorldView::isFactionForm(FormId form) const

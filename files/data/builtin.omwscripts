@@ -65,3 +65,6 @@ GLOBAL REQUIRES=core.skyrimse.lockbooks>=1.0: scripts/openeden/skyrimse/lockpick
 PLAYER REQUIRES=core.skyrimse.lockbooks>=1.0: scripts/openeden/skyrimse/lockpick_player.lua
 GLOBAL REQUIRES=core.skyrimse.lockbooks>=1.0: scripts/openeden/skyrimse/books_global.lua
 PLAYER REQUIRES=core.skyrimse.lockbooks>=1.0: scripts/openeden/skyrimse/books_player.lua
+# Skyrim SE item pickup and pickpocketing (task 0208): the namespace is declared with the inventory.
+GLOBAL REQUIRES=core.skyrimse.pickup>=1.0: scripts/openeden/skyrimse/pickup_global.lua
+PLAYER REQUIRES=core.skyrimse.pickup>=1.0: scripts/openeden/skyrimse/pickup_player.lua

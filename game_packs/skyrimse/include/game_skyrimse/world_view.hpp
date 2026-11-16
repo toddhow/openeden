@@ -452,6 +452,8 @@ namespace game_skyrimse
         /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every cell
         /// loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
         [[nodiscard]] std::optional<openeden::sdk::game::OwnerComponent> ownerOfPlacement(FormId placement) const;
+        /// Task 0208: the XCNT of a loaded placed stack, 0 when it has none. Main thread.
+        [[nodiscard]] std::int32_t itemCountOfPlacement(FormId placement) const;
         /// True when the form is a FACT (else an NPC_). Needs the actor index (built by the combat or the first actor).
         [[nodiscard]] bool isFactionForm(FormId form) const;
         /// The crime data of a faction (null: none or no crime values) and its name (the FULL, else the editor id).
@@ -676,6 +678,7 @@ namespace game_skyrimse
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::unordered_map<FormId, openeden::sdk::game::OwnerComponent> mOwners; ///< task 0204: every loaded owned placement
+        std::unordered_map<FormId, std::int32_t> mItemCounts; ///< task 0208: XCNT of every loaded placed stack
         std::vector<Content::Error> mErrors;
         Stats mStats;
         bool mFinished = false;

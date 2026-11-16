@@ -24,6 +24,7 @@
 #include "clipboard.hpp"
 #include "controllerfocus.hpp"
 #include "debugpanel.hpp"
+#include "fontfamilies.hpp"
 #include "fileinterface.hpp"
 #include "fontengine.hpp"
 #include "ime.hpp"
@@ -295,6 +296,11 @@ namespace UiRml
             if (loaded)
             {
                 Log(Debug::Info) << "[UI] bitmap font " << config.mBitmapFont << " loaded";
+                // Task 0208: the plain family (its own font, else the main one under the second name).
+                const std::string plainPath = plainFontPath(config.mPlainBitmapFont, config.mBitmapFont);
+                if (!plainPath.empty() && !mFonts->addBitmapFont(std::string(kPlainFontFamily), plainPath))
+                    mFonts->addBitmapFont(
+                        std::string(kPlainFontFamily), plainFontPath(std::string(), config.mBitmapFont));
                 return;
             }
             // MysticCards/DejaVu are TrueType: the engine's own font as the stand-in, as the MyGUI loader does.

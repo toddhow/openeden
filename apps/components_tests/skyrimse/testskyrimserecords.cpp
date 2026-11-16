@@ -1226,4 +1226,38 @@ namespace
             }
         }
     }
+
+    // ---- XCNT (task 0208): the count of a placed stack ------------------------------------------------------------
+    // XCNT is 4 bytes, an i32 (VERIFIED on 118 of the 118 four-byte subrecords of that name in Skyrim.esm that sit in
+    // uncompressed records; the 35 twenty-byte ones belong to another record type).
+
+    TEST(SkyrimRecordsItemCount, aCountIsRead)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, sub4("XCNT", Bytes().u32(25)))), defaultOrder());
+        ASSERT_TRUE(p.mOk) << p.mError.describe();
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        EXPECT_EQ(r->mItemCount, 25);
+        EXPECT_EQ(p.mPlugin.mOddSubrecords, 0u);
+    }
+
+    TEST(SkyrimRecordsItemCount, noCountIsZero)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, Bytes())), defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        EXPECT_EQ(r->mItemCount, 0);
+    }
+
+    TEST(SkyrimRecordsItemCount, aWrongSizeIsCountedAndGivesNoCount)
+    {
+        for (const Bytes& data : { Bytes().u16(7), Bytes().u32(3).u32(4), Bytes() })
+        {
+            const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, sub4("XCNT", data))), defaultOrder());
+            const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+            ASSERT_NE(r, nullptr);
+            EXPECT_EQ(r->mItemCount, 0) << data.size();
+            EXPECT_EQ(p.mPlugin.mOddBy.count("REFR.XCNT"), 1u) << data.size();
+        }
+    }
 }

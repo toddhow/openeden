@@ -581,6 +581,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimselockbooksreal.cpp
     skyrimse/testskyrimselockbooksskill.cpp
     skyrimse/testskyrimselockbookssource.cpp
+    skyrimse/testskyrimsepickup.cpp
+    skyrimse/testskyrimsepickupservice.cpp
+    skyrimse/testskyrimsepickpocketcrime.cpp
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
     ui/testuicombathudcrosshair.cpp
@@ -730,6 +733,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/lockbooks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/lockbooks_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pickup.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pickup_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
@@ -829,6 +834,7 @@ if (TARGET openeden_rmlui)
         ui_rml/testuiinput.cpp
         ui_rml/testuitheme.cpp
         ui_rml/testuiwidgetsheet.cpp
+        ui_rml/testuifontfamilies.cpp
         ui_rml/testuiwrappedtext.cpp
     )
 endif()
