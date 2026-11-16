@@ -182,6 +182,14 @@ namespace MWPhysics
             std::uint64_t mPlayerAttackEdges = 0;
             /// Task 0192: nanoseconds spent inside rules->combatUpdate (summed, only with OPENEDEN_NEUTRAL_ACTOR_COST).
             std::uint64_t mRulesNs = 0;
+            std::uint64_t mRaysCast = 0; ///< task 0191
+            std::uint64_t mRaysRefused = 0; ///< bad request, unknown subject, no world, outside update
+            std::uint64_t mVisualShotsLaunched = 0; ///< launched with visualOnly (also counted in mProjectilesLaunched)
+            std::uint64_t mVisualShotsEnded = 0; ///< ended without a word to the pack
+            std::uint64_t mEffectsShown = 0;
+            std::uint64_t mEffectsHidden = 0;
+            std::uint64_t mEffectsRefused = 0; ///< bad request, stale subject, table full, outside update
+            std::uint64_t mEffectsLost = 0; ///< removed because the subject went
         };
 
         static constexpr std::size_t kMaxPlaying = 64;
@@ -301,6 +309,11 @@ namespace MWPhysics
             bool setClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier) override;
             bool clipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
                 float& out) override;
+            bool castRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
+                openeden::sdk::game::RayHit& out) override;
+            bool showEffect(openeden::sdk::game::CombatSubject subject,
+                const openeden::sdk::game::EffectRequest& request) override;
+            bool hideEffect(std::uint32_t token) override;
             NeutralClipSink* mSink = nullptr; ///< non-null only while the pack's combatUpdate runs
             NeutralCombatWorld* mWorld = nullptr; ///< likewise (may be null: sweeps are then refused)
 
@@ -325,6 +338,11 @@ namespace MWPhysics
             bool doSetClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier);
             bool doClipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
                 float& out);
+            bool doCastRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
+                openeden::sdk::game::RayHit& out);
+            bool doShowEffect(openeden::sdk::game::CombatSubject subject,
+                const openeden::sdk::game::EffectRequest& request);
+            bool doHideEffect(std::uint32_t token);
             NeutralCombatBridge& mBridge;
         };
 
@@ -343,10 +361,22 @@ namespace MWPhysics
         };
 
         void stepProjectiles(float seconds, NeutralClipSink& sink, NeutralCombatWorld* world);
+        void followEffects(NeutralClipSink& sink, NeutralCombatWorld* world); ///< task 0191
+
+        /// Task 0191: a model shown on a subject (a ward's body), kept at its position every frame. Its id is in the
+        /// same space as the projectiles' (the sink does not tell them apart).
+        struct Effect
+        {
+            std::uint32_t mId = 0;
+            std::uint32_t mToken = 0;
+            openeden::sdk::game::CombatSubject mSubject;
+            float mHeight = 0.f;
+        };
 
         const NeutralActorBridge& mActors;
         std::vector<NeutralProjectile::Shot> mShots; ///< in flight
         std::vector<Stuck> mStuck; ///< arrows that hit the world and are still drawn
+        std::vector<Effect> mEffects; ///< task 0191, at most kMaxShownEffects
         std::vector<openeden::sdk::game::ProjectileResult> mProjectileResults; ///< ended, not yet told
         std::uint32_t mNextProjectileId = 1;
         std::vector<SweepResult> mResults; ///< cast, not yet told

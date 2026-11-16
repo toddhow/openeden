@@ -38,6 +38,9 @@ namespace NifScene::Flat
     namespace ShaderFlags
     {
         constexpr std::uint32_t sVertexAlpha = 1u << 3; // flags 1
+        // Task 0191: an effect shader's colour is looked up in its greyscale texture (checked on the Firebolt's shapes:
+        // flags 0x80000078 and 0xC0000010 both have it).
+        constexpr std::uint32_t sGreyscaleToPaletteColor = 1u << 4; // flags 1
         // Heat shimmer and glass: the Whiterun inn's fire planes carry both bits (flags 0x02418309), measured.
         constexpr std::uint32_t sRefraction = 1u << 15; // flags 1
         constexpr std::uint32_t sFireRefraction = 1u << 16; // flags 1
@@ -74,6 +77,13 @@ namespace NifScene::Flat
         /// node's pose; a shape whose bones are missing stays out. Off (the default) skinned shapes are left out as
         /// before. Actors do not use this: their skinned shapes keep the Skinned path (skinned.hpp).
         bool mSkinnedAtRest = false;
+        /// Task 0191 (visible spells): keep the shapes of a BSEffectShaderProperty (the glow cards and cones of a spell
+        /// projectile) instead of leaving them out. Such a shape is drawn with its source texture, its base colour
+        /// (times the scale) as the tint and the blend its NiAlphaProperty names; the palette lookup, the falloff cone,
+        /// the soft depth fade and the shader's controllers are NOT played (a stand-in). Shapes that refract (heat
+        /// shimmer) stay out. Particle systems are not geometry in a Nif::Scene and are never drawn. Off (the
+        /// default) effect shapes are left out as before.
+        bool mEffects = false;
     };
 
     /// What makes two shapes drawable by one StateGroup.
@@ -103,6 +113,13 @@ namespace NifScene::Flat
         /// Task 0136: a Tree_Anim shape under Limits::mTreeSway. Its Shape::mColors alpha is the file's vertex alpha
         /// (the vertex's flexibility); such a shape is never merged with a still one.
         bool mSway = false;
+        /// Task 0191: a BSEffectShaderProperty shape kept under Limits::mEffects. mDiffuse is its source texture; the
+        /// tint is the shader's base colour times its base colour scale (RGB) and its base alpha (A).
+        bool mEffect = false;
+        std::array<float, 4> mEffectColor{ 1.f, 1.f, 1.f, 1.f };
+        /// The effect shader's greyscale (palette) texture when its flags say the colour comes from it, else empty. The
+        /// host takes one texel of it as the tint (the lookup itself is not played).
+        std::string mPalette;
         friend auto operator<=>(const MaterialKey&, const MaterialKey&) = default;
     };
 

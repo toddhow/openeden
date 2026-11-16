@@ -398,6 +398,12 @@ namespace game_skyrimse
         return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->projectile(id);
     }
 
+    std::string_view SkyrimWorldView::artModelById(FormId id)
+    {
+        const ArtRecord* art = mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->art(id);
+        return art == nullptr ? std::string_view() : std::string_view(art->mModel);
+    }
+
     MagicSettings SkyrimWorldView::magicSettings()
     {
         return mCombatIndex == nullptr ? MagicSettings{} : mCombatIndex->settings().magicSettings();

@@ -396,8 +396,9 @@ namespace NifScene::Flat
                 continue;
             }
             const ShaderMaterial& material = scene.mMaterials[geometry.mMaterial];
-            if (material.mKind == ShaderKind::Effect
-                || (material.mFlags1 & (ShaderFlags::sRefraction | ShaderFlags::sFireRefraction)) != 0)
+            const bool isEffect = material.mKind == ShaderKind::Effect;
+            const bool refracts = (material.mFlags1 & (ShaderFlags::sRefraction | ShaderFlags::sFireRefraction)) != 0;
+            if ((isEffect && !limits.mEffects) || refracts)
             {
                 ++report.mSkippedEffect;
                 continue;
@@ -567,7 +568,30 @@ namespace NifScene::Flat
             key.mSway = treeSway;
             key.mClampMode = static_cast<std::uint8_t>(material.mClampMode & 3u);
             key.mAlpha = std::isfinite(material.mAlpha) ? std::clamp(material.mAlpha, 0.f, 1.f) : 1.f;
-            if (!uvs.empty() && material.mTextureSet < scene.mTextureSets.size())
+            if (isEffect)
+            {
+                // Task 0191: an effect shader names its picture itself, and tints it with its base colour.
+                key.mEffect = true;
+                const bool scaled = std::isfinite(material.mBaseColorScale) && material.mBaseColorScale > 0.f;
+                const float scale = scaled ? material.mBaseColorScale : 1.f;
+                for (std::size_t c = 0; c < 3; ++c)
+                {
+                    const float value = material.mBaseColor[c];
+                    key.mEffectColor[c] = (std::isfinite(value) ? std::max(0.f, value) : 1.f) * scale;
+                }
+                // A base alpha of 0 is the start value of an alpha controller the stand-in does not play (the
+                // Firebolt's cone): drawn as 1.
+                const float alpha = material.mBaseColor[3];
+                key.mEffectColor[3] = (std::isfinite(alpha) && alpha > 0.f) ? std::min(alpha, 1.f) : 1.f;
+                key.mAlpha = key.mEffectColor[3];
+                if ((material.mFlags1 & ShaderFlags::sGreyscaleToPaletteColor) != 0
+                    && material.mGreyscaleTexture.size() <= limits.mMaxPathLength)
+                    key.mPalette = material.mGreyscaleTexture;
+                if (!uvs.empty() && !material.mSourceTexture.empty()
+                    && material.mSourceTexture.size() <= limits.mMaxPathLength)
+                    key.mDiffuse = material.mSourceTexture;
+            }
+            else if (!uvs.empty() && material.mTextureSet < scene.mTextureSets.size())
             {
                 const auto& set = scene.mTextureSets[material.mTextureSet].mTextures;
                 if (!set.empty() && !set[0].empty() && set[0].size() <= limits.mMaxPathLength)

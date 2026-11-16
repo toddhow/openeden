@@ -43,6 +43,7 @@ namespace MWPhysics::NeutralProjectile
         float mAge = 0.f; ///< seconds in flight
         float mStickDepth = 0.f;
         float mStickSeconds = 0.f;
+        bool mVisualOnly = false; ///< task 0191: drawn and flown, never reported and never stuck
     };
 
     /// Answers whether the segment from p0 to p1 meets a static body (geometry, terrain, a closed door) and where, as

@@ -129,6 +129,19 @@ namespace game_skyrimse
         bool clipEventTime(
             std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind, float& out) override;
         bool reportDeath(openeden::sdk::game::ActorHandle actor) override;
+        // Task 0191 (contract 0.5): passed on as they are. A wrapper that does not forward a new virtual function
+        // silently gives the pack the default, which refuses.
+        bool castRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
+            openeden::sdk::game::RayHit& out) override
+        {
+            return mInner.castRay(from, request, out);
+        }
+        bool showEffect(
+            openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::EffectRequest& request) override
+        {
+            return mInner.showEffect(subject, request);
+        }
+        bool hideEffect(std::uint32_t token) override { return mInner.hideEffect(token); }
 
     private:
         openeden::sdk::game::CombatRequestWriter& mInner;

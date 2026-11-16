@@ -291,6 +291,45 @@ namespace game_skyrimse
         return true;
     }
 
+    // ---- task 0191: ARTO -----------------------------------------------------------------------------------------
+
+    bool decodeArt(std::span<const std::byte> bytes, const Content::RawRecord& record, const DecodeContext& context,
+        ArtRecord& out, std::string& why)
+    {
+        const Fields fields{ context, "ARTO", why };
+        out = ArtRecord();
+        out.mCommon = fields.common(record);
+        SubReader reader(bytes);
+        std::uint32_t type = 0;
+        std::span<const std::byte> data;
+        int status = 0;
+        while ((status = reader.next(type, data)) == 1)
+        {
+            if (type == Content::fourCC("EDID"))
+            {
+                if (!fields.zstring(type, data, out.mCommon.mEditorId))
+                    return false;
+            }
+            else if (type == Content::fourCC("MODL"))
+            {
+                if (!fields.zstring(type, data, out.mModel))
+                    return false;
+            }
+        }
+        if (status < 0)
+        {
+            why = reader.message();
+            return false;
+        }
+        return true;
+    }
+
+    const ArtRecord* CombatIndex::art(FormId id) const
+    {
+        const auto it = mArts.find(id);
+        return it == mArts.end() ? nullptr : &it->second;
+    }
+
     // ---- task 0178 (stage S5-6): PROJ, AMMO, the bow hit and the arrow's numbers -----------------------------------
 
     bool decodeProjectile(std::span<const std::byte> bytes, const Content::RawRecord& record,
@@ -571,7 +610,7 @@ namespace game_skyrimse
                 const std::uint32_t t = record.mType;
                 if (t != Content::fourCC("WEAP") && t != Content::fourCC("RACE") && t != Content::fourCC("GMST")
                     && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO") && t != Content::fourCC("PERK")
-                    && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF"))
+                    && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("ARTO"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -613,6 +652,13 @@ namespace game_skyrimse
                     ok = decodeProjectile(bytes, record, mContext, p, why);
                     if (ok)
                         mOut.mProjectiles.push_back(std::move(p));
+                }
+                else if (t == Content::fourCC("ARTO"))
+                {
+                    ArtRecord a;
+                    ok = decodeArt(bytes, record, mContext, a, why);
+                    if (ok)
+                        mOut.mArts.push_back(std::move(a));
                 }
                 else if (t == Content::fourCC("AMMO"))
                 {
@@ -785,6 +831,13 @@ namespace game_skyrimse
                 mProjectiles.erase(p.mCommon.mId);
             else
                 mProjectiles[p.mCommon.mId] = p;
+        }
+        for (const ArtRecord& a : records.mArts)
+        {
+            if (a.mCommon.deleted())
+                mArts.erase(a.mCommon.mId);
+            else
+                mArts[a.mCommon.mId] = a;
         }
         for (const AmmoRecord& a : records.mAmmo)
         {

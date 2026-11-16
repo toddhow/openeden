@@ -110,6 +110,17 @@ namespace MWRender::SkyrimModel
             return texel != nullptr && texel->at(0, 0) == vsg::ubvec4(0xff, 0x00, 0xff, 0xff);
         }
 
+        // Task 0191: the spell models live under meshes/magic; only they draw their effect shader shapes (the effect
+        // shapes of a world model, a torch's flame cards for one, stay out as before).
+        bool isMagicModelPath(const std::string& filename)
+        {
+            std::string path;
+            path.reserve(filename.size());
+            for (char c : filename)
+                path.push_back(c == '\\' ? '/' : static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c));
+            return path.find("meshes/magic/") != std::string::npos;
+        }
+
         // OPENEDEN_NIFSCENE_TRACE=1 writes one line per drawn shape to stderr (a developer aid, read once).
         bool traceEnabled()
         {
@@ -489,7 +500,60 @@ namespace MWRender::SkyrimModel
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
             vsgUtil::setID(*dataList.back(), static_cast<int>(Pipeline::Mode::NORMAL));
             const bool swaying = key.mSway && context.mSwayUniform && !shape.mColors.empty();
-            if (!shape.mColors.empty())
+            if (key.mEffect)
+            {
+                // Task 0191: an effect shape is drawn unlit (colour mode 3: the vertex colour times the texture, alpha
+                // included): the shader's base colour times the file's vertex colour, and its alpha times the vertex
+                // alpha when the shader uses it. Blending comes from the key.
+                std::array<float, 4> base = key.mEffectColor;
+                if (!key.mPalette.empty())
+                {
+                    // The palette lookup is not played: one texel of the greyscale texture (below) replaces the base
+                    // colour. A palette that cannot be read leaves the base colour.
+                    NifScene::FaceTint::Image palette;
+                    if (readRgba(key.mPalette, context, palette) && palette.mWidth > 0 && palette.mHeight > 0)
+                    {
+                        // The palette is a gradient (greyscale value along it, the effect's alpha down it): the lookup
+                        // is not played, the texel of the column five eighths along that is the most colourful and
+                        // opaque stands for it, looking at the upper three quarters of the rows (orange for the fire
+                        // gradients, blue for the ward's; the top rows are transparent, the bottom ones white or blue).
+                        const std::size_t x = std::min<std::size_t>(palette.mWidth - 1, palette.mWidth * 5 / 8);
+                        std::size_t best = 0;
+                        int bestScore = -1;
+                        for (std::size_t row = 0; row < palette.mHeight * 3 / 4; ++row)
+                        {
+                            const std::uint8_t* t = &palette.mRgba[(row * palette.mWidth + x) * 4];
+                            const int chroma = std::max({ t[0], t[1], t[2] }) - std::min({ t[0], t[1], t[2] });
+                            const int score = chroma * (static_cast<int>(t[3]) + 32);
+                            if (score > bestScore)
+                            {
+                                bestScore = score;
+                                best = row;
+                            }
+                        }
+                        const std::size_t i = (best * palette.mWidth + x) * 4;
+                        // The hue of that texel at full brightness: the real lookup runs along the whole gradient and
+                        // its alpha controller fades the effect in, which a still draw does not do, so the mid
+                        // gradient's dim colour would draw the ward nearly black.
+                        const float peak = static_cast<float>(
+                            std::max({ palette.mRgba[i], palette.mRgba[i + 1], palette.mRgba[i + 2] }));
+                        for (std::size_t c = 0; c < 3; ++c)
+                            base[c] = peak > 0.f ? static_cast<float>(palette.mRgba[i + c]) / peak : base[c];
+                    }
+                }
+                if (traceEnabled())
+                    Log(Debug::Info) << "NIFSCENE effect base " << base[0] << "," << base[1] << "," << base[2]
+                                     << " palette '" << key.mPalette << "' in " << context.mFilename;
+                std::vector<std::array<float, 4>> tinted(shape.mPositions.size(), base);
+                if (shape.mColors.size() == tinted.size())
+                    for (std::size_t v = 0; v < tinted.size(); ++v)
+                        for (std::size_t c = 0; c < 4; ++c)
+                            tinted[v][c] *= shape.mColors[v][c];
+                shader.addMode(Pipeline::Mode::COLOR);
+                dataList.emplace_back(copyArray<vsg::vec4Array>(tinted));
+                options.colorMode = 3;
+            }
+            else if (!shape.mColors.empty())
             {
                 shader.addMode(Pipeline::Mode::COLOR);
                 // Task 0136: a swaying shape's alpha is the sway weight the vertex shader squares (the file's own
@@ -574,7 +638,8 @@ namespace MWRender::SkyrimModel
                      << " colors=" << key.mVertexColors << " verts=" << shape.mPositions.size()
                      << " tris=" << shape.mIndices.size() / 3 << " thr=" << key.mThreshold
                      << " emis=" << key.mEmissive[0] << "," << key.mEmissive[1] << ","
-                     << key.mEmissive[2]
+                     << key.mEmissive[2] << " fx=" << key.mEffect << ":" << key.mEffectColor[0] << ","
+                     << key.mEffectColor[1] << "," << key.mEffectColor[2] << "," << key.mEffectColor[3]
                      // Task 0153 follow-up: what the file's vertex colours and normals hold (mean rgb, mean normal z).
                      << " vcol=" <<
                     [&shape] {
@@ -726,9 +791,10 @@ namespace MWRender::SkyrimModel
     {
         auto reader = std::make_shared<vsgAdapters::nif::SceneReader>();
         const bool surfaceMaps = Settings::game().mNeutralWorldMaterials; // read once, as the neutral world switch is
+        const bool spellEffects = Settings::game().mNeutralSpellEffects; // task 0191, read once as well
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
         reader->read
-            = [&builder, imageOptions, depthSortedBin, surfaceMaps, swayUniform](std::string data,
+            = [&builder, imageOptions, depthSortedBin, surfaceMaps, spellEffects, swayUniform](std::string data,
                   const std::string& filename, vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
             Counters& totals = counters();
             try
@@ -740,6 +806,7 @@ namespace MWRender::SkyrimModel
                 NifScene::Flat::Limits limits;
                 limits.mSurfaceMaps = surfaceMaps;
                 limits.mTreeSway = swayUniform != nullptr;
+                limits.mEffects = spellEffects && isMagicModelPath(filename);
                 // Task 0136: the trunks and branches of trees are skinned shapes; as static models they are drawn in
                 // the rest pose (this reader is for statics only, actors have their own skinned path).
                 limits.mSkinnedAtRest = true;

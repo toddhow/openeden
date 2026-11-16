@@ -496,6 +496,12 @@ namespace game_skyrimse
                     out.mProjectile = readLe<std::uint32_t>(data.data() + 72) == 0
                         ? kNullFormId
                         : fields.resolved(readLe<std::uint32_t>(data.data() + 72));
+                    out.mCastingArt = readLe<std::uint32_t>(data.data() + 92) == 0
+                        ? kNullFormId
+                        : fields.resolved(readLe<std::uint32_t>(data.data() + 92));
+                    out.mHitEffectArt = readLe<std::uint32_t>(data.data() + 96) == 0
+                        ? kNullFormId
+                        : fields.resolved(readLe<std::uint32_t>(data.data() + 96));
                     out.mCastType = readLe<std::uint32_t>(data.data() + 80);
                     out.mDelivery = readLe<std::uint32_t>(data.data() + 84);
                     out.mSecondaryValue = readLe<std::int32_t>(data.data() + 88);

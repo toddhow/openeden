@@ -34,7 +34,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kCombatRulesVersion{ 0, 4 };
+    inline constexpr Version kCombatRulesVersion{ 0, 5 };
 
     /// Who a combat request or event is about: an actor by handle, or the player (who has no ActorHandle). The player
     /// swings, is swept from and is told its clip events through the same functions as an actor, so S5-3 (NPC against
@@ -218,6 +218,11 @@ namespace openeden::sdk::game
         /// The model's VFS path (for example `meshes/weapons/iron/ironarrowprojectile.nif`); valid during the call only,
         /// the core copies it. Empty: the shot is not drawn.
         std::string_view model;
+        /// 0.5 (task 0191): a shot that is only drawn. The core flies it like any other (it ends on the first actor or
+        /// static body, or when its range is used up), but it hurts nothing and is never told to the pack
+        /// (onProjectileResult is not called for it), and it does not stick in the world. A pack streams these along a
+        /// beam it resolved with castRay so the spray of Flames is seen.
+        bool visualOnly = false;
     };
 
     enum class ProjectileFate : std::uint8_t
@@ -252,6 +257,51 @@ namespace openeden::sdk::game
         float hitTime = 0.f;
         float length = 0.f;
     };
+
+    /// A straight line from a point of the world (task 0191, 0.5): the line a held aimed spell, a touch spell or a
+    /// beam follows, answered at once by CombatRequestWriter::castRay.
+    struct RayRequest
+    {
+        double x = 0.0; ///< start, game units
+        double y = 0.0;
+        double z = 0.0;
+        float heading = 0.f; ///< radians about Z as the engine stores it (0 faces +Y)
+        float pitch = 0.f; ///< elevation, radians in (-pi/2, pi/2), positive up
+        float range = 0.f; ///< length of the line, > 0
+    };
+
+    enum class RayFate : std::uint8_t
+    {
+        Nothing = 0, ///< the line met nothing within its range
+        Actor = 1,
+        Player = 2,
+        World = 3, ///< a static body (geometry, terrain, a closed door)
+    };
+
+    struct RayHit
+    {
+        RayFate fate = RayFate::Nothing;
+        ActorHandle actor; ///< valid when fate == Actor
+        double x = 0.0; ///< where it ended: the hit point, or the far end of the line when it met nothing
+        double y = 0.0;
+        double z = 0.0;
+        float distance = 0.f; ///< from the start to (x, y, z)
+    };
+
+    /// A model the pack asks the core to show on a subject (task 0191, 0.5), for example the body of a ward. The core
+    /// keeps it at the subject's position (plus `heightOffset` up), facing the subject's heading, every frame, until
+    /// the pack hides it or the subject is gone. The model is drawn as an effect, not simulated.
+    struct EffectRequest
+    {
+        std::uint32_t token = 0; ///< the pack's number, used to hide it; showing a token again replaces it
+        float heightOffset = 0.f; ///< units above the subject's feet position, finite
+        /// The model's VFS path (for example `meshes/magic/wardbodyfx.nif`); valid during the call only, the core
+        /// copies it. Must not be empty.
+        std::string_view model;
+    };
+
+    /// Most effects shown at once (task 0191).
+    inline constexpr std::size_t kMaxShownEffects = 16;
 
     /// How the pack answers in combatUpdate(). One writer, valid during one call.
     class CombatRequestWriter
@@ -367,6 +417,36 @@ namespace openeden::sdk::game
         virtual bool reportDeath(ActorHandle actor)
         {
             (void)actor;
+            return false;
+        }
+
+        /// Casts a straight line against the world's static bodies, the placed actors and the player, 0.5. `from`'s
+        /// own body and dead actors are never hit. The answer is given at once in `out` (the nearest thing along the
+        /// line, or fate Nothing). False for a stale handle, a value that is not finite or outside the ranges of
+        /// RayRequest, and a call outside combatUpdate(). The default refuses.
+        virtual bool castRay(CombatSubject from, const RayRequest& request, RayHit& out)
+        {
+            (void)from;
+            (void)request;
+            out = {};
+            return false;
+        }
+
+        /// Shows a model on a subject (see EffectRequest), 0.5. False for a stale handle, a request that is not valid
+        /// (an empty model, a model path longer than 256 bytes or with `..` or a drive letter, a height that is not
+        /// finite), kMaxShownEffects shown already, and a call outside combatUpdate(). The default refuses.
+        virtual bool showEffect(CombatSubject subject, const EffectRequest& request)
+        {
+            (void)subject;
+            (void)request;
+            return false;
+        }
+
+        /// Stops showing the effect of `token`, 0.5. True when one was shown (it goes away at once), false when none
+        /// was, and outside combatUpdate(). The default refuses.
+        virtual bool hideEffect(std::uint32_t token)
+        {
+            (void)token;
             return false;
         }
     };

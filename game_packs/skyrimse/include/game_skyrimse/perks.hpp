@@ -164,6 +164,10 @@ namespace game_skyrimse
         std::int32_t mResistValue = -1;
         float mSecondaryWeight = 0.f;
         FormId mProjectile = kNullFormId; ///< PROJ, resolved (0 when none)
+        /// Task 0191: MGEF DATA +92 casting art and +96 hit effect art (ARTO, resolved, 0 when none). VERIFIED by the
+        /// data for the ward (WardInHandFX and WardHitEffect, whose model is Magic/WardBodyFX.nif) and Firebolt.
+        FormId mCastingArt = kNullFormId;
+        FormId mHitEffectArt = kNullFormId;
         std::uint32_t mCastType = 0;
         std::uint32_t mDelivery = 0;
         std::int32_t mSecondaryValue = -1;

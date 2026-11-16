@@ -531,6 +531,8 @@ namespace game_skyrimse
             return;
         const Concentration c = mConcentrations[index];
         mConcentrations.erase(mConcentrations.begin() + static_cast<std::ptrdiff_t>(index));
+        if (c.mEffectToken != 0)
+            mPendingHides.push_back(c.mEffectToken);
         if (Fighter* f = find(c.mCaster))
             if (c.mSpell != nullptr && f->mWardMax > 0.f && isWard(*mData, *c.mSpell))
             {
@@ -564,8 +566,12 @@ namespace game_skyrimse
             f->mMagicka -= spend;
             f->mMagickaRegenAt = mClock + mMagicSettings.mDamagedMagickaRegenDelay;
             const float seconds = step * fraction;
+            if (c.mBeam)
+                tickBeam(writer, c, *f, spell, seconds);
             for (const SpellEffect& effect : spell.mEffects)
             {
+                if (c.mBeam)
+                    break; // a beam's effects go to what its ray meets (tickBeam), not to the caster
                 const MagicEffectRecord* record = mData->effectById(effect.mEffect);
                 if (record == nullptr || !record->mHasData)
                     continue;
@@ -733,7 +739,8 @@ namespace game_skyrimse
         const std::string name = spellName(spell);
         if (spell.mCastType == MagicCast::Concentration)
         {
-            if (spell.mDelivery != MagicDelivery::Self)
+            const bool beam = spell.mDelivery == MagicDelivery::Aimed || spell.mDelivery == MagicDelivery::Touch;
+            if (spell.mDelivery != MagicDelivery::Self && !(beam && mSpellBeams))
             {
                 trace("COMBAT cast " + name + ": a held spell that is not cast on its caster is not supported");
                 return;
@@ -744,6 +751,10 @@ namespace game_skyrimse
             c.mCaster = cast.mCaster;
             c.mSpell = &spell;
             c.mHeldByKey = cast.mHeldByKey;
+            c.mBeam = spell.mDelivery != MagicDelivery::Self;
+            c.mNextVisual = mClock;
+            if (isWard(*mData, spell))
+                c.mEffectToken = showWardBody(writer, *f, spell);
             c.mEndAt = cast.mHeldByKey ? -1.f : mClock + cast.mHold;
             c.mTraceAt = mClock;
             if (isWard(*mData, spell))
@@ -778,6 +789,11 @@ namespace game_skyrimse
         if (spell.mDelivery == MagicDelivery::Self)
         {
             applySpellEffects(writer, *f, *f, spell, nullptr);
+            return;
+        }
+        if (spell.mDelivery == MagicDelivery::Touch && mSpellBeams)
+        {
+            touchCast(writer, *f, spell);
             return;
         }
         if (spell.mDelivery != MagicDelivery::Aimed)
@@ -828,6 +844,216 @@ namespace game_skyrimse
         caster->mCombatUntil = mClock + kCombatLingerSeconds;
         applySpellEffects(writer, *caster, *victim, *launched.mSpell, &where);
         return true;
+    }
+
+    // ---- task 0191: beams, touch and what is drawn ---------------------------------------------------------------
+
+    bool SkyrimCombat::aimRay(
+        CombatRequestWriter& writer, const Fighter& caster, float range, openeden::sdk::game::RayRequest& out)
+    {
+        SubjectState self;
+        if (!writer.subjectState(caster.mSubject, self))
+            return false;
+        out = {};
+        out.range = range;
+        if (caster.mSubject.player)
+        {
+            out.x = self.x + std::sin(static_cast<double>(self.heading)) * static_cast<double>(kBowMuzzleForward);
+            out.y = self.y + std::cos(static_cast<double>(self.heading)) * static_cast<double>(kBowMuzzleForward);
+            out.z = self.z + static_cast<double>(kPlayerEyeHeight);
+            out.heading = self.heading;
+            out.pitch = self.pitch;
+            return true;
+        }
+        SubjectState player;
+        if (!writer.subjectState(CombatSubject::ofPlayer(), player))
+            return false;
+        const double dx = player.x - self.x;
+        const double dy = player.y - self.y;
+        const double heading = std::atan2(dx, dy);
+        out.x = self.x + std::sin(heading) * static_cast<double>(kBowMuzzleForward);
+        out.y = self.y + std::cos(heading) * static_cast<double>(kBowMuzzleForward);
+        out.z = self.z + static_cast<double>(kBowReleaseHeight);
+        const double ax = player.x - out.x;
+        const double ay = player.y - out.y;
+        const double rise = player.z + static_cast<double>(kBowAimHeight) - out.z;
+        out.heading = static_cast<float>(std::atan2(ax, ay));
+        out.pitch = static_cast<float>(std::atan2(rise, std::sqrt(ax * ax + ay * ay)));
+        return true;
+    }
+
+    float SkyrimCombat::beamRange(const SpellRecord& spell) const
+    {
+        if (spell.mDelivery == MagicDelivery::Touch)
+            return kTouchReach;
+        for (const SpellEffect& effect : spell.mEffects)
+        {
+            const MagicEffectRecord* record = mData->effectById(effect.mEffect);
+            if (record == nullptr || record->mProjectile == kNullFormId)
+                continue;
+            const ProjectileRecord* projectile = mData->projectileById(record->mProjectile);
+            if (projectile != nullptr && projectile->mHasData && projectile->mRange > 0.f)
+                return projectile->mRange;
+        }
+        return spell.mRange > 0.f ? spell.mRange : kDefaultBeamRange;
+    }
+
+    void SkyrimCombat::launchBeamVisual(CombatRequestWriter& writer, const Fighter& caster, const SpellRecord& spell,
+        const openeden::sdk::game::RayRequest& ray, float length)
+    {
+        for (const SpellEffect& effect : spell.mEffects)
+        {
+            const MagicEffectRecord* record = mData->effectById(effect.mEffect);
+            if (record == nullptr || record->mProjectile == kNullFormId)
+                continue;
+            const ProjectileRecord* projectile = mData->projectileById(record->mProjectile);
+            if (projectile == nullptr || !projectile->mHasData)
+                continue;
+            const std::string model = projectileModelPath(projectile->mModel);
+            if (model.empty())
+                return;
+            openeden::sdk::game::ProjectileRequest request;
+            request.token = mNextToken++;
+            request.x = ray.x;
+            request.y = ray.y;
+            request.z = ray.z;
+            request.heading = ray.heading;
+            request.pitch = ray.pitch;
+            request.speed = projectile->mSpeed > 0.f ? projectile->mSpeed : 1000.f;
+            request.gravity = 0.f;
+            request.range = std::max(1.f, length);
+            request.model = model;
+            request.visualOnly = true;
+            (void)writer.launchProjectile(caster.mSubject, request);
+            return;
+        }
+    }
+
+    void SkyrimCombat::tickBeam(
+        CombatRequestWriter& writer, Concentration& beam, Fighter& caster, const SpellRecord& spell, float paidSeconds)
+    {
+        openeden::sdk::game::RayRequest ray;
+        if (!aimRay(writer, caster, beamRange(spell), ray))
+            return;
+        openeden::sdk::game::RayHit hit;
+        if (!writer.castRay(caster.mSubject, ray, hit))
+            return;
+        if (mSpellVisuals && mClock >= beam.mNextVisual)
+        {
+            beam.mNextVisual = mClock + kBeamVisualInterval;
+            const bool missed = hit.fate == openeden::sdk::game::RayFate::Nothing;
+            launchBeamVisual(writer, caster, spell, ray, missed ? ray.range : hit.distance);
+        }
+        Fighter* victim = nullptr;
+        SweepHit where;
+        where.x = hit.x;
+        where.y = hit.y;
+        where.z = hit.z;
+        where.distance = hit.distance;
+        if (hit.fate == openeden::sdk::game::RayFate::Actor)
+        {
+            victim = find(CombatSubject::of(hit.actor));
+            where.target = SweepTarget::Actor;
+            where.actor = hit.actor;
+        }
+        else if (hit.fate == openeden::sdk::game::RayFate::Player)
+        {
+            victim = find(CombatSubject::ofPlayer());
+            where.target = SweepTarget::Player;
+        }
+        if (victim == nullptr || victim == &caster || victim->mDead || !ready(*victim) || !(paidSeconds > 0.f))
+            return;
+        caster.mCombatUntil = mClock + kCombatLingerSeconds;
+        for (const SpellEffect& effect : spell.mEffects)
+        {
+            const MagicEffectRecord* record = mData->effectById(effect.mEffect);
+            if (record == nullptr || !record->mHasData)
+                continue;
+            if (effect.mConditions + record->mConditions > 0 && !mApplyEffectConditions)
+                continue;
+            const std::uint32_t archetype = record->mArchetype;
+            const bool value = archetype == MagicArchetype::ValueModifier || archetype == MagicArchetype::Dual
+                || archetype == MagicArchetype::Absorb;
+            if (!value || !isVitalValue(record->mPrimaryValue))
+                continue;
+            const bool hostile = (record->mFlags & MagicFlag::Hostile) != 0;
+            float magnitude = signedMagnitude(effect.mMagnitude, record->mFlags);
+            if (hostile)
+                magnitude = (magnitude < 0.f ? -1.f : 1.f)
+                    * resistedMagnitude(std::abs(magnitude), resistOf(*victim, record->mResistValue));
+            const float taken
+                = changeVital(writer, &caster, *victim, record->mPrimaryValue, magnitude * paidSeconds, &where);
+            if (archetype == MagicArchetype::Dual && isVitalValue(record->mSecondaryValue) && !victim->mDead)
+                (void)changeVital(writer, &caster, *victim, record->mSecondaryValue,
+                    magnitude * record->mSecondaryWeight * paidSeconds, &where);
+            if (archetype == MagicArchetype::Absorb && taken != 0.f)
+                (void)changeVital(writer, nullptr, caster, record->mPrimaryValue, -taken, nullptr);
+            if (victim->mDead)
+                break;
+        }
+        if (mClock >= beam.mTraceAt)
+            trace("COMBAT beam " + spellName(spell) + " " + who(caster.mSubject) + " -> " + who(victim->mSubject)
+                + " distance " + num(hit.distance) + " health " + num(victim->mHealth));
+    }
+
+    void SkyrimCombat::touchCast(CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell)
+    {
+        caster.mCombatUntil = mClock + kCombatLingerSeconds;
+        openeden::sdk::game::RayRequest ray;
+        openeden::sdk::game::RayHit hit;
+        if (!aimRay(writer, caster, kTouchReach, ray) || !writer.castRay(caster.mSubject, ray, hit))
+            return;
+        Fighter* victim = nullptr;
+        SweepHit where;
+        where.x = hit.x;
+        where.y = hit.y;
+        where.z = hit.z;
+        where.distance = hit.distance;
+        if (hit.fate == openeden::sdk::game::RayFate::Actor)
+        {
+            victim = find(CombatSubject::of(hit.actor));
+            where.target = SweepTarget::Actor;
+            where.actor = hit.actor;
+        }
+        else if (hit.fate == openeden::sdk::game::RayFate::Player)
+        {
+            victim = find(CombatSubject::ofPlayer());
+            where.target = SweepTarget::Player;
+        }
+        if (victim == nullptr || victim == &caster || victim->mDead || !ready(*victim))
+        {
+            trace("COMBAT touch " + spellName(spell) + " " + who(caster.mSubject) + " found nothing in reach");
+            return;
+        }
+        applySpellEffects(writer, caster, *victim, spell, &where);
+    }
+
+    std::uint32_t SkyrimCombat::showWardBody(
+        CombatRequestWriter& writer, const Fighter& caster, const SpellRecord& spell)
+    {
+        if (!mSpellVisuals)
+            return 0;
+        for (const SpellEffect& effect : spell.mEffects)
+        {
+            const MagicEffectRecord* record = mData->effectById(effect.mEffect);
+            if (record == nullptr || record->mHitEffectArt == kNullFormId)
+                continue;
+            const std::string model = projectileModelPath(std::string(mData->artModelById(record->mHitEffectArt)));
+            if (model.empty())
+            {
+                trace("COMBAT ward body of " + spellName(spell) + ": the hit art has no model");
+                continue;
+            }
+            openeden::sdk::game::EffectRequest request;
+            request.token = mNextToken++;
+            request.heightOffset = kWardBodyHeight;
+            request.model = model;
+            const bool shown = writer.showEffect(caster.mSubject, request);
+            trace("COMBAT ward body " + model + (shown ? " shown on " : " refused on ") + who(caster.mSubject));
+            return shown ? request.token : 0;
+        }
+        trace("COMBAT ward body of " + spellName(spell) + ": no effect has hit art");
+        return 0;
     }
 
     // ---- who casts when --------------------------------------------------------------------------------------------
@@ -959,6 +1185,11 @@ namespace game_skyrimse
             mMagicSettings = mData->magicSettings();
             mHaveMagicSettings = true;
         }
+        if (mPendingHides.capacity() == 0)
+            mPendingHides.reserve(kMaxConcentrations);
+        for (const std::uint32_t token : mPendingHides)
+            (void)writer.hideEffect(token);
+        mPendingHides.clear();
         tickEffects(writer, step);
         tickConcentrations(writer, step);
         for (std::size_t i = 0; i < mCasts.size();)

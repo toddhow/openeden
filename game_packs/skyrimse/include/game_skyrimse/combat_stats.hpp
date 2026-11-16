@@ -141,6 +141,15 @@ namespace game_skyrimse
         std::uint32_t mValue = 0;
     };
 
+    /// Task 0191: an ARTO (art object): the model of a spell's casting or hit art.
+    struct ArtRecord
+    {
+        RecordCommon mCommon;
+        std::string mModel; ///< MODL as stored (`Magic\\WardBodyFX.nif`)
+    };
+
+    [[nodiscard]] bool decodeArt(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, ArtRecord& out, std::string& why);
     [[nodiscard]] bool decodeProjectile(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, ProjectileRecord& out, std::string& why);
     [[nodiscard]] bool decodeAmmo(std::span<const std::byte> bytes, const Content::RawRecord& record,
@@ -161,6 +170,7 @@ namespace game_skyrimse
         std::vector<RaceCombatRecord> mRaces;
         std::vector<GameSetting> mSettings;
         std::vector<ProjectileRecord> mProjectiles; ///< task 0178
+        std::vector<ArtRecord> mArts; ///< task 0191
         std::vector<PerkRecord> mPerks; ///< task 0179
         std::vector<SpellRecord> mSpells; ///< task 0179: ability spells only
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
@@ -266,6 +276,7 @@ namespace game_skyrimse
         [[nodiscard]] const WeaponRecord* weapon(FormId id) const;
         [[nodiscard]] const RaceCombatRecord* race(FormId id) const;
         [[nodiscard]] const ProjectileRecord* projectile(FormId id) const; ///< task 0178
+        [[nodiscard]] const ArtRecord* art(FormId id) const; ///< task 0191
         [[nodiscard]] const AmmoRecord* ammo(FormId id) const; ///< task 0178
         [[nodiscard]] std::vector<FormId> ammoIds() const; ///< sorted
         [[nodiscard]] std::size_t weaponCount() const { return mWeapons.size(); }
@@ -288,6 +299,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, WeaponRecord> mWeapons;
         std::unordered_map<FormId, RaceCombatRecord> mRaces;
         std::unordered_map<FormId, ProjectileRecord> mProjectiles;
+        std::unordered_map<FormId, ArtRecord> mArts;
         std::unordered_map<FormId, AmmoRecord> mAmmo;
         std::unordered_map<FormId, PerkRecord> mPerks;
         std::unordered_map<FormId, SpellRecord> mSpells;

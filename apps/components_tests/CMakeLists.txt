@@ -281,6 +281,7 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testskinned.cpp
     nifscene/testfacetint.cpp
     nifscene/testflatten.cpp
+    nifscene/testflatteneffects.cpp
     nifscene/testflattenmaterials.cpp
     nifscene/testflattentreesway.cpp
     nifscene/testflattenskinnedatrest.cpp
@@ -554,6 +555,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatstatsreal.cpp
     skyrimse/testskyrimsemagicreal.cpp
     skyrimse/testskyrimsemagic.cpp
+    skyrimse/testskyrimsecombatbeams.cpp
     skyrimse/testskyrimsecombatmagic.cpp
     skyrimse/testskyrimsecombatprojrecords.cpp
     skyrimse/testskyrimseperks.cpp

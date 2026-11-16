@@ -134,6 +134,7 @@ namespace MWPhysics
         mResults.reserve(kMaxPendingResults);
         mShots.reserve(kMaxProjectiles);
         mStuck.reserve(256);
+        mEffects.reserve(openeden::sdk::game::kMaxShownEffects);
         mProjectileResults.reserve(kMaxProjectiles);
         mCandidates.reserve(kMaxCandidates);
         mDead.reserve(kMaxDead);
@@ -167,6 +168,7 @@ namespace MWPhysics
     {
         mShots.clear();
         mStuck.clear();
+        mEffects.clear();
         mProjectileResults.clear();
         mPlaying.clear();
         mLate.clear();
@@ -493,6 +495,8 @@ namespace MWPhysics
                 sink.removeProjectile(shot.mId);
             for (const Stuck& stuck : mStuck)
                 sink.removeProjectile(stuck.mId);
+            for (const Effect& effect : mEffects)
+                sink.removeProjectile(effect.mId);
             clear();
             return;
         }
@@ -549,6 +553,7 @@ namespace MWPhysics
         mProjectileResults.clear();
         // The shots in the air fly this frame's time; whatever ends is told at the start of the next update.
         stepProjectiles(seconds, sink, world);
+        followEffects(sink, world);
 
         for (std::size_t i = 0; i < mPlaying.size();)
         {
@@ -784,9 +789,12 @@ namespace MWPhysics
         shot.mGravity = r.gravity;
         shot.mRangeLeft = r.range;
         shot.mStickDepth = r.stickDepth;
-        shot.mStickSeconds = r.stickSeconds;
+        shot.mStickSeconds = r.visualOnly ? 0.f : r.stickSeconds;
+        shot.mVisualOnly = r.visualOnly;
         b.mShots.push_back(shot); // room was checked above
         ++b.mStats.mProjectilesLaunched;
+        if (r.visualOnly)
+            ++b.mStats.mVisualShotsLaunched;
         if (!r.model.empty())
             mSink->spawnProjectile(shot.mId, r.model, poseOf(shot.mPosition, direction));
         if (traceOn())
@@ -896,6 +904,14 @@ namespace MWPhysics
                 ++i;
                 continue;
             }
+            if (shot.mVisualOnly)
+            {
+                // Task 0191: a drawn-only shot ends without a word to the pack and sticks in nothing.
+                sink.removeProjectile(shot.mId);
+                ++mStats.mVisualShotsEnded;
+                mShots.erase(mShots.begin() + static_cast<std::ptrdiff_t>(i));
+                continue;
+            }
             using openeden::sdk::game::ProjectileFate;
             openeden::sdk::game::ProjectileResult told;
             told.owner = shot.mOwner;
@@ -951,6 +967,178 @@ namespace MWPhysics
             else
                 sink.removeProjectile(shot.mId);
             mShots.erase(mShots.begin() + static_cast<std::ptrdiff_t>(i));
+        }
+    }
+
+    // ---- task 0191: rays and shown effects -----------------------------------------------------------------------
+
+    bool NeutralCombatBridge::Writer::doCastRay(
+        CombatSubject from, const openeden::sdk::game::RayRequest& r, openeden::sdk::game::RayHit& out)
+    {
+        NeutralCombatBridge& b = mBridge;
+        out = {};
+        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z)
+            && std::isfinite(r.heading) && std::isfinite(r.pitch) && std::isfinite(r.range);
+        if (mSink == nullptr || mWorld == nullptr || !from.valid() || !finite
+            || !(r.range > 0.f && r.range <= kMaxProjectileRange) || !(std::abs(r.pitch) < kHalfPi)
+            || (!from.player && b.mActors.keyOfHandle(from.actor) == nullptr))
+        {
+            ++b.mStats.mRaysRefused;
+            return false;
+        }
+        b.mCandidates.clear();
+        mWorld->collectCandidates(b.mCandidates);
+        std::erase_if(b.mCandidates, [&](const NeutralSweep::Candidate& c) {
+            return c.mTarget == openeden::sdk::game::SweepTarget::Actor && b.isDead(c.mActor);
+        });
+        // A ray is one step of a gravity-free shot: speed = range over one second.
+        const double heading = static_cast<double>(r.heading);
+        const double pitch = static_cast<double>(r.pitch);
+        const double range = static_cast<double>(r.range);
+        NeutralProjectile::Shot shot;
+        shot.mOwner = from;
+        shot.mPosition = { r.x, r.y, r.z };
+        shot.mVelocity = { std::sin(heading) * std::cos(pitch) * range, std::cos(heading) * std::cos(pitch) * range,
+            std::sin(pitch) * range };
+        shot.mRangeLeft = r.range;
+        WorldRayAdapter ray(*mWorld);
+        const NeutralProjectile::StepResult result = NeutralProjectile::step(shot, 1.f, b.mCandidates, &ray);
+        using openeden::sdk::game::RayFate;
+        switch (result.mOutcome)
+        {
+            case NeutralProjectile::Outcome::HitActor:
+                out.fate = RayFate::Actor;
+                out.actor = result.mActor;
+                break;
+            case NeutralProjectile::Outcome::HitPlayer:
+                out.fate = RayFate::Player;
+                break;
+            case NeutralProjectile::Outcome::HitWorld:
+                out.fate = RayFate::World;
+                break;
+            default:
+                out.fate = RayFate::Nothing;
+                break;
+        }
+        out.x = result.mAt.x;
+        out.y = result.mAt.y;
+        out.z = result.mAt.z;
+        out.distance = shot.mTravelled;
+        ++b.mStats.mRaysCast;
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::doShowEffect(CombatSubject subject, const openeden::sdk::game::EffectRequest& r)
+    {
+        NeutralCombatBridge& b = mBridge;
+        openeden::sdk::game::SubjectState state;
+        const bool replaces = std::any_of(
+            b.mEffects.begin(), b.mEffects.end(), [&](const Effect& e) { return e.mToken == r.token; });
+        if (mSink == nullptr || mWorld == nullptr || !subject.valid() || r.model.empty() || !validModelPath(r.model)
+            || !std::isfinite(r.heightOffset) || (!subject.player && b.mActors.keyOfHandle(subject.actor) == nullptr)
+            || (!replaces && b.mEffects.size() >= openeden::sdk::game::kMaxShownEffects)
+            || !mWorld->subjectState(subject, state))
+        {
+            if (traceOn())
+                Log(Debug::Info) << "NCOMBAT effect refused token " << r.token << " sink " << (mSink != nullptr)
+                                 << " world " << (mWorld != nullptr) << " valid " << subject.valid() << " model '"
+                                 << r.model << "' key "
+                                 << (subject.player || b.mActors.keyOfHandle(subject.actor) != nullptr);
+            ++b.mStats.mEffectsRefused;
+            return false;
+        }
+        if (replaces)
+        {
+            for (std::size_t i = 0; i < b.mEffects.size(); ++i)
+                if (b.mEffects[i].mToken == r.token)
+                {
+                    mSink->removeProjectile(b.mEffects[i].mId);
+                    b.mEffects.erase(b.mEffects.begin() + static_cast<std::ptrdiff_t>(i));
+                    break;
+                }
+        }
+        Effect effect;
+        effect.mId = b.mNextProjectileId++;
+        if (b.mNextProjectileId == 0)
+            b.mNextProjectileId = 1;
+        effect.mToken = r.token;
+        effect.mSubject = subject;
+        effect.mHeight = r.heightOffset;
+        b.mEffects.push_back(effect);
+        const double heading = static_cast<double>(state.heading);
+        mSink->spawnProjectile(effect.mId, r.model,
+            poseOf({ state.x, state.y, state.z + static_cast<double>(effect.mHeight) },
+                { std::sin(heading), std::cos(heading), 0.0 }));
+        ++b.mStats.mEffectsShown;
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::doHideEffect(std::uint32_t token)
+    {
+        NeutralCombatBridge& b = mBridge;
+        if (mSink == nullptr)
+            return false;
+        for (std::size_t i = 0; i < b.mEffects.size(); ++i)
+            if (b.mEffects[i].mToken == token)
+            {
+                mSink->removeProjectile(b.mEffects[i].mId);
+                b.mEffects.erase(b.mEffects.begin() + static_cast<std::ptrdiff_t>(i));
+                ++b.mStats.mEffectsHidden;
+                return true;
+            }
+        return false;
+    }
+
+    bool NeutralCombatBridge::Writer::castRay(
+        CombatSubject from, const openeden::sdk::game::RayRequest& request, openeden::sdk::game::RayHit& out)
+    {
+        if (mSink == nullptr)
+        {
+            ++mBridge.mStats.mRaysRefused;
+            out = {};
+            return false;
+        }
+        return guarded([&] { return doCastRay(from, request, out); });
+    }
+
+    bool NeutralCombatBridge::Writer::showEffect(
+        CombatSubject subject, const openeden::sdk::game::EffectRequest& request)
+    {
+        if (mSink == nullptr)
+        {
+            ++mBridge.mStats.mEffectsRefused;
+            return false;
+        }
+        return guarded([&] { return doShowEffect(subject, request); });
+    }
+
+    bool NeutralCombatBridge::Writer::hideEffect(std::uint32_t token)
+    {
+        return guarded([&] { return doHideEffect(token); });
+    }
+
+    void NeutralCombatBridge::followEffects(NeutralClipSink& sink, NeutralCombatWorld* world)
+    {
+        for (std::size_t i = 0; i < mEffects.size();)
+        {
+            const Effect& effect = mEffects[i];
+            openeden::sdk::game::SubjectState state;
+            const bool gone = !effect.mSubject.player && mActors.keyOfHandle(effect.mSubject.actor) == nullptr;
+            if (gone)
+            {
+                sink.removeProjectile(effect.mId);
+                ++mStats.mEffectsLost;
+                mEffects.erase(mEffects.begin() + static_cast<std::ptrdiff_t>(i));
+                continue;
+            }
+            if (world != nullptr && world->subjectState(effect.mSubject, state))
+            {
+                const double heading = static_cast<double>(state.heading);
+                sink.moveProjectile(effect.mId,
+                    poseOf({ state.x, state.y, state.z + static_cast<double>(effect.mHeight) },
+                        { std::sin(heading), std::cos(heading), 0.0 }));
+            }
+            ++i;
         }
     }
 

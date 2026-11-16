@@ -89,6 +89,21 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTestCastEveryKey = "combat test cast every";
     inline constexpr std::string_view kCombatTestCastHoldKey = "combat test cast hold";
     inline constexpr std::string_view kCombatTestSpellConditionsKey = "combat test spell conditions";
+    /// Task 0191 (visible spells and beams), both off by default. `combat spell beams`: a held spell that is aimed or
+    /// touch (Flames, Frostbite, Sparks) works as a ray each frame, and a touch spell hits what is within reach.
+    /// `combat spell visuals`: a held beam streams drawn-only copies of its projectile model, and a ward shows the
+    /// hit art of its effect on its caster while it is up.
+    inline constexpr std::string_view kCombatSpellBeamsKey = "combat spell beams";
+    inline constexpr std::string_view kCombatSpellVisualsKey = "combat spell visuals";
+    /// How far a touch spell reaches, game units (ours: Skyrim's own reach is not in the data; about a sword's reach).
+    inline constexpr float kTouchReach = 150.f;
+    /// A held beam launches a drawn-only projectile this often, seconds (ours).
+    inline constexpr float kBeamVisualInterval = 0.05f;
+    /// The length of a beam whose projectile has no range, units (Flames, Frostbite and Sparks have 768 or more).
+    inline constexpr float kDefaultBeamRange = 768.f;
+    /// The height above the caster's feet a ward's body model is placed at (ours: the model's shield spans z -22 to 60
+    /// round its origin, so 40 puts its middle at hip to waist height).
+    inline constexpr float kWardBodyHeight = 40.f;
     inline constexpr float kDefaultCastPeriod = 4.f;
     inline constexpr float kDefaultCastHold = 3.f;
     /// A cast waiting for its clip's SpellFire event gives up after this many seconds (the clip never sent it).
@@ -255,6 +270,12 @@ namespace game_skyrimse
             (void)id;
             return nullptr;
         }
+        /// Task 0191: the model path of an ARTO as stored (`Magic\\WardBodyFX.nif`), empty when unknown.
+        virtual std::string_view artModelById(FormId id)
+        {
+            (void)id;
+            return {};
+        }
         virtual MagicSettings magicSettings() { return {}; }
         /// Task 0172: the block, bash and stagger numbers (default: the values Skyrim.esm stores).
         virtual BlockSettings blockSettings() { return {}; }
@@ -388,6 +409,9 @@ namespace game_skyrimse
         void setTestCastEvery(float seconds);
         void setTestCastHold(float seconds);
         void setTestSpellConditions(bool apply) { mApplyEffectConditions = apply; }
+        /// Task 0191, off by default (see kCombatSpellBeamsKey).
+        void setSpellBeams(bool on) { mSpellBeams = on; }
+        void setSpellVisuals(bool on) { mSpellVisuals = on; }
         [[nodiscard]] std::size_t spellsCast() const { return mSpellsCast; }
         [[nodiscard]] std::size_t effectsApplied() const { return mEffectsApplied; }
         [[nodiscard]] std::size_t effectsEnded() const { return mEffectsEnded; }
@@ -546,6 +570,7 @@ namespace game_skyrimse
         [[nodiscard]] bool bowReady();
         // Task 0186 (stage S5-8): the magic runtime (combat_magic.cpp).
         struct Cast;
+        struct Concentration;
         void updateMagic(openeden::sdk::game::CombatRequestWriter& writer, float step);
         void resolveTestCasts();
         void startTestCasts(openeden::sdk::game::CombatRequestWriter& writer);
@@ -555,6 +580,18 @@ namespace game_skyrimse
         void fireCast(openeden::sdk::game::CombatRequestWriter& writer, const Cast& cast);
         void tickConcentrations(openeden::sdk::game::CombatRequestWriter& writer, float step);
         void endConcentration(std::size_t index, const char* why);
+        // Task 0191 (visible spells and beams).
+        /// Where a ray from `caster` goes: the player's from the eye along the view, an actor's at the player.
+        [[nodiscard]] bool aimRay(openeden::sdk::game::CombatRequestWriter& writer, const Fighter& caster, float range,
+            openeden::sdk::game::RayRequest& out);
+        [[nodiscard]] float beamRange(const SpellRecord& spell) const;
+        void tickBeam(openeden::sdk::game::CombatRequestWriter& writer, Concentration& beam, Fighter& caster,
+            const SpellRecord& spell, float paidSeconds);
+        void touchCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
+        void launchBeamVisual(openeden::sdk::game::CombatRequestWriter& writer, const Fighter& caster,
+            const SpellRecord& spell, const openeden::sdk::game::RayRequest& ray, float length);
+        [[nodiscard]] std::uint32_t showWardBody(
+            openeden::sdk::game::CombatRequestWriter& writer, const Fighter& caster, const SpellRecord& spell);
         void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
             const SpellRecord& spell, const openeden::sdk::game::SweepHit* where);
         void applyOneEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
@@ -667,6 +704,9 @@ namespace game_skyrimse
             float mEndAt = -1.f; ///< the combat clock; negative: until released
             float mTraceAt = 0.f;
             bool mHeldByKey = false;
+            bool mBeam = false; ///< task 0191: a held spell that is aimed or touch, a ray every update
+            float mNextVisual = 0.f; ///< the combat clock of the next drawn-only copy of the projectile
+            std::uint32_t mEffectToken = 0; ///< a shown effect (a ward's body) to hide when this ends, 0 none
         };
         struct SpellShot
         {
@@ -703,6 +743,9 @@ namespace game_skyrimse
         float mCastPeriod = kDefaultCastPeriod;
         float mCastHold = kDefaultCastHold;
         bool mApplyEffectConditions = false;
+        bool mSpellBeams = false;
+        bool mSpellVisuals = false;
+        std::vector<std::uint32_t> mPendingHides; ///< shown effects whose spell ended, hidden in the next update
         MagicSettings mMagicSettings;
         bool mHaveMagicSettings = false;
         std::size_t mSpellsCast = 0;

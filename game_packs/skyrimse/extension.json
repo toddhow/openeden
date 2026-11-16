@@ -121,6 +121,16 @@
       "default": false
     },
     {
+      "key": "combat spell beams",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "combat spell visuals",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "combat test player bow",
       "type": "float",
       "default": 0.0
