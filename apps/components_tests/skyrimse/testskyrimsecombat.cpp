@@ -35,7 +35,7 @@ namespace
     TEST(CombatContract, versionIsADraftZeroOne)
     {
         EXPECT_EQ(kCombatRulesVersion.major, 0);
-        EXPECT_EQ(kCombatRulesVersion.minor, 3);
+        EXPECT_EQ(kCombatRulesVersion.minor, 4);
     }
 
     TEST(CombatContract, limitsAndEnumValuesArePinned)
