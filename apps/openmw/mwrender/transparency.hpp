@@ -4,6 +4,7 @@
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/state/BindDescriptorSet.h>
 
+#include <components/mwanimation/context.hpp>
 #include <components/mwanimation/object.hpp>
 #include <components/pipeline/layout.hpp>
 #include <components/pipeline/object.hpp>
