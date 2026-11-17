@@ -2793,6 +2793,12 @@ namespace game_skyrimse
                             "the werewolf bindings were refused: " + declared.message);
                 }
                 mCellSource.combat().setBeastStartHook([this] { beastStart(); });
+                // Task 0265: the form, its time, the corpses fed on and the grant are saved in a chunk of their own.
+                mBeastChunk = werewolf::makeBeastChunk([this] { return beastSaved(); },
+                    [this](const werewolf::BeastSaved& saved) { beastRestore(saved); });
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(*mBeastChunk))
+                        mWerewolfLog(openeden::sdk::LogLevel::Warning, "the werewolf chunk was not registered");
                 mWerewolfLog(openeden::sdk::LogLevel::Info,
                     std::string("WEREWOLF the beast form is on") + (mWerewolfGrant ? " (the power is granted)" : ""));
             }
@@ -2816,6 +2822,13 @@ namespace game_skyrimse
             {
                 if (mWerewolf == nullptr || mBeastClock.active())
                     return;
+                (void)beastBegin(mWerewolfTestSeconds > 0.f ? mWerewolfTestSeconds : werewolf::kStandardSeconds, {});
+            }
+
+            /// Starts the form with `seconds` on the clock and `fed` already fed on (a fresh change: none; a load: the
+            /// saved ones). False (nothing changed) when the race's numbers are not read yet.
+            bool beastBegin(float seconds, const std::set<std::uint64_t>& fed, bool warn = true)
+            {
                 const std::uint32_t level
                     = mProgression != nullptr && mProgression->progression() != nullptr
                     ? mProgression->progression()->level()
@@ -2823,12 +2836,13 @@ namespace game_skyrimse
                 werewolf::BeastNumbers numbers;
                 if (!mWorldView.beastNumbers(level, numbers))
                 {
-                    mWerewolfLog(
-                        openeden::sdk::LogLevel::Warning, "WEREWOLF the race's numbers are not read yet: no change");
-                    return;
+                    if (warn)
+                        mWerewolfLog(openeden::sdk::LogLevel::Warning,
+                            "WEREWOLF the race's numbers are not read yet: no change");
+                    return false;
                 }
-                mBeastClock.start(mWerewolfTestSeconds > 0.f ? mWerewolfTestSeconds : werewolf::kStandardSeconds);
-                mBeastFed.clear();
+                mBeastClock.start(seconds);
+                mBeastFed = fed;
                 mBeastAbilities = { werewolf::kBaseAbility, werewolf::levelAbility(level) };
                 mCellSource.combat().setPlayerBeast(&numbers);
                 applyExtraAbilities();
@@ -2838,9 +2852,10 @@ namespace game_skyrimse
                     "WEREWOLF transformed: " + std::to_string(static_cast<int>(mBeastClock.remaining())) + " s, claws "
                         + std::to_string(numbers.mUnarmedDamage) + " reach " + std::to_string(numbers.mUnarmedReach)
                         + ", level ability " + std::to_string(werewolf::levelAbility(level)));
+                return true;
             }
 
-            void beastEnd(const char* why)
+            void beastEnd(const char* why, bool announce = true)
             {
                 mBeastClock.stop();
                 mBeastAbilities.clear();
@@ -2848,12 +2863,67 @@ namespace game_skyrimse
                 applyExtraAbilities();
                 mWorldView.setBeastForm(false);
                 mWerewolf->setState(false, 0.f);
-                mWerewolf->announce("You return to your human form.");
+                if (announce)
+                    mWerewolf->announce("You return to your human form.");
                 mWerewolfLog(openeden::sdk::LogLevel::Info, std::string("WEREWOLF back to human (") + why + ")");
+            }
+
+            // Task 0265: what a save keeps. While a loaded form still waits for the race's numbers it is kept as it
+            // was read, so a save made in that gap does not lose it.
+            [[nodiscard]] werewolf::BeastSaved beastSaved() const
+            {
+                if (mBeastPending.has_value())
+                    return *mBeastPending;
+                werewolf::BeastSaved saved;
+                saved.mGranted = mWerewolfGrant;
+                saved.mActive = mBeastClock.active();
+                saved.mRemaining = mBeastClock.remaining();
+                saved.mFed.assign(mBeastFed.begin(), mBeastFed.end());
+                return saved;
+            }
+
+            // A load: the grant comes back, a form that is on in this process but not in the save ends quietly, and a
+            // form that was on in the save is begun again as soon as the race's numbers can be read (werewolfFrame).
+            void beastRestore(const werewolf::BeastSaved& saved)
+            {
+                if (saved.mGranted)
+                    mWerewolfGrant = true;
+                if (mBeastClock.active())
+                    beastEnd("a load", false);
+                mBeastPending.reset();
+                mBeastPendingWarned = false;
+                if (saved.mActive)
+                    mBeastPending = saved;
+                mWerewolfLog(openeden::sdk::LogLevel::Info,
+                    std::string("WEREWOLF restored: ")
+                        + (saved.mActive ? "the beast form, " + std::to_string(static_cast<int>(saved.mRemaining))
+                                    + " s left, " + std::to_string(saved.mFed.size()) + " corpses fed on"
+                                           : std::string("human"))
+                        + (saved.mGranted ? ", Beast Form granted" : ""));
+            }
+
+            void beastApplyPending()
+            {
+                const std::set<std::uint64_t> fed(mBeastPending->mFed.begin(), mBeastPending->mFed.end());
+                // a loaded form waits for the race's numbers: said once, tried again every frame
+                if (beastBegin(mBeastPending->mRemaining, fed, !mBeastPendingWarned))
+                {
+                    mBeastPending.reset();
+                    mBeastPendingWarned = false;
+                }
+                else
+                {
+                    mBeastPendingWarned = true;
+                }
             }
 
             void werewolfFrame(float dt)
             {
+                if (mBeastPending.has_value())
+                {
+                    beastApplyPending();
+                    return;
+                }
                 if (!mBeastClock.active())
                     return;
                 switch (mBeastClock.tick(dt))
@@ -4710,6 +4780,9 @@ namespace game_skyrimse
             werewolf::BeastClock mBeastClock; // task 0259
             std::vector<FormId> mBeastAbilities; // task 0259: AbWerewolf and the level ability while the form lasts
             std::set<std::uint64_t> mBeastFed; // task 0259: the corpses fed on in this form
+            std::unique_ptr<openeden::sdk::SaveChunkHandler> mBeastChunk; // task 0265
+            bool mBeastPendingWarned = false; // task 0265
+            std::optional<werewolf::BeastSaved> mBeastPending; // task 0265: a loaded form waiting for the race's numbers
             std::function<void(openeden::sdk::LogLevel, const std::string&)> mWerewolfLog;
             float mWerewolfTestSeconds = 0.f;
             bool mWerewolfGrant = false;

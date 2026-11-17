@@ -770,6 +770,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedragons.cpp
     skyrimse/testskyrimsewerewolfreal.cpp
     skyrimse/testskyrimsewerewolf.cpp
+    skyrimse/testskyrimsewerewolfsave.cpp
     skyrimse/testskyrimsecombatdragon.cpp
     skyrimse/testskyrimseruneglyph.cpp
     skyrimse/testskyrimsecreaturesthird.cpp

@@ -19,8 +19,13 @@
 #include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/records.hpp>
 
+#include <openeden/game/save_chunks.hpp>
+
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <string_view>
+#include <vector>
 
 namespace game_skyrimse::werewolf
 {
@@ -119,6 +124,33 @@ namespace game_skyrimse::werewolf
     [[nodiscard]] const CreatureProfile& playerProfile();
     /// The same row with bare clip names (what an NPC werewolf's table entry would hold).
     [[nodiscard]] const CreatureProfile& bareProfile();
+
+    // ---- saving (task 0265) -----------------------------------------------------------------------------------------
+
+    /// What a save keeps of the beast form: whether Beast Form has been granted to the player, whether the form is on,
+    /// the seconds left on the clock and the corpses fed on in this form (placement ids). When the last use of the
+    /// power (once a game day) is saved too: by the character service's `character_powers` chunk, which already keys
+    /// it by the power's form id, so it is not repeated here.
+    struct BeastSaved
+    {
+        bool mGranted = false;
+        bool mActive = false;
+        float mRemaining = 0.f;
+        std::vector<std::uint64_t> mFed;
+    };
+    inline constexpr std::size_t kMaxSavedFed = 4096; ///< hostile-input cap on the fed list
+
+    /// The chunk "werewolf" version 1: u8 granted (0/1), u8 active (0/1), f32 seconds left, u32 count, count x u64.
+    /// Canonical: the fed list is sorted and has no repeats, `mRemaining` is a finite number in (0, kMaxSeconds] when
+    /// the form is on and 0 when it is not (a form on with no time left is refused, so is a damaged or longer chunk).
+    [[nodiscard]] std::vector<std::uint8_t> encodeBeastSaved(const BeastSaved& saved);
+    [[nodiscard]] bool decodeBeastSaved(const std::uint8_t* data, std::size_t size, BeastSaved& out);
+
+    /// The save chunk handler: asks `get` at a save and hands what it read to `set` (only a chunk that read cleanly
+    /// reaches `set`; a bad one changes nothing). Registered only while the werewolf setting is on, so a save made
+    /// without it has no such chunk and an older save simply never calls it.
+    [[nodiscard]] std::unique_ptr<openeden::sdk::SaveChunkHandler> makeBeastChunk(
+        std::function<BeastSaved()> get, std::function<void(const BeastSaved&)> set);
 }
 
 #endif
