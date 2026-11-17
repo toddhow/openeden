@@ -117,18 +117,6 @@ namespace
         return sub4("EDID", Bytes().zstring(s));
     }
 
-    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0,
-        const std::string& string2 = std::string())
-    {
-        Bytes b;
-        b.u8(static_cast<std::uint8_t>(compare << 5)).u8(0).u8(0).u8(0).f32(value);
-        b.u16(function).u16(0).u32(p1).u32(0).u32(0).u32(0).u32(0);
-        Bytes out = sub4("CTDA", b);
-        if (!string2.empty())
-            out.append(sub4("CIS2", Bytes().zstring(string2)));
-        return out;
-    }
-
     struct InfoSpec
     {
         std::uint32_t mId = 0;

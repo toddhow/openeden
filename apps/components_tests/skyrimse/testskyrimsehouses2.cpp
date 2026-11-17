@@ -145,8 +145,8 @@ namespace
             mVmad.mScripts = { qs };
             mVmad.mFragments.push_back({ 10, 0, "QF_Houses", "Fragment_0" });
             mVmad.mFragments.push_back({ 10, 1, "QF_Houses", "Fragment_1" });
-            mHost->setQuests(&mIndex, &mState, [this](FormId quest) -> const vmad::Vmad* {
-                return quest == kQuestA ? &mVmad : nullptr;
+            mHost->setQuests(&mIndex, &mState, [this](FormId questId) -> const vmad::Vmad* {
+                return questId == kQuestA ? &mVmad : nullptr;
             });
             mHost->startGame();
         }
