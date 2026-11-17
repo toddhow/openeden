@@ -1745,8 +1745,21 @@ namespace game_skyrimse
                 maximum = state.healthMax;
             }
         }
-        const float after = std::max(0.f, current - damage);
+        float after = std::max(0.f, current - damage);
+        // Task 0264: an essential actor collapses into bleedout (health 1) instead of dying
+        const bool collapsed = mEssentialBleedout && after <= 0.f && !victim.mSubject.player && victim.mProfile.mEssential
+            && !victim.mDead;
+        if (collapsed)
+            after = 1.f;
         victim.mHealth = after;
+        if (collapsed && !victim.mBleedout)
+        {
+            victim.mBleedout = true;
+            if (mTrace)
+                trace("COMBAT bleedout " + name(victim.mSubject));
+            if (mBleedoutSink)
+                mBleedoutSink(victim.mSubject.actor);
+        }
         if (mSkillHook && !bash)
             reportHitSkills(attacker, victim, swung, result.mDamageAfter, damage, blocked); // task 0200
         victim.mCombatUntil = mClock + kCombatLingerSeconds;

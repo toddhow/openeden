@@ -104,6 +104,13 @@ namespace game_skyrimse
                 mBrain->onConversation(reference, begins);
         }
 
+        /// Task 0264: see PackageBrain::forceStand.
+        void forceStand(openeden::sdk::game::WorldId reference)
+        {
+            if (mBrain)
+                mBrain->forceStand(reference);
+        }
+
         /// Task 0194 (scenes): the handle of an actor of the table (invalid when unknown), a package that overrides its
         /// schedule (forwarded to the brain), and whether the brain has the actor standing or done with its package.
         /// The placements of the actors of the table, in ascending order (task 0194: who can take part in an ambient scene).

@@ -96,6 +96,9 @@ namespace game_skyrimse
             pure.randomSeed = options.mRandomSeed;
             mPure = std::make_unique<ScriptPapyrus::PureNatives>(*this, pure);
             (void)mPure->registerAll(*mRuntime);
+            mRuntime->setAliasResolver([this](std::uint32_t handle, FormId& quest, std::uint32_t& alias) {
+                return aliasOf(handle, quest, alias);
+            });
             registerWorldNatives();
             registerStoneNatives();
         }
@@ -824,6 +827,10 @@ namespace game_skyrimse
                 // task 0239: the fragment script a dialogue line left on its INFO (the follower topics' own)
                 if (mData.isTopicInfo(key.formId))
                     return true;
+                // task 0264: the fragment script a scene left on its SCEN (`SF_...`): a save made after any scene fragment
+                // ran was refused as a whole ("the game no longer has what its attach key names")
+                if (mData.isScene(key.formId))
+                    return true;
                 return !mData.formClass(key.formId).empty();
             }
             if (key.kind == AttachKind::Alias)
@@ -1281,6 +1288,8 @@ namespace game_skyrimse
             const auto sceneStart = [this](bool force) {
                 return [this, force](const NativeCall& c) {
                     const FormId scene = formOf(c.self);
+                    say(false, "Papyrus: Scene." + std::string(force ? "ForceStart " : "Start ") + hex(scene)
+                            + (mScenes == nullptr ? " (no scene runner)" : ""));
                     if (mScenes == nullptr)
                         return result(PapyrusValue::makeBool(false));
                     afterNative([this, scene, force] { (void)mScenes->startScene(scene, force); });
@@ -1333,6 +1342,11 @@ namespace game_skyrimse
             };
             reg("Keyword", "SendStoryEvent", false, sendStory);
             reg("Keyword", "SendStoryEventAndWait", false, sendStory);
+            // Task 0264: a scene's fragment script reaches the quest it belongs to (the Companions' scenes set stages)
+            reg("Scene", "GetOwningQuest", false, [this](const NativeCall& c) {
+                const FormId quest = mData.questOfScene(formOf(c.self));
+                return result(quest != 0 ? questValue(quest) : PapyrusValue::makeNone());
+            });
             // Alias and ReferenceAlias
             reg("Alias", "GetOwningQuest", false, [this](const NativeCall& c) {
                 FormId quest = 0;
@@ -1754,6 +1768,11 @@ namespace game_skyrimse
                 (void)avNow(formOf(c.self), valueName(c), now, max);
                 return result(PapyrusValue::makeFloat(static_cast<float>(now)));
             });
+            reg("Actor", "GetAV", false, [this, valueName](const NativeCall& c) { // task 0264: the short form
+                double now = 0.0, max = 0.0;
+                (void)avNow(formOf(c.self), valueName(c), now, max);
+                return result(PapyrusValue::makeFloat(static_cast<float>(now)));
+            });
             reg("Actor", "GetBaseActorValue", false, [this, valueName](const NativeCall& c) {
                 double now = 0.0, max = 0.0;
                 if (mHooks == nullptr || !mHooks->actorValue(formOf(c.self), valueName(c), now, max))
@@ -1784,6 +1803,33 @@ namespace game_skyrimse
             reg("Actor", "DamageActorValue", false, change(-1.0));
             reg("Actor", "IsDead", false,
                 [this](const NativeCall& c) { return result(PapyrusValue::makeBool(actorDead(formOf(c.self)))); });
+            // Task 0264: the Companions' training fight (C00VilkasTrainingScript) and the like
+            reg("Actor", "StartCombat", false, [this](const NativeCall& c) {
+                // only a fight against the player is built (the AI's target is always the player)
+                const FormId actor = formOf(c.self);
+                if (mHooks != nullptr && actor != 0 && actor != kPlayerReference && !c.arguments.empty()
+                    && formOf(c.arguments[0]) == kPlayerReference)
+                    (void)mHooks->startCombat(actor);
+                return NativeResult{};
+            });
+            reg("Actor", "StopCombat", false, [this](const NativeCall& c) {
+                const FormId actor = formOf(c.self);
+                if (mHooks != nullptr && actor != 0 && actor != kPlayerReference)
+                    (void)mHooks->stopCombat(actor);
+                return NativeResult{};
+            });
+            reg("Actor", "ResetHealthAndLimbs", false, [this](const NativeCall& c) {
+                const FormId actor = formOf(c.self);
+                if (mHooks != nullptr && actor != 0 && actor != kPlayerReference)
+                    (void)mHooks->resetHealth(actor);
+                return NativeResult{};
+            });
+            reg("Actor", "GetCombatState", false, [this](const NativeCall& c) {
+                const FormId actor = formOf(c.self);
+                return result(PapyrusValue::makeInt(
+                    mHooks != nullptr && actor != 0 && mHooks->inCombat(actor) ? 1 : 0));
+            });
+            reg("Actor", "EvaluatePackage", false, [](const NativeCall&) { return NativeResult{}; });
             reg("Actor", "Kill", false, [this](const NativeCall& c) {
                 const FormId actor = formOf(c.self);
                 if (actor != 0 && actor != kPlayerReference && !actorDead(actor) && mHooks != nullptr
@@ -2808,6 +2854,14 @@ namespace game_skyrimse
             if (m.sendEvent(instance, "OnDeath", { m.formValue(killer) }))
                 ++m.mCounters.mCombatEvents;
         }
+    }
+
+    void PapyrusHost::onActorBleedout(FormId actor)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(actor))
+            if (m.sendEvent(instance, "OnEnterBleedout", {}))
+                ++m.mCounters.mCombatEvents;
     }
 
     std::uint64_t PapyrusHost::notificationCount() const

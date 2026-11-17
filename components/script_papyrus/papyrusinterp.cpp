@@ -491,6 +491,18 @@ namespace ScriptPapyrus::Vm
         else if (source.kind == Kind::Form && source.a != 0)
         {
             form = static_cast<openeden::script::FormId>(source.a);
+            // task 0264: the handle of a quest alias: the scripts of the alias are keyed by (quest, alias)
+            if (mAliasResolver)
+            {
+                openeden::script::FormId quest = 0;
+                std::uint32_t aliasIndex = 0;
+                if (mAliasResolver(static_cast<std::uint32_t>(source.a), quest, aliasIndex))
+                {
+                    kind = openeden::script::AttachKind::Alias;
+                    form = quest;
+                    alias = aliasIndex;
+                }
+            }
         }
         else
         {

@@ -341,6 +341,7 @@ namespace ScriptPapyrus::Vm
         bool registerNative(const openeden::script::NativeDescriptor& descriptor,
             openeden::script::NativeHandler handler, openeden::script::ErrorReport& error) noexcept override;
         void setPolicy(openeden::script::UnknownFunctionPolicy policy) noexcept override { mPolicy = policy; }
+        void setAliasResolver(AliasResolver resolver) override { mAliasResolver = std::move(resolver); }
         openeden::script::InstanceId attach(
             const openeden::script::AttachKey& key, std::string_view scriptName) noexcept override;
         openeden::script::CallResult send(openeden::script::InstanceId instance, std::string_view eventName,
@@ -602,6 +603,7 @@ namespace ScriptPapyrus::Vm
         std::unordered_set<std::string> mLoggedOnce;
         std::string mScratch; ///< Reused text buffer.
         std::string mScratchClass;
+        AliasResolver mAliasResolver; ///< task 0264
         std::string mNameScratch;
         mutable std::string mNameScratchConst;
         std::vector<openeden::script::PapyrusValue> mNativeArgs;

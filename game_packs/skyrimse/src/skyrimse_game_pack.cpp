@@ -23,6 +23,7 @@
 #include "game_skyrimse/stones.hpp"
 #include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/vampirism.hpp" // task 0260
+#include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/houses.hpp"
 #include <game_skyrimse/main_quest.hpp>
 #include "game_skyrimse/travel.hpp"
@@ -209,6 +210,7 @@ namespace game_skyrimse
             bool isTopicInfo(FormId form) const override { return mView.isScriptedInfo(form); }
             bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
+            FormId questOfScene(FormId scene) const override { return mView.questOfScene(scene); }
             bool initiallyEnabled(FormId reference) const override
             {
                 const PlacedRefIndex* refs = mView.placedRefs();
@@ -291,18 +293,39 @@ namespace game_skyrimse
             {
                 const PackageRecord* record = mAccess.mPackage ? mAccess.mPackage(package) : nullptr;
                 mPackageChecks[actor] = 0;
-                return record != nullptr && mCells != nullptr && mCells->sceneForcePackage(actor, record);
+                const bool given = record != nullptr && mCells != nullptr && mCells->sceneForcePackage(actor, record);
+                // Task 0264: a ForceGreet package with a topic ends with the actor opening its conversation
+                const PackageRecord* shape = record;
+                if (record != nullptr && record->mProcedures.empty() && record->mTemplate != kNullFormId
+                    && mAccess.mPackage) // the procedures of a package built from a template are the template's
+                    if (const PackageRecord* t = mAccess.mPackage(record->mTemplate))
+                        shape = t;
+                if (given && mForce != nullptr && record->mForceGreetTopic != kNullFormId
+                    && std::any_of(shape->mProcedures.begin(), shape->mProcedures.end(),
+                        [](const std::string& n) { return n == "ForceGreet" || n == "forcegreet"; }))
+                {
+                    const FormId base = mAccess.mBaseOf ? mAccess.mBaseOf(actor) : kNullFormId;
+                    if (mForce->request(actor, base, record->mForceGreetTopic))
+                        mLog("FORCEGREET " + inventory::formatId(actor) + " asked to say "
+                            + inventory::formatId(record->mForceGreetTopic));
+                }
+                return given;
             }
             void clearPackage(FormId actor) override
             {
                 if (mCells != nullptr)
                     (void)mCells->sceneForcePackage(actor, nullptr);
                 mPackageChecks.erase(actor);
+                if (mForce != nullptr)
+                    mForce->cancel(actor);
             }
+            void setForceGreet(ForceGreet* force) { mForce = force; }
             // The brain evaluates a forced package at its next update, so a few answers are not trusted: the actor may
             // still look done with the package it had before.
             bool packageFinished(FormId actor) override
             {
+                if (mForce != nullptr && mForce->stateOf(actor) != ForceGreet::State::Done)
+                    return mForce->finished(actor); // task 0264: the conversation is the package
                 return mCells != nullptr && ++mPackageChecks[actor] > kTrustAfterChecks && mCells->scenePackageDone(actor);
             }
             void runFragment(FormId scene, const std::string& script, const std::string& function) override
@@ -325,6 +348,7 @@ namespace game_skyrimse
             SkyrimCellSource* mCells;
             std::function<void(const std::string&)> mLog;
             std::map<FormId, int> mPackageChecks;
+            ForceGreet* mForce = nullptr; ///< task 0264 (owned by the driver)
             SceneRunner mRunner;
         };
 
@@ -352,8 +376,12 @@ namespace game_skyrimse
                     const std::string text = line.rfind("Papyrus: ", 0) == 0 ? line.substr(9) : line;
                     say(error ? openeden::sdk::LogLevel::Error : openeden::sdk::LogLevel::Info, "PAPYRUS " + text);
                 });
-                mHost.setQuestChanged(
-                    [this](FormId quest, std::uint32_t stage) { mView.setPackageQuestStage(quest, stage); });
+                mHost.setQuestChanged([this](FormId quest, std::uint32_t stage) {
+                    mView.setPackageQuestStage(quest, stage);
+                    // Task 0264: the test aid that stands in for the walk to the training yard
+                    if (mCompanionsTraining && quest == kCompanionsQuest && stage == 20)
+                        mTrainingPending = true;
+                });
                 mHost.setLocationKeywordData(&mView.keywordData()); // task 0217
             }
 
@@ -371,6 +399,7 @@ namespace game_skyrimse
                 replayMainQuestCellLoad(); // task 0268
                 applyMainQuestTestStage();
                 applyMainQuest(); // task 0268
+                applyTraining(); // task 0264
                 drainStory();
                 mHost.tick(dt);
                 if (mScenes != nullptr)
@@ -491,6 +520,9 @@ namespace game_skyrimse
             }
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
+            void enableForceGreet() { mForceOn = true; }
+            [[nodiscard]] bool companionsOn() const { return mForceOn; }
+            [[nodiscard]] ForceGreet& forceGreet() { return mForce; }
 
             // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold (HousePurchase:
             // the player is in the hold), a quest variable a script holds wins in the conversation's conditions (the
@@ -628,6 +660,21 @@ namespace game_skyrimse
                         [this](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     mHost.setSceneControl(mScenes.get());
                     mScenes->runner().setRetryQuestStart(mMainQuest); // task 0268
+                    if (mForceOn) // task 0264: a ForceGreet package opens a conversation
+                    {
+                        mScenes->setForceGreet(&mForce);
+                        SkyrimWorldView::ForcedGreetHooks hooks;
+                        hooks.mTopic = [this](FormId reference) { return mForce.topicFor(reference); };
+                        hooks.mBegan = [this](FormId reference) {
+                            mForce.began(reference);
+                            say(openeden::sdk::LogLevel::Info, "FORCEGREET conversation began with " + hexId(reference));
+                        };
+                        hooks.mEnded = [this](FormId reference) {
+                            mForce.ended(reference);
+                            say(openeden::sdk::LogLevel::Info, "FORCEGREET conversation ended with " + hexId(reference));
+                        };
+                        mView.setForcedGreeting(std::move(hooks));
+                    }
                 }
                 mStarted = true;
                 const auto began = std::chrono::steady_clock::now();
@@ -832,6 +879,24 @@ namespace game_skyrimse
                 }
                 if (!mTestQuests.empty())
                     mTestEventDelay = std::isfinite(delay) && delay >= 0.0 ? delay : 0.0;
+            }
+
+            // Task 0264: `companions test training`. The game walks the player to the training yard (outside) with Vilkas
+            // and Vilkas' topic there starts the training quest. Neither actors going through doors nor the exterior walk
+            // is built, so the aid starts the quest (C00VilkasTrainingQuest, whose own scripts begin the fight) when C00
+            // reaches stage 20.
+            void enableCompanionsTraining() { mCompanionsTraining = true; }
+            void applyTraining()
+            {
+                if (!mTrainingPending || !mHost.started())
+                    return;
+                // stage 20 is set inside Kodlak's dismiss scene (000BD697); the fight waits for its end
+                if (mScenes != nullptr && mScenes->scenePlaying(0x000BD697))
+                    return;
+                mTrainingPending = false;
+                say(openeden::sdk::LogLevel::Info,
+                    std::string("COMPANIONS training quest ")
+                        + (mHost.startQuestForTest(kCompanionsTrainingQuest) ? "started by the test aid" : "was refused"));
             }
 
             // Task 0261 (once, when the host runs): the offers' quest starts and the test aid gives the permission
@@ -1226,6 +1291,12 @@ namespace game_skyrimse
             std::int32_t mMainQuestTestStage = 0;
             double mMainQuestTestDelay = 0.0;
             FollowerState* mFollowers = nullptr;
+            static constexpr FormId kCompanionsQuest = 0x0004B2D9; // C00 "Take Up Arms"
+            static constexpr FormId kCompanionsTrainingQuest = 0x000A3EBC; // C00VilkasTrainingQuest
+            bool mCompanionsTraining = false;
+            bool mTrainingPending = false;
+            ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
+            bool mForceOn = false;
             std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
             std::optional<std::vector<std::uint8_t>> mPendingRestore;
             openeden::sdk::game::WorldSourceService* mSources;
@@ -1644,6 +1715,21 @@ namespace game_skyrimse
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info, "HOUSES bought houses are on");
                             }
+                            if (settings->getBool(kPackId, "companions", false)) // task 0264
+                            {
+                                driver->enableForceGreet();
+                                if (settings->getBool(kPackId, "companions test training", false))
+                                    driver->enableCompanionsTraining();
+                                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                                {
+                                    const openeden::sdk::DeclareResult declared = driver->forceGreet().declare(*bindings);
+                                    if (!declared.ok && logger != nullptr)
+                                        logger->log(openeden::sdk::LogLevel::Warning,
+                                            "the forced greeting bindings were refused: " + declared.message);
+                                }
+                                if (logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Info, "FORCEGREET forced greetings are on");
+                            }
                             mCellSource.setEnableOverrideLookup(
                                 [this, driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
                                     if (const std::optional<bool> own
@@ -1946,6 +2032,24 @@ namespace game_skyrimse
                     return subject.valid() && mCellSource.combat().fighterView(subject, view) && view.mDead;
                 };
                 env.queueKill = [this](FormId actor) { return mCellSource.scriptBridge().queueKill(actor); };
+                // Task 0264: the Companions' training fight asks the combat AI for a fight and a stop
+                const auto handleOfActor = [this](FormId actor) { return mCellSource.actorTable().handleOf(actor); };
+                env.startCombat = [this, handleOfActor](FormId actor) {
+                    const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
+                    return h.valid() && mCellSource.combat().scriptStartCombat(h);
+                };
+                env.stopCombat = [this, handleOfActor](FormId actor) {
+                    const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
+                    return h.valid() && mCellSource.combat().scriptStopCombat(h);
+                };
+                env.resetHealth = [this, handleOfActor](FormId actor) {
+                    const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
+                    return h.valid() && mCellSource.combat().scriptResetHealth(h);
+                };
+                env.inCombat = [this, handleOfActor](FormId actor) {
+                    const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
+                    return h.valid() && mCellSource.combat().scriptInCombat(h);
+                };
                 env.isItem = [this](FormId form) { return mInventory != nullptr && mInventory->table().item(form) != nullptr; };
                 // Task 0202: moves, fades and creations reach the engine through the world source service
                 env.setObjectEnabled = [this](FormId reference, bool enabled, float fade) {
@@ -2025,6 +2129,16 @@ namespace game_skyrimse
                         (void)mCellSource.combat().setFighterHealth(
                             openeden::sdk::game::CombatSubject::of(handle), 0.f);
                     });
+                if (mPapyrus != nullptr && mPapyrus->companionsOn()) // task 0264
+                {
+                    mCellSource.combat().setEssentialBleedout(true);
+                    mCellSource.setStandOnEngage(true);
+                    mCellSource.combat().setBleedoutSink([&host, logger](openeden::sdk::game::ActorHandle actor) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "PAPYRUS bleedout of " + hexOf(actor.reference));
+                        host.onActorBleedout(actor.reference);
+                    });
+                }
                 if (openeden::sdk::BindingsService* const bindings = sdkHost.getBindingsService())
                 {
                     mPapyrusBindings = std::make_unique<PapyrusNotificationBindings>(host);

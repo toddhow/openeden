@@ -230,6 +230,7 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/services_global.lua
     scripts/openeden/skyrimse/services_player.lua
     scripts/openeden/skyrimse/crime_global.lua
+    scripts/openeden/skyrimse/forcegreet_global.lua
     scripts/openeden/skyrimse/pickup_global.lua
     scripts/openeden/skyrimse/pickup_player.lua
     scripts/openeden/skyrimse/crime_player.lua

@@ -558,6 +558,16 @@ namespace game_skyrimse
             std::function<void(FormId reference)> mFailed;
         };
         void setArrestDialogue(ArrestDialogueHooks hooks);
+        /// Task 0264: a ForceGreet package's conversation. `mTopic(reference)`: the topic whose first passing INFO is the
+        /// greeting of the conversation that opens with the actor placed as `reference` (0: none is wanted); `mBegan` and
+        /// `mEnded` tell the force-greet system that it opened and closed. Every function may be empty.
+        struct ForcedGreetHooks
+        {
+            std::function<FormId(FormId reference)> mTopic;
+            std::function<void(FormId reference)> mBegan;
+            std::function<void(FormId reference)> mEnded;
+        };
+        void setForcedGreeting(ForcedGreetHooks hooks);
         /// What the crime rules tell the conversations' conditions (applied now and to a runtime built later).
         void setCrimeConditionSource(CrimeConditionSource source);
         /// Can the guard placed as `reference` (of base `base`) open the forced greeting now? False while the dialogue
@@ -727,6 +737,7 @@ namespace game_skyrimse
         }
         /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
         [[nodiscard]] FormId questOfInfo(FormId info) const;
+        [[nodiscard]] FormId questOfScene(FormId scene) const; ///< task 0264
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false
         /// when the cell is not known. Main thread.
         [[nodiscard]] bool cellLocation(FormId cell, FormId& location, bool& interior) const;
@@ -903,6 +914,8 @@ namespace game_skyrimse
         CrimeConditionSource mCrimeSource; ///< task 0258
         bool mCrimeSourceSet = false;
         FormId mForcedReference = kNullFormId; ///< the open conversation is the forced one with this actor
+        ForcedGreetHooks mForcedGreet; ///< task 0264
+        FormId mForcedGreetReference = kNullFormId; ///< task 0264: the open conversation is a ForceGreet package's
         bool mOpenServices = false; ///< task 0219
         std::set<FormId> mRankMinusOneMembers; ///< task 0261
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211

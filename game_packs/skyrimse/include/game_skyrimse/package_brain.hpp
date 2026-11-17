@@ -284,6 +284,10 @@ namespace game_skyrimse
         /// talks; a seated one stays seated; afterwards the actor takes up its package again (a sleeper looks for a
         /// bed).
         void onConversation(openeden::sdk::game::WorldId reference, bool begins);
+        /// Task 0264: the combat AI engages the actor: a seated actor gets up (the quick exit clip) at the next update even
+        /// when it is a sitter; it is told with the same `onConversation(reference, true)` that follows. No effect on an
+        /// actor that is not seated.
+        void forceStand(openeden::sdk::game::WorldId reference);
         /// Stage S6g: the player activated the actor and the conversation has not begun (the world still runs). A
         /// sleeper starts getting up with the quick exit clip; the actor then holds still like a talking one. True
         /// when the actor can talk at once (anything but a sleeper), false while it gets up. Idempotent.
@@ -362,6 +366,7 @@ namespace game_skyrimse
             bool mToFollow = false;
             float mFollowTimer = 0.f;
             int mTalkRequest = 0; ///< 1 begin, 2 end: acted on at the next update
+            bool mForceStand = false; ///< task 0264: the next begin also stands a sitter up
             bool mTalkEndPending
                 = false; ///< the end came before the begin was acted on (the world is paused during a talk)
             bool mTalking = false;

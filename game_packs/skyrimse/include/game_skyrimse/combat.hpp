@@ -851,6 +851,18 @@ namespace game_skyrimse
         void crimeHold(openeden::sdk::game::ActorHandle handle);
         void crimeRelease(openeden::sdk::game::ActorHandle handle);
         void crimeAttack(openeden::sdk::game::ActorHandle handle);
+        /// Task 0264 (companions): what the game's own scripts ask of the combat. `scriptStartCombat` makes the actor fight
+        /// the player (Actor.StartCombat), `scriptStopCombat` ends its fight (Actor.StopCombat) and `scriptResetHealth`
+        /// heals it to the maximum (ResetHealthAndLimbs) and ends a bleedout. `setEssentialBleedout(true)` makes an
+        /// ESSENTIAL actor (ACBS) that a blow would kill collapse into bleedout instead (health 1, no death report) and
+        /// tell the sink once; the sink's script event is OnEnterBleedout. All inert for an actor the combat does not know.
+        bool scriptStartCombat(openeden::sdk::game::ActorHandle handle);
+        bool scriptStopCombat(openeden::sdk::game::ActorHandle handle);
+        bool scriptResetHealth(openeden::sdk::game::ActorHandle handle);
+        [[nodiscard]] bool scriptInCombat(openeden::sdk::game::ActorHandle handle) const;
+        void setEssentialBleedout(bool on) { mEssentialBleedout = on; }
+        using BleedoutSink = std::function<void(openeden::sdk::game::ActorHandle actor)>;
+        void setBleedoutSink(BleedoutSink sink) { mBleedoutSink = std::move(sink); }
         /// Test aid (task 0204): this actor (editor id, case-insensitive) counts as a guard for the crime rules.
         void setCrimeTestGuard(std::string_view editorId);
         /// The target of an engaged AI actor (the player when it is not engaged).
@@ -986,6 +998,7 @@ namespace game_skyrimse
             FighterProfile mProfile;
             float mHealth = 0.f;
             float mStamina = 0.f;
+            bool mBleedout = false; ///< task 0264: an essential actor that collapsed instead of dying
             bool mDead = false;
             bool mSwinging = false;
             std::uint32_t mSwingToken = 0;
@@ -1285,6 +1298,8 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, float> mAiCooldown; ///< the combat clock before which it does not engage
         std::vector<AiMoveIntent> mAiMoves;
         BarkSink mBarkSink; ///< task 0231
+        BleedoutSink mBleedoutSink; ///< task 0264
+        bool mEssentialBleedout = false; ///< task 0264
         // Task 0253 (dragons).
         dragons::Settings mDragonSettings;
         std::vector<dragons::DragonState> mDragonStates;

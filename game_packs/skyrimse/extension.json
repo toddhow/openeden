@@ -619,6 +619,16 @@
       "key": "houses test permission",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "companions test training",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "companions",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

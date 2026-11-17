@@ -132,6 +132,11 @@ namespace game_skyrimse
         /// conversation. False with `error` when no forced greeting passes. `begin` and `end` leave this mode.
         [[nodiscard]] bool beginForced(const DialogueSpeaker& speaker, std::string_view subtype,
             openeden::sdk::game::DialogueTurn& out, std::string& error);
+        /// Task 0264: opens a conversation whose greeting is the first INFO of `topic` that passes now (a ForceGreet
+        /// package's PDTO topic); like `beginForced` its choices are the greeting's link-to topics. False with `error`
+        /// when no INFO of the topic passes.
+        [[nodiscard]] bool beginForcedTopic(const DialogueSpeaker& speaker, FormId topic,
+            openeden::sdk::game::DialogueTurn& out, std::string& error);
         /// Task 0258: what the crime rules say to the conditions and the text tag <CrimeGold>. Without it: nothing.
         void setCrimeSource(CrimeConditionSource source)
         {

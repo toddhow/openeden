@@ -81,6 +81,13 @@ namespace game_skyrimse
             actor.mTalkRequest = 2;
     }
 
+    void PackageBrain::forceStand(sdkgame::WorldId reference)
+    {
+        const auto it = mActors.find(reference);
+        if (it != mActors.end() && it->second.mSeated)
+            it->second.mForceStand = true;
+    }
+
     bool PackageBrain::needsWakeToTalk(const Actor& actor)
     {
         return actor.mSeated && actor.mHasSlot && actor.mSlot.mPose == sdkgame::FurniturePose::Sleep;
@@ -744,7 +751,9 @@ namespace game_skyrimse
             if (actor.mSeated)
             {
                 // A get-up already under way (stage S6g: the core asked for it before the conversation began) goes on.
-                if (actor.mSlot.mPose == sdkgame::FurniturePose::Sleep)
+                const bool getUp = actor.mSlot.mPose == sdkgame::FurniturePose::Sleep || actor.mForceStand;
+                actor.mForceStand = false;
+                if (getUp)
                 {
                     actor.mWoken = true;
                     if (!actor.mExiting)

@@ -170,6 +170,8 @@ namespace game_skyrimse
         std::vector<PackageLocation> mLocations; ///< PLDT, in order (the first is the package's main location)
         std::vector<PackageTarget> mTargets; ///< PTDA, in order (stage S6f)
         std::vector<std::uint8_t> mBools; ///< the Bool data inputs (ANAM "Bool" + 1 byte CNAM), in order
+        /// Task 0264: the first PDTO (package data, type 0 = a topic) of a package: the topic a ForceGreet package says.
+        FormId mForceGreetTopic = kNullFormId;
         std::uint32_t mPlugin = 0; ///< index into PackageIndex's plugins: the plugin whose record won
     };
 

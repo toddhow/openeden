@@ -59,7 +59,21 @@ namespace game_skyrimse
 
     bool SceneRunner::start(FormId scene, bool force)
     {
-        return startImpl(scene, force, nullptr);
+        if (startImpl(scene, force, nullptr))
+            return true;
+        // task 0264: a script's explicit Scene.Start that does nothing says why (the quiet refusals of startImpl)
+        const SceneRecord* record = mScenes.scene(scene);
+        if (record == nullptr)
+            mEnv.log("SCENE " + hex(scene) + " not started: no such scene");
+        else if (mPlaying.count(scene) != 0)
+            mEnv.log("SCENE " + hex(scene) + " not started: it is playing already");
+        else if (!mEnv.questRunning(record->mQuest))
+            mEnv.log("SCENE " + hex(scene) + " not started: its quest " + hex(record->mQuest) + " is not running");
+        else if (mPlaying.size() >= mOptions.mMaxPlaying)
+            mEnv.log("SCENE " + hex(scene) + " not started: too many scenes are playing");
+        else if (!force && !record->mConditions.empty())
+            mEnv.log("SCENE " + hex(scene) + " not started: no speaker is loaded or its conditions fail");
+        return false;
     }
 
     bool SceneRunner::startImpl(FormId scene, bool force, const SceneSaveEntry* resume)

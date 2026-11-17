@@ -652,6 +652,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedialoguereal.cpp
     skyrimse/testskyrimsedialogueruntime.cpp
     skyrimse/testskyrimsedialogueruntimereal.cpp
+    skyrimse/testskyrimsecompanions.cpp
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsespeech.cpp
@@ -873,6 +874,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/follower.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/follower_state.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/houses.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/forcegreet.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_companions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud_style.cpp

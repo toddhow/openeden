@@ -590,6 +590,40 @@ namespace game_skyrimse
         return true;
     }
 
+    bool DialogueRuntime::beginForcedTopic(const DialogueSpeaker& speaker, FormId topic,
+        openeden::sdk::game::DialogueTurn& out, std::string& error)
+    {
+        out = {};
+        mOpen = false;
+        mLinkMode = false;
+        mSpeaker = speaker;
+        mWorld.setSpeaker(speaker);
+        mWorld.setConversationOpen(true);
+        mWorld.setTalkedToPlayer(false);
+        mWorld.setRandomSeed(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase);
+        mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
+        const Selection selected = selectInfo(mDialogue, topic, mWorld, mSpeaker, options(0));
+        const DialogInfo* const greeting = selected.mInfo;
+        if (greeting == nullptr)
+        {
+            mWorld.setConversationOpen(false);
+            error = "no line of the forced greeting's topic passes for this speaker";
+            return false;
+        }
+        fillTurn(*greeting, out);
+        if (const ActorNpc* npc = mActors.npc(speaker.mBase); npc != nullptr && npc->mName.mPresent)
+            out.speakerName = npc->mName.mLocalized ? mResolver(npc->mName, npc->mPlugin, StringTableKind::Strings)
+                                                    : npc->mName.mText;
+        ++mStats.mConversations;
+        mWorld.setTalkedToPlayer(true);
+        mOpen = true;
+        mLinkMode = true;
+        offerLinks(*greeting, out);
+        if (out.topics.empty())
+            out.endsConversation = true;
+        return true;
+    }
+
     void DialogueRuntime::offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out)
     {
         out.topics.clear();

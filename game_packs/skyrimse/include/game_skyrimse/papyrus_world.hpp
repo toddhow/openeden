@@ -61,6 +61,10 @@ namespace game_skyrimse
         std::function<bool(FormId reference)> referenceLoaded; ///< task 0268
         std::function<ObjectPlaceResult(FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell)>
             relocateObject; ///< task 0268
+        std::function<bool(FormId actor)> startCombat; ///< task 0264
+        std::function<bool(FormId actor)> stopCombat;
+        std::function<bool(FormId actor)> resetHealth;
+        std::function<bool(FormId actor)> inCombat;
     };
 
     class PackWorldHooks final : public PapyrusWorldHooks
@@ -117,6 +121,10 @@ namespace game_skyrimse
                                        : ObjectPlaceResult{};
         }
         bool setCellOwner(FormId cell, FormId owner) override { return mEnv.setCellOwner && mEnv.setCellOwner(cell, owner); }
+        bool startCombat(FormId actor) override { return mEnv.startCombat && mEnv.startCombat(actor); }
+        bool stopCombat(FormId actor) override { return mEnv.stopCombat && mEnv.stopCombat(actor); }
+        bool resetHealth(FormId actor) override { return mEnv.resetHealth && mEnv.resetHealth(actor); }
+        bool inCombat(FormId actor) override { return mEnv.inCombat && mEnv.inCombat(actor); }
         bool teachWord(FormId word) override { return mEnv.teachWord && mEnv.teachWord(word); }
         bool unlockWord(FormId word) override { return mEnv.unlockWord && mEnv.unlockWord(word); }
         bool isWordUnlocked(FormId word) override { return mEnv.isWordUnlocked && mEnv.isWordUnlocked(word); }

@@ -1492,6 +1492,14 @@ namespace game_skyrimse
         return topic != nullptr ? topic->mQuest : kNullFormId;
     }
 
+    FormId SkyrimWorldView::questOfScene(FormId scene) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return kNullFormId;
+        const SceneRecord* record = mDialogue->mData->mScenes.scene(scene);
+        return record != nullptr ? record->mQuest : kNullFormId;
+    }
+
     bool SkyrimWorldView::cellLocation(FormId cell, FormId& location, bool& interior) const
     {
         DialogueSpeaker speaker;
@@ -2339,7 +2347,30 @@ namespace game_skyrimse
                 mArrest.mFailed(speaker.mReference);
             return false;
         }
+        // Task 0264: a ForceGreet package opens the conversation with the topic of its data
+        if (mForcedGreet.mTopic)
+        {
+            const FormId topic = mForcedGreet.mTopic(speaker.mReference);
+            if (topic != kNullFormId)
+            {
+                if (mDialogue->mRuntime->beginForcedTopic(speaker, topic, out, error))
+                {
+                    mForcedGreetReference = speaker.mReference;
+                    if (mForcedGreet.mBegan)
+                        mForcedGreet.mBegan(speaker.mReference);
+                    return true;
+                }
+                if (mForcedGreet.mEnded)
+                    mForcedGreet.mEnded(speaker.mReference);
+                return false;
+            }
+        }
         return mDialogue->mRuntime->begin(speaker, out, error);
+    }
+
+    void SkyrimWorldView::setForcedGreeting(ForcedGreetHooks hooks)
+    {
+        mForcedGreet = std::move(hooks);
     }
 
     void SkyrimWorldView::setArrestDialogue(ArrestDialogueHooks hooks)
@@ -2389,6 +2420,13 @@ namespace game_skyrimse
     {
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->end();
+        if (mForcedGreetReference != kNullFormId)
+        {
+            const FormId reference = mForcedGreetReference;
+            mForcedGreetReference = kNullFormId;
+            if (mForcedGreet.mEnded)
+                mForcedGreet.mEnded(reference);
+        }
         if (mForcedReference != kNullFormId)
         {
             const FormId reference = mForcedReference;

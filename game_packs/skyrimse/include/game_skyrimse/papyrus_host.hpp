@@ -140,6 +140,13 @@ namespace game_skyrimse
             return 0;
         }
 
+        /// Task 0264: the quest a scene belongs to (Scene.GetOwningQuest): the scene's PNAM.
+        [[nodiscard]] virtual FormId questOfScene(FormId scene) const
+        {
+            (void)scene;
+            return 0;
+        }
+
         /// Task 0194: is the form a scene (SCEN)? Its class is "Scene".
         [[nodiscard]] virtual bool isScene(FormId form) const
         {
@@ -334,6 +341,28 @@ namespace game_skyrimse
         }
         /// Starts the death of an actor now (the combat rules' death path). False when it cannot (stale, the player).
         virtual bool killActor(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        /// Task 0264: Actor.StartCombat (the player is the target), Actor.StopCombat, Actor.ResetHealthAndLimbs and
+        /// Actor.GetCombatState. False / 0 when the actor is unknown or the combat AI is off.
+        virtual bool startCombat(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        virtual bool stopCombat(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        virtual bool resetHealth(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        virtual bool inCombat(FormId actor)
         {
             (void)actor;
             return false;
@@ -541,6 +570,8 @@ namespace game_skyrimse
         void onActorHit(FormId victim, FormId attacker, bool blocked, bool bash);
         /// OnDying and OnDeath go to the victim's scripts; the actor counts as dead for IsDead.
         void onActorDied(FormId victim, FormId killer);
+        /// Task 0264: an essential actor collapsed (OnEnterBleedout on the scripts that hold it).
+        void onActorBleedout(FormId actor);
         /// Notifications (Debug.Notification) shown since the host was made: a ring of the last kMaxNotifications.
         static constexpr std::size_t kMaxNotifications = 16;
         [[nodiscard]] std::uint64_t notificationCount() const;

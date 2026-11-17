@@ -335,6 +335,8 @@ namespace game_skyrimse
                 mDeaths->actorGone(handle.reference); // task 0254
             mHud.actorRemoved(handle);
         }
+        /// Task 0264 (`companions`): an actor the combat AI engages gets up from the furniture it sits on.
+        void setStandOnEngage(bool on) { mStandOnEngage = on; }
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
         {
             // Task 0190: the combat AI's movement. The package brain is told to wait for an engaged actor (a fight is a
@@ -347,7 +349,11 @@ namespace game_skyrimse
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
             {
                 if (move.mKind == Kind::Suspend)
+                {
+                    if (mStandOnEngage)
+                        mActors.forceStand(move.mActor.reference); // task 0264: an engaged sitter gets up first
                     mActors.onConversation(move.mActor.reference, true);
+                }
                 else if (move.mKind == Kind::Resume)
                     mActors.onConversation(move.mActor.reference, false);
                 else if (move.mKind == Kind::Stop)
@@ -660,6 +666,7 @@ namespace game_skyrimse
         bool mMusicOn = false; ///< task 0209
         std::uint64_t mMusicSeed = 1;
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
+        bool mStandOnEngage = false; ///< task 0264
         std::set<openeden::sdk::game::WorldId> mDirectWalkers; ///< task 0253: dragons walked by setMovement
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198

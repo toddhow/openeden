@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_COMPONENTS_SCRIPT_PAPYRUS_PAPYRUSRUNTIME_H
 #define OPENEDEN_COMPONENTS_SCRIPT_PAPYRUS_PAPYRUSRUNTIME_H
 
+#include <functional>
 #include <array>
 #include <cstdint>
 #include <limits>
@@ -165,6 +166,13 @@ namespace ScriptPapyrus
         /// does when it unloads the object the stacks belong to, and what restore will do first. Returns the number of
         /// stacks dropped. Does nothing inside a native.
         virtual std::uint32_t cancelWaiting(openeden::script::InstanceId instance) noexcept = 0;
+
+        /// Task 0264: a game pack's alias handle is a form value to the runtime, and the scripts attached to an alias
+        /// are keyed by (quest, alias). The resolver maps a handle to its (quest, alias) so that `alias as SomeScript`
+        /// finds the alias's script of that class, as it does for a quest or a reference. Without it (the default) a
+        /// cast of an alias handle finds nothing, as before.
+        using AliasResolver = std::function<bool(std::uint32_t handle, openeden::script::FormId& quest, std::uint32_t& alias)>;
+        virtual void setAliasResolver(AliasResolver resolver) { (void)resolver; }
     };
 
     std::unique_ptr<PapyrusRuntime> createRuntime(openeden::script::PapyrusWorld& world,

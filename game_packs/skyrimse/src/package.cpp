@@ -294,6 +294,17 @@ namespace game_skyrimse
                                 p.mTargets.push_back(target);
                             }
                             return;
+                        case Content::fourCC("PDTO"):
+                            // Task 0264: package data (type u32, value u32); type 0 names a topic (VERIFIED on
+                            // C00KodlakForceGreetPlayer: PDTO 0, 0xA3E50, the dialogue topic its force greet says)
+                            if (data.size() != 8)
+                            {
+                                odd(type);
+                                return;
+                            }
+                            if (readLe<std::uint32_t>(data.data()) == 0 && p.mForceGreetTopic == kNullFormId)
+                                p.mForceGreetTopic = resolved(readLe<std::uint32_t>(data.data() + 4));
+                            return;
                         case Content::fourCC("ANAM"):
                             // A data input's type name; a Bool input's value is the CNAM that follows (VERIFIED: 1
                             // byte).
