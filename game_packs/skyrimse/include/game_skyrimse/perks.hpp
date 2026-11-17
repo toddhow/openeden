@@ -30,6 +30,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <string>
 #include <utility>
@@ -295,10 +296,17 @@ namespace game_skyrimse
             return static_cast<std::uint64_t>(role) + 1;
         }
         [[nodiscard]] const PerkParticipant* participant(conditions::Subject subject) const;
+        /// Task 0275: where GetStage reads a quest's current stage (a perk like the Thieves Guild's helper holds only
+        /// between two stages of its quest). Without a source every stage is 0, as before.
+        void setQuestStageSource(std::function<float(std::uint32_t quest)> source) { mStageSource = std::move(source); }
+        /// Task 0275: the role whose participant is the player, so that a condition run on the REFERENCE 0x14 (the
+        /// perks' HasPerk tests of the player) has someone to ask. None by default: such a condition fails closed.
+        void setPlayerRole(PerkRole role) { mPlayerRole = role; }
+        static constexpr std::uint32_t kPlayerReference = 0x14;
 
         conditions::Subject resolveRunOn(std::uint32_t runOn, std::uint32_t reference) const override;
         bool hasBaseId(conditions::Subject subject, std::uint32_t formId) const override;
-        float questStage(std::uint32_t) const override { return 0.f; }
+        float questStage(std::uint32_t quest) const override { return mStageSource ? mStageSource(quest) : 0.f; }
         bool questStageDone(std::uint32_t, std::uint32_t) const override { return false; }
         bool inFaction(conditions::Subject subject, std::uint32_t faction) const override;
         float globalValue(std::uint32_t) const override { return 0.f; }
@@ -316,6 +324,8 @@ namespace game_skyrimse
     private:
         const PerkQuery* mQuery = nullptr;
         PerkRole mCurrent = PerkRole::Owner;
+        PerkRole mPlayerRole = PerkRole::kCount; ///< task 0275
+        std::function<float(std::uint32_t)> mStageSource; ///< task 0275
     };
 
     // ---- evaluation -------------------------------------------------------------------------------------------------
@@ -353,6 +363,12 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t selectSpells(
             std::uint8_t entryPoint, std::span<const FormId> perks, const PerkQuery& query, std::span<FormId> out);
 
+        /// Task 0275: the conditions world's two optional answers (see PerkConditionWorld).
+        void setQuestStageSource(std::function<float(std::uint32_t quest)> source)
+        {
+            mWorld.setQuestStageSource(std::move(source));
+        }
+        void setPlayerRole(PerkRole role) { mWorld.setPlayerRole(role); }
         [[nodiscard]] const conditions::Evaluator& evaluator() const { return mEvaluator; }
         [[nodiscard]] std::uint64_t unknownConditionLists() const { return mEvaluator.mListsFailedClosed; }
 

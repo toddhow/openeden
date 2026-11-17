@@ -86,4 +86,20 @@ namespace MWWorld
             return true;
         return renderHitCanBeActivated ? renderDistance > box.mExit : renderDistance > box.mEntry;
     }
+
+    NeutralActorBox neutralActorBox(double scale)
+    {
+        const double s = std::isfinite(scale) && scale > 0.0 ? scale : 1.0;
+        const double height = kActorPickHeight * s;
+        NeutralActorBox box;
+        box.mMin = vsg::dvec3(-kActorPickRadius, -kActorPickRadius, 0.0);
+        box.mMax = vsg::dvec3(kActorPickRadius, kActorPickRadius, height + kActorPickHeadroom);
+        box.mHead = vsg::dvec3(0.0, 0.0, height * kActorHeadFraction);
+        return box;
+    }
+
+    bool actorBeatsRenderHit(bool renderHitCanBeActivated, bool headInClearView)
+    {
+        return !renderHitCanBeActivated && headInClearView;
+    }
 }

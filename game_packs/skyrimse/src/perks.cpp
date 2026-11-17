@@ -607,9 +607,14 @@ namespace game_skyrimse
         return mQuery->mRole[subject - 1];
     }
 
-    conditions::Subject PerkConditionWorld::resolveRunOn(std::uint32_t runOn, std::uint32_t) const
+    conditions::Subject PerkConditionWorld::resolveRunOn(std::uint32_t runOn, std::uint32_t reference) const
     {
-        // Every run-on of an effect tab but "subject" has nobody to name: the condition fails closed.
+        // Task 0275: "reference" (2) 0x14 is the player, when a role was told to be his (the Thieves Guild's helper
+        // perk asks HasPerk of the player)
+        if (runOn == 2 && reference == kPlayerReference && mPlayerRole != PerkRole::kCount
+            && participant(subjectOf(mPlayerRole)) != nullptr)
+            return subjectOf(mPlayerRole);
+        // Every other run-on of an effect tab but "subject" has nobody to name: the condition fails closed.
         if (runOn != 0 || mCurrent == PerkRole::kCount || participant(subjectOf(mCurrent)) == nullptr)
             return 0;
         return subjectOf(mCurrent);

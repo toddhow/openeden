@@ -1465,6 +1465,12 @@ namespace MWPhysics
             Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, ignore);
     }
 
+    bool PhysicsSystem::neutralLineBlocked(const vsg::vec3& from, const vsg::vec3& to)
+    {
+        return NeutralSight::blocked(
+            mPhysicsSystem, from, to, Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, neutralSightIgnore());
+    }
+
     const std::vector<JPH::BodyID>& PhysicsSystem::neutralSightIgnore()
     {
         // Neutral actors are WORLD bodies too, so they are listed as ignored (the list is reserved when an actor is

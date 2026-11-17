@@ -130,7 +130,13 @@ namespace game_skyrimse::pickup
         float weight = 0.f;
         if (!mHooks.mItem || !mHooks.mSkill || !mHooks.mItem(item, value, weight))
             return 0.f;
-        return pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count);
+        return withBonus(owner, pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count));
+    }
+
+    float PickupService::withBonus(std::uint64_t owner, float percent) const
+    {
+        // task 0275: Mod Pickpocket Chance (entry point 56) of the player's perks, in percentage points
+        return mHooks.mChanceBonus ? chanceWithBonus(mSettings, percent, mHooks.mChanceBonus(owner)) : percent;
     }
 
     TryStatus PickupService::take(std::uint64_t owner, FormId item, std::int32_t count)
@@ -141,7 +147,7 @@ namespace game_skyrimse::pickup
             return TryStatus::Refused;
         if (count <= 0 || mHooks.mHeldBy(owner, item) < count || !mHooks.mItem(item, value, weight))
             return TryStatus::BadCount;
-        const float percent = pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count);
+        const float percent = withBonus(owner, pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count));
         const bool rolled = pickpocketRoll(owner, item, mBook.takeAttempt(), percent);
         const bool success = rolled && !(mHooks.mAware && mHooks.mAware(owner)); // task 0227
         if (mHooks.mTrain)
@@ -160,6 +166,39 @@ namespace game_skyrimse::pickup
         if (mHooks.mCaught)
             mHooks.mCaught(owner, item, count);
         note("PICKPOCKET " + inventory::formatId(owner) + " caught trying for " + inventory::formatId(item) + " x"
+            + std::to_string(count) + " at " + std::to_string(static_cast<int>(percent)) + "%");
+        return TryStatus::Caught;
+    }
+
+    TryStatus PickupService::plant(std::uint64_t owner, FormId item, std::int32_t count)
+    {
+        std::int32_t value = 0;
+        float weight = 0.f;
+        if (!mHooks.mItem || !mHooks.mHeldBy || !mHooks.mMoveFromPlayer || !mHooks.mSkill)
+            return TryStatus::Refused;
+        if (count <= 0 || mHooks.mHeldBy(inventory::kPlayerOwner, item) < count
+            || !mHooks.mItem(item, value, weight))
+            return TryStatus::BadCount;
+        const float percent = withBonus(owner, pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count));
+        // the same chance as a take, a draw of its own (planting and stealing the same item are not the same roll)
+        const bool rolled = pickpocketRoll(owner ^ kPlantSalt, item, mBook.takeAttempt(), percent);
+        const bool success = rolled && !(mHooks.mAware && mHooks.mAware(owner));
+        if (mHooks.mTrain)
+            mHooks.mTrain(pickpocketTraining(value, count));
+        ++mRevision;
+        if (success && mHooks.mMoveFromPlayer(owner, item, count))
+        {
+            mState = "planted";
+            mMessage = "You slipped it in.";
+            note("PICKPOCKET " + inventory::formatId(owner) + " planted " + inventory::formatId(item) + " x"
+                + std::to_string(count) + " at " + std::to_string(static_cast<int>(percent)) + "%");
+            return TryStatus::Success;
+        }
+        mState = "caught";
+        mMessage = "You were caught!";
+        if (mHooks.mCaught)
+            mHooks.mCaught(owner, item, count);
+        note("PICKPOCKET " + inventory::formatId(owner) + " caught trying to plant " + inventory::formatId(item) + " x"
             + std::to_string(count) + " at " + std::to_string(static_cast<int>(percent)) + "%");
         return TryStatus::Caught;
     }
@@ -221,6 +260,14 @@ namespace game_skyrimse::pickup
             if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
                 return fail(BindingStatus::BadArgument, "not an id");
             (void)self->take(owner, static_cast<FormId>(item), a[2].integer);
+            return ok();
+        });
+
+        add("plant", s3, false, BindingType::Bool, BindingAccess::Mutate, [self, idOf](std::span<const BindingValue> a) {
+            std::uint64_t owner = 0, item = 0;
+            if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
+                return fail(BindingStatus::BadArgument, "not an id");
+            (void)self->plant(owner, static_cast<FormId>(item), a[2].integer);
             return ok();
         });
 

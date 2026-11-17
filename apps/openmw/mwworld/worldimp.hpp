@@ -164,6 +164,10 @@ namespace MWWorld
         void preloadSpells();
 
         MWWorld::Ptr getFocusObject(float maxDistance, bool ignorePlayer = true);
+        /// Task 0275: picks a living neutral actor the crosshair ray crosses when the rendered ray ended on something
+        /// that cannot be activated (see neutralpick.hpp).
+        void pickNeutralActorBehindObstacle(
+            Ptr& focusObject, bool rayHit, const vsg::vec3& hitPoint, float maxDistance, float camDist);
 
         void PCDropped(const Ptr& item);
 

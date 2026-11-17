@@ -448,6 +448,10 @@ namespace MWPhysics
         /// Task 0255: a load door is about to take the player: a rider gets off now (the pack releases him). A no-op
         /// for a player on foot or a session with no riding rules.
         void dismountNeutralRider();
+        /// Task 0275: is static geometry (walls, floors, terrain, closed doors) between two points? The neutral actors'
+        /// bodies never block. Used by the activate key's actor pick: an actor behind a low counter is picked when its
+        /// head is in clear view.
+        [[nodiscard]] bool neutralLineBlocked(const vsg::vec3& from, const vsg::vec3& to);
         /// Task 0184: the pack reported this neutral actor dead (a corpse the player may search).
         [[nodiscard]] bool isNeutralActorDead(const MWWorld::Ptr& ptr) const
         {

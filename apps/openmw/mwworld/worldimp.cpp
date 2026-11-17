@@ -2408,6 +2408,22 @@ namespace MWWorld
             mDistanceToFocusObject = (rayToObject.mRatio * maxDistance) - camDist;
         else
             mDistanceToFocusObject = -1;
+        // Task 0275: a developer aid that tells what the rendered ray hit (OPENEDEN_FOCUS_TRACE=1), for the activate
+        // key's pick of an actor behind an obstacle.
+        static const bool focusTrace = [] {
+            const char* text = std::getenv("OPENEDEN_FOCUS_TRACE");
+            return text != nullptr && *text != 0 && *text != '0';
+        }();
+        if (focusTrace && !MWBase::Environment::get().getWindowManager()->isGuiMode())
+            Log(Debug::Info) << "FOCUS render ray: eye " << mRendering->getCamera()->getPosition().x << ","
+                             << mRendering->getCamera()->getPosition().y << ","
+                             << mRendering->getCamera()->getPosition().z << " pitch "
+                             << mRendering->getCamera()->getPitch() << " yaw " << mRendering->getCamera()->getYaw()
+                             << " max " << maxDistance << " camera " << camDist << " hit "
+                             << rayToObject.mHit << " object "
+                             << (focusObject.isEmpty() ? std::string("none")
+                                                       : focusObject.getCellRef().getRefId().toDebugString())
+                             << " distance " << mDistanceToFocusObject;
         // Task 0233: a neutral furniture is also picked by its bounds, because a cooking pot or a fire spit is mostly
         // rail and wire and a ray aimed at it passes through (neutralpick.hpp). Only with the neutral inventory on.
         if (rayToObject.mHit && Settings::game().mNeutralInventory.get())
@@ -2450,7 +2466,71 @@ namespace MWWorld
                 }
             }
         }
+        pickNeutralActorBehindObstacle(focusObject, rayToObject.mHit, rayToObject.mHitPointWorld, maxDistance, camDist);
         return focusObject;
+    }
+
+    void World::pickNeutralActorBehindObstacle(
+        Ptr& focusObject, bool rayHit, const vsg::vec3& hitPoint, float maxDistance, float camDist)
+    {
+        // Task 0275: a living neutral actor the camera ray crosses is picked by a box round its feet when the rendered
+        // ray ended on something that cannot be activated (or on nothing), and its head is in clear view of the eye
+        // (neutralpick.hpp: a counter is lower than the eye, a wall is not). Only with the neutral inventory on, and
+        // only for the crosshair (not the mouse in a window).
+        if (!Settings::game().mNeutralInventory.get() || mPlayer == nullptr
+            || MWBase::Environment::get().getWindowManager()->isGuiMode())
+            return;
+        const bool hitCanBeActivated = !focusObject.isEmpty() && focusObject.getClass().hasToolTip(focusObject);
+        if (hitCanBeActivated)
+            return;
+        static const bool focusTrace = [] {
+            const char* text = std::getenv("OPENEDEN_FOCUS_TRACE");
+            return text != nullptr && *text != 0 && *text != '0';
+        }();
+        const vsg::dvec3 origin = mRendering->getCamera()->getPosition();
+        // the ray's direction: through the hit point, else the camera's forward
+        vsg::dvec3 direction = vsg::dquat(mRendering->getCamera()->getOrient()) * vsg::dvec3(0.0, 1.0, 0.0);
+        if (rayHit)
+        {
+            const vsg::dvec3 toHit = vsg::dvec3(hitPoint) - origin;
+            const double length = std::sqrt(toHit.x * toHit.x + toHit.y * toHit.y + toHit.z * toHit.z);
+            if (length > 1e-6)
+                direction = toHit * (1.0 / length);
+        }
+        double bestEntry = std::numeric_limits<double>::infinity();
+        Ptr best;
+        for (CellStore* cellstore : mWorldScene->getActiveCells())
+            cellstore->forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
+                if (live.mBase->mKind != openeden::sdk::game::ObjectKind::Actor)
+                    return;
+                const Ptr candidate(&live, cellstore);
+                if (!candidate.getRefData().isEnabled() || !candidate.getClass().hasToolTip(candidate))
+                    return;
+                const ESM::Position& position = candidate.getRefData().getPosition();
+                const NeutralActorBox actorBox = neutralActorBox(candidate.getCellRef().getScale());
+                const vsg::dvec3 feet(position.pos[0], position.pos[1], position.pos[2]);
+                const auto box = rayOrientedBox(origin, direction, maxDistance, actorBox.mMin, actorBox.mMax, feet,
+                    vsg::dquat(0.0, 0.0, 0.0, 1.0), 1.0);
+                if (!box || box->mEntry >= bestEntry)
+                    return;
+                const vsg::dvec3 head = feet + actorBox.mHead;
+                const bool clear = !mPhysics->neutralLineBlocked(
+                    vsg::vec3(static_cast<float>(origin.x), static_cast<float>(origin.y), static_cast<float>(origin.z)),
+                    vsg::vec3(static_cast<float>(head.x), static_cast<float>(head.y), static_cast<float>(head.z)));
+                if (focusTrace)
+                    Log(Debug::Info) << "FOCUS actor box " << candidate.getCellRef().getRefId().toDebugString()
+                                     << " entry " << box->mEntry << " head clear " << clear;
+                if (actorBeatsRenderHit(hitCanBeActivated, clear))
+                {
+                    bestEntry = box->mEntry;
+                    best = candidate;
+                }
+            });
+        if (!best.isEmpty())
+        {
+            focusObject = best;
+            mDistanceToFocusObject = static_cast<float>(bestEntry - camDist);
+        }
     }
 
     bool World::castRenderingRay(MWPhysics::RayCastingResult& res, const vsg::vec3& from, const vsg::vec3& to,

@@ -22,6 +22,7 @@
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
+#include "game_skyrimse/perks.hpp"
 #include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/placed_refs.hpp"
 #include "game_skyrimse/player_body.hpp"
@@ -523,6 +524,11 @@ namespace game_skyrimse
             }
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
+            /// Task 0275: a quest's current stage (0 when the quest state is not there yet).
+            [[nodiscard]] float questStage(FormId quest) const
+            {
+                return mQuestStateForStage != nullptr ? mQuestStateForStage->stage(quest) : 0.f;
+            }
             void enableForceGreet() { mForceOn = true; }
             [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
             void enableCompanions() { mCompanionsOn = true; }
@@ -612,6 +618,7 @@ namespace game_skyrimse
                 mData.setLocations(access.mLocations); // task 0217
                 mHost.setQuests(access.mQuests, access.mState, access.mVmads);
                 mHouseQuests = access.mQuests; // task 0269
+                mQuestStateForStage = access.mState; // task 0275
                 // Task 0187: aliases fill when a quest starts, the story manager answers events, and the script
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
@@ -1333,6 +1340,7 @@ namespace game_skyrimse
             SkyrimWorldView& mView;
             PackPapyrusData mData;
             PapyrusHost mHost;
+            const QuestState* mQuestStateForStage = nullptr; // task 0275: borrowed (the world view owns it)
             openeden::sdk::Logger* mLogger;
             static constexpr double kAmbientFirstSeconds = 5.0;
             static constexpr double kAmbientSeconds = 30.0;
@@ -3945,6 +3953,17 @@ namespace game_skyrimse
                     return mInventory->model().transfer(owner, inventory::kPlayerOwner, item, count)
                         == inventory::TransferStatus::Ok;
                 };
+                hooks.mMoveFromPlayer = [this](std::uint64_t owner, FormId item, std::int32_t count) {
+                    return mInventory->model().transfer(inventory::kPlayerOwner, owner, item, count)
+                        == inventory::TransferStatus::Ok; // task 0275: reverse pickpocketing
+                };
+                hooks.mChanceBonus = [this, logger](std::uint64_t victim) {
+                    const float bonus = pickpocketPerkBonus(victim);
+                    if (logger != nullptr && bonus != 0.f)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "PICKPOCKET the perks add " + std::to_string(static_cast<int>(bonus)) + " percent");
+                    return bonus;
+                };
                 hooks.mSkill = [this]() {
                     float skill = 0.f;
                     constexpr std::uint32_t kPickpocketValue
@@ -3992,6 +4011,46 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "PICKUP picking up items and pickpocketing are on");
+            }
+
+            // Task 0275: the perks the player holds (Actor.AddPerk through the Papyrus host: the Thieves Guild's helper
+            // perk of TG00) change a pickpocket chance by entry point 56, "Mod Pickpocket Chance", in percentage points.
+            float pickpocketPerkBonus(std::uint64_t victim)
+            {
+                if (mPapyrus == nullptr)
+                    return 0.f;
+                const PerkLibrary* library = mWorldView.perkLibrary();
+                if (library == nullptr)
+                    return 0.f;
+                const std::vector<FormId> perks = mPapyrus->host().perksOf(kPapyrusPlayerReference);
+                if (perks.empty())
+                    return 0.f;
+                if (!mPickpocketPerks)
+                {
+                    mPickpocketPerks = std::make_unique<PerkEngine>(*library);
+                    mPickpocketPerks->setPlayerRole(PerkRole::Owner);
+                    // GetStage of the perk's own quest (the Thieves Guild's helper holds for stages 10 to 29 of TG00)
+                    mPickpocketPerks->setQuestStageSource([this](std::uint32_t quest) {
+                        return mPapyrus != nullptr ? mPapyrus->questStage(static_cast<FormId>(quest)) : 0.f;
+                    });
+                }
+                if (!mPickpocketPerks->hasEntryPoint(perks, PerkEntry::ModPickpocketChance))
+                    return 0.f;
+                PerkParticipant owner;
+                owner.mKind = PerkParticipant::Kind::Actor;
+                owner.mForm = crime::kPlayerNpcId;
+                owner.mPerks = &perks;
+                // the second tab of the entry point is the victim (RECALLED-VERIFY: the PERK has two tabs); a victim the
+                // pack cannot name is an actor with no data, which a tab with no conditions accepts
+                PerkParticipant target;
+                target.mKind = PerkParticipant::Kind::Actor;
+                if (const PlacedRefIndex* refs = mWorldView.placedRefs())
+                    if (const PlacedEntry* entry = refs->find(static_cast<FormId>(victim)))
+                        target.mForm = entry->mBase;
+                PerkQuery query;
+                query.set(PerkRole::Owner, &owner);
+                query.set(PerkRole::Target, &target);
+                return mPickpocketPerks->apply(PerkEntry::ModPickpocketChance, perks, query, 0.f).mValue;
             }
 
             // Task 0204: the player took an item out of a container: theft when somebody else owns the placement.
@@ -5183,6 +5242,7 @@ namespace game_skyrimse
             bool mBarkSubtitles = true;
             bool mBarkConfigured = false;
             float mBarkStartAt = 0.f;
+            std::unique_ptr<PerkEngine> mPickpocketPerks; // task 0275: the perk bonus to a pickpocket chance
             std::unique_ptr<pickup::PickupService> mPickup; // task 0208; refers to the inventory, crime, progression
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;

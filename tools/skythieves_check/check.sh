@@ -22,6 +22,8 @@ CFG_LUA="return { every = ${EVERY:-120}, from = 1, near = ${NEAR:-6}, radius = $
 [ -n "${AIM:-}" ] && CFG_LUA="$CFG_LUA, aim = { $AIM }"
 [ -n "${MOVES:-}" ] && CFG_LUA="$CFG_LUA, moves = { $MOVES }"
 [ -n "${ACTIVATE:-}" ] && CFG_LUA="$CFG_LUA, activate = { $ACTIVATE }"
+# task 0275: STEPS = "{ 3400,'110717',90,173200,-96590,20 }, { ... }" (see mq/global.lua)
+[ -n "${STEPS:-}" ] && CFG_LUA="$CFG_LUA, steps = { $STEPS }"
 echo "$CFG_LUA }" > "$LUA/scripts/mq/cfg.lua"
 export LOADARG="${LOADARG:---start @RiftenWorld,173100,-96800,11120}"
 export DEMO_DIR="$LUA" DEMO_ESP=mq.omwscripts

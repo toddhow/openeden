@@ -27,9 +27,11 @@ view = windows.create{
   ui = ui,
   inv = inv,
   transfer = function(from, to, item, count)
-    -- only taking from the actor is allowed; putting items into its pockets is not
+    -- a take is a pickpocket try; a put (task 0275) is a reverse pickpocket try
     if from == pickOwner and to == 'player' then
       core.sendGlobalEvent('SkyrimPickpocketTake', { owner = from, item = item, count = count })
+    elseif from == 'player' and to == pickOwner then
+      core.sendGlobalEvent('SkyrimPickpocketPlant', { owner = to, item = item, count = count })
     end
   end,
   takeAll = function() end,
@@ -63,7 +65,7 @@ return {
           if state == 'caught' then
             mui.showMessage(pick.message())
             leave() -- the world runs again, so the crime is judged
-          elseif state == 'success' then
+          elseif state == 'success' or state == 'planted' then
             mui.showMessage(pick.message())
           end
         end

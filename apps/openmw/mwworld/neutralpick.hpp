@@ -36,6 +36,34 @@ namespace MWWorld
     /// under the furniture, a wall, a static) loses as soon as the ray entered the box before it; one that can be
     /// activated (an item on the furniture, an actor in front of it) loses only when it lies beyond the whole box.
     [[nodiscard]] bool boxBeatsRenderHit(const NeutralBoxHit& box, double renderDistance, bool renderHitCanBeActivated);
+
+    // Task 0275: a living actor behind a low obstacle (a market stall, a counter). The activate key picks what the
+    // camera ray hits in the rendered geometry, so Brynjolf, standing behind his stall, was never picked: the ray ends
+    // on the stall. An actor is also picked by a box round its feet when the ray passes through the box AND the actor's
+    // head is in clear view of the camera (nothing solid between the eye and the head: a counter is lower than the
+    // eye, a wall is not), so the key still does not work through walls.
+    /// The box of an actor in its own frame (origin at the feet), for a uniform `scale`: half-width `kActorPickRadius`
+    /// and height `kActorPickHeight` times `scale`.
+    struct NeutralActorBox
+    {
+        vsg::dvec3 mMin;
+        vsg::dvec3 mMax;
+        /// The point of the actor the camera must see, in the same frame (the top of the chest and head).
+        vsg::dvec3 mHead;
+    };
+    inline constexpr double kActorPickRadius = 26.0;
+    inline constexpr double kActorPickHeight = 128.0;
+    inline constexpr double kActorHeadFraction = 0.85;
+    /// The box reaches this far above the head. The neutral player is a stub Morrowind NPC whose eye is about 150
+    /// units up (measured: 149.7), above a Skyrim actor's head (about 128), so the camera's level ray passes OVER
+    /// every actor and a person had to look down to talk to anyone (and the level ray ends on whatever hangs at eye
+    /// height: Brynjolf's stall awning, task 0271). 32 covers the gap with room.
+    inline constexpr double kActorPickHeadroom = 32.0;
+    [[nodiscard]] NeutralActorBox neutralActorBox(double scale);
+
+    /// Does the actor win over what the rendered ray hit? Never when that hit can itself be activated (an item on the
+    /// counter, a door); otherwise only when the head is in clear view.
+    [[nodiscard]] bool actorBeatsRenderHit(bool renderHitCanBeActivated, bool headInClearView);
 }
 
 #endif

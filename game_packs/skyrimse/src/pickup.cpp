@@ -140,6 +140,13 @@ namespace game_skyrimse::pickup
             std::clamp(chance, static_cast<double>(settings.mMin), static_cast<double>(settings.mMax)));
     }
 
+    float chanceWithBonus(const PickpocketSettings& settings, float percent, float bonus)
+    {
+        const double total = static_cast<double>(finiteOr(percent, settings.mMin)) + finiteOr(bonus, 0.f);
+        return static_cast<float>(
+            std::clamp(total, static_cast<double>(settings.mMin), static_cast<double>(settings.mMax)));
+    }
+
     bool pickpocketRoll(std::uint64_t owner, FormId item, std::uint32_t attempt, float chancePercent)
     {
         if (!(chancePercent > 0.f))

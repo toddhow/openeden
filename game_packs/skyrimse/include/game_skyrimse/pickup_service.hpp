@@ -6,12 +6,14 @@
 // lower-case hex digits, a placement 1 to 16), like the inventory's.
 //
 // Namespace skyrimse.pickup 1.0 (Read unless marked):
-//   state() -> string           "" (nothing yet), "taken", "success" (a pickpocket try), "caught" or "refused"
+//   state() -> string           "" (nothing yet), "taken", "success" (a pickpocket try), "planted" (a reverse try), "caught"
+//                               or "refused"
 //   message() -> string         the line the window shows after the last try
 //   revision() -> int           changes after every pickup or try
 //   chance(owner, item) -> int  the pickpocket chance in percent for one unit (0 when unknown)
 //   pickup(placement, base) [Mutate]   the player takes a placed item
 //   take(owner, item, count) [Mutate]  a pickpocket try for `count` of an item of a living NPC's list
+//   plant(owner, item, count) [Mutate] a reverse pickpocket try (task 0275, additive: the version stays 1.0)
 //
 // Threads: main thread (the host calls the Mutate functions and the chunk there).
 
@@ -51,6 +53,10 @@ namespace game_skyrimse::pickup
         /// Task 0227: the victim has noticed the player (the sneak rules). An aware victim always catches the hand; the
         /// roll is still drawn so the seeded sequence does not change. Empty: nobody is aware.
         std::function<bool(std::uint64_t owner)> mAware;
+        /// Task 0275, reverse pickpocketing: moves `count` of `item` from the player into the NPC's list.
+        std::function<bool(std::uint64_t owner, FormId item, std::int32_t count)> mMoveFromPlayer;
+        /// Task 0275: the player's perk bonus to a pickpocket chance in percentage points (entry point 56). Empty: 0.
+        std::function<float(std::uint64_t owner)> mChanceBonus; // owner: the victim (a placement)
         std::function<void(const std::string&)> mLog;
     };
 
@@ -85,6 +91,11 @@ namespace game_skyrimse::pickup
 
         PickupStatus pickup(FormId placement, FormId base);
         TryStatus take(std::uint64_t owner, FormId item, std::int32_t count);
+        /// Task 0275: reverse pickpocketing. The player slips `count` of `item` into a living NPC's list; the same
+        /// chance rules as `take` (the item's value and weight, the skill, the perk bonus), a seeded roll of its own, an
+        /// aware victim always catches the hand. Success moves the items (the inventory's change sink tells the
+        /// scripts: OnContainerChanged); a failure is the same crime as a caught take. Each try trains Pickpocket.
+        TryStatus plant(std::uint64_t owner, FormId item, std::int32_t count);
         /// The pickpocket chance of `count` of an item, in percent (0 when the item is unknown or a hook is missing).
         [[nodiscard]] float chance(std::uint64_t owner, FormId item, std::int32_t count) const;
 
@@ -96,6 +107,7 @@ namespace game_skyrimse::pickup
 
     private:
         void note(const std::string& line);
+        [[nodiscard]] float withBonus(std::uint64_t owner, float percent) const;
         struct Impl;
         std::unique_ptr<Impl> mImpl;
         Hooks mHooks;

@@ -32,5 +32,9 @@ return {
     SkyrimPickpocketTake = function(data)
       pick.take(data.owner, data.item, data.count)
     end,
+    -- Task 0275, from the player's window: a reverse pickpocket try, `count` of `item` into the actor's pockets.
+    SkyrimPickpocketPlant = function(data)
+      pick.plant(data.owner, data.item, data.count)
+    end,
   },
 }

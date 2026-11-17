@@ -95,6 +95,14 @@ namespace game_skyrimse::pickup
     [[nodiscard]] float pickpocketChance(
         const PickpocketSettings& settings, float skill, std::int32_t value, float weight, std::int32_t count);
 
+    /// Task 0275: the chance after a perk's bonus (Mod Pickpocket Chance, entry point 56: percentage points, may be
+    /// negative), clamped to [min, max] again. A bonus that is not a number counts as 0.
+    [[nodiscard]] float chanceWithBonus(const PickpocketSettings& settings, float percent, float bonus);
+
+    /// Task 0275: the roll of a reverse pickpocket (planting) is seeded from the owner xor this, so that planting an
+    /// item and stealing it from the same NPC are not the same draw.
+    inline constexpr std::uint64_t kPlantSalt = 0x504C414E54000000ull;
+
     /// The seeded roll: a hash of (owner, item, attempt) mapped to [0, 100); true when it is below `chancePercent`.
     /// 0 or below never succeeds, 100 or above always does.
     [[nodiscard]] bool pickpocketRoll(std::uint64_t owner, FormId item, std::uint32_t attempt, float chancePercent);

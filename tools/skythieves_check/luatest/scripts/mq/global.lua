@@ -3,6 +3,7 @@
 -- Every line starts with MQ and holds no wall clock.
 local world = require('openmw.world')
 local util = require('openmw.util')
+local core = require('openmw.core')
 local cfg = require('scripts.mq.cfg')
 
 local updates = 0
@@ -56,6 +57,67 @@ local function aimAt(base)
     print(string.format('MQ aim: player at %.0f,%.0f,%.0f facing the actor at %.0f,%.0f,%.0f', from.x, from.y, from.z,
         best.position.x, best.position.y, best.position.z))
 end
+-- Task 0275: cfg.steps = { { update, base, dist, fromx, fromy, pitchDegrees, nearx, neary, nearz }, ... }: at that update the player
+-- is stood `dist` units from the object of that base (decimal text) nearest to (nearx, neary, nearz) (the player when absent), on
+-- the side of (fromx, fromy), turned to face it, and his first-person camera is pitched down by pitchDegrees. Everything after
+-- that (the key, the clicks) is the real input; this only walks him to the spot (a hand-written aid, named in the task log).
+local doneSteps = {}
+local startCell = nil
+local lookAgain = nil
+local function stepTo(s)
+    local player = world.players[1]
+    if s[2] == 'event' then
+        -- { update, 'event', name, { field = value } }: the event the engine's activation would send (a stand-in for AIMING)
+        print('MQ step event: ' .. tostring(s[3]))
+        core.sendGlobalEvent(s[3], s[4])
+        return
+    end
+    if s[2] == 'back' then
+        -- { update, 'back', x, y, z, yawDegrees }: back into the exterior cell the game started in
+        if startCell ~= nil then
+            player:teleport(startCell, util.vector3(s[3], s[4], s[5]), { onGround = true, rotation = util.transform.rotateZ(math.rad(s[6] or 0)) })
+            player:sendEvent('MQLook', { pitch = 0 })
+            print(string.format('MQ step back: the player at %.0f,%.0f,%.0f', s[3], s[4], s[5]))
+        end
+        return
+    end
+    if s[2] == 'cell' then
+        -- { update, 'cell', cellName, x, y, z, yawDegrees, pitchDegrees }: into an interior (the pack builds it)
+        player:teleport(s[3], util.vector3(s[4], s[5], s[6]), { rotation = util.transform.rotateZ(math.rad(s[7])) })
+        player:sendEvent('MQLook', { pitch = math.rad(s[8] or 0) })
+        lookAgain = { updates + 20, math.rad(s[8] or 0) }
+        print(string.format('MQ step cell: %s at %.0f,%.0f,%.0f', tostring(s[3]), s[4], s[5], s[6]))
+        return
+    end
+    if s[2] == 'abs' then
+        -- { update, 'abs', x, y, z, yawDegrees (0 looks north, positive turns right), pitchDegrees }
+        player:teleport(player.cell, util.vector3(s[3], s[4], s[5]), { onGround = true, rotation = util.transform.rotateZ(math.rad(s[6])) })
+        player:sendEvent('MQLook', { pitch = math.rad(s[7] or 0) })
+        lookAgain = { updates + 20, math.rad(s[7] or 0) }
+        print(string.format('MQ step abs: the player at %.0f,%.0f,%.0f yaw %.1f pitch %.1f', s[3], s[4], s[5], s[6], s[7] or 0))
+        return
+    end
+    local near = (s[7] and util.vector3(s[7], s[8], s[9])) or player.position
+    local best, bestD = nil, math.huge
+    for _, o in ipairs(player.cell:getAll()) do
+        local ok, id = pcall(function() return o.recordId end)
+        if ok and id ~= nil and tostring(id):match(':b(%d+)$') == s[2] then
+            local d = (o.position - near):length()
+            if d < bestD then best, bestD = o, d end
+        end
+    end
+    if best == nil then print('MQ step: base ' .. tostring(s[2]) .. ' not found') return end
+    local p = best.position
+    local cx, cy = s[4] - p.x, s[5] - p.y
+    local len = math.sqrt(cx * cx + cy * cy)
+    local px, py = p.x + cx / len * s[3], p.y + cy / len * s[3]
+    local yaw = math.atan2(p.x - px, p.y - py) + math.rad(s[10] or 0) -- s[10]: a yaw offset in degrees (positive turns right)
+    player:teleport(player.cell, util.vector3(px, py, p.z), { onGround = true, rotation = util.transform.rotateZ(yaw) })
+    player:sendEvent('MQLook', { pitch = math.rad(s[6] or 0) })
+    lookAgain = { updates + 20, math.rad(s[6] or 0) } -- the first call after the switch to first person is not always kept
+    print(string.format('MQ step: base %s at %.0f,%.0f,%.0f; the player at %.0f,%.0f,%.0f pitch %.0f', s[2], p.x, p.y, p.z, px, py,
+        p.z, s[6] or 0))
+end
 local teleported = false
 
 local function sample()
@@ -83,6 +145,7 @@ return {
         onUpdate = function()
             if world.players[1] == nil then return end
             updates = updates + 1
+            if startCell == nil and updates > 4 then startCell = world.players[1].cell end
             if cfg.teleport and not teleported and updates > 3 then
                 teleported = true
                 local t = cfg.teleport
@@ -93,6 +156,16 @@ return {
                 if not steps[i] and updates >= m[1] then
                     steps[i] = true
                     move(m)
+                end
+            end
+            if lookAgain and updates >= lookAgain[1] then
+                world.players[1]:sendEvent('MQLook', { pitch = lookAgain[2] })
+                lookAgain = nil
+            end
+            for i, s in ipairs(cfg.steps or {}) do
+                if not doneSteps[i] and updates >= s[1] then
+                    doneSteps[i] = true
+                    stepTo(s)
                 end
             end
             if cfg.activate and not activated and updates >= cfg.activate[1] then
