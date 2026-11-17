@@ -349,9 +349,9 @@ namespace game_skyrimse
         /// Task 0239: what the follower scripts changed (factions, globals, WaitingForPlayer, relationship ranks, the
         /// teammate flag) wins over the data. Not owned; null (the default): the data alone answers.
         void setFollowerOverlay(const FollowerOverlay* overlay) { mFollowerOverlay = overlay; }
-        /// Task 0277: where an actor stands NOW (the package brain's estimate) and where a loaded placement stands. With
-        /// both, GetDistance between an actor and a loaded reference uses them instead of the records' initial places
-        /// (a walker that left its cell, the cell of the target). Either may be empty.
+        /// Task 0277: where an actor stands NOW (the package brain's estimate) and where a loaded placement stands.
+        /// With both, GetDistance between an actor and a loaded reference uses them instead of the records' initial
+        /// places (a walker that left its cell, the cell of the target). Either may be empty.
         using PlaceLookup = std::function<bool(std::uint32_t reference, double& x, double& y, double& z)>;
         void setLivePlaces(PlaceLookup actor, PlaceLookup target)
         {

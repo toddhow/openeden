@@ -20,22 +20,41 @@ local function parse(text)
   return out
 end
 
--- The object of the reference in the player's cell, else the nearest of the base.
-local function find(player, request)
+local function cellsAround(player, wide)
+  local cells = { player.cell }
+  local cell = player.cell
+  if wide and cell.isExterior then
+    for dx = -1, 1 do
+      for dy = -1, 1 do
+        if dx ~= 0 or dy ~= 0 then
+          local ok, other = pcall(world.getExteriorCell, cell.gridX + dx, cell.gridY + dy, cell)
+          if ok and other then cells[#cells + 1] = other end
+        end
+      end
+    end
+  end
+  return cells
+end
+
+-- The object of the reference in the player's cell (or a neighbour), else the nearest of the base.
+local function find(player, request, wide)
   if not player.cell then return nil end
   local wanted = string.format('@0x3fffffff%08x', request.reference)
   local best, bestDistance, byReference = nil, math.huge, nil
-  for _, o in ipairs(player.cell:getAll()) do
-    local ok, id = pcall(function() return o.id end)
-    if ok and id == wanted then
-      byReference = o
-      break
+  for _, cell in ipairs(cellsAround(player, wide)) do
+    for _, o in ipairs(cell:getAll()) do
+      local ok, id = pcall(function() return o.id end)
+      if ok and id == wanted then
+        byReference = o
+        break
+      end
+      local okRecord, record = pcall(function() return o.recordId end)
+      if okRecord and record ~= nil and tostring(record):match(':b(%d+)$') == request.base then
+        local d = (o.position - player.position):length()
+        if d < bestDistance then best, bestDistance = o, d end
+      end
     end
-    local okRecord, record = pcall(function() return o.recordId end)
-    if okRecord and record ~= nil and tostring(record):match(':b(%d+)$') == request.base then
-      local d = (o.position - player.position):length()
-      if d < bestDistance then best, bestDistance = o, d end
-    end
+    if byReference ~= nil then break end
   end
   if byReference ~= nil then
     return byReference, (byReference.position - player.position):length(), 'reference'
@@ -53,9 +72,11 @@ return {
       end
       local player = world.players[1]
       if not player then return end
+      ticks = ticks + 1
+      local wide = ticks % WIDE_EVERY == 0
       for _, request in ipairs(requests) do
         if not asked[request.serial] then
-          local actor, distance, how = find(player, request)
+          local actor, distance, how = find(player, request, wide)
           if actor ~= nil and distance <= RANGE then
             asked[request.serial] = true
             print('[skyrimse forcegreet] the actor opens its conversation (by ' .. how .. ')')

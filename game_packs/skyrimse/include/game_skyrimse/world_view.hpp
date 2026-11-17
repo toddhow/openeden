@@ -369,6 +369,7 @@ namespace game_skyrimse
         [[nodiscard]] float patrolIdle(FormId reference) const override;
         /// Task 0277: the reference stands in a cell other than the player's, an interior being on one side.
         [[nodiscard]] bool targetIsElsewhere(FormId reference) const override;
+        [[nodiscard]] std::uint32_t packagesRevision() const override { return mPackagesRevision; }
 
         // ---- FurnitureSource (task 0135, S6b) ----
         // Sit and sleep markers of the furniture placements of the cells loadCell returned, read from the models
@@ -945,6 +946,7 @@ namespace game_skyrimse
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         std::function<bool(FormId, double&, double&, double&)> mLiveActorPlace; ///< task 0277
+        std::uint32_t mPackagesRevision = 0; ///< task 0277: moves when a quest's stage may change the alias packages
         ArrestDialogueHooks mArrest; ///< task 0258
         CrimeConditionSource mCrimeSource; ///< task 0258
         bool mCrimeSourceSet = false;

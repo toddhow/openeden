@@ -19,6 +19,16 @@
 # Do NOT talk to Kodlak earlier than about frame 5000: the game's quest C00 sets itself back to stage 1 60 s of script time after
 # the host starts (CompanionsHousekeepingScript.SetUpCompanions: Wait(60), then SetStage(1)), and a conversation that sets stage 20
 # before that finds Vilkas' topic (needs GetStage(C00) == 20) failing. See docs/tasks/0272-skyrim-c00-stage-reset.md.
+#
+# Task 0277, the whole walk (no `companions test training` aid): SETTINGS_EXTRA with `companions = true`, `quest alias packages = true`
+# and `combat trace = true`, CFG_EXTRA `fallback-archive=Skyrim - Voices_en0.bsa\n`, CELLID=WhiterunJorrvaskrBasement,
+# INPUT=yard_input.txt (next to this file), 14500 frames and
+#   PLAN="{5800,'talk'},{9600,'furn',256,-896,300,'b152263'},{10200,'furn',-256,640,300,'b152263'},{10600,'trace','outside'},
+#         {10650,'go',29200,-4057,-2733,1.57},{10700,'face',108180,13500}"
+# Steps: Kodlak's join topic and Vilkas' scene (clicks of the input file), the basement door (base 152263 is every Jorrvaskr
+# door) and the back door out to the yard carry Vilkas with the player, Vilkas is placed at the training marker when the
+# walk is blocked, "Just have a few swings at me" starts the training quest, the clicks fight (3 hits: stage 150), the
+# package of the quest alias makes Vilkas greet again, the click at frame 13300 closes it and C00 reaches stage 30.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; FRAMES=${5:-6000}

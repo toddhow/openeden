@@ -1241,8 +1241,13 @@ namespace game_skyrimse
         if (!std::isfinite(seconds) || seconds < 0.f)
             seconds = 0.f;
         seconds = std::min(seconds, kMaxStepSeconds);
+        const std::uint32_t revision = mSource.packagesRevision();
+        const bool listsChanged = revision != mPackagesRevision; // task 0277: ask for every actor's packages again
+        mPackagesRevision = revision;
         for (auto& [key, actor] : mActors)
         {
+            if (listsChanged)
+                actor.mResolved = false;
             if (!actor.mResolved)
             {
                 if (!mSource.ready())

@@ -184,13 +184,17 @@ namespace game_skyrimse
             (void)out;
             return false;
         }
-        /// Task 0277: true when the reference exists but stands in a cell other than the player's (an interior against
-        /// anything else), so an actor in the player's cell cannot walk to it before the player goes there. Default: no.
+        /// Task 0277: true when the reference exists but stands in a cell other than the player's (an interior
+        /// against anything else), so an actor in the player's cell cannot walk to it before the player goes there.
+        /// Default: no.
         [[nodiscard]] virtual bool targetIsElsewhere(FormId reference) const
         {
             (void)reference;
             return false;
         }
+        /// Task 0277: a number that changes when the packages `packagesFor` returns may have changed for an actor
+        /// already resolved (a quest whose alias gives packages started or moved on). The brain then asks again.
+        [[nodiscard]] virtual std::uint32_t packagesRevision() const { return 0; }
         /// Seconds a patrolling actor idles at this marker; negative when the marker says nothing.
         [[nodiscard]] virtual float patrolIdle(FormId reference) const
         {
@@ -341,9 +345,10 @@ namespace game_skyrimse
         /// schedule back. Takes effect at the next update. False for an actor the brain does not know.
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package);
 
-        /// Task 0277 (companions): an actor whose Travel package leads to a reference in another cell waits (it does not
-        /// finish at once) and is listed by travellerRefs() so the core carries it through the doors the player uses,
-        /// until the target is reachable. Off by default; the pack turns it on with `[extension.skyrimse] companions`.
+        /// Task 0277 (companions): an actor whose scene Travel package leads to a reference in another cell waits (it
+        /// does not finish at once) and is listed by travellerRefs() so the core carries it through the doors the
+        /// player uses, until the target is reachable; a walk that fails ends with the actor placed there. Off by
+        /// default; the pack turns it on with `[extension.skyrimse] companions`.
         void setCarryTravellers(bool on) { mCarryTravellers = on; }
         [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& travellerRefs() const { return mTravellerRefs; }
 
@@ -468,9 +473,12 @@ namespace game_skyrimse
         ForceGreetHook mGreetHook;
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
         std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)
-        std::set<openeden::sdk::game::WorldId> mTravellerRefs; ///< task 0277: waiting for the player to reach the target
-        std::map<openeden::sdk::game::WorldId, const PackageRecord*> mForcedRefs; ///< task 0277: scenes' packages by placement
+        /// task 0277: waiting for the player to reach the target
+        std::set<openeden::sdk::game::WorldId> mTravellerRefs;
+        /// task 0277: scenes' packages by placement, so a door does not lose them
+        std::map<openeden::sdk::game::WorldId, const PackageRecord*> mForcedRefs;
         bool mCarryTravellers = false;
+        std::uint32_t mPackagesRevision = 0; ///< task 0277: what mSource.packagesRevision() said last
         std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it
         std::vector<FurnitureSlot> mScratch;
         Stats mStats;

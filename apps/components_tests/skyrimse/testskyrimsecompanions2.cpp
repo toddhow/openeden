@@ -1,7 +1,7 @@
-// Task 0277 (companions, second slice): the package brain's cross-cell travel. A Travel package whose target stands in a
-// cell that is not the player's cell (Vilkas' "get to outside" package: the training marker is in Whiterun, the actor in
-// Jorrvaskr's basement) waits and is carried with the player through doors until the target can be reached; a scene's
-// forced package survives the door. Pure tests over a fake source and writer.
+// Task 0277 (companions, second slice): the package brain's cross-cell travel. A Travel package whose target stands
+// in a cell that is not the player's cell (Vilkas' "get to outside" package: the training marker is in Whiterun, the
+// actor in Jorrvaskr's basement) waits and is carried with the player through doors until the target can be reached;
+// a scene's forced package survives the door. Pure tests over a fake source and writer.
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/package_brain.hpp>
 
@@ -50,6 +50,8 @@ namespace
             return true;
         }
         bool targetIsElsewhere(FormId reference) const override { return mElsewhere.count(reference) != 0; }
+        std::uint32_t packagesRevision() const override { return mRevision; }
+        std::uint32_t mRevision = 0;
         std::map<FormId, std::vector<const PackageRecord*>> mLists;
         std::map<FormId, PackageBehavior> mBehavior;
         std::map<FormId, std::array<double, 3>> mPlaces;
@@ -216,6 +218,23 @@ namespace
         r.step(3);
         EXPECT_TRUE(r.w.mPlaced.empty());
         EXPECT_EQ(r.brain->view(kRef)->mPhase, PackageBrain::Phase::Failed);
+    }
+
+    TEST(SkyrimTravellers, anActorAsksForItsPackagesAgainWhenTheSourceSaysTheListsMayHaveChanged)
+    {
+        Rig r(false, false);
+        PackageRecord later;
+        later.mCommon.mId = 3;
+        later.mHasPkdt = true;
+        r.src.mBehavior[3] = PackageBehavior::Stand;
+        r.step(3);
+        EXPECT_EQ(r.brain->view(kRef)->mActive, &r.pkg);
+        r.src.mLists[kBase] = { &later, &r.pkg }; // a quest's alias now gives the actor a package in front
+        r.step(3);
+        EXPECT_EQ(r.brain->view(kRef)->mActive, &r.pkg); // nothing said so: the old list stays
+        ++r.src.mRevision;
+        r.step(3);
+        EXPECT_EQ(r.brain->view(kRef)->mActive, &later);
     }
 
     TEST(SkyrimTravellers, aForcedPackageSurvivesTheActorBeingAddedAgainAfterADoor)
