@@ -1,0 +1,7 @@
+# task 0266: after a load, open the shout menu with H and look at it (the equip choice and the unlocked words come from the
+# save alone).
+3600 key H down
+3602 key H up
+3680 shot
+3760 key H down
+3762 key H up

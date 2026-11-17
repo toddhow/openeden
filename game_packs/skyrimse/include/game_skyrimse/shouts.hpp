@@ -64,6 +64,7 @@ namespace game_skyrimse
     {
         RecordCommon mCommon;
         LString mName;
+        LString mTranslation; ///< TNAM (task 0266: what the word means, shown by the shout menu)
     };
 
     [[nodiscard]] bool decodeShout(std::span<const std::byte> bytes, const Content::RawRecord& record,

@@ -137,6 +137,10 @@ namespace game_skyrimse
                     if (!fields.lstring(type, data, out.mName))
                         return false;
                     break;
+                case Content::fourCC("TNAM"): // task 0266: the translation the shout menu shows
+                    if (!fields.lstring(type, data, out.mTranslation))
+                        return false;
+                    break;
                 default:
                     break;
             }

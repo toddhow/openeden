@@ -1,0 +1,19 @@
+# task 0266: the controller path. The focus entry is `[GUI] rmlui focus button = back` (set by the run): back moves the focus
+# into the menu, A presses Unlock on the first row, d-pad right moves to Equip, A presses it, B drops the focus.
+3600 key H down
+3602 key H up
+3660 cbutton back down
+3662 cbutton back up
+3700 shot
+3720 cbutton a down
+3722 cbutton a up
+3760 cbutton dpright down
+3762 cbutton dpright up
+3780 shot
+3800 cbutton a down
+3802 cbutton a up
+3860 shot
+3900 cbutton b down
+3902 cbutton b up
+3940 key H down
+3942 key H up

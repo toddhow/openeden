@@ -2971,6 +2971,13 @@ namespace game_skyrimse
                     return mWorldView.combatReady() ? mWorldView.shoutIndex() : nullptr;
                 };
                 hooks.mLog = [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); };
+                // Task 0266: the shout menu shows the words (WOOP FULL) and their translations (TNAM) from the string tables.
+                const std::string language = settings->getString(kPackId, "string table language", "english");
+                if (language.size() >= 2 && language.size() <= 32
+                    && std::all_of(
+                        language.begin(), language.end(), [](unsigned char c) { return std::isalpha(c) != 0; }))
+                    mBookLanguage = language;
+                hooks.mText = [this](const LString& text, FormId owner) { return resolveShoutString(text, owner); };
                 mShouts = std::make_unique<shouts::ShoutService>(std::move(hooks));
                 shouts::TestSettings test;
                 test.mLearn = settings->getString(kPackId, "shouts test learn", "");
@@ -3851,6 +3858,22 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "LOCKBOOKS lock picking and books are on");
+            }
+
+            // Task 0266: the text of a localised string of a word of power (WOOP): the plugin of the record is the load
+            // order position in the top byte of its form id (a light plugin is not asked: the editor id stands in).
+            std::string resolveShoutString(const LString& text, FormId owner)
+            {
+                if (mBookPaths.empty())
+                {
+                    std::vector<std::filesystem::path> paths;
+                    LoadOrder order;
+                    std::vector<LeveledList> unused;
+                    if (!mWorldView.inventoryInputs(paths, order, unused))
+                        return {};
+                    mBookPaths = std::move(paths);
+                }
+                return resolveBookString(text, owner >> 24, StringTableKind::Strings);
             }
 
             // Task 0203: the text of a localised book string, from the plugin's own string table (parsed once).

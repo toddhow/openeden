@@ -40,6 +40,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsecharacterwindow.cpp
     ui/testskyrimsepresentationlua.cpp
     ui/testskyrimseshouthud.cpp
+    ui/testskyrimseshoutmenuwindow.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testskyrimselockpickwindow.cpp
     ui/testskyrimsebookwindow.cpp
@@ -725,6 +726,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseimagespacemod.cpp
     skyrimse/testskyrimseimagespacemodreal.cpp
     skyrimse/testskyrimseshouts.cpp
+    skyrimse/testskyrimseshoutmenu.cpp
     skyrimse/testskyrimsecombatshout.cpp
     skyrimse/testskyrimseshoutsreal.cpp
     skyrimse/testskyrimsespeechreal.cpp

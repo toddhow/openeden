@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace game_skyrimse::shouts
 {
@@ -33,6 +34,38 @@ namespace game_skyrimse::shouts
         /// The records, or null while they are being read.
         std::function<const ShoutIndex*()> mIndex;
         std::function<void(const std::string&)> mLog;
+        /// Task 0266 (optional): the text of a localised string of the record `owner` (the shout menu's word names and
+        /// translations). Empty when it cannot be read; without the hook the menu shows the editor id's name.
+        std::function<std::string(const LString&, FormId owner)> mText;
+    };
+
+    /// Task 0266: one word of a shout in the menu. mState is "unlocked", "learned" (known, not unlocked) or "unknown".
+    struct MenuWord
+    {
+        std::string mName;
+        std::string mTranslation;
+        std::string mState;
+    };
+
+    /// Task 0266: a shout the player has learned at least one word of.
+    struct MenuShout
+    {
+        std::string mId; ///< the editor id, what the mutating calls take
+        std::string mName;
+        bool mEquipped = false;
+        bool mCanEquip = false; ///< at least one word is unlocked
+        bool mCanUnlock = false; ///< the next word is learned and a dragon soul is there
+        std::vector<MenuWord> mWords;
+    };
+
+    enum class MenuResult
+    {
+        Done,
+        NoShout, ///< no such shout, or the records are not read
+        NotLearned, ///< the next word has not been learned (a word wall)
+        NoSoul,
+        AllUnlocked,
+        NothingUnlocked, ///< to equip: no word of the shout is unlocked
     };
 
     class ShoutService
@@ -58,6 +91,15 @@ namespace game_skyrimse::shouts
         /// menu does not exist yet; the script namespace's `unlock_word` calls this). False, and nothing spent, when the
         /// word is unknown, not learned, already unlocked or there is no soul.
         bool unlockWithSoul(std::string_view wordEditorId);
+
+        /// Task 0266 (the shout menu): the shouts with a learned word, by form id, with their words' state. Empty before
+        /// the records are read.
+        [[nodiscard]] std::vector<MenuShout> menu() const;
+        /// Spends a dragon soul on the shout's next word (the first one after its unlocked run) when it is learned. The
+        /// result is announced to the player as a message.
+        MenuResult menuUnlockNext(std::string_view shoutEditorId);
+        /// Makes the shout the one the shout key uses (needs one unlocked word). Announced as a message.
+        MenuResult menuEquip(std::string_view shoutEditorId);
 
         /// The equipped shout's name for the HUD (empty when none).
         [[nodiscard]] std::string equippedName() const;

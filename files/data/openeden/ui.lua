@@ -693,7 +693,7 @@ end
 
 -- ---- documents ----
 
-local documentProps = { name = true, build = true }
+local documentProps = { name = true, build = true, navCapture = true }
 
 local DocumentMT = {}
 DocumentMT.__index = DocumentMT
@@ -736,6 +736,9 @@ local function makeDocument(who, props, isHud)
       end
     end
     if isHud then backend.setProperty(id, 'pointer-events', 'none') end
+    -- navCapture = true: the controller (d-pad, A, B, right stick) drives this document while a control in it has the
+    -- focus (the document element carries the `nav-capture` attribute the input router looks for)
+    if props.navCapture then backend.setAttribute(id, 'nav-capture', 'true') end
     applyStyle(docNode, scope, props)
     local result = R.withScope(scope, props.build)
     if result ~= nil then

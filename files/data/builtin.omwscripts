@@ -104,5 +104,6 @@ GLOBAL REQUIRES=core.skyrimse.character>=1.0: scripts/openeden/skyrimse/characte
 PLAYER REQUIRES=core.skyrimse.character>=1.0: scripts/openeden/skyrimse/character_player.lua
 # Skyrim SE shout cooldown indicator (task 0205)
 PLAYER REQUIRES=core.skyrimse.shouts>=1.0: scripts/openeden/skyrimse/shouts_player.lua
+GLOBAL REQUIRES=core.skyrimse.shouts>=1.0: scripts/openeden/skyrimse/shouts_global.lua
 # Task 0259: the werewolf beast form (the pack setting [extension.skyrimse] werewolf)
 PLAYER REQUIRES=core.skyrimse.werewolf>=1.0: scripts/openeden/skyrimse/werewolf_player.lua

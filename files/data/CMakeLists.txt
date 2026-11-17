@@ -261,7 +261,9 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/character_global.lua
     scripts/openeden/skyrimse/character_player.lua
     openeden/skyrimse/shouthud.lua
+    openeden/skyrimse/shout_windows.lua
     scripts/openeden/skyrimse/shouts_player.lua
+    scripts/openeden/skyrimse/shouts_global.lua
     scripts/openeden/skyrimse/werewolf_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua

@@ -1,0 +1,20 @@
+# task 0266: open the shout menu with H, spend both dragon souls with real clicks on Unlock (Fus, then Ro of Unrelenting
+# Force), equip that shout, close with H. Coordinates are for 1280 x 720.
+3600 key H down
+3602 key H up
+3660 shot
+3680 mouse 838 86
+3684 down L 838 86
+3686 up L 838 86
+3740 shot
+3800 mouse 838 86
+3804 down L 838 86
+3806 up L 838 86
+3860 shot
+3900 mouse 945 86
+3904 down L 945 86
+3906 up L 945 86
+3960 shot
+4040 key H down
+4042 key H up
+4100 shot

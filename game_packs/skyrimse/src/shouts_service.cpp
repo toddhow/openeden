@@ -86,6 +86,18 @@ namespace game_skyrimse::shouts
         }
     }
 
+    namespace
+    {
+        // The editor id of a word without its "Word" prefix ("WordFus" gives "Fus"); the name the game shows when the
+        // string table cannot be read.
+        std::string wordShortName(const std::string& editorId)
+        {
+            if (editorId.size() > 4 && editorId.compare(0, 4, "Word") == 0 && editorId[4] >= 'A' && editorId[4] <= 'Z')
+                return editorId.substr(4);
+            return editorId;
+        }
+    }
+
     struct ShoutService::Impl
     {
         Hooks mHooks;
@@ -99,6 +111,81 @@ namespace game_skyrimse::shouts
         std::vector<openeden::sdk::FunctionDescriptor> mFunctions;
         std::vector<BindingType> mIntParam{ BindingType::Int32 };
         std::vector<BindingType> mStringParam{ BindingType::String };
+        std::vector<BindingType> mTwoInts{ BindingType::Int32, BindingType::Int32 };
+        // task 0266: the menu, rebuilt when the state revision moves (or while the records were not there)
+        mutable std::vector<MenuShout> mMenu;
+        mutable std::uint64_t mMenuRevision = 0;
+        mutable bool mMenuValid = false;
+
+        std::string text(const LString& value, FormId owner) const
+        {
+            if (!value.mPresent)
+                return {};
+            if (!value.mLocalized)
+                return value.mText;
+            return mHooks.mText ? mHooks.mText(value, owner) : std::string();
+        }
+
+        std::string wordName(const WordRecord& word) const
+        {
+            std::string name = text(word.mName, word.mCommon.mId);
+            return name.empty() ? wordShortName(word.mCommon.mEditorId) : name;
+        }
+
+        const std::vector<MenuShout>& menu() const
+        {
+            const ShoutIndex* idx = index();
+            if (idx == nullptr)
+            {
+                mMenu.clear();
+                mMenuValid = false;
+                return mMenu;
+            }
+            if (mMenuValid && mMenuRevision == mState.revision())
+                return mMenu;
+            mMenu.clear();
+            for (const ShoutRecord& shout : idx->shouts())
+            {
+                bool any = false;
+                for (std::size_t i = 0; i < shout.mWordCount; ++i)
+                    any = any || mState.learned(shout.mWords[i].mWord);
+                if (!any)
+                    continue;
+                MenuShout entry;
+                entry.mId = shout.mCommon.mEditorId;
+                entry.mName = prettyShoutName(shout.mCommon.mEditorId);
+                entry.mEquipped = shout.mCommon.mId == mState.equipped();
+                const std::size_t available = mState.availableWords(shout);
+                entry.mCanEquip = available > 0;
+                entry.mCanUnlock = available < shout.mWordCount && mState.learned(shout.mWords[available].mWord)
+                    && mState.souls() > 0;
+                for (std::size_t i = 0; i < shout.mWordCount; ++i)
+                {
+                    MenuWord word;
+                    const FormId id = shout.mWords[i].mWord;
+                    if (mState.unlocked(id))
+                        word.mState = "unlocked";
+                    else if (mState.learned(id))
+                        word.mState = "learned";
+                    else
+                        word.mState = "unknown";
+                    if (word.mState != "unknown")
+                    {
+                        const WordRecord* record = idx->word(id);
+                        if (record != nullptr)
+                        {
+                            word.mName = wordName(*record);
+                            word.mTranslation = text(record->mTranslation, id);
+                        }
+                    }
+                    entry.mWords.push_back(std::move(word));
+                }
+                mMenu.push_back(std::move(entry));
+            }
+            mMenuRevision = mState.revision();
+            mMenuValid = true;
+            return mMenu;
+        }
 
         const ShoutIndex* index() const { return mHooks.mIndex ? mHooks.mIndex() : nullptr; }
         void log(const std::string& line) const
@@ -236,6 +323,63 @@ namespace game_skyrimse::shouts
         return word != nullptr && m.mState.unlock(word->mCommon.mId);
     }
 
+    std::vector<MenuShout> ShoutService::menu() const
+    {
+        return mImpl->menu();
+    }
+
+    MenuResult ShoutService::menuUnlockNext(std::string_view shoutEditorId)
+    {
+        Impl& m = *mImpl;
+        const ShoutIndex* index = m.index();
+        const ShoutRecord* shout
+            = index == nullptr || shoutEditorId.empty() ? nullptr : index->shoutByEditorId(shoutEditorId);
+        if (shout == nullptr)
+            return MenuResult::NoShout;
+        const std::string name = prettyShoutName(shout->mCommon.mEditorId);
+        const std::size_t available = m.mState.availableWords(*shout);
+        if (available >= shout->mWordCount)
+        {
+            m.mState.announce("All the words of " + name + " are unlocked.");
+            return MenuResult::AllUnlocked;
+        }
+        const FormId next = shout->mWords[available].mWord;
+        if (!m.mState.learned(next))
+        {
+            m.mState.announce("You have not learned the next word of " + name + ".");
+            return MenuResult::NotLearned;
+        }
+        if (m.mState.souls() == 0)
+        {
+            m.mState.announce("You need a dragon soul to unlock a word.");
+            return MenuResult::NoSoul;
+        }
+        if (!m.mState.unlock(next))
+            return MenuResult::NoSoul;
+        const WordRecord* record = index->word(next);
+        m.mState.announce("Word of Power unlocked: " + (record != nullptr ? m.wordName(*record) : std::string()));
+        return MenuResult::Done;
+    }
+
+    MenuResult ShoutService::menuEquip(std::string_view shoutEditorId)
+    {
+        Impl& m = *mImpl;
+        const ShoutIndex* index = m.index();
+        const ShoutRecord* shout
+            = index == nullptr || shoutEditorId.empty() ? nullptr : index->shoutByEditorId(shoutEditorId);
+        if (shout == nullptr)
+            return MenuResult::NoShout;
+        const std::string name = prettyShoutName(shout->mCommon.mEditorId);
+        if (m.mState.availableWords(*shout) == 0)
+        {
+            m.mState.announce("You must unlock a word of " + name + " first.");
+            return MenuResult::NothingUnlocked;
+        }
+        m.mState.equip(shout->mCommon.mId);
+        m.mState.announce(name + " equipped");
+        return MenuResult::Done;
+    }
+
     std::string ShoutService::equippedName() const
     {
         const ShoutIndex* index = mImpl->index();
@@ -327,6 +471,82 @@ namespace game_skyrimse::shouts
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].type == BindingType::String)
                     (void)self->unlockWithSoul(a[0].text);
+                return BindingResult();
+            },
+            openeden::sdk::BindingAccess::Mutate);
+        // Task 0266 (the shout menu): reads by index into the menu (an index out of range answers empty), writes by the
+        // editor id of the shout so a menu that changed between the read and the call never touches another shout.
+        const auto shoutAt = [self](std::int32_t i) -> const MenuShout* {
+            const std::vector<MenuShout>& menu = self->mImpl->menu();
+            return i >= 0 && static_cast<std::size_t>(i) < menu.size() ? &menu[static_cast<std::size_t>(i)] : nullptr;
+        };
+        const auto wordAt = [shoutAt](std::int32_t i, std::int32_t w) -> const MenuWord* {
+            const MenuShout* shout = shoutAt(i);
+            return shout != nullptr && w >= 0 && static_cast<std::size_t>(w) < shout->mWords.size()
+                ? &shout->mWords[static_cast<std::size_t>(w)]
+                : nullptr;
+        };
+        const auto textResult = [&m](const std::string& value) {
+            m.mNameScratch = value;
+            BindingValue v;
+            v.type = BindingType::String;
+            v.text = m.mNameScratch;
+            return resultOf(v);
+        };
+        add("menu_count", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
+            return resultOf(integer(static_cast<std::int64_t>(self->mImpl->menu().size())));
+        });
+        add("menu_id", m.mIntParam, true, BindingType::String, [shoutAt, textResult](std::span<const BindingValue> a) {
+            const MenuShout* s = shoutAt(a[0].integer);
+            return textResult(s != nullptr ? s->mId : std::string());
+        });
+        add("menu_name", m.mIntParam, true, BindingType::String,
+            [shoutAt, textResult](std::span<const BindingValue> a) {
+                const MenuShout* s = shoutAt(a[0].integer);
+                return textResult(s != nullptr ? s->mName : std::string());
+            });
+        add("menu_equipped", m.mIntParam, true, BindingType::Bool, [shoutAt](std::span<const BindingValue> a) {
+            const MenuShout* s = shoutAt(a[0].integer);
+            return resultOf(boolean(s != nullptr && s->mEquipped));
+        });
+        add("menu_can_equip", m.mIntParam, true, BindingType::Bool, [shoutAt](std::span<const BindingValue> a) {
+            const MenuShout* s = shoutAt(a[0].integer);
+            return resultOf(boolean(s != nullptr && s->mCanEquip));
+        });
+        add("menu_can_unlock", m.mIntParam, true, BindingType::Bool, [shoutAt](std::span<const BindingValue> a) {
+            const MenuShout* s = shoutAt(a[0].integer);
+            return resultOf(boolean(s != nullptr && s->mCanUnlock));
+        });
+        add("menu_word_count", m.mIntParam, true, BindingType::Int32, [shoutAt](std::span<const BindingValue> a) {
+            const MenuShout* s = shoutAt(a[0].integer);
+            return resultOf(integer(s != nullptr ? static_cast<std::int64_t>(s->mWords.size()) : 0));
+        });
+        add("menu_word_name", m.mTwoInts, true, BindingType::String,
+            [wordAt, textResult](std::span<const BindingValue> a) {
+                const MenuWord* w = wordAt(a[0].integer, a[1].integer);
+                return textResult(w != nullptr ? w->mName : std::string());
+            });
+        add("menu_word_translation", m.mTwoInts, true, BindingType::String,
+            [wordAt, textResult](std::span<const BindingValue> a) {
+                const MenuWord* w = wordAt(a[0].integer, a[1].integer);
+                return textResult(w != nullptr ? w->mTranslation : std::string());
+            });
+        add("menu_word_state", m.mTwoInts, true, BindingType::String,
+            [wordAt, textResult](std::span<const BindingValue> a) {
+                const MenuWord* w = wordAt(a[0].integer, a[1].integer);
+                return textResult(w != nullptr ? w->mState : std::string());
+            });
+        add("menu_unlock", m.mStringParam, false, BindingType::Bool,
+            [self](std::span<const BindingValue> a) {
+                if (!a.empty() && a[0].type == BindingType::String)
+                    (void)self->menuUnlockNext(a[0].text);
+                return BindingResult();
+            },
+            openeden::sdk::BindingAccess::Mutate);
+        add("menu_equip", m.mStringParam, false, BindingType::Bool,
+            [self](std::span<const BindingValue> a) {
+                if (!a.empty() && a[0].type == BindingType::String)
+                    (void)self->menuEquip(a[0].text);
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
