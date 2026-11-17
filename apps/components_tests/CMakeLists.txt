@@ -659,12 +659,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedialogueruntime.cpp
     skyrimse/testskyrimsedialogueruntimereal.cpp
     skyrimse/testskyrimsecompanions.cpp
-<<<<<<< HEAD
     skyrimse/testskyrimseforcegreetall.cpp
     skyrimse/testskyrimsecrimereplacementguard.cpp
-=======
     skyrimse/testskyrimsecompanions2.cpp
->>>>>>> 72e34731d8 (Task 0277 WIP: travellers carried through doors, forced package persists (tests and brain))
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsehouses2.cpp
     skyrimse/testskyrimsemarriage.cpp

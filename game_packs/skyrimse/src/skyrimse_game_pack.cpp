@@ -548,15 +548,12 @@ namespace game_skyrimse
             }
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
-<<<<<<< HEAD
             /// Task 0275: a quest's current stage (0 when the quest state is not there yet).
             [[nodiscard]] float questStage(FormId quest) const
             {
                 return mQuestStateForStage != nullptr ? mQuestStateForStage->stage(quest) : 0.f;
             }
-=======
             void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
->>>>>>> 2cd8da29e0 (Skyrim marriage, second slice: the wedding day, game-time updates, the vows and the married state (task 0276))
             void enableForceGreet() { mForceOn = true; }
             [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
             void enableCompanions() { mCompanionsOn = true; }

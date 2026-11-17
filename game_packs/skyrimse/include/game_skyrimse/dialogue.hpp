@@ -598,11 +598,9 @@ namespace game_skyrimse
         /// its resolution does not depend on a random leveled pick); null when they cannot be given.
         [[nodiscard]] const ActorIndex::Resolved* resolvedOf(conditions::Subject subject) const;
         [[nodiscard]] bool distanceKnown(conditions::Subject subject, std::uint32_t reference) const;
-<<<<<<< HEAD
         /// Task 0277: the live places of the subject and of the reference, when both lookups exist and know them.
         [[nodiscard]] bool livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
             double& az, double& tx, double& ty, double& tz) const;
-=======
         [[nodiscard]] bool distanceToAliasKnown(conditions::Subject subject, std::uint32_t alias) const;
         /// A placed reference, else (task 0276) a created one as an entry with only its id and base. Null: neither.
         [[nodiscard]] const PlacedEntry* findReference(FormId reference) const;
@@ -610,7 +608,6 @@ namespace game_skyrimse
         mutable std::map<FormId, PlacedEntry> mCreatedEntries; // task 0276: nodes are never moved
         std::array<double, 3> mPlayerPosition{ 0.0, 0.0, 0.0 }; // task 0276
         bool mPlayerPositionKnown = false;
->>>>>>> 2cd8da29e0 (Skyrim marriage, second slice: the wedding day, game-time updates, the vows and the married state (task 0276))
         [[nodiscard]] bool relationKnown(conditions::Subject subject, std::uint32_t target) const;
         [[nodiscard]] FormId referenceOf(conditions::Subject subject) const; ///< a placed id, or 0
         /// Task 0239: the placed reference a follower overlay is keyed by: the speaker's, another actor's, 0 for none.

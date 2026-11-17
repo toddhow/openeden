@@ -1931,7 +1931,6 @@ namespace game_skyrimse
         return other != nullptr && other->mCell != kNullFormId && other->mCell == view.mRef->mCell;
     }
 
-<<<<<<< HEAD
     bool SkyrimConditionWorld::livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
         double& az, double& tx, double& ty, double& tz) const
     {
@@ -1941,7 +1940,8 @@ namespace game_skyrimse
         if (!viewOf(subject, view) || view.mRef == nullptr)
             return false;
         return mLiveActorPlace(view.mRef->mId, ax, ay, az) && mLiveTargetPlace(resolve(reference), tx, ty, tz);
-=======
+    }
+
     const PlacedEntry* SkyrimConditionWorld::findReference(FormId reference) const
     {
         if (mPlacedRefs == nullptr || reference == kNullFormId)
@@ -1977,7 +1977,6 @@ namespace game_skyrimse
         const double dy = mPlayerPosition[1] - other->mY;
         const double dz = mPlayerPosition[2] - other->mZ;
         return static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
->>>>>>> 2cd8da29e0 (Skyrim marriage, second slice: the wedding day, game-time updates, the vows and the married state (task 0276))
     }
 
     float SkyrimConditionWorld::distanceTo(conditions::Subject subject, std::uint32_t reference) const
