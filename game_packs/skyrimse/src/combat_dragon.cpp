@@ -77,6 +77,46 @@ namespace game_skyrimse
         return total;
     }
 
+    std::vector<dragons::DragonSave> SkyrimCombat::savedDragons() const
+    {
+        std::vector<dragons::DragonSave> saves;
+        if (!mDragonSettings.mOn)
+            return saves;
+        for (const dragons::DragonState& state : mDragonStates)
+        {
+            if (!state.mFlight.airborne() || state.mHandle.reference == 0)
+                continue;
+            dragons::DragonSave save;
+            save.mPlacement = state.mHandle.reference;
+            save.mX = state.mFlight.lastX();
+            save.mY = state.mFlight.lastY();
+            save.mZ = state.mFlight.lastZ();
+            save.mHeading = state.mFlight.heading();
+            saves.push_back(save);
+        }
+        std::sort(saves.begin(), saves.end(),
+            [](const dragons::DragonSave& a, const dragons::DragonSave& b) { return a.mPlacement < b.mPlacement; });
+        return saves;
+    }
+
+    void SkyrimCombat::restoreDragons(std::vector<dragons::DragonSave> saves)
+    {
+        mDragonRestores.clear();
+        if (!mDragonSettings.mOn)
+            return;
+        std::sort(saves.begin(), saves.end(),
+            [](const dragons::DragonSave& a, const dragons::DragonSave& b) { return a.mPlacement < b.mPlacement; });
+        for (const dragons::DragonSave& save : saves)
+        {
+            if (mDragonRestores.size() >= dragons::kMaxDragonSaves)
+                break;
+            if (save.mPlacement == 0
+                || (!mDragonRestores.empty() && mDragonRestores.back().mPlacement == save.mPlacement))
+                continue;
+            mDragonRestores.push_back(save);
+        }
+    }
+
     bool SkyrimCombat::dragonHolds(const CombatSubject& subject) const
     {
         if (!mDragonSettings.mOn || subject.player)
@@ -92,7 +132,30 @@ namespace game_skyrimse
         if (!mDragonSettings.mOn)
             return false;
         const Fighter* f = find(CombatSubject::of(handle));
-        return f != nullptr && f->mHasProfile && dragons::isDragon(f->mProfile.mCreature);
+        if (f == nullptr || !f->mHasProfile || !dragons::isDragon(f->mProfile.mCreature))
+            return false;
+        if (!mDragonSettings.mNavmeshWalk)
+            return true; // the first slice: always straight
+        // Task 0280: the navigator first; straight only for a while after it found no path.
+        for (const dragons::DragonState& state : mDragonStates)
+            if (state.mHandle == handle)
+                return mClock < state.mDirectUntil;
+        return false;
+    }
+
+    void SkyrimCombat::dragonNoPath(ActorHandle handle)
+    {
+        if (!mDragonSettings.mOn || !mDragonSettings.mNavmeshWalk)
+            return;
+        for (dragons::DragonState& state : mDragonStates)
+            if (state.mHandle == handle)
+            {
+                state.mDirectUntil = mClock + dragons::kDirectFallbackSeconds;
+                if (mTrace)
+                    trace("COMBAT dragon actor " + std::to_string(handle.reference)
+                        + " found no path: it walks straight");
+                return;
+            }
     }
 
     void SkyrimCombat::updateDragons(CombatRequestWriter& writer, float step)
@@ -112,6 +175,15 @@ namespace game_skyrimse
                 continue;
             mDragonStates.emplace_back(mDragonSettings.mFlight);
             mDragonStates.back().mHandle = f.mSubject.actor;
+            // Task 0280: it was in the air when the game was saved.
+            const auto restore = std::find_if(mDragonRestores.begin(), mDragonRestores.end(),
+                [&](const dragons::DragonSave& r) { return r.mPlacement == f.mSubject.actor.reference; });
+            if (restore != mDragonRestores.end())
+            {
+                mDragonStates.back().mResumePending = true;
+                mDragonStates.back().mResume = *restore;
+                mDragonRestores.erase(restore);
+            }
             if (mTrace)
                 trace("COMBAT dragon " + who(f.mSubject) + " is a dragon");
             if (mDragonSettings.mTestHealth > 0.f && std::isfinite(mDragonSettings.mTestHealth))
@@ -240,6 +312,17 @@ namespace game_skyrimse
                 haveTarget = writer.subjectState(targetSubject, target);
 
             // ---- the flight
+            if (state.mResumePending)
+            {
+                // A load put this dragon in the air (task 0280): the cruise goes on from the saved place.
+                state.mResumePending = false;
+                state.mFlight.resume(state.mResume.mX, state.mResume.mY, state.mResume.mZ, state.mResume.mHeading,
+                    player.x, player.y);
+                if (mTrace)
+                    trace("COMBAT dragon " + who(f->mSubject) + " resumes its flight at "
+                        + num(static_cast<float>(state.mResume.mX)) + " " + num(static_cast<float>(state.mResume.mY))
+                        + " " + num(static_cast<float>(state.mResume.mZ)));
+            }
             const bool breathing = state.mBreathing;
             dragons::FlightInput in;
             in.mDt = step;
@@ -309,6 +392,11 @@ namespace game_skyrimse
                         continue;
                     state.mBreathSpellId = spell->mCommon.mId;
                     state.mBreathRecovery = shout->mWords[0].mRecovery;
+                    if (mTrace)
+                        trace("COMBAT dragon " + who(f->mSubject) + " breathes " + spellLabel(*spell) + " of shout "
+                            + (shout->mCommon.mEditorId.empty() ? std::to_string(shout->mCommon.mId)
+                                                                : shout->mCommon.mEditorId)
+                            + ", " + std::to_string(f->mProfile.mSpells.size()) + " spells in its list");
                     break;
                 }
             }

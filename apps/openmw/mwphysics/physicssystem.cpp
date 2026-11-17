@@ -2480,13 +2480,15 @@ namespace MWPhysics
         ESM::Position pos = ptr.getRefData().getPosition();
         const vsg::vec3 feet = pos.asVec3();
 
-        const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
-            object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR);
         // Task 0255: the horse the player sits on climbs and drops more than a person: its limits follow its capsule.
-        // Every other actor keeps the humanoid's (the pack names the ridden horse once a frame).
+        // Every other actor keeps the humanoid's (the pack names the ridden horse once a frame). Task 0280: so does a
+        // capsule as wide as the dragon's, which also walks over small clutter.
         const bool ridden = mNeutralRidden.valid() && mNeutralBridge.handleOf(entry.mRef) == mNeutralRidden;
-        const NeutralMover::Result result = NeutralMover::step(
-            feet, entry.mRequest, dt, sweeper, NeutralMover::limitsFor(2.f * entry.mCapsule.mCentreZ, ridden));
+        const NeutralMover::Limits limits
+            = NeutralMover::limitsFor(2.f * entry.mCapsule.mCentreZ, entry.mCapsule.mRadius, ridden);
+        const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
+            object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, limits, &neutralSightIgnore());
+        const NeutralMover::Result result = NeutralMover::step(feet, entry.mRequest, dt, sweeper, limits);
         ++entry.mWalkFrames;
 
         // Face the way it was asked to go, whether or not a wall let it move (a turn never needs room).

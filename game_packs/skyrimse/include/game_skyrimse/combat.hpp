@@ -831,6 +831,15 @@ namespace game_skyrimse
         [[nodiscard]] dragons::Phase dragonPhase(openeden::sdk::game::ActorHandle handle) const;
         [[nodiscard]] std::uint32_t dragonBreaths() const;
         [[nodiscard]] std::uint32_t dragonSouls() const { return mDragonSouls; }
+        /// Task 0280 (saves): the dragons that are in the air now (placement id and place), in ascending placement
+        /// order, for the chunk `dragons`; dragons on the ground and dead ones are not in it.
+        [[nodiscard]] std::vector<dragons::DragonSave> savedDragons() const;
+        /// A load: dragons that were in the air at the save. Each is put back in the cruise when the actor of that
+        /// placement is loaded and has its profile (it may be in a cell that is not loaded yet); it then follows the
+        /// ordinary flight rules (not engaged, it lands near the player). At most kMaxDragonSaves are kept; the list
+        /// replaces the one before.
+        void restoreDragons(std::vector<dragons::DragonSave> saves);
+        [[nodiscard]] std::size_t dragonRestoresPending() const { return mDragonRestores.size(); }
 
         /// Switches the AI on (the pack setting `combat ai`). Off, nothing of it runs and the old test rules are the
         /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every`
@@ -1332,10 +1341,13 @@ namespace game_skyrimse
         // Task 0253 (dragons).
         dragons::Settings mDragonSettings;
         std::vector<dragons::DragonState> mDragonStates;
+        std::vector<dragons::DragonSave> mDragonRestores; ///< task 0280: waiting for their actor
         std::uint32_t mDragonSouls = 0;
         void updateDragons(openeden::sdk::game::CombatRequestWriter& writer, float step);
         [[nodiscard]] bool dragonHolds(const openeden::sdk::game::CombatSubject& subject) const;
         [[nodiscard]] bool dragonWalksDirect(openeden::sdk::game::ActorHandle handle) const;
+        /// Task 0280: the navigator found no path for this dragon: it walks straight for kDirectFallbackSeconds.
+        void dragonNoPath(openeden::sdk::game::ActorHandle handle);
 
         void startHostiles(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerSwing(openeden::sdk::game::CombatRequestWriter& writer);

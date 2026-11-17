@@ -104,6 +104,7 @@
 
 #include "../mwphysics/actor.hpp"
 #include "../mwphysics/joltlayers.hpp"
+#include "../mwphysics/neutralmover.hpp"
 #include "../mwphysics/neutralplayerhealth.hpp"
 #include "../mwphysics/object.hpp"
 #include "../mwphysics/physicssystem.hpp"
@@ -522,7 +523,8 @@ namespace MWWorld
                 std::vector<vsg::vec3>& out) {
                 const DetourNavigator::AgentBounds sessionAgent = getPathfindingAgentBounds(getPlayerConstPtr());
                 // Task 0159: a round capsule is a cylinder agent (a box agent's corner is 1.41 times as wide).
-                const DetourNavigator::AgentBounds bounds = neutralActorAgentBounds(sessionAgent, capsule.mRadius);
+                const DetourNavigator::AgentBounds bounds
+                    = neutralActorAgentBounds(sessionAgent, MWPhysics::NeutralPath::navigationRadius(capsule.mRadius));
                 // The first path of an agent size the navigator does not know yet adds it (a navmesh of its own is then
                 // built on the worker threads, so the first answers are NavMeshNotFound and the follower asks again).
                 if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))
@@ -535,6 +537,11 @@ namespace MWWorld
                     case DetourNavigator::Status::Success:
                         return MWPhysics::NeutralPath::FindStatus::Success;
                     case DetourNavigator::Status::PartialPath:
+                        // Task 0280: the navmesh of a large creature's agent is built tile by tile on the worker
+                        // threads; a partial path while it is being built only means that the tiles are missing.
+                        if (capsule.mRadius >= MWPhysics::NeutralMover::kLargeCreatureRadius)
+                            return refineNeutralPathStatus(MWPhysics::NeutralPath::FindStatus::Partial,
+                                mNavigator->getStats().mUpdater.mJobs != 0);
                         return MWPhysics::NeutralPath::FindStatus::Partial;
                     case DetourNavigator::Status::NavMeshNotFound:
                     case DetourNavigator::Status::StartPolygonNotFound:

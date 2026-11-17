@@ -128,6 +128,18 @@ namespace MWPhysics::NeutralPath
     /// narrower actor reuses the session's navmesh, a wider one gets one of its own); the height is the session agent's
     /// (one navmesh per radius, not per individual height).
     [[nodiscard]] vsg::vec3 agentHalfExtents(float capsuleRadius, const vsg::vec3& sessionAgent);
+
+    /// Task 0280: a capsule as wide as the dragon's (NeutralMover::kLargeCreatureRadius and more) goes by the
+    /// navmesh of
+    /// an agent of this radius, game units. Every agent size has a navmesh of its own, built tile by tile on the worker
+    /// threads, and a radius 150 agent needed over 1,500 tile jobs, minutes of work, before its first path was
+    /// complete; the cylinder of radius 32 (the horse's and the giant's) is the widest the creature rows already use,
+    /// and the mover's sweeps keep the wider body off what that navmesh let it near. ESTIMATE. Narrower capsules keep
+    /// their own agent, as before.
+    inline constexpr float kMaxNavigationRadius = 32.f;
+    /// The radius of the navmesh agent for a capsule of `capsuleRadius`: kMaxNavigationRadius for a large creature,
+    /// else the radius itself (also one that is not finite or not positive, which `agentHalfExtents` ignores).
+    [[nodiscard]] float navigationRadius(float capsuleRadius);
 }
 
 #endif

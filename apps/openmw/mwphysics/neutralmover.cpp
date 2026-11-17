@@ -60,6 +60,27 @@ namespace MWPhysics::NeutralMover
         return ridden ? limitsForHeight(height) : Limits();
     }
 
+    bool tramplesBody(const Limits& limits, float feetZ, float bodyMaxZ, float sizeX, float sizeY)
+    {
+        if (!(limits.mTrampleHeight > 0.f) || !(limits.mTrampleWidth > 0.f) || !std::isfinite(feetZ)
+            || !std::isfinite(bodyMaxZ) || !std::isfinite(sizeX) || !std::isfinite(sizeY))
+            return false;
+        return bodyMaxZ - feetZ <= limits.mTrampleHeight && std::max(sizeX, sizeY) <= limits.mTrampleWidth;
+    }
+
+    Limits limitsFor(float height, float radius, bool ridden)
+    {
+        const bool large = std::isfinite(radius) && radius >= kLargeCreatureRadius; // task 0280
+        Limits limits = (ridden || large) ? limitsForHeight(height) : Limits();
+        if (large)
+        {
+            limits.mMinFloorNormalZ = kLargeCreatureMinFloorNormalZ;
+            limits.mTrampleHeight = kLargeCreatureTrampleHeight;
+            limits.mTrampleWidth = kLargeCreatureTrampleWidth;
+        }
+        return limits;
+    }
+
     Result step(const vsg::vec3& feet, const Request& request, float dt, const Sweeper& world)
     {
         return step(feet, request, dt, world, Limits());
@@ -194,12 +215,48 @@ namespace MWPhysics::NeutralMover
         return result;
     }
 
-    JoltSweeper::JoltSweeper(
-        const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self, int layerMask)
+    namespace
+    {
+        /// Leaves out the actor's own body and (task 0280) the small bodies a large creature walks over.
+        class SweepBodyFilter final : public JPH::BodyFilter
+        {
+        public:
+            SweepBodyFilter(JPH::BodyID self, const Limits& limits, float feetZ, const std::vector<JPH::BodyID>* actors)
+                : mSelf(self)
+                , mLimits(limits)
+                , mFeetZ(feetZ)
+                , mActors(actors)
+            {
+            }
+            bool ShouldCollide(const JPH::BodyID& id) const override { return id != mSelf; }
+            bool ShouldCollideLocked(const JPH::Body& body) const override
+            {
+                if (!(mLimits.mTrampleHeight > 0.f))
+                    return true;
+                // Another actor is no clutter: it stops a large creature as it always did.
+                if (mActors != nullptr && std::find(mActors->begin(), mActors->end(), body.GetID()) != mActors->end())
+                    return true;
+                const JPH::AABox bounds = body.GetWorldSpaceBounds();
+                const JPH::Vec3 size = bounds.GetSize();
+                return !tramplesBody(mLimits, mFeetZ, bounds.mMax.GetZ(), size.GetX(), size.GetY());
+            }
+
+        private:
+            JPH::BodyID mSelf;
+            Limits mLimits;
+            float mFeetZ;
+            const std::vector<JPH::BodyID>* mActors;
+        };
+    }
+
+    JoltSweeper::JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self,
+        int layerMask, const Limits& limits, const std::vector<JPH::BodyID>* actors)
         : mSystem(system)
         , mShape(std::move(shape))
         , mSelf(self)
         , mLayerMask(layerMask)
+        , mLimits(limits)
+        , mActors(actors)
     {
     }
 
@@ -221,7 +278,7 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        JPH::IgnoreSingleBodyFilter ownBody(mSelf);
+        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors);
         JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
         mSystem.GetNarrowPhaseQuery().CastShape(
             cast, settings, JPH::RVec3::sZero(), collector, allBroadPhaseLayers, objectLayers, ownBody);
@@ -244,7 +301,7 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        JPH::IgnoreSingleBodyFilter ownBody(mSelf);
+        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors); // a probe starts just above the feet
         // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by
         // steep bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by
         // five rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal

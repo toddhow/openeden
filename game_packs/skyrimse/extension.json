@@ -596,6 +596,11 @@
       "default": 0
     },
     {
+      "key": "dragons navmesh",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "dragons test damage scale",
       "type": "float",
       "default": 1

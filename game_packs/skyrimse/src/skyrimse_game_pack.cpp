@@ -5066,6 +5066,8 @@ namespace game_skyrimse
                         mWorldView.setDragons(true);
                         dragons::Settings dragonSettings;
                         dragonSettings.mOn = true;
+                        dragonSettings.mNavmeshWalk
+                            = settings->getBool(kPackId, std::string(dragons::kNavmeshKey), false);
                         dragonSettings.mFlight.mEnabled
                             = settings->getBool(kPackId, std::string(dragons::kFlightKey), true);
                         const float ground = settings->getFloat(kPackId, std::string(dragons::kTestGroundKey), 0.f);
@@ -5091,6 +5093,15 @@ namespace game_skyrimse
                             std::string("dragons: on, flight ") + (dragonSettings.mFlight.mEnabled ? "on" : "off")
                                 + ", " + std::to_string(dragonSettings.mFlight.mGroundSeconds) + " s on the ground, "
                                 + std::to_string(dragonSettings.mFlight.mAirSeconds) + " s in the air");
+                        // Task 0280: a dragon in the air at a save is back in the air after a load.
+                        mDragonsChunk = std::make_unique<dragons::DragonsChunk>(
+                            [this] { return mCellSource.combat().savedDragons(); },
+                            [this](std::vector<dragons::DragonSave> saves) {
+                                mCellSource.combat().restoreDragons(std::move(saves));
+                            });
+                        if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                            if (!chunks->registerHandler(*mDragonsChunk))
+                                say(openeden::sdk::LogLevel::Warning, "the dragons chunk was not registered");
                     }
                     // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral
                     // player body).
@@ -5363,6 +5374,7 @@ namespace game_skyrimse
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<RidingBindings> mRidingBindings; // task 0255; refers to the cell source's riding rules
             std::unique_ptr<RidingChunk> mRidingChunk; // task 0255
+            std::unique_ptr<dragons::DragonsChunk> mDragonsChunk; // task 0280
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<harvest::HarvestService> mHarvest; // task 0221; refers to the view and the inventory
             std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver

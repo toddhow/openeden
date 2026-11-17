@@ -70,4 +70,12 @@ namespace MWWorld
         return DetourNavigator::AgentBounds{ DetourNavigator::CollisionShapeType::Cylinder,
             MWPhysics::NeutralPath::agentHalfExtents(capsuleRadius, session.mHalfExtents) };
     }
+
+    MWPhysics::NeutralPath::FindStatus refineNeutralPathStatus(
+        MWPhysics::NeutralPath::FindStatus status, bool navMeshBusy)
+    {
+        if (status == MWPhysics::NeutralPath::FindStatus::Partial && navMeshBusy)
+            return MWPhysics::NeutralPath::FindStatus::NotReady;
+        return status;
+    }
 }

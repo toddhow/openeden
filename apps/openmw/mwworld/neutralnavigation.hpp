@@ -6,6 +6,8 @@
 
 #include <components/detournavigator/agentbounds.hpp>
 
+#include <apps/openmw/mwphysics/neutralpathfollower.hpp>
+
 #include <openeden/game/world_view.hpp>
 
 namespace JPH
@@ -93,6 +95,12 @@ namespace MWWorld
     /// agent, as `MWPhysics::NeutralPath::agentHalfExtents` says.
     [[nodiscard]] DetourNavigator::AgentBounds neutralActorAgentBounds(
         const DetourNavigator::AgentBounds& session, float capsuleRadius);
+
+    /// Task 0280: a Partial answer while the navigator still has navmesh update jobs pending is NotReady (the path may
+    /// be partial only because the tiles it needs are not built yet: the first path of a new agent size, a dragon's
+    /// cylinder of radius 150, was two waypoints long). Every other answer is returned as it is.
+    [[nodiscard]] MWPhysics::NeutralPath::FindStatus refineNeutralPathStatus(
+        MWPhysics::NeutralPath::FindStatus status, bool navMeshBusy);
 }
 
 #endif

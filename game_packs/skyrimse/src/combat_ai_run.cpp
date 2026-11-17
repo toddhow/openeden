@@ -394,6 +394,8 @@ namespace game_skyrimse
             return;
         a->mMoving = false;
         a->mGoalAt = mClock; // the next goal waits for the retarget period, a failure included
+        if (result == GoalResult::NoPath)
+            dragonNoPath(handle); // task 0280
         if (a->mState.mMode != AiMode::Retreat)
         {
             if (result == GoalResult::Arrived)

@@ -12,6 +12,7 @@
 
 #include <components/misc/vsgmath.hpp>
 
+#include <vector>
 #include <vsg/maths/vec3.h>
 
 #include <Jolt/Jolt.h>
@@ -79,6 +80,11 @@ namespace MWPhysics::NeutralMover
         float mStepUp = kStepUp;
         float mStepDown = kStepDown;
         float mMinFloorNormalZ = kMinFloorNormalZ;
+        /// Task 0280: a body that is no taller than mTrampleHeight above the actor's feet and no wider than
+        /// mTrampleWidth (a rock, a bush, a small tree, a barrel) is walked over: the sweeps and the ground probes
+        /// ignore it. 0 (the default) tramples nothing.
+        float mTrampleHeight = 0.f;
+        float mTrampleWidth = 0.f;
     };
     inline constexpr float kAnimalMinFloorNormalZ = 0.5f;
     /// The limits of a capsule `height` units tall: the humanoid's up to kReferenceHeight (and for a height that is
@@ -86,9 +92,37 @@ namespace MWPhysics::NeutralMover
     /// the floor normal limit kAnimalMinFloorNormalZ.
     [[nodiscard]] Limits limitsForHeight(float height);
 
-    /// The limits of an actor of `height`: those of a mount (`limitsForHeight`) when `ridden`, else the humanoid's
-    /// (task 0255: only the horse the player sits on has them, so nothing else in the world changes).
+    /// Task 0280: a capsule at least this wide (the dragon's is 150; the mammoth's 100, the bear's 68) is a body that
+    /// meets every kerb, bank and bush of the ground as a much bigger obstacle than a person does, and has the
+    /// long legs
+    /// of a mount whether or not anybody rides it. ESTIMATE, found by walking a dragon over the Whiterun plains: its
+    /// steps stopped at a 47 unit drop (`blocked edge`), and the navigator was not the cause (the walk is direct).
+    inline constexpr float kLargeCreatureRadius = 120.f;
+    /// ... and a body that wide rests on the rim of a ridge or a rock with the ground under its CENTRE on a steep face
+    /// (the centre probe saw a 50 unit step down onto a slope, and refused every pass): the steepness of the ground
+    /// under the centre does not stop it. ESTIMATE: 0 refuses only an overhang.
+    inline constexpr float kLargeCreatureMinFloorNormalZ = 0.f;
+    /// ... and walks over the clutter of the ground: a body at most this high above its feet (a little more than its
+    /// step down) and at most this wide (a rock, a bush, a barrel, a stool). Found by walking a dragon over the
+    /// Whiterun
+    /// plains: it climbed onto a rock 100 units high, rested on its rim and could go no further (docs/tasks/0280).
+    /// ESTIMATES. Buildings, walls, long fences and tall trees are bigger and still stop it.
+    inline constexpr float kLargeCreatureTrampleHeight = 250.f;
+    inline constexpr float kLargeCreatureTrampleWidth = 400.f;
+    /// Whether a body whose bounds are `bodyMaxZ` high and `sizeX` by `sizeY` wide is walked over by an actor
+    /// whose feet
+    /// are at `feetZ`, with the limits' mTrampleHeight and mTrampleWidth. False when they are 0 or any number is not
+    /// finite.
+    [[nodiscard]] bool tramplesBody(const Limits& limits, float feetZ, float bodyMaxZ, float sizeX, float sizeY);
+
+    /// The limits of an actor of `height`: those of a mount (`limitsForHeight`) when `ridden` (task 0255: only
+    /// the horse
+    /// the player sits on), else the humanoid's.
     [[nodiscard]] Limits limitsFor(float height, bool ridden);
+
+    /// Task 0280: as above, and a capsule of at least kLargeCreatureRadius (a radius that is not finite counts as
+    /// none) also has the limits of a mount. The two argument form is unchanged.
+    [[nodiscard]] Limits limitsFor(float height, float radius, bool ridden);
 
     /// The result of sweeping the actor's capsule: `mFraction` of the way along the motion is free.
     struct Sweep
@@ -142,7 +176,10 @@ namespace MWPhysics::NeutralMover
     {
     public:
         /// `shape` is the capsule in the body's own frame (feet at the origin, upright), `self` the actor's body.
-        JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self, int layerMask);
+        /// `limits` (task 0280) name the small bodies the actor walks over; the default tramples nothing.
+        /// `actors` (task 0280, optional) are the bodies of the other actors: a large creature never walks over those.
+        JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self, int layerMask,
+            const Limits& limits = Limits(), const std::vector<JPH::BodyID>* actors = nullptr);
         [[nodiscard]] Sweep sweep(const vsg::vec3& from, const vsg::vec3& delta) const override;
         [[nodiscard]] Sweep probeDown(const vsg::vec3& from, float depth) const override;
 
@@ -151,6 +188,8 @@ namespace MWPhysics::NeutralMover
         JPH::RefConst<JPH::Shape> mShape;
         JPH::BodyID mSelf;
         int mLayerMask;
+        Limits mLimits;
+        const std::vector<JPH::BodyID>* mActors;
     };
 }
 

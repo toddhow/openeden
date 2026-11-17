@@ -1,0 +1,3 @@
+GLOBAL: scripts/drg/global.lua
+MENU: scripts/drg/menu.lua
+PLAYER: scripts/drg/player.lua

@@ -20,9 +20,14 @@
 #include <game_skyrimse/creatures.hpp>
 
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/save_chunks.hpp>
 
 #include <cstdint>
+#include <functional>
+#include <span>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace game_skyrimse::dragons
 {
@@ -32,6 +37,11 @@ namespace game_skyrimse::dragons
     inline constexpr std::string_view kDragonsKey = "dragons";
     /// Bool, default true: a dragon that fights takes off, circles and lands (off: it stays on the ground).
     inline constexpr std::string_view kFlightKey = "dragons flight";
+    /// Task 0280: bool, default false: a dragon walks by the navmesh (an agent of its own size, a cylinder of its
+    /// capsule's radius) and only walks straight at its goal for kDirectFallbackSeconds after the navigator found no
+    /// path. Off, it always walks straight (task 0253), and the mover's limits are all that keep it off a rock.
+    inline constexpr std::string_view kNavmeshKey = "dragons navmesh";
+    inline constexpr float kDirectFallbackSeconds = 6.f;
     /// A developer aid: the editor id of a dragon NPC_ (for example `EncDragon01Fire`). With `dragons test replace` it
     /// takes the place of every placed actor of that editor id (a wolf in the cell the run starts in).
     inline constexpr std::string_view kTestPlaceKey = "dragons test place";
@@ -130,6 +140,17 @@ namespace game_skyrimse::dragons
         /// Seconds since the last landing (or the first engagement) the dragon has fought on the ground.
         [[nodiscard]] float groundTime() const { return static_cast<float>(mGround); }
         [[nodiscard]] std::uint32_t flights() const { return mFlights; }
+        /// Task 0280: the last position the flight placed the dragon at and its heading (what a save keeps).
+        [[nodiscard]] double lastX() const { return mX; }
+        [[nodiscard]] double lastY() const { return mY; }
+        [[nodiscard]] double lastZ() const { return mZ; }
+        [[nodiscard]] float heading() const { return mHeading; }
+        /// Task 0280 (a load): the dragon was in the air when the game was saved. It is in the cruise at (x, y, z)
+        /// facing `heading`, on its bearing and distance from the player, with the whole air time still ahead of it;
+        /// the next step places it. Whatever phase it was in at the save, it comes back as a cruise: not engaged (the
+        /// fight is not saved) it then goes into its approach and lands near the player on its own. Non-finite
+        /// numbers change nothing.
+        void resume(double x, double y, double z, float heading, double playerX, double playerY);
 
     private:
         FlightSettings mSettings;
@@ -146,7 +167,55 @@ namespace game_skyrimse::dragons
         double mLandX = 0.0, mLandY = 0.0, mLandZ = 0.0;
         double mApproachX = 0.0, mApproachY = 0.0, mApproachZ = 0.0;
         bool mHeadingSet = false;
+        bool mStartPending = false; ///< task 0280: the next cruise step starts a pose (a resumed flight)
         std::uint32_t mFlights = 0;
+    };
+
+    // ---- the save (task 0280) ---------------------------------------------------------------------------------------
+
+    /// A dragon that was in the air at a save: its placement id and where it flew. A dragon on the ground is not saved
+    /// (the engine puts it back at its placement, as every other actor: decision 0005's rule), a dead one is the
+    /// deaths chunk's.
+    struct DragonSave
+    {
+        std::uint32_t mPlacement = 0;
+        double mX = 0.0, mY = 0.0, mZ = 0.0;
+        float mHeading = 0.f;
+        friend bool operator==(const DragonSave&, const DragonSave&) = default;
+    };
+    /// The most dragons a save keeps (a world has a handful at most; a hostile file cannot grow the list).
+    inline constexpr std::size_t kMaxDragonSaves = 64;
+    /// Bytes of one entry in the chunk: u32 placement, three f64, one f32.
+    inline constexpr std::size_t kDragonSaveBytes = 4 + 3 * 8 + 4;
+
+    /// The chunk `dragons`, version 1: u32 count (at most kMaxDragonSaves), then each entry in strictly ascending
+    /// placement order. Canonical: encode(decode(bytes)) is the same bytes. Entries over the cap and entries with a
+    /// non-finite number are not written.
+    [[nodiscard]] std::vector<std::uint8_t> encodeDragonSaves(std::vector<DragonSave> saves);
+    /// Strict: the exact length, ascending distinct placements, a count within the cap, finite numbers, a non-zero
+    /// placement. False (and `out` untouched) otherwise.
+    [[nodiscard]] bool decodeDragonSaves(std::span<const std::uint8_t> bytes, std::vector<DragonSave>& out);
+
+    class DragonsChunk final : public openeden::sdk::SaveChunkHandler
+    {
+    public:
+        static constexpr std::uint32_t kVersion = 1;
+        static constexpr std::string_view kName = "dragons";
+        using Getter = std::function<std::vector<DragonSave>()>;
+        using Setter = std::function<void(std::vector<DragonSave>)>;
+        DragonsChunk(Getter get, Setter set)
+            : mGet(std::move(get))
+            , mSet(std::move(set))
+        {
+        }
+        [[nodiscard]] std::string_view chunkName() const override { return kName; }
+        [[nodiscard]] std::uint32_t chunkVersion() const override { return kVersion; }
+        void write(openeden::sdk::ChunkWriter& writer) override;
+        [[nodiscard]] bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override;
+
+    private:
+        Getter mGet;
+        Setter mSet;
     };
 
     // ---- the breath -------------------------------------------------------------------------------------------------
@@ -201,6 +270,7 @@ namespace game_skyrimse::dragons
     struct Settings
     {
         bool mOn = false;
+        bool mNavmeshWalk = false; ///< task 0280
         FlightSettings mFlight;
         /// A developer aid: when above 0 a dragon starts with this much health (cut to its maximum), so a run can kill
         /// it.
@@ -234,6 +304,9 @@ namespace game_skyrimse::dragons
         bool mSoulTaken = false;
         bool mDeathClipPlayed = false;
         bool mFlightOrdered = false; ///< a pose is out at the core (useFurniture was written)
+        float mDirectUntil = 0.f; ///< task 0280: the combat clock until which it walks straight (after "no path")
+        bool mResumePending = false; ///< task 0280: a load put it in the air; the next step resumes the cruise
+        DragonSave mResume;
         explicit DragonState(const FlightSettings& flight)
             : mFlight(flight)
         {

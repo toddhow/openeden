@@ -1,5 +1,7 @@
 #include "neutralpathfollower.hpp"
 
+#include "neutralmover.hpp"
+
 #include <algorithm>
 #include <cmath>
 
@@ -160,5 +162,12 @@ namespace MWPhysics::NeutralPath
             return sessionAgent;
         return vsg::vec3(
             std::max(capsuleRadius, sessionAgent.x), std::max(capsuleRadius, sessionAgent.y), sessionAgent.z);
+    }
+
+    float navigationRadius(float capsuleRadius)
+    {
+        if (std::isfinite(capsuleRadius) && capsuleRadius >= NeutralMover::kLargeCreatureRadius)
+            return kMaxNavigationRadius;
+        return capsuleRadius;
     }
 }

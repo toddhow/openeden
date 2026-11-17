@@ -9,6 +9,7 @@ local util = require('openmw.util')
 local cfg = require('scripts.n5.aicfg')
 local start, placed, nextShot, shots, hourSet = nil, nil, 0, 0, false
 local px, py, pz
+local lastP
 
 local function find(cell, tag)
     for _, o in ipairs(cell:getAll()) do
@@ -31,8 +32,11 @@ return {
             local t = core.getSimulationTime() - start
             if t < cfg.start then return end
             local actor = find(player.cell, cfg.target)
-            if actor == nil then return end
-            local p = actor.position
+            -- task 0280: a creature that walks across a cell border leaves the player's cell (neutral actors are not
+            -- in world.activeActors): from then on the last place it was seen stands for it
+            if actor == nil and lastP == nil then return end
+            local p = actor and actor.position or lastP
+            lastP = p
             if not placed then
                 placed = t
                 px, py, pz = p.x + cfg.dist, p.y, p.z + 2

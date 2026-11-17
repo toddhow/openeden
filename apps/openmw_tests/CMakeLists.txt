@@ -262,7 +262,10 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralpathwaypointz.cpp
     mwphysics/testneutralmoversteep.cpp
     mwphysics/testneutralmoverlimits.cpp
+    mwphysics/testneutralmoverlarge.cpp
+    mwphysics/testneutralsweeplarge.cpp
     mwworld/testneutralactoragent.cpp
+    mwworld/testneutralpathbusy.cpp
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <string>
 
 namespace game_skyrimse::dragons
@@ -182,6 +183,12 @@ namespace game_skyrimse::dragons
                 place(mApproachX, mApproachY, mApproachZ);
                 return out;
             }
+            if (mStartPending)
+            {
+                // A resumed flight (task 0280): the core has no pose for it yet.
+                mStartPending = false;
+                out.mStartPose = true;
+            }
             const double settle = smooth(mPhaseTime / kRadiusSettleSeconds);
             mRadius = mStartRadius + (static_cast<double>(mSettings.mCircleRadius) - mStartRadius) * settle;
             mAngle = wrapPi(mAngle + static_cast<double>(kGlideSpeed) * dt / std::max(mRadius, kMinRadius));
@@ -230,6 +237,109 @@ namespace game_skyrimse::dragons
         const double f = smooth(mPhaseTime / static_cast<double>(kTouchdownSeconds));
         place(mLandX, mLandY, mLandZ + static_cast<double>(mSettings.mLandHover) * (1.0 - f));
         return out;
+    }
+
+    void Flight::resume(double x, double y, double z, float heading, double playerX, double playerY)
+    {
+        if (mPhase != Phase::Ground || !finite(x) || !finite(y) || !finite(z) || !std::isfinite(heading)
+            || !finite(playerX) || !finite(playerY))
+            return;
+        const double dx = x - playerX;
+        const double dy = y - playerY;
+        mPhase = Phase::Cruise;
+        mPhaseTime = 0.0;
+        mGround = 0.0;
+        mAngle = std::atan2(dx, dy);
+        mStartRadius = std::max(std::hypot(dx, dy), 1.0);
+        mRadius = mStartRadius;
+        mTopZ = z;
+        mX = x;
+        mY = y;
+        mZ = z;
+        mHeading = heading;
+        mHeadingSet = true;
+        mStartPending = true;
+        ++mFlights;
+    }
+
+    std::vector<std::uint8_t> encodeDragonSaves(std::vector<DragonSave> saves)
+    {
+        std::erase_if(saves, [](const DragonSave& s) {
+            return s.mPlacement == 0 || !finite(s.mX) || !finite(s.mY) || !finite(s.mZ) || !std::isfinite(s.mHeading);
+        });
+        // Stable: of two entries with one placement the first given stays.
+        std::stable_sort(saves.begin(), saves.end(),
+            [](const DragonSave& a, const DragonSave& b) { return a.mPlacement < b.mPlacement; });
+        saves.erase(std::unique(saves.begin(), saves.end(),
+                        [](const DragonSave& a, const DragonSave& b) { return a.mPlacement == b.mPlacement; }),
+            saves.end());
+        if (saves.size() > kMaxDragonSaves)
+            saves.resize(kMaxDragonSaves);
+        std::vector<std::uint8_t> bytes;
+        bytes.reserve(4 + saves.size() * kDragonSaveBytes);
+        const auto put = [&bytes](const auto& value) {
+            const auto* p = reinterpret_cast<const std::uint8_t*>(&value);
+            bytes.insert(bytes.end(), p, p + sizeof value);
+        };
+        put(static_cast<std::uint32_t>(saves.size()));
+        for (const DragonSave& s : saves)
+        {
+            put(s.mPlacement);
+            put(s.mX);
+            put(s.mY);
+            put(s.mZ);
+            put(s.mHeading);
+        }
+        return bytes;
+    }
+
+    bool decodeDragonSaves(std::span<const std::uint8_t> bytes, std::vector<DragonSave>& out)
+    {
+        if (bytes.size() < 4)
+            return false;
+        std::uint32_t count = 0;
+        std::memcpy(&count, bytes.data(), 4);
+        if (count > kMaxDragonSaves || bytes.size() != 4 + static_cast<std::size_t>(count) * kDragonSaveBytes)
+            return false;
+        std::vector<DragonSave> read;
+        read.reserve(count);
+        const std::uint8_t* p = bytes.data() + 4;
+        for (std::uint32_t i = 0; i < count; ++i, p += kDragonSaveBytes)
+        {
+            DragonSave s;
+            std::memcpy(&s.mPlacement, p, 4);
+            std::memcpy(&s.mX, p + 4, 8);
+            std::memcpy(&s.mY, p + 12, 8);
+            std::memcpy(&s.mZ, p + 20, 8);
+            std::memcpy(&s.mHeading, p + 28, 4);
+            if (s.mPlacement == 0 || !finite(s.mX) || !finite(s.mY) || !finite(s.mZ) || !std::isfinite(s.mHeading)
+                || (!read.empty() && read.back().mPlacement >= s.mPlacement))
+                return false;
+            read.push_back(s);
+        }
+        out = std::move(read);
+        return true;
+    }
+
+    void DragonsChunk::write(openeden::sdk::ChunkWriter& writer)
+    {
+        const std::vector<std::uint8_t> bytes = encodeDragonSaves(mGet ? mGet() : std::vector<DragonSave>());
+        writer.write(bytes.data(), bytes.size());
+    }
+
+    bool DragonsChunk::read(openeden::sdk::ChunkReader& reader, std::uint32_t version)
+    {
+        if (version != kVersion)
+            return false;
+        std::vector<std::uint8_t> bytes(reader.remaining());
+        if (!bytes.empty() && !reader.read(bytes.data(), bytes.size()))
+            return false;
+        std::vector<DragonSave> saves;
+        if (!decodeDragonSaves(bytes, saves))
+            return false;
+        if (mSet)
+            mSet(std::move(saves));
+        return true;
     }
 
     Cone breathCone(double ox, double oy, double oz, double tx, double ty, double tz, float range, float halfAngle)
