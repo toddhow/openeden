@@ -31,12 +31,6 @@ namespace
     using MWRender::BonePose;
     using MWRender::RagdollSource;
 
-    // The rotation that applies inner first and then outer (vsg::dquat's own operator* is the other way round).
-    vsg::dquat compose(const vsg::dquat& outer, const vsg::dquat& inner)
-    {
-        return inner * outer;
-    }
-
     vsg::dquat axisAngle(const vsg::dvec3& axis, double angle)
     {
         const double length = std::sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
@@ -194,19 +188,6 @@ namespace
     vsg::dvec3 worldPositionOf(const BonePose& pose, const std::string& name)
     {
         return Misc::VsgMath::getTrans(pose.getWorld(pose.find(name)));
-    }
-
-    void turnAll(FakeRagdoll& ragdoll, const vsg::dquat& turn)
-    {
-        for (RagdollBoneState& state : ragdoll.mStates)
-        {
-            const vsg::dquat start(state.mRotation[0], state.mRotation[1], state.mRotation[2], state.mRotation[3]);
-            const vsg::dquat now = compose(turn, start);
-            state.mRotation[0] = now.x;
-            state.mRotation[1] = now.y;
-            state.mRotation[2] = now.z;
-            state.mRotation[3] = now.w;
-        }
     }
 
     struct Fixture
