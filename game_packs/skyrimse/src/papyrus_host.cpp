@@ -110,7 +110,9 @@ namespace game_skyrimse
         {
             if (mCreated.count(form) != 0)
             {
-                className = mCreatedActors.count(form) != 0 ? "Actor" : "ObjectReference"; // task 0276
+                const auto known = mRefClass.find(form); // task 0274: a relocated actor is an Actor
+                className = known != mRefClass.end() ? known->second
+                                                     : (mCreatedActors.count(form) != 0 ? "Actor" : "ObjectReference"); // task 0276
                 return true;
             }
             if ((form & 0xFF000000u) == kAliasTag && form != 0)
@@ -777,6 +779,7 @@ namespace game_skyrimse
             mCreated[made.reference] = created;
             if (made.actor)
                 mCreatedActors.insert(made.reference); // task 0276: not saved (created actors are not)
+                mRefClass[made.reference] = "Actor"; // task 0274: a script casts the relocated actor to Actor
             mPositions[made.reference] = { at[0], at[1], at[2] };
             mPositions[self] = { at[0], at[1], at[2] };
             if (angles != nullptr)
@@ -972,6 +975,53 @@ namespace game_skyrimse
                     // the next multiple of the interval after the clock: a long wait fires once, not once per hour
                     const double missed = std::floor((mGameClock - due) / timer.mRepeat) + 1.0;
                     mGameTimers.emplace(std::make_pair(due + missed * timer.mRepeat, mTimerSeq++), timer);
+                }
+            }
+        }
+
+        // Task 0274: animation events a pack announced (the cart riders' exit idles end with "ExitCartEnd")
+        struct AnimRegistration
+        {
+            InstanceId mInstance;
+            FormId mSource = 0;
+            std::string mEvent; ///< lower case
+        };
+        struct PendingAnimEvent
+        {
+            double mDue = 0.0;
+            FormId mSource = 0;
+            std::string mEvent;
+        };
+        static constexpr std::size_t kMaxAnimEvents = 64;
+        static constexpr std::size_t kMaxAnimRegistrations = 256;
+        std::map<FormId, FormId> mPackageQuest; ///< task 0274: package -> the quest its fragment answers
+        std::vector<AnimRegistration> mAnimRegistrations;
+        std::vector<PendingAnimEvent> mAnimEvents;
+
+        void fireAnimEvents()
+        {
+            for (std::size_t i = 0; i < mAnimEvents.size();)
+            {
+                if (mAnimEvents[i].mDue > mTime)
+                {
+                    ++i;
+                    continue;
+                }
+                const PendingAnimEvent due = mAnimEvents[i];
+                mAnimEvents.erase(mAnimEvents.begin() + static_cast<std::ptrdiff_t>(i));
+                const std::string key = lower(due.mEvent);
+                for (std::size_t r = 0; r < mAnimRegistrations.size();)
+                {
+                    const AnimRegistration reg = mAnimRegistrations[r];
+                    if (reg.mSource != due.mSource || reg.mEvent != key)
+                    {
+                        ++r;
+                        continue;
+                    }
+                    // the game's scripts unregister inside the handler; a registration fires once per event
+                    mAnimRegistrations.erase(mAnimRegistrations.begin() + static_cast<std::ptrdiff_t>(r));
+                    (void)sendEvent(reg.mInstance, "OnAnimationEvent",
+                        { formValue(due.mSource), PapyrusValue::makeString(due.mEvent) });
                 }
             }
         }
@@ -1194,8 +1244,16 @@ namespace game_skyrimse
                     return NativeResult{};
                 });
             }
-            reg("Form", "RegisterForAnimationEvent", false,
-                [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+            // Task 0274: the registrations are kept; `PlayIdle` above (through the pack) raises the event
+            const auto registerAnimation = [this](const NativeCall& c) {
+                if (c.self.attached && c.arguments.size() >= 2 && c.arguments[1].kind == PapyrusKind::String
+                    && mAnimRegistrations.size() < kMaxAnimRegistrations)
+                    mAnimRegistrations.push_back(
+                        { c.self.handle, liveReference(formOf(c.arguments[0])), lower(c.arguments[1].text) });
+                return result(PapyrusValue::makeBool(true));
+            };
+            reg("Form", "RegisterForAnimationEvent", false, registerAnimation);
+            reg("Alias", "RegisterForAnimationEvent", false, registerAnimation);
             reg("ObjectReference", "GetCurrentDestructionStage", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeInt(0)); });
             reg("Debug", "OpenUserLog", true, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
@@ -1466,6 +1524,12 @@ namespace game_skyrimse
             reg("Quest", "IsObjectiveCompleted", false, [this](const NativeCall& c) {
                 const auto it = mObjectivesCompleted.find({ formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)) });
                 return result(PapyrusValue::makeBool(it != mObjectivesCompleted.end() && it->second));
+            });
+            // Task 0274: the package fragment of a quest alias's package reaches its quest
+            reg("Package", "GetOwningQuest", false, [this](const NativeCall& c) {
+                const auto found = mPackageQuest.find(formOf(c.self));
+                return result(found != mPackageQuest.end() && found->second != 0 ? questValue(found->second)
+                                                                                 : PapyrusValue::makeNone());
             });
             reg("TopicInfo", "GetOwningQuest", false,
                 [this](const NativeCall& c) { return result(questValue(mData.questOfInfo(formOf(c.self)))); });
@@ -1783,8 +1847,17 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(sees));
             });
 
-            for (const char* name : { "SetVehicle", "SetRestrained", "Say", "EvaluatePackage" })
+            for (const char* name : { "SetRestrained", "Say", "EvaluatePackage" })
                 reg("Actor", name, false, nothing);
+            // Task 0274 (the Helgen cart ride): the quest's stage 12 fragment tethers each cart to its horse and puts
+            // the riders (the player too) on it; the pack makes the cart trail the horse and carries the riders
+            reg("Actor", "SetVehicle", false, [this](const NativeCall& c) {
+                const FormId rider = liveReference(formOf(c.self));
+                const FormId vehicle = c.arguments.empty() ? 0 : liveReference(formOf(c.arguments[0]));
+                if (mHooks != nullptr && rider != 0)
+                    (void)mHooks->setVehicle(rider, vehicle);
+                return NativeResult{};
+            });
             // Task 0268 (the main quest's opening): the cart ride's setup waits for the actors to be loaded, and sets
             // up what has no meaning here yet (the cart HUD, the title sequence, the gate, a cart's tether to its
             // horse)
@@ -1796,10 +1869,31 @@ namespace game_skyrimse
             for (const char* name :
                 { "SetHudCartMode", "StartTitleSequence", "ShowTitleSequenceMenu", "HideTitleSequenceMenu" })
                 reg("Game", name, true, nothing);
-            for (const char* name : { "SetOpen", "TetherToHorse" })
-                reg("ObjectReference", name, false, nothing);
+            reg("ObjectReference", "SetOpen", false, nothing);
+            reg("ObjectReference", "TetherToHorse", false, [this](const NativeCall& c) {
+                const FormId cart = liveReference(formOf(c.self));
+                const FormId horse = c.arguments.empty() ? 0 : liveReference(formOf(c.arguments[0]));
+                double at[3] = { 0, 0, 0 };
+                if (mHooks != nullptr && cart != 0 && horse != 0 && positionOf(cart, at))
+                {
+                    std::array<double, 3> angles{};
+                    const double heading = anglesOf(cart, angles) ? angles[2] : std::nan("");
+                    (void)mHooks->tetherCart(cart, horse, at, heading);
+                }
+                return NativeResult{};
+            });
             reg("ObjectReference", "Say", false, nothing); // the declaring class of Say in the game's scripts
-            reg("Actor", "PlayIdle", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+            // Task 0274: an idle the game's script waits for ends with an animation event (the cart's exit idles)
+            reg("Actor", "PlayIdle", false, [this](const NativeCall& c) {
+                const FormId actor = liveReference(formOf(c.self));
+                const FormId idle = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                std::string event;
+                double seconds = 0.0;
+                if (mHooks != nullptr && actor != 0 && idle != 0 && mHooks->playIdle(actor, idle, event, seconds)
+                    && mAnimEvents.size() < kMaxAnimEvents)
+                    mAnimEvents.push_back({ mTime + std::max(seconds, 0.0), actor, std::move(event) });
+                return result(PapyrusValue::makeBool(true));
+            });
             reg("ObjectReference", "IsFurnitureInUse", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
             // Task 0260: the vampire quest's game-time update only acts while the player's controls work (the pack has
@@ -2030,6 +2124,7 @@ namespace game_skyrimse
             runReplays();
             fireTimers();
             fireGameTimers();
+            fireAnimEvents(); // task 0274
             for (int round = 0; round < 8; ++round)
             {
                 const openeden::script::TickResult r = mRuntime->tick(mTime);
@@ -3200,6 +3295,32 @@ namespace game_skyrimse
         return queued;
     }
 
+    bool PapyrusHost::runPackageEnd(FormId package, FormId actor, FormId quest, const std::string& scriptName,
+        const std::string& function)
+    {
+        Impl& m = *mImpl;
+        if (package == 0 || scriptName.empty() || function.empty())
+            return false;
+        m.preloadClasses();
+        m.mPackageQuest[package] = quest;
+        if (m.findInstance(package, scriptName) == 0)
+        {
+            vmad::Script script;
+            script.mName = scriptName;
+            Impl::InstanceInfo instanceInfo;
+            instanceInfo.mForm = package;
+            (void)m.attachScript(AttachKey{ AttachKind::Form, package, 0, 0 }, instanceInfo, script);
+        }
+        const InstanceId instance = m.findInstance(package, scriptName);
+        if (instance == 0)
+            return false;
+        const bool queued = m.sendEvent(instance, function, { m.formValue(actor) });
+        if (queued)
+            m.say(false, "Papyrus: package " + hex(package) + " ended for " + hex(actor) + ": " + scriptName + "."
+                + function);
+        return queued;
+    }
+
     void PapyrusHost::setLog(LogFunction log)
     {
         mImpl->mLog = std::move(log);
@@ -3335,6 +3456,29 @@ namespace game_skyrimse
                 if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
                         { m.formValue(kPlayerReference) }))
                     ++queued;
+        return queued;
+    }
+
+    std::size_t PapyrusHost::updateSubjectTriggers(const std::vector<SubjectPlace>& subjects)
+    {
+        Impl& m = *mImpl;
+        if (!m.mPlayerView.mKnown)
+            return 0;
+        std::vector<TriggerEdge> edges;
+        for (const SubjectPlace& s : subjects)
+            m.mTracker.updateSubject(s.mReference, m.mPlayerView.mPlace, s.mX, s.mY, s.mZ, edges);
+        std::size_t queued = 0;
+        for (const TriggerEdge& edge : edges)
+        {
+            m.say(false,
+                "Papyrus: trigger " + hex(edge.mReference) + (edge.mEntered ? " entered by " : " left by ")
+                    + hex(edge.mSubject) + " (" + std::to_string(m.instancesOf(edge.mReference).size())
+                    + " scripts)");
+            for (const InstanceId instance : m.instancesOf(edge.mReference))
+                if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
+                        { m.formValue(edge.mSubject) }))
+                    ++queued;
+        }
         return queued;
     }
 

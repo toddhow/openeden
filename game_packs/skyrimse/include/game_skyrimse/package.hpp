@@ -179,6 +179,10 @@ namespace game_skyrimse
         /// Task 0264: the first PDTO (package data, type 0 = a topic) of a package: the topic a ForceGreet package says
         /// (task 0271: a topic of 0 is no topic).
         FormId mForceGreetTopic = kNullFormId;
+        /// Task 0274: the package's script fragment that runs when the package ends (VMAD, OnEnd): the script class
+        /// ("PF_MQ101CartHorse1Patrol5_000BF475") and its function ("Fragment_0"). Empty: none.
+        std::string mEndScript;
+        std::string mEndFunction;
         std::uint32_t mPlugin = 0; ///< index into PackageIndex's plugins: the plugin whose record won
     };
 

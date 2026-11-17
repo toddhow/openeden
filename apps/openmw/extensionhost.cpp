@@ -474,8 +474,11 @@ namespace OMW
                     if (turn)
                         world->rotateObject(
                             ptr, vsg::vec3(target.rot[0], target.rot[1], target.rot[2]), MWBase::RotationFlag_none);
-                    Log(Debug::Info) << "A game pack moved the placement " << op.placement << " to " << target.pos[0]
-                                     << ", " << target.pos[1] << ", " << target.pos[2];
+                    // Task 0274: a cart is moved every frame; log the first move of a placement and then one in 240
+                    const std::uint32_t seen = mMoveLogCount[op.placement]++;
+                    Log(seen % 240 == 0 ? Debug::Info : Debug::Verbose)
+                        << "A game pack moved the placement " << op.placement << " to " << target.pos[0] << ", "
+                        << target.pos[1] << ", " << target.pos[2];
                 }
                 else
                 {

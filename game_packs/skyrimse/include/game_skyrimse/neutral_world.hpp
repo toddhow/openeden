@@ -12,6 +12,7 @@
 // compilers. Nothing throws: a failure is `false` plus a located message.
 
 #include <game_skyrimse/actor_table.hpp>
+#include <game_skyrimse/cart_rides.hpp>
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/deaths.hpp>
@@ -388,6 +389,7 @@ namespace game_skyrimse
             mActors.update(seconds, writer);
             mRiding.update(seconds, writer); // task 0251: after the brain, so a ridden horse's requests win
             mKillMoves.update(seconds, writer); // task 0278
+            updateCarts(seconds, writer); // task 0274
             if (mBarks != nullptr)
                 updateBarks(seconds, writer); // task 0231
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
@@ -452,7 +454,41 @@ namespace game_skyrimse
             mRiding.dismountNow(player);
         } // task 0255
         [[nodiscard]] openeden::sdk::game::ActorHandle mountedHorse() const override { return mRiding.mountedHorse(); }
+        /// Task 0274: a horse that pulls a cart has the mount's climb and drop limits (the road is built of chunks
+        /// with steps no person climbs).
+        [[nodiscard]] bool usesMountLimits(openeden::sdk::game::ActorHandle handle) const override
+        {
+            return mCarts.isHorse(handle.reference);
+        }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
+
+        // ---- task 0274 (the Helgen cart ride). The pack's Papyrus hooks tether carts and seat riders; once a frame
+        // the cart rules move the horse's trailer and carry the riders (the player through the riding writer). The
+        // cart objects are moved by the pack (it drains `drainCartMoves` and pushes them through the world source
+        // service); the horses are watched by the trigger tracker (`horsePlaces`).
+        static constexpr FormId kCartPlayerReference = 0x14; ///< the player as a rider
+        /// OURS: a rider that gets off stands this far to the right of its seat (units); the seat clip is the chair's.
+        static constexpr double kCartExitSide = 130.0;
+        static constexpr const char* kCartSeatClip = "chair_idlebasevar1";
+        struct HorsePlace
+        {
+            FormId mReference = kNullFormId;
+            double mX = 0.0, mY = 0.0, mZ = 0.0;
+        };
+        bool tetherCart(FormId cart, FormId horse, const CartPose& pose) { return mCarts.tether(cart, horse, pose); }
+        /// A rider (the player is 0x14) sits on a cart; the brain leaves an actor rider alone from now on.
+        bool addCartRider(FormId rider, FormId cart);
+        /// The rider gets off: it is stood up beside the cart at the next update. False when it was not riding.
+        bool removeCartRider(FormId rider);
+        [[nodiscard]] CartRides& carts() { return mCarts; }
+        /// The cart poses of the last update(s), latest per cart; handing them over empties the list.
+        void drainCartMoves(std::vector<CartRides::CartMove>& out)
+        {
+            out.insert(out.end(), mCartMoves.begin(), mCartMoves.end());
+            mCartMoves.clear();
+        }
+        /// Where the horses of the rigs were at the last update (for the trigger tracker).
+        [[nodiscard]] const std::vector<HorsePlace>& horsePlaces() const { return mHorsePlaces; }
         /// Task 0231 (barks): null (the default) is off. The system must outlive the cell source's use of it; the cell
         /// source feeds it the fight's moments (through the combat's bark sink) and, once an update, the roster.
         void setBarks(barks::BarkSystem* system);
@@ -699,6 +735,18 @@ namespace game_skyrimse
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
         bool mStandOnEngage = false; ///< task 0264
         std::set<openeden::sdk::game::WorldId> mDirectWalkers; ///< task 0253: dragons walked by setMovement
+        // Task 0274
+        void updateCarts(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+        struct CartExit
+        {
+            FormId mRider = kNullFormId;
+            float mHeading = 0.f;
+        };
+        CartRides mCarts;
+        std::vector<CartRides::CartMove> mCartMoves;
+        std::vector<HorsePlace> mHorsePlaces;
+        std::set<FormId> mCartSeated; ///< the actor riders the core was told to seat
+        std::vector<CartExit> mCartExits;
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204

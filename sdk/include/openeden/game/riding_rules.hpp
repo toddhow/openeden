@@ -23,7 +23,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kRidingRulesVersion{ 0, 2 };
+    inline constexpr Version kRidingRulesVersion{ 0, 3 };
 
     /// What the player asks of his mount in one frame. The core reads the player's real controls; while a menu is up
     /// (or controls are disabled) `valid` is true and every value is zero.
@@ -97,5 +97,14 @@ namespace openeden::sdk::game
         /// climb and drop limits of a mount (NeutralMover::limitsForHeight) and every other actor its own. Called once
         /// a frame. The default says nobody is ridden.
         [[nodiscard]] virtual ActorHandle mountedHorse() const { return ActorHandle(); }
+
+        /// (0.3, task 0274) An actor the pack drives like a mount without the player on it (a horse that pulls a cart):
+        /// the core gives it the climb and drop limits of a mount, as for `mountedHorse`. Called for each walking actor
+        /// a frame. The default says no.
+        [[nodiscard]] virtual bool usesMountLimits(ActorHandle handle) const
+        {
+            (void)handle;
+            return false;
+        }
     };
 }

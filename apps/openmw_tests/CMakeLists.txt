@@ -21,6 +21,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testesmstoredispatch.cpp
 
     # Task 0100 stage N1: the read-only Morrowind projection into the neutral world model.
+    mwworld/testneutralkeepcell.cpp
     mwworld/testneutralprojection.cpp
     mwworld/testneutralprojectionreal.cpp
     mwworld/testneutralprojectionlookups.cpp

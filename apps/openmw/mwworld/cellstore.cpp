@@ -916,6 +916,21 @@ namespace MWWorld
             visitor(live);
     }
 
+    bool CellStore::holdsLiveCreatedNeutralActor() const
+    {
+        if (mNeutralCreated.empty())
+            return false;
+        bool found = false;
+        forEachNeutralRef([&](const LiveCellRef<NeutralBase>& live) {
+            if (found || mNeutralCreated.count(live.mRef.getRefNum().mIndex) == 0 || live.mBase == nullptr)
+                return;
+            if (live.mBase->mKind == openeden::sdk::game::ObjectKind::Actor && live.mData.isEnabled()
+                && live.mRef.getCount(false) != 0)
+                found = true;
+        });
+        return found;
+    }
+
     void CellStore::forEachNeutralRefMutable(const std::function<void(LiveCellRef<NeutralBase>&)>& visitor)
     {
         if (mState != State_Loaded)

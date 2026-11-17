@@ -774,6 +774,115 @@ namespace game_skyrimse
             });
     }
 
+    bool SkyrimCellSource::addCartRider(FormId rider, FormId cart)
+    {
+        if (!mCarts.addRider(rider, cart))
+            return false;
+        if (rider != kCartPlayerReference)
+            mActors.setVehicleRider(rider, true);
+        return true;
+    }
+
+    bool SkyrimCellSource::removeCartRider(FormId rider)
+    {
+        CartPose pose;
+        const FormId cart = mCarts.removeRider(rider);
+        if (cart == kNullFormId)
+            return false;
+        (void)mCarts.cartPose(cart, pose);
+        if (mCartExits.size() < CartRides::kMaxRiders)
+            mCartExits.push_back({ rider, pose.heading });
+        return true;
+    }
+
+    void SkyrimCellSource::updateCarts(float seconds, openeden::sdk::game::ActorRequestWriter& writer)
+    {
+        namespace sdkgame = openeden::sdk::game;
+        auto* player = dynamic_cast<sdkgame::RidingWriter*>(&writer);
+        const auto where = [this, &writer](FormId reference, double& x, double& y, double& z) {
+            if (reference == kCartPlayerReference)
+                return writer.playerPosition(x, y, z);
+            const sdkgame::ActorHandle handle = mActors.handleOf(reference);
+            return handle.valid() && writer.actorPosition(handle, x, y, z);
+        };
+        // Riders that got off: stood up a step to the right of the cart (the side the exit idles of the game use is
+        // not known: ours)
+        for (const CartExit& exit : mCartExits)
+        {
+            double x = 0.0, y = 0.0, z = 0.0;
+            if (!where(exit.mRider, x, y, z))
+                continue;
+            const double h = static_cast<double>(exit.mHeading);
+            x += std::cos(h) * kCartExitSide;
+            y -= std::sin(h) * kCartExitSide;
+            if (exit.mRider == kCartPlayerReference)
+            {
+                if (player != nullptr)
+                    (void)player->releasePlayer(x, y, z);
+            }
+            else
+            {
+                const sdkgame::ActorHandle handle = mActors.handleOf(exit.mRider);
+                if (handle.valid())
+                    (void)writer.leaveFurniture(handle, x, y, z);
+                mCartSeated.erase(exit.mRider);
+                (void)mActors.setVehicleRider(exit.mRider, false);
+            }
+        }
+        mCartExits.clear();
+        mHorsePlaces.clear();
+        if (mCarts.rigCount() == 0)
+            return;
+        for (const FormId horse : mCarts.horses())
+        {
+            HorsePlace place;
+            place.mReference = horse;
+            if (where(horse, place.mX, place.mY, place.mZ))
+                mHorsePlaces.push_back(place);
+        }
+        CartRides::Result result;
+        mCarts.step(static_cast<double>(seconds), where, result);
+        for (const CartRides::CartMove& move : result.mCarts)
+        {
+            bool found = false;
+            for (CartRides::CartMove& old : mCartMoves)
+                if (old.mCart == move.mCart)
+                {
+                    old = move;
+                    found = true;
+                }
+            if (!found && mCartMoves.size() < CartRides::kMaxRigs)
+                mCartMoves.push_back(move);
+        }
+        for (const CartRides::RiderMove& move : result.mRiders)
+        {
+            if (move.mRider == kCartPlayerReference)
+            {
+                if (player != nullptr)
+                    (void)player->carryPlayer(move.mPose.x, move.mPose.y, move.mPose.z, move.mPose.heading);
+                continue;
+            }
+            const sdkgame::ActorHandle handle = mActors.handleOf(move.mRider);
+            if (!handle.valid())
+                continue;
+            sdkgame::FurnitureUse use;
+            use.x = move.mPose.x;
+            use.y = move.mPose.y;
+            use.z = move.mPose.z;
+            use.heading = move.mPose.heading;
+            use.pose = sdkgame::FurniturePose::Sit;
+            use.clip = kCartSeatClip;
+            use.clipPerSex = true;
+            if (move.mFirst || mCartSeated.count(move.mRider) == 0)
+            {
+                if (writer.useFurniture(handle, use))
+                    mCartSeated.insert(move.mRider);
+            }
+            else if (!writer.placeFurniture(handle, use.x, use.y, use.z, use.heading))
+                (void)writer.useFurniture(handle, use);
+        }
+    }
+
     void SkyrimCellSource::updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer)
     {
         mBarkRoster.clear();

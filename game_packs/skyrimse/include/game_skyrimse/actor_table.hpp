@@ -110,6 +110,18 @@ namespace game_skyrimse
                 mBrain->onConversation(reference, begins);
         }
 
+        /// Task 0274: see PackageBrain::setPackageEndHook.
+        void setPackageEndHook(PackageBrain::EndHook hook)
+        {
+            if (mBrain)
+                mBrain->setPackageEndHook(std::move(hook));
+        }
+        /// Task 0274: see PackageBrain::setVehicleRider.
+        bool setVehicleRider(openeden::sdk::game::WorldId reference, bool rides)
+        {
+            return mBrain && mBrain->setVehicleRider(reference, rides);
+        }
+
         /// Task 0264: see PackageBrain::forceStand.
         void forceStand(openeden::sdk::game::WorldId reference)
         {

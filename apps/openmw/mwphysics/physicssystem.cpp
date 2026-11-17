@@ -1961,9 +1961,13 @@ namespace MWPhysics
             mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
         // Task 0255: the horse the player sits on (an invalid handle on foot), for the mover's limits below.
         mNeutralRidden = openeden::sdk::game::ActorHandle();
+        mNeutralRidingRules = nullptr;
         if (mNeutralRulesResolver)
             if (const auto* riding = dynamic_cast<const openeden::sdk::game::RidingRules*>(mNeutralRulesResolver()))
+            {
                 mNeutralRidden = riding->mountedHorse();
+                mNeutralRidingRules = riding; // task 0274: a draft horse has the mount limits too
+            }
         // OPENEDEN_RIDING_DISMOUNT_AFTER=<n> (a developer aid, task 0255): the call a load door makes, after the player
         // has ridden n frames: tools/ride_check checks the engine and pack path with it when no door is at hand.
         static const int dismountAfter = [] {
@@ -2482,8 +2486,11 @@ namespace MWPhysics
 
         // Task 0255: the horse the player sits on climbs and drops more than a person: its limits follow its capsule.
         // Every other actor keeps the humanoid's (the pack names the ridden horse once a frame). Task 0280: so does a
-        // capsule as wide as the dragon's, which also walks over small clutter.
-        const bool ridden = mNeutralRidden.valid() && mNeutralBridge.handleOf(entry.mRef) == mNeutralRidden;
+        // capsule as wide as the dragon's, which also walks over small clutter. Task 0274: a rider of a cart rig's
+        // horse (the pack's `usesMountLimits`) takes the mount limits too.
+        const openeden::sdk::game::ActorHandle handle = mNeutralBridge.handleOf(entry.mRef);
+        const bool ridden = (mNeutralRidden.valid() && handle == mNeutralRidden)
+            || (mNeutralRidingRules != nullptr && handle.valid() && mNeutralRidingRules->usesMountLimits(handle));
         const NeutralMover::Limits limits
             = NeutralMover::limitsFor(2.f * entry.mCapsule.mCentreZ, entry.mCapsule.mRadius, ridden);
         const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,

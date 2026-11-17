@@ -418,6 +418,7 @@ namespace game_skyrimse
                 replayMainQuestCellLoad(); // task 0268
                 applyMainQuestTestStage();
                 applyMainQuest(); // task 0268
+                applyCarts(); // task 0274
                 applyTraining(); // task 0264
                 applyMarriage(); // task 0270
                 if (mMarriageFinPending) // task 0276
@@ -588,10 +589,62 @@ namespace game_skyrimse
                         + (mHost.startQuestForTest(mainquest::kUnboundQuest, stage) ? "set" : "refused"));
             }
 
+            [[nodiscard]] bool mainQuestOn() const { return mMainQuest; } // task 0274
+            [[nodiscard]] std::string formName(FormId form) const { return mData.nameOf(form); } // task 0274
             void enableMainQuest()
             {
                 mMainQuest = true;
                 mHost.setRelocation(true, mainquest::kRelocateRange);
+            }
+            // Task 0274 (the cart ride): the carts the cell source moved are pushed to the world, and the horses that
+            // carry them are tested against the trigger slabs that set the quest's stages
+            void applyCarts()
+            {
+                SkyrimCellSource* cells = dynamic_cast<SkyrimCellSource*>(&mCells);
+                if (!mMainQuest || cells == nullptr)
+                    return;
+                std::vector<CartRides::CartMove> moves;
+                cells->drainCartMoves(moves);
+                static const bool hold = std::getenv("OPENEDEN_CART_HOLD") != nullptr; // test aid: carts stay put
+                for (const CartRides::CartMove& move : moves)
+                {
+                    if (hold)
+                        break;
+                    ObjectMoveRequest request;
+                    request.hasPosition = true;
+                    request.position[0] = move.mPose.x;
+                    request.position[1] = move.mPose.y;
+                    request.position[2] = move.mPose.z;
+                    request.hasAngles = true;
+                    request.angles[2] = static_cast<double>(move.mPose.heading);
+                    (void)pushMove(move.mCart, request, true);
+                }
+                if (!moves.empty() && mHost.scriptTime() >= mNextCartLog)
+                {
+                    mNextCartLog = mHost.scriptTime() + 10.0; // script seconds, so a trace compares between runs
+                    for (const CartRides::CartMove& move : moves)
+                        say(openeden::sdk::LogLevel::Info,
+                            "CART " + hexId(move.mCart) + " at " + std::to_string(static_cast<long long>(move.mPose.x))
+                                + " " + std::to_string(static_cast<long long>(move.mPose.y)) + " "
+                                + std::to_string(static_cast<long long>(move.mPose.z)) + " heading "
+                                + std::to_string(static_cast<int>(move.mPose.heading * 100.f)) + "/100");
+                    for (const SkyrimCellSource::HorsePlace& horse : cells->horsePlaces())
+                        say(openeden::sdk::LogLevel::Info,
+                            "CART horse " + hexId(horse.mReference) + " at "
+                                + std::to_string(static_cast<long long>(horse.mX)) + " "
+                                + std::to_string(static_cast<long long>(horse.mY)) + " "
+                                + std::to_string(static_cast<long long>(horse.mZ)));
+                }
+                std::vector<PapyrusHost::SubjectPlace> subjects;
+                for (const SkyrimCellSource::HorsePlace& horse : cells->horsePlaces())
+                    subjects.push_back({ horse.mReference, horse.mX, horse.mY, horse.mZ });
+                if (!subjects.empty())
+                {
+                    const std::size_t sent = mHost.updateSubjectTriggers(subjects);
+                    if (sent != 0)
+                        say(openeden::sdk::LogLevel::Info,
+                            "PAPYRUS CART trigger events sent: " + std::to_string(sent));
+                }
             }
             void applyMainQuest()
             {
@@ -1151,6 +1204,35 @@ namespace game_skyrimse
             {
                 if (mSources == nullptr)
                     return false;
+                // Task 0274: a reference's enable children (XESP) follow it (Skyrim's rule: the second cart, its horse
+                // and the riders' markers are enabled by the first horse). Only with the main quest (a reference's
+                // children are looked for in the whole table).
+                if (mMainQuest && !mEnablingChildren)
+                {
+                    mEnablingChildren = true;
+                    if (const PlacedRefIndex* placed = mView.placedRefs())
+                    {
+                        std::vector<FormId> frontier{ reference };
+                        std::set<FormId> seen{ reference };
+                        for (std::size_t depth = 0; depth < 4 && !frontier.empty(); ++depth)
+                        {
+                            std::vector<FormId> next;
+                            for (const PlacedEntry& entry : placed->all())
+                            {
+                                if (entry.mEnableParent == kNullFormId || entry.mDeleted
+                                    || std::find(frontier.begin(), frontier.end(), entry.mEnableParent)
+                                        == frontier.end()
+                                    || !seen.insert(entry.mId).second)
+                                    continue;
+                                const bool opposite = (entry.mFlags & PlacedFlags::EnableOpposite) != 0;
+                                (void)pushEnabled(entry.mId, opposite ? !enabled : enabled, 0.f);
+                                next.push_back(entry.mId);
+                            }
+                            frontier = std::move(next);
+                        }
+                    }
+                    mEnablingChildren = false;
+                }
                 const FormId cell = cellOfReference(reference);
                 // Task 0202: one ordered queue with the moves and creations (the 1.2 call stays for older hosts: the
                 // service's default forwards to it)
@@ -1163,7 +1245,7 @@ namespace game_skyrimse
             }
 
             // Task 0202: a script moved or turned a reference.
-            bool pushMove(FormId reference, const ObjectMoveRequest& request)
+            bool pushMove(FormId reference, const ObjectMoveRequest& request, bool quiet = false)
             {
                 if (mSources == nullptr)
                     return false;
@@ -1182,10 +1264,11 @@ namespace game_skyrimse
                 }
                 const FormId cell = cellOfReference(reference);
                 const bool queued = mSources->moveObject(mCells, cell, reference, move);
-                say(openeden::sdk::LogLevel::Info,
-                    "PAPYRUS move of " + hexId(reference) + " in cell " + hexId(cell)
-                        + (request.toOriginal ? " back to its record" : "")
-                        + (queued ? " sent to the world" : " not sent"));
+                if (!quiet)
+                    say(openeden::sdk::LogLevel::Info,
+                        "PAPYRUS move of " + hexId(reference) + " in cell " + hexId(cell)
+                            + (request.toOriginal ? " back to its record" : "")
+                            + (queued ? " sent to the world" : " not sent"));
                 return queued;
             }
 
@@ -1346,6 +1429,8 @@ namespace game_skyrimse
                             volume.mPosition[1] = static_cast<double>(s.mPosition.y);
                             volume.mPosition[2] = static_cast<double>(s.mPosition.z);
                             volume.mCell = s.mCell;
+                            volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
+                            volume.mAcceptBox = mMainQuest; // task 0274: the cart ride's slabs
                             volume.mInterior = mData.cellIsInterior(s.mCell);
                             (void)mHost.addTrigger(s.mReference, volume);
                         }
@@ -1383,6 +1468,8 @@ namespace game_skyrimse
             bool mHousesApplied = false;
             bool mMainQuest = false; ///< task 0268
             bool mMainQuestApplied = false;
+            double mNextCartLog = 0.0; ///< task 0274
+            bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
             bool mMainQuestReplay = false;
             std::int32_t mMainQuestTestStage = 0;
             double mMainQuestTestDelay = 0.0;
@@ -1909,7 +1996,7 @@ namespace game_skyrimse
                                     // Task 0261: the furnishings of a house are enabled by their enable parent (XESP),
                                     // a marker the purchase's script enables: a cell built after follows its parent's
                                     // state
-                                    if (!mHousesOn)
+                                    if (!mHousesOn && !driver->mainQuestOn())
                                         return std::nullopt;
                                     const PlacedRefIndex* placed = mWorldView.placedRefs();
                                     const PlacedEntry* entry
@@ -2237,6 +2324,49 @@ namespace game_skyrimse
                 };
                 env.moveObject = [this](FormId reference, const ObjectMoveRequest& request) {
                     return mPapyrus != nullptr && mPapyrus->pushMove(reference, request);
+                };
+                env.tetherCart = [this, logger](FormId cart, FormId horse, const double (&at)[3], double heading) {
+                    if (mPapyrus == nullptr || !mPapyrus->mainQuestOn())
+                        return false;
+                    CartPose pose;
+                    pose.x = at[0];
+                    pose.y = at[1];
+                    pose.z = at[2];
+                    pose.heading = static_cast<float>(heading); // NaN: the rig takes the line to the horse
+                    const bool made = mCellSource.tetherCart(cart, horse, pose);
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "CART " + hexOf(cart) + " tethered to " + hexOf(horse) + (made ? "" : " (refused)"));
+                    return made;
+                };
+                env.setVehicle = [this, logger](FormId rider, FormId vehicle) {
+                    if (mPapyrus == nullptr || !mPapyrus->mainQuestOn())
+                        return false;
+                    const bool done = vehicle != 0 ? mCellSource.addCartRider(rider, vehicle)
+                                                   : mCellSource.removeCartRider(rider);
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "CART rider " + hexOf(rider) + (vehicle != 0 ? " on " + hexOf(vehicle) : " gets off")
+                                + (done ? "" : " (refused)"));
+                    return done;
+                };
+                // The cart's exit idles: the rider gets off at once (stands beside the cart) and the game's script
+                // hears "ExitCartEnd" after kCartExitSeconds (OURS: the exit clips are not played)
+                env.playIdle = [this, logger](FormId actor, FormId idle, std::string& event, double& seconds) {
+                    if (mPapyrus == nullptr || !mPapyrus->mainQuestOn() || !mCellSource.carts().isRider(actor))
+                        return false;
+                    std::string name = mPapyrus->formName(idle);
+                    for (char& ch : name)
+                        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                    if (name.find("exit") == std::string::npos)
+                        return false;
+                    (void)mCellSource.removeCartRider(actor);
+                    event = "ExitCartEnd";
+                    seconds = mainquest::kCartExitSeconds;
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "CART rider " + hexOf(actor) + " leaves the cart (" + name + ")");
+                    return true;
                 };
                 env.referenceLoaded = [this](FormId reference) {
                     // an actor is loaded when the actor system holds it; anything else is taken to be
@@ -5165,6 +5295,17 @@ namespace game_skyrimse
                         if (settings->getBool(kPackId, kQuestAliasPackagesKey, false))
                         {
                             mWorldView.setAliasPackages(true);
+                            // Task 0274: a package that ends (a patrol at its last marker) runs its OnEnd fragment
+                            // (the cart horses' last package sets MQ101 stage 41)
+                            mCellSource.actorTable().setPackageEndHook(
+                                [this](openeden::sdk::game::WorldId reference, const PackageRecord& package) {
+                                    if (mPapyrus == nullptr)
+                                        return;
+                                    (void)mPapyrus->host().runPackageEnd(package.mCommon.mId,
+                                        static_cast<FormId>(reference),
+                                        mWorldView.aliasPackageQuest(package.mCommon.mId), package.mEndScript,
+                                        package.mEndFunction);
+                                });
                             if (const char* trace = std::getenv("OPENEDEN_PACKAGE_TRACE"))
                                 mWorldView.setPackageTrace(static_cast<FormId>(std::strtoul(trace, nullptr, 10)),
                                     [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });

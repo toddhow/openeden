@@ -292,6 +292,27 @@ namespace game_skyrimse
             (void)reference, (void)base, (void)request, (void)destinationCell;
             return {};
         }
+        /// Task 0274 (the cart ride): `cart.TetherToHorse(horse)`; the cart stands at `position` (game units) turned by
+        /// `heading` (radians, NaN when no script gave one). False when nothing follows the horse (the default).
+        virtual bool tetherCart(FormId cart, FormId horse, const double (&position)[3], double heading)
+        {
+            (void)cart, (void)horse, (void)position, (void)heading;
+            return false;
+        }
+        /// Task 0274: `actor.PlayIdle(idle)`. A pack that plays no animation can still answer that an idle is one
+        /// the game's script waits for: the answer says which animation event the script listens for and after how
+        /// many seconds of script time it comes (the cart's exit idles end with "ExitCartEnd"). False: nothing.
+        virtual bool playIdle(FormId actor, FormId idle, std::string& animationEvent, double& seconds)
+        {
+            (void)actor, (void)idle, (void)animationEvent, (void)seconds;
+            return false;
+        }
+        /// Task 0274: `rider.SetVehicle(vehicle)`; a vehicle of 0 gets the rider off.
+        virtual bool setVehicle(FormId rider, FormId vehicle)
+        {
+            (void)rider, (void)vehicle;
+            return false;
+        }
         /// Task 0268: ObjectReference.Is3DLoaded: the world has the reference. The default is yes (an object).
         virtual bool referenceLoaded(FormId reference)
         {
@@ -613,6 +634,11 @@ namespace game_skyrimse
         /// (once), their properties set, and the begin fragment function and then the end fragment function are queued
         /// with the speaker as `akSpeakerRef` (run by the next tick). Returns how many functions were queued.
         std::size_t runInfoFragments(FormId info, const vmad::Vmad& vmad, FormId speakerReference, FormId speakerBase);
+        /// Task 0274: a package ended for an actor: its script (`PF_...`, attached to the package once) gets its OnEnd
+        /// fragment `function(akActor)` queued; `quest` is what the script's `GetOwningQuest()` answers. False when
+        /// nothing was queued.
+        bool runPackageEnd(FormId package, FormId actor, FormId quest, const std::string& scriptName,
+            const std::string& function);
 
         /// Attaches the scripts of every start-game-enabled quest of the index (sorted by form id) and queues the
         /// fragment of its start up stage. Once; later calls do nothing. Needs setQuests.
@@ -643,6 +669,14 @@ namespace game_skyrimse
         /// Task 0256: sends OnTriggerEnter or OnTriggerLeave for every volume the player went into or out of since the
         /// last call; returns how many events were queued. Run by the next tick.
         std::size_t updateTriggers();
+        /// Task 0274: an actor other than the player (a cart horse) is tested against the same volumes: OnTriggerEnter
+        /// and OnTriggerLeave go to the volume's scripts with the actor as the argument. The place is the player's.
+        struct SubjectPlace
+        {
+            FormId mReference = 0;
+            double mX = 0.0, mY = 0.0, mZ = 0.0;
+        };
+        std::size_t updateSubjectTriggers(const std::vector<SubjectPlace>& subjects);
         [[nodiscard]] std::size_t triggerCount() const;
         /// A load: the player is taken to be outside every volume again, so the ones he stands in report entered.
         void resetTriggers();

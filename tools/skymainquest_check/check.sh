@@ -21,6 +21,6 @@ echo "return { every = ${EVERY:-120}, from = 1, near = ${NEAR:-6}, radius = ${RA
 export LOADARG="${LOADARG:---start @Tamriel,22499.8,-94862.6,13905.8}"
 export DEMO_DIR="$LUA" DEMO_ESP=mq.omwscripts
 export CFG_EXTRA='fallback-archive=Skyrim - Voices_en0.bsa\n'
-export SETTINGS_EXTRA="[Game]\nneutral combat = true\nneutral inventory = true\nneutral actor idles = true\nneutral actor locomotion = true\nneutral lip sync = true\nneutral saves = true\n[Video]\nframerate limit = 60\n[Sound]\nmaster volume = 0.0\nmusic volume = 0.0\nvoice volume = 0.0\n[Lua]\nlua num threads = 0\n[extension.skyrimse]\nmain quest start = true\nactor packages = true\nbarks = false\n${SETTINGS_EXTRA:-}"
+export SETTINGS_EXTRA="[Game]\nneutral combat = true\nneutral inventory = true\nneutral actor idles = true\nneutral actor locomotion = true\nneutral lip sync = true\nneutral saves = true\n[Video]\nframerate limit = 60\n[Sound]\nmaster volume = 0.0\nmusic volume = 0.0\nvoice volume = 0.0\n[Lua]\nlua num threads = 0\n[extension.skyrimse]\nmain quest start = true\nactor packages = true\nquest alias packages = true\ncreatures = true\nbarks = false\n${SETTINGS_EXTRA:-}"
 export CHECK_TIMEOUT=${CHECK_TIMEOUT:-900}
 exec bash "$HERE/../journal_check/check.sh" "$BUILD" "$BASE" "$SKYRIM" "$WORK" "$FRAMES"

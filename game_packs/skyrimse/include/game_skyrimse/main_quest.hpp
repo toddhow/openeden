@@ -21,6 +21,10 @@ namespace game_skyrimse::mainquest
     /// area; ours).
     inline constexpr double kRelocateRange = 7000.0;
 
+    /// Task 0274: the seconds from a cart rider's exit idle to the animation event "ExitCartEnd" that the game's
+    /// scripts wait for (OURS: the exit clips are not played; the rider is stood beside the cart at once).
+    inline constexpr double kCartExitSeconds = 3.0;
+
     /// The `--start` text of the cart: the world Tamriel and the place of MQ101PlayerStartMarker (REFR 0x04678E,
     /// position 22499.803, -94862.59, 13905.831, VERIFIED by the data). The quest itself moves the player to that
     /// marker (stage 10); this spot only has to be in the right cell so the exterior around Helgen loads.

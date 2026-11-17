@@ -16,11 +16,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace game_skyrimse
 {
     inline constexpr std::uint32_t kPrimitiveSphere = 2; ///< XPRM's last field
+    /// Task 0274 (the cart ride): the box. 1 in Mutagen's `PlacedPrimitive` (the MQ101 triggers, VERIFIED by the
+    /// houseCARL listing of their REFRs: "Primitive.Type = Box"). A box is oriented by the reference's rotation about
+    /// Z and its bounds are taken as HALF extents (RECALLED-VERIFY: the data does not say; every MQ101 box is a slab
+    /// across the road, a width of two bounds fits the road). Boxes fire only for a volume with `mAcceptBox`: the pack
+    /// sets it with `main quest start` (the word wall tests pin that a plain box volume never fires).
+    inline constexpr std::uint32_t kPrimitiveBox = 1;
 
     struct TriggerVolume
     {
@@ -29,6 +36,10 @@ namespace game_skyrimse
         double mPosition[3] = {};
         FormId mCell = kNullFormId; ///< the cell the reference is placed in
         bool mInterior = false; ///< ... and whether that cell is an interior
+        /// Task 0274: the box's turn about Z (the reference's rotation, radians, the data's clockwise convention) and
+        /// whether the tracker may test a box at all.
+        double mRotationZ = 0.0;
+        bool mAcceptBox = false;
     };
 
     /// Is this a volume the tracker can test (a sphere with a positive, finite radius and a finite place)?
@@ -58,6 +69,7 @@ namespace game_skyrimse
     {
         FormId mReference = kNullFormId;
         bool mEntered = false;
+        FormId mSubject = kNullFormId; ///< task 0274: the actor that went in or out; 0 is the player
     };
 
     /// The volumes in the world and whether the player is inside each. An interior volume counts only while the player
@@ -76,6 +88,15 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t count() const { return mVolumes.size(); }
         [[nodiscard]] std::size_t unsupported() const { return mUnsupported; }
         [[nodiscard]] bool inside(FormId reference) const;
+        /// Task 0274: the same test for another actor than the player (a cart horse walking through the slab that sets
+        /// a quest stage). `subject` is the actor's reference id (not 0); each subject has its own inside set, edges
+        /// carry it in `mSubject`, and at most `kMaxSubjects` subjects are kept (more are ignored).
+        static constexpr std::size_t kMaxSubjects = 64;
+        void updateSubject(
+            FormId subject, const TriggerPlace& place, double x, double y, double z, std::vector<TriggerEdge>& edges);
+        /// Forgets what a subject was inside (it is gone or no longer watched); no edges are made.
+        void forgetSubject(FormId subject);
+        [[nodiscard]] bool subjectInside(FormId subject, FormId reference) const;
         /// Forget whether the player is inside (a load): the next update reports every volume he stands in as entered.
         void resetInside();
 
@@ -86,6 +107,7 @@ namespace game_skyrimse
             bool mInside = false;
         };
         std::map<FormId, Entry> mVolumes;
+        std::map<FormId, std::set<FormId>> mSubjects; ///< subject -> the volumes it is inside
         std::size_t mUnsupported = 0;
     };
 }

@@ -168,6 +168,9 @@ namespace game_skyrimse::vmad
     /// Task 0187: the VMAD of an INFO record: the scripts, then the optional fragment section (`mInfo`). Same
     /// strictness as `parse`: the whole subrecord must be used.
     [[nodiscard]] ParseResult parseInfo(std::span<const std::byte> bytes, const Limits& limits = {});
+    /// Task 0274: a PACK's VMAD. The fragment section is the INFO's with a third function (bit 2, OnChange), which is
+    /// read and left out; begin and end land in `mInfo` as for an INFO.
+    [[nodiscard]] ParseResult parsePackage(std::span<const std::byte> bytes, const Limits& limits = {});
 
     /// Task 0194: the VMAD of a SCEN record: the scripts, then the optional fragment section (`mScene`). The whole
     /// subrecord must be used.

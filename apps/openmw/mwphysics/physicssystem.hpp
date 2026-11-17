@@ -26,6 +26,7 @@
 
 #include "joltlisteners.hpp"
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/riding_rules.hpp>
 
 #include "neutralactor.hpp"
 #include "neutralactorbridge.hpp"
@@ -786,6 +787,7 @@ namespace MWPhysics
         NeutralActorBridge mNeutralBridge;
         NeutralRidingHooks mNeutralRidingHooks; // task 0251
         openeden::sdk::game::ActorHandle mNeutralRidden; // task 0255: the horse the player sits on, set once a frame
+        const openeden::sdk::game::RidingRules* mNeutralRidingRules = nullptr; // task 0274: set once a frame
         int mNeutralRiddenFrames = 0; // task 0255: frames of the ride, for the developer aid above
         // Task 0170: the combat hooks' clips. The sink turns a clip request into an op for the renderer.
         class NeutralClipApplier final : public NeutralClipSink

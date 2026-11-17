@@ -211,6 +211,7 @@ namespace game_skyrimse
         const auto forced = mForcedRefs.find(info.handle.reference); // task 0277: a scene's package outlives a door
         if (forced != mForcedRefs.end())
             actor.mForced = forced->second;
+        actor.mRider = mRiderRefs.count(info.handle.reference) != 0; // task 0274
         mActors[info.handle.reference] = std::move(actor);
         ++mStats.mActorsAdded;
     }
@@ -277,6 +278,10 @@ namespace game_skyrimse
                 const float idle = mSource.patrolIdle(actor.mPatrolMarker);
                 actor.mPhase = Phase::Patrolling;
                 actor.mTimer = idle >= 0.f ? idle : kPatrolDefaultIdleSeconds;
+                FormId further = kNullFormId;
+                if (!mSource.linkedRef(actor.mPatrolMarker, kNullFormId, further) || further == kNullFormId
+                    || further == kUnresolvedFormId)
+                    fireEnd(actor); // task 0274: the last marker of the chain
                 return;
             }
             if (result == sdkgame::GoalResult::NoPath)
@@ -515,6 +520,14 @@ namespace game_skyrimse
         return false;
     }
 
+    void PackageBrain::fireEnd(Actor& actor)
+    {
+        if (actor.mEndFired || actor.mActive == nullptr || actor.mActive->mEndFunction.empty() || !mEndHook)
+            return;
+        actor.mEndFired = true;
+        mEndHook(actor.mHandle.reference, *actor.mActive);
+    }
+
     void PackageBrain::beginPatrol(Actor& actor, sdkgame::ActorRequestWriter& writer)
     {
         FormId marker = actor.mPatrolMarker;
@@ -628,6 +641,19 @@ namespace game_skyrimse
             ++mStats.mFollowLegs;
             actor.mPhase = Phase::Following;
         }
+    }
+
+    bool PackageBrain::setVehicleRider(sdkgame::WorldId reference, bool rides)
+    {
+        const bool changed = rides ? mRiderRefs.insert(reference).second : mRiderRefs.erase(reference) != 0;
+        const auto it = mActors.find(reference);
+        if (it != mActors.end())
+        {
+            it->second.mRider = rides;
+            if (!rides)
+                it->second.mEvaluatedOnce = false; // its packages are looked at again at the next update
+        }
+        return changed;
     }
 
     bool PackageBrain::setFollowPlayer(sdkgame::WorldId reference, bool follow)
@@ -983,6 +1009,7 @@ namespace game_skyrimse
         actor.mActivity = PackageActivity::None;
         actor.mSpeed = packageSpeed(*package);
         actor.mToPatrol = false;
+        actor.mEndFired = false; // task 0274
         actor.mToFollow = false;
         actor.mPatrolFirst = kNullFormId;
         actor.mPatrolMarker = kNullFormId;
@@ -1253,10 +1280,26 @@ namespace game_skyrimse
                 if (!mSource.ready())
                     continue;
                 actor.mResolved = true;
-                if (!mSource.packagesFor(actor.mBase, actor.mPackages))
+                actor.mListRevision = mSource.packageListRevision();
+                if (!mSource.packagesForReference(key, actor.mBase, actor.mPackages))
                     actor.mPackages.clear();
                 actor.mEvaluatedOnce = false;
             }
+            else if (const std::uint64_t revision = mSource.packageListRevision(); revision != actor.mListRevision)
+            {
+                // task 0274: a quest started or moved on; a list that really changed is evaluated again
+                actor.mListRevision = revision;
+                std::vector<const PackageRecord*> now;
+                if (!mSource.packagesForReference(key, actor.mBase, now))
+                    now.clear();
+                if (now != actor.mPackages)
+                {
+                    actor.mPackages = std::move(now);
+                    actor.mEvaluatedOnce = false;
+                }
+            }
+            if (actor.mRider) // task 0274: the cart rules move it
+                continue;
             if (actor.mTalkRequest != 0)
                 handleTalk(actor, writer);
             // Task 0196: a follower of the player does not evaluate packages; a get-up clip still plays out.

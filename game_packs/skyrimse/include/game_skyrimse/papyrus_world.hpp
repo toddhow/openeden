@@ -60,6 +60,11 @@ namespace game_skyrimse
         std::function<ObjectPlaceResult(const ObjectPlaceRequest& request)> placeObject;
         std::function<bool(FormId cell, FormId owner)> setCellOwner; ///< task 0261
         std::function<bool(FormId reference)> referenceLoaded; ///< task 0268
+        std::function<bool(FormId cart, FormId horse, const double (&position)[3], double heading)>
+            tetherCart; ///< task 0274
+        std::function<bool(FormId rider, FormId vehicle)> setVehicle; ///< task 0274
+        std::function<bool(FormId actor, FormId idle, std::string& animationEvent, double& seconds)>
+            playIdle; ///< task 0274
         std::function<ObjectPlaceResult(FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell)>
             relocateObject; ///< task 0268
         std::function<bool(FormId actor)> startCombat; ///< task 0264
@@ -110,6 +115,18 @@ namespace game_skyrimse
         ObjectPlaceResult placeObject(const ObjectPlaceRequest& request) override
         {
             return mEnv.placeObject ? mEnv.placeObject(request) : ObjectPlaceResult{};
+        }
+        bool tetherCart(FormId cart, FormId horse, const double (&position)[3], double heading) override
+        {
+            return mEnv.tetherCart && mEnv.tetherCart(cart, horse, position, heading);
+        }
+        bool playIdle(FormId actor, FormId idle, std::string& animationEvent, double& seconds) override
+        {
+            return mEnv.playIdle && mEnv.playIdle(actor, idle, animationEvent, seconds);
+        }
+        bool setVehicle(FormId rider, FormId vehicle) override
+        {
+            return mEnv.setVehicle && mEnv.setVehicle(rider, vehicle);
         }
         bool referenceLoaded(FormId reference) override
         {

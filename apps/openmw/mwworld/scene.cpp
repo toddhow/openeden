@@ -1,4 +1,5 @@
 #include "scene.hpp"
+#include "neutralkeepcell.hpp"
 #include "neutralnavigation.hpp"
 
 #include <array>
@@ -798,7 +799,8 @@ namespace MWWorld
             {
                 const auto dx = std::abs(playerCellX - cell->getCell()->getGridX());
                 const auto dy = std::abs(playerCellY - cell->getCell()->getGridY());
-                if (dx > halfGridSize || dy > halfGridSize)
+                if (unloadAfterGridChange(dx > halfGridSize || dy > halfGridSize, cell->isNeutral(),
+                        cell->isNeutral() && cell->holdsLiveCreatedNeutralActor())) // task 0274
                     unloadCell(cell, navigatorUpdateGuard.get());
             }
             else

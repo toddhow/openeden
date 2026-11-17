@@ -229,6 +229,9 @@ namespace MWWorld
         void forEachNeutralRef(const std::function<void(const LiveCellRef<NeutralBase>&)>& visitor) const;
         void forEachNeutralRefMutable(const std::function<void(LiveCellRef<NeutralBase>&)>& visitor);
 
+        /// Task 0274: whether the cell holds an enabled actor that a script created (see neutralkeepcell.hpp).
+        bool holdsLiveCreatedNeutralActor() const;
+
         /// Whether this cell came from a game pack's neutral world (setNeutralCell).
         bool isNeutral() const { return mNeutralCell != nullptr; }
 

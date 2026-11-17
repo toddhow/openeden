@@ -1,6 +1,7 @@
 #include "game_skyrimse/package.hpp"
 
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/vmad.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -294,6 +295,17 @@ namespace game_skyrimse
                                 p.mTargets.push_back(target);
                             }
                             return;
+                        case Content::fourCC("VMAD"):
+                        {
+                            // Task 0274: the OnEnd fragment (the cart horses' last package sets quest stage 41)
+                            const vmad::ParseResult parsed = vmad::parsePackage(data);
+                            if (parsed.mOk && parsed.mVmad.mHasInfoFragments && parsed.mVmad.mInfo.hasEnd())
+                            {
+                                p.mEndScript = parsed.mVmad.mInfo.mEndScript;
+                                p.mEndFunction = parsed.mVmad.mInfo.mEndFunction;
+                            }
+                            return;
+                        }
                         case Content::fourCC("PDTO"):
                             // Task 0264: package data (type u32, value u32); type 0 names a topic (VERIFIED on
                             // C00KodlakForceGreetPlayer: PDTO 0, 0xA3E50, the dialogue topic its force greet says).

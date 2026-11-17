@@ -179,6 +179,7 @@ namespace game_skyrimse
             bool mHasPrimitive = false;
             RefPrimitive mPrimitive;
             Vec3 mPosition;
+            Vec3 mRotation; ///< task 0274: radians as stored (a box volume is turned about Z)
             FormId mCell = kNullFormId;
         };
 
@@ -358,6 +359,11 @@ namespace game_skyrimse
         // blocks. Main thread only.
         [[nodiscard]] bool ready() const override;
         bool packagesFor(FormId base, std::vector<const PackageRecord*>& out) const override;
+        bool packagesForReference(
+            FormId reference, FormId base, std::vector<const PackageRecord*>& out) const override; // task 0274
+        [[nodiscard]] std::uint64_t packageListRevision() const override; // task 0274
+        /// Task 0274: the quest whose alias gives this package (the first one that lists it), 0 when none does.
+        [[nodiscard]] FormId aliasPackageQuest(FormId package) const;
         [[nodiscard]] PackageBehavior behaviorOf(const PackageRecord& package) const override;
         bool conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference) override;
         [[nodiscard]] bool locate(FormId reference, double& x, double& y, double& z) const override;

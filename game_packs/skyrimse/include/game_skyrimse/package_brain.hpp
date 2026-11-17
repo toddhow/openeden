@@ -152,6 +152,18 @@ namespace game_skyrimse
         /// The packages of an NPC base in the order they are tried (own list, then default package list), after the
         /// template rules. False when the base is unknown.
         virtual bool packagesFor(FormId base, std::vector<const PackageRecord*>& out) const = 0;
+        /// Task 0274: the same list for ONE placement: the packages a running quest's alias gives the placement itself
+        /// (an alias filled with a specific reference, such as the Helgen cart horses) come first. The default is the
+        /// base's list.
+        virtual bool packagesForReference(
+            FormId reference, FormId base, std::vector<const PackageRecord*>& out) const
+        {
+            (void)reference;
+            return packagesFor(base, out);
+        }
+        /// Task 0274: changes whenever the answer of `packagesForReference` may have changed (a quest started or
+        /// moved to another stage); the brain then asks again for the actors it knows. The default never changes.
+        [[nodiscard]] virtual std::uint64_t packageListRevision() const { return 0; }
         [[nodiscard]] virtual PackageBehavior behaviorOf(const PackageRecord& package) const = 0;
         /// Do the package's own conditions pass for this actor now?
         virtual bool conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference) = 0;
@@ -328,6 +340,18 @@ namespace game_skyrimse
         /// placement id is kept here, not the actor. Dismissing hands it back to its packages. True when the set of
         /// followers changed. An unknown placement is remembered and applied when the actor appears.
         bool setFollowPlayer(openeden::sdk::game::WorldId reference, bool follow);
+        /// Task 0274 (the Helgen cart ride): an actor that sits on a cart is moved by the cart rules, not by packages:
+        /// the brain leaves it alone (no evaluation, no talk request acted on, no goal) until it is set free. Kept by
+        /// placement id like followers, so a door does not end it. True when the set changed.
+        bool setVehicleRider(openeden::sdk::game::WorldId reference, bool rides);
+        /// Task 0274: a package that carries an OnEnd script fragment (`PackageRecord::mEndFunction`) has ended for an
+        /// actor: a travel or a patrol with no further marker has arrived. Told once per start of the package.
+        using EndHook = std::function<void(openeden::sdk::game::WorldId reference, const PackageRecord& package)>;
+        void setPackageEndHook(EndHook hook) { mEndHook = std::move(hook); }
+        [[nodiscard]] bool isVehicleRider(openeden::sdk::game::WorldId reference) const
+        {
+            return mRiderRefs.count(reference) != 0;
+        }
         [[nodiscard]] bool followsPlayer(openeden::sdk::game::WorldId reference) const
         {
             return mFollowRefs.count(reference) != 0;
@@ -371,6 +395,7 @@ namespace game_skyrimse
             float mHeading = 0.f;
             std::vector<const PackageRecord*> mPackages;
             bool mResolved = false;
+            std::uint64_t mListRevision = 0; ///< task 0274: the source's revision when the list was read
             bool mEvaluatedOnce = false;
             float mSinceEval = 0.f;
             const PackageRecord* mActive = nullptr;
@@ -425,6 +450,8 @@ namespace game_skyrimse
             // Task 0196
             bool mFollowPlayer = false; ///< the actor follows the player (set from mFollowRefs)
             bool mFollowEntered = false; ///< enterFollowPlayer ran for this actor
+            bool mEndFired = false; ///< task 0274: the package's OnEnd fragment was told
+            bool mRider = false; ///< task 0274: sits on a cart (set from mRiderRefs); the brain does nothing with it
             float mFollowPlayerTimer = 0.f;
             // Task 0277
             FormId mElsewhereRef = kNullFormId; ///< the Travel target that stands in another cell (0: none)
@@ -472,6 +499,9 @@ namespace game_skyrimse
         FurnitureSource* mFurniture = nullptr;
         ForceGreetHook mGreetHook;
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
+        std::set<openeden::sdk::game::WorldId> mRiderRefs; ///< placements that sit on a cart (task 0274)
+        EndHook mEndHook;
+        void fireEnd(Actor& actor);
         std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)
         /// task 0277: waiting for the player to reach the target
         std::set<openeden::sdk::game::WorldId> mTravellerRefs;

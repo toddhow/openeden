@@ -328,6 +328,42 @@ namespace game_skyrimse::vmad
         return result;
     }
 
+    ParseResult parsePackage(std::span<const std::byte> bytes, const Limits& limits)
+    {
+        ParseResult result;
+        Reader r(bytes, limits);
+        Vmad& v = result.mVmad;
+        std::uint16_t count = 0;
+        bool ok
+            = readHeader(r, v.mVersion, v.mObjectFormat, count) && readScripts(r, v.mObjectFormat, count, v.mScripts);
+        if (ok && !r.atEnd())
+        {
+            std::uint8_t marker = 0;
+            InfoFragments& f = v.mInfo;
+            ok = r.u8(marker) && r.u8(f.mFlags) && r.wstring(f.mFileName, limits.mMaxNameBytes);
+            if (ok && (f.mFlags & ~7u) != 0)
+                ok = r.fail("package fragment flags " + std::to_string(f.mFlags) + " are not known");
+            for (unsigned bit = 0; ok && bit < 3; ++bit)
+            {
+                if ((f.mFlags & (1u << bit)) == 0)
+                    continue;
+                std::uint8_t unknown = 0;
+                std::string ignoredScript, ignoredFunction;
+                std::string& script = bit == 0 ? f.mBeginScript : bit == 1 ? f.mEndScript : ignoredScript;
+                std::string& function = bit == 0 ? f.mBeginFunction : bit == 1 ? f.mEndFunction : ignoredFunction;
+                ok = r.u8(unknown) && r.wstring(script, limits.mMaxNameBytes)
+                    && r.wstring(function, limits.mMaxNameBytes);
+            }
+            v.mHasInfoFragments = ok;
+        }
+        if (ok && !r.atEnd())
+            ok = r.fail(std::to_string(r.remaining()) + " bytes are left after the last field");
+        result.mOk = ok;
+        if (!ok)
+            result.mError = r.error();
+        return result;
+    }
+
     ParseResult parseScene(std::span<const std::byte> bytes, const Limits& limits)
     {
         ParseResult result;

@@ -227,6 +227,8 @@ namespace game_skyrimse
             std::vector<FormId> mPackages;
         };
         std::map<FormId, std::vector<AliasPackages>> mAliasPackages;
+        std::map<FormId, std::vector<AliasPackages>> mAliasPackagesOfReference; ///< task 0274: ALFR aliases
+        mutable std::map<FormId, FormId> mPackageOwner; ///< task 0274: package -> the quest whose alias lists it
         bool mAliasPackagesBuilt = false;
         SkyrimConditionWorld::LiveQuestVariable mLiveQuestVariable; ///< task 0271
     };
@@ -1638,9 +1640,17 @@ namespace game_skyrimse
             for (const FormId questId : mDialogue->mData->mQuests.questIds())
                 if (const QuestRecord* quest = mDialogue->mData->mQuests.quest(questId))
                     for (const QuestAlias& alias : quest->mAliases)
+                    {
                         if (alias.mFill == AliasFillKind::UniqueActor && alias.mActor != kNullFormId
                             && !alias.mPackages.empty())
                             mDialogue->mAliasPackages[alias.mActor].push_back({ questId, alias.mPackages });
+                        // task 0274: an alias filled with a specific reference (the cart horses) gives ITS packages
+                        // to that placement only
+                        else if (alias.mFill == AliasFillKind::SpecificReference && alias.mReference != kNullFormId
+                            && !alias.mPackages.empty())
+                            mDialogue->mAliasPackagesOfReference[alias.mReference].push_back(
+                                { questId, alias.mPackages });
+                    }
         }
         if (const auto found = mDialogue->mAliasPackages.find(base); found != mDialogue->mAliasPackages.end())
         {
@@ -1659,6 +1669,62 @@ namespace game_skyrimse
             for (const PackageRecord* p : out)
                 mPackageTraceLog("PKTRACE base " + std::to_string(base) + " has package " + p->mCommon.mEditorId);
         return true;
+    }
+
+    bool SkyrimWorldView::packagesForReference(
+        FormId reference, FormId base, std::vector<const PackageRecord*>& out) const
+    {
+        if (!packagesFor(base, out))
+            return false;
+        if (!mAliasPackagesOn || mDialogue == nullptr || mDialogue->mData == nullptr)
+            return true;
+        const auto found = mDialogue->mAliasPackagesOfReference.find(reference);
+        if (mPackageTraceLog && base == mPackageTraceBase)
+            mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " base list " + std::to_string(out.size())
+                + (found == mDialogue->mAliasPackagesOfReference.end() ? ", no alias entry" : ", alias entry")
+                + " (" + std::to_string(mDialogue->mAliasPackagesOfReference.size()) + " references have one)");
+        if (found == mDialogue->mAliasPackagesOfReference.end())
+            return true;
+        const PackageIndex& index = mDialogue->mData->mPackages;
+        std::vector<const PackageRecord*> front;
+        for (const auto& entry : found->second)
+        {
+            if (!mDialogue->mPackageQuests.running(entry.mQuest))
+                continue;
+            for (const FormId id : entry.mPackages)
+                if (const PackageRecord* p = index.package(id))
+                    front.push_back(p);
+        }
+        out.insert(out.begin(), front.begin(), front.end());
+        if (mPackageTraceLog && base == mPackageTraceBase)
+            for (const PackageRecord* p : front)
+                mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " has alias package "
+                    + p->mCommon.mEditorId);
+        return true;
+    }
+
+    FormId SkyrimWorldView::aliasPackageQuest(FormId package) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mData->mQuests.questIds().empty())
+            return kNullFormId;
+        if (const auto known = mDialogue->mPackageOwner.find(package); known != mDialogue->mPackageOwner.end())
+            return known->second;
+        FormId owner = kNullFormId;
+        for (const FormId questId : mDialogue->mData->mQuests.questIds())
+            if (const QuestRecord* quest = mDialogue->mData->mQuests.quest(questId))
+                for (const QuestAlias& alias : quest->mAliases)
+                    if (owner == kNullFormId
+                        && std::find(alias.mPackages.begin(), alias.mPackages.end(), package) != alias.mPackages.end())
+                        owner = questId;
+        mDialogue->mPackageOwner[package] = owner;
+        return owner;
+    }
+
+    std::uint64_t SkyrimWorldView::packageListRevision() const
+    {
+        if (!mAliasPackagesOn || mDialogue == nullptr)
+            return 0;
+        return mDialogue->mPackageQuests.revision();
     }
 
     PackageBehavior SkyrimWorldView::behaviorOf(const PackageRecord& package) const
@@ -3637,6 +3703,7 @@ namespace game_skyrimse
                     scripts.mHasPrimitive = true;
                     scripts.mPrimitive = *ref.mPrimitive;
                     scripts.mPosition = ref.mPosition;
+                    scripts.mRotation = ref.mRotation;
                     scripts.mCell = cell;
                 }
                 result->mScripts.push_back(std::move(scripts));
