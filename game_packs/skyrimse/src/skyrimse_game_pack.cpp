@@ -130,6 +130,8 @@ namespace game_skyrimse
                         return (entry->mFlags & PlacedFlags::IsActor) != 0 ? "Actor" : "ObjectReference";
                 if (mView.isFactionForm(form))
                     return "Faction"; // task 0258: Faction.PlayerPayCrimeGold and its kin
+                if (mView.isActorBaseForm(form))
+                    return "ActorBase"; // task 0274
                 const std::string scripted = mView.scriptClassOf(form); // task 0237: Spell and Message
                 if (!scripted.empty())
                     return scripted;
@@ -1432,6 +1434,17 @@ namespace game_skyrimse
                             volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
                             volume.mAcceptBox = mMainQuest; // task 0274: the cart ride's slabs
                             volume.mInterior = mData.cellIsInterior(s.mCell);
+                            if (mMainQuest && volume.mType == kPrimitiveBox)
+                                say(openeden::sdk::LogLevel::Info,
+                                    std::string("PAPYRUS box trigger ") + hexOf(s.mReference) + " "
+                                        + (s.mScripts.empty() ? std::string("-") : s.mScripts.front().mName) + " rot "
+                                        + std::to_string(s.mRotation.z) + " at "
+                                        + std::to_string(static_cast<int>(s.mPosition.x)) + " "
+                                        + std::to_string(static_cast<int>(s.mPosition.y)) + " "
+                                        + std::to_string(static_cast<int>(s.mPosition.z)) + " bounds "
+                                        + std::to_string(static_cast<int>(volume.mBounds[0])) + " "
+                                        + std::to_string(static_cast<int>(volume.mBounds[1])) + " "
+                                        + std::to_string(static_cast<int>(volume.mBounds[2])));
                             (void)mHost.addTrigger(s.mReference, volume);
                         }
                     }
@@ -4839,7 +4852,7 @@ namespace game_skyrimse
                 openeden::sdk::Logger* logger)
             {
                 std::vector<openeden::sdk::game::SessionContentFile> files;
-                sources.sessionContent(files);
+                (void)sources.sessionContent(files);
                 std::vector<std::string> names;
                 names.reserve(files.size());
                 for (const openeden::sdk::game::SessionContentFile& file : files)

@@ -680,6 +680,19 @@ namespace
         EXPECT_EQ(state.aliasFill(kQuestA, 3).mReference, kRefB);
     }
 
+    TEST(SkyrimQuestState, aLowerStageIsDoneButDoesNotLowerTheCurrentStage)
+    {
+        const QuestIndex index
+            = indexOf(questPlugin({ simpleQuest(kQuestA, 0, stage(10, 0, {}).append(stage(20, 0, {}))) }));
+        QuestState state = QuestState::initial(index);
+        state.setStage(index, kQuestA, 20);
+        state.setStage(index, kQuestA, 10);
+        EXPECT_FLOAT_EQ(state.stage(kQuestA), 20.f);
+        EXPECT_TRUE(state.stageDone(kQuestA, 10));
+        state.setStage(index, kQuestA, 20); // the same stage again keeps it
+        EXPECT_FLOAT_EQ(state.stage(kQuestA), 20.f);
+    }
+
     TEST(SkyrimQuestState, settingAStageMakesItCurrentAndDoneAndStartsTheQuest)
     {
         const QuestIndex index

@@ -842,7 +842,11 @@ namespace game_skyrimse
         ++mRevision;
         Entry& e = it->second;
         e.mRunning = true;
-        e.mStage = stage;
+        // Task 0274: a stage lower than the current one is marked done and runs its fragment, but the quest's CURRENT
+        // stage stays: MQ101 sets stage 14 (a help message) after stage 15 while its horse packages ask for a stage of
+        // at least 15, and C00's SetUpCompanions sets stage 1 after the dismiss scene set 20 (task 0272). RECALLED-VERIFY.
+        if (stage >= e.mStage)
+            e.mStage = stage;
         e.mDone.insert(stage);
         const QuestRecord* record = index.quest(quest);
         const QuestStage* s

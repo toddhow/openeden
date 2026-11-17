@@ -66,3 +66,15 @@ at Helgen, stages 41 to 64, the block and the execution are NOT reached. The ran
 turning round near the first road chunks (patrol path / navmesh agent radius for a horse), (2) which prerequisite the
 first slab waits for, (3) package end for the last patrol, (4) exit idles and the arrival scene, (5) block and execution
 (Alduin), untouched.
+
+## 5. Second round (coordinator's order: investigate to the root cause)
+
+Causes found by tracing, each fixed:
+1. **Horses stopped at the first road bank:** a floor of nz 0.486 under a mount (limit 0.5): `kAnimalMinFloorNormalZ` is now 0.45.
+2. **Horses stopped for good at 21221,-89465:** `Patrol1` needs `GetStage(MQ101) >= 15` and the scene's end fragment sets stage 14, which the pack took as the new current stage (the package then failed). `QuestState::setStage` now keeps the higher current stage (the lower one is still done and runs its fragment; RECALLED-VERIFY, but the game's own gates need it; it also explains task 0272's C00 race). New test `SkyrimQuestState.aLowerStageIsDoneButDoesNotLowerTheCurrentStage`.
+3. **No slab ever fired a stage:** `GetBaseObject` handed out a `Form`, so `GetActorBase() == TriggerActor` cast to None; an NPC_ base now has the class `ActorBase` (`formClass`, preloaded class) and `GetBaseObject` uses it. The slab at 22474,-83662 (script `defaultSetStageTRIGSpecificActor`) is Alduin's (base 0x32B94) and correctly does not fire for a cart horse.
+4. The C4834 warning (`sessionContent` nodiscard) is fixed; `OPENEDEN_PACKAGE_TRACE` now prints operator and value, and `PKTRACE` also logs patrol idles and link misses.
+
+Result: both cart horses walk their whole Patrol1 chain (about 12,000 units, from (22200,-93600) to (24959,-82688)) with the carts, riders and player, and stop at the chain's end. **Stage 20 is still not set:** `MQ101SetStage20` (REF 0x84058) and `MQ101SetStage22` (0xC1F80) want base `MQ101Horse` (0x654E5), the officers' horses (`MQ101HadvarHorse` 0x654E1, `MQ101TulliusHorse` 0xA9DE7, `MQ101ElenwenHorse` 0x527F1), and here those have only `DefaultStayAtCurrentLocationSkipFallout` (no package moves them: whatever rides or leads them in the game, a rider's `MQ101StayOnHorse` package, is not run). Next step: find what moves them (riders' alias packages / `MQ101StayOnHorse`) and give a mounted-NPC mechanism (the horse follows its rider's goal).
+
+Determinism: the trigger, stage and rider lines of runs r33 and r35 are byte identical (md5 7d26f082...); a third run was slower (machine load) and ended before the horse reached the chain's end, so its horse samples differ. Morrowind unchanged: `tools/worldobjects_check` 110 objects OK against the integ2 build; `coverage.sh` OK (no new setting). Tests: `*Skyrim*:*Extension*:*Neutral*` 3,101 and openmw `*Neutral*:*Mover*:*Extension*` 853 pass.

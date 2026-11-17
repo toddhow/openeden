@@ -2525,7 +2525,8 @@ namespace MWPhysics
         if (trace && (entry.mWalkFrames == 1 || entry.mWalkFrames % 30 == 0))
             Log(Debug::Info) << "NACTWALK " << ptr.getCellRef().getRefId() << " frame " << entry.mWalkFrames << " pos "
                              << pos.pos[0] << " " << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2]
-                             << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "");
+                             << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "") << (ridden ? " mount" : " foot")
+                             << " handle " << handle.reference;
     }
 
     int PhysicsSystem::addProjectile(

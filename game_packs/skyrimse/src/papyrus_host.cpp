@@ -555,7 +555,7 @@ namespace game_skyrimse
             mPreloaded = true;
             for (const char* name :
                 { "form", "objectreference", "actor", "quest", "alias", "referencealias", "locationalias", "location",
-                    "keyword", "topicinfo", "scene", "cell", "spell", "game", "utility", "debug" })
+                    "keyword", "topicinfo", "scene", "cell", "spell", "actorbase", "game", "utility", "debug" })
                 (void)load(name, false);
         }
 
@@ -1430,7 +1430,7 @@ namespace game_skyrimse
             });
             reg("ObjectReference", "GetBaseObject", false, [this](const NativeCall& c) {
                 const FormId base = baseOfReference(formOf(c.self));
-                return result(base != 0 ? PapyrusValue::makeForm(intern("Form"), base) : PapyrusValue::makeNone());
+                return result(base != 0 ? formValue(base) : PapyrusValue::makeNone()); // task 0274: the base has its own class
             });
             reg("ObjectReference", "Activate", false, [this](const NativeCall& c) {
                 const FormId target = formOf(c.self);

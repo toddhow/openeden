@@ -73,7 +73,7 @@ namespace MWPhysics::NeutralMover
     /// above are the humanoid's; a taller animal (a horse, a bear) has longer legs and a surer foot: `limitsForHeight`
     /// scales the two distances with the capsule's height beyond kReferenceHeight (a step is about a fifth of the
     /// height, a drop about half of it: the horse's legs are about half its shoulder height) and lets it walk ground
-    /// whose normal points up at least kAnimalMinFloorNormalZ (60 degrees from level). ESTIMATES, found by riding the
+    /// whose normal points up at least kAnimalMinFloorNormalZ (about 63 degrees from level). ESTIMATES, found by riding the
     /// Whiterun plains: a route up the hill had 53 degree ground. Plain data, no allocation.
     struct Limits
     {
@@ -86,7 +86,7 @@ namespace MWPhysics::NeutralMover
         float mTrampleHeight = 0.f;
         float mTrampleWidth = 0.f;
     };
-    inline constexpr float kAnimalMinFloorNormalZ = 0.5f;
+    inline constexpr float kAnimalMinFloorNormalZ = 0.45f; // task 0274: a road bank of 61 degrees (nz 0.486) stopped the cart horses at 0.5
     /// The limits of a capsule `height` units tall: the humanoid's up to kReferenceHeight (and for a height that is
     /// not finite or not positive), above it step-up = height * kStepUp / kReferenceHeight, step-down = height / 2 and
     /// the floor normal limit kAnimalMinFloorNormalZ.

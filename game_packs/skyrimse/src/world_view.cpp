@@ -1778,7 +1778,8 @@ namespace game_skyrimse
                 {
                     const std::vector<survey::Ctda> one{ c };
                     const bool alone = mDialogue->mPackageEvaluator.evaluate(one, world);
-                    line += " [fn" + std::to_string(c.mFunction) + (alone ? " ok]" : " no]");
+                    line += " [fn" + std::to_string(c.mFunction) + " op" + std::to_string(c.mCompare) + " "
+                        + std::to_string(c.mComparison) + (alone ? " ok]" : " no]");
                 }
             mPackageTraceLog(line);
         }
@@ -1803,7 +1804,11 @@ namespace game_skyrimse
     {
         const auto it = mRefLinks.find(reference);
         if (it == mRefLinks.end())
+        {
+            if (mPackageTraceLog && keyword == kNullFormId)
+                mPackageTraceLog("PKTRACE link of " + std::to_string(reference) + ": reference not materialised");
             return false;
+        }
         for (const RefLink& link : it->second)
         {
             if (link.mKeyword == keyword && link.mRef != kNullFormId && link.mRef != kUnresolvedFormId)
@@ -1812,12 +1817,22 @@ namespace game_skyrimse
                 return true;
             }
         }
+        if (mPackageTraceLog && keyword == kNullFormId)
+        {
+            std::string line = "PKTRACE link of " + std::to_string(reference) + " has no plain link; links:";
+            for (const RefLink& link : it->second)
+                line += " " + std::to_string(link.mKeyword) + "->" + std::to_string(link.mRef);
+            mPackageTraceLog(line);
+        }
         return false;
     }
 
     float SkyrimWorldView::patrolIdle(FormId reference) const
     {
         const auto it = mPatrolIdles.find(reference);
+        if (mPackageTraceLog)
+            mPackageTraceLog("PKTRACE patrol idle of " + std::to_string(reference) + " = "
+                + (it == mPatrolIdles.end() ? std::string("none") : std::to_string(it->second)));
         return it == mPatrolIdles.end() ? -1.f : it->second;
     }
 
@@ -4066,6 +4081,11 @@ namespace game_skyrimse
     bool SkyrimWorldView::isFactionForm(FormId form) const
     {
         return mActorIndex != nullptr && mActorIndex->faction(form) != nullptr;
+    }
+
+    bool SkyrimWorldView::isActorBaseForm(FormId form) const
+    {
+        return mActorIndex != nullptr && mActorIndex->npc(form) != nullptr;
     }
 
     const CrimeData* SkyrimWorldView::crimeDataOf(FormId faction) const
