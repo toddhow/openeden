@@ -586,6 +586,9 @@ namespace game_skyrimse
         /// Task 0211 (a developer aid, `story test quest`): starts a quest as the story manager would after choosing it
         /// (aliases filled, scripts attached, start-up stage run). False when the quest is unknown, running or completed.
         bool startQuestForTest(FormId quest, std::int32_t stage = -1); ///< `stage` >= 0: also sets that stage
+        /// Task 0269 (a developer aid, `houses test permission`): marks a stage done and current WITHOUT running its
+        /// fragments or events, the way a quest the player finished earlier would stand. False for an unknown quest.
+        bool markStageDoneForTest(FormId quest, std::uint32_t stage);
 
         /// Task 0187: the fragments of a shown dialogue line. The scripts of the INFO's VMAD are attached to the INFO
         /// (once), their properties set, and the begin fragment function and then the end fragment function are queued

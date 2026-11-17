@@ -605,6 +605,7 @@ namespace game_skyrimse
                 mData.setQuests(access.mQuests);
                 mData.setLocations(access.mLocations); // task 0217
                 mHost.setQuests(access.mQuests, access.mState, access.mVmads);
+                mHouseQuests = access.mQuests; // task 0269
                 // Task 0187: aliases fill when a quest starts, the story manager answers events, and the script
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
@@ -908,13 +909,26 @@ namespace game_skyrimse
                 say(openeden::sdk::LogLevel::Info,
                     std::string("HOUSES the quest of the house offers ")
                         + (mHost.startQuestForTest(houses::kHousePurchaseQuest) ? "started" : "was refused"));
+                // Task 0269: a hold's steward alias puts the steward into JobStewardFaction while its dialogue quest runs (ALFC);
+                // Falk Firebeard has the faction no other way, and the offers test GetInFaction
+                if (mHouseQuests != nullptr)
+                {
+                    std::size_t granted = 0;
+                    for (const houses::AliasFactionGrant& g : houses::aliasFactionGrants(
+                             *mHouseQuests, houses::holdDialogueQuests(), houses::kJobStewardFaction))
+                        if (mFollowers->addToFaction(g.mReference, g.mFaction))
+                            ++granted;
+                    say(openeden::sdk::LogLevel::Info,
+                        "HOUSES the stewards of the hold dialogue quests are in JobStewardFaction: "
+                            + std::to_string(granted));
+                }
                 if (!mHousesPermission)
                     return;
                 const PlacedRefIndex* placed = mView.placedRefs();
                 if (placed == nullptr)
                     return;
                 std::size_t given = 0;
-                for (const FormId base : { houses::kWhiterunJarlBase, houses::kWhiterunSonsJarlBase })
+                for (const FormId base : houses::testPermissionJarlBases()) // task 0269: every hold's jarls
                 {
                     const PlacedRefIndex::Range range = placed->byBase(base);
                     for (const PlacedEntry* const* it = range.mBegin; it != range.mEnd; ++it)
@@ -923,6 +937,10 @@ namespace game_skyrimse
                 }
                 say(openeden::sdk::LogLevel::Info,
                     "HOUSES test permission: " + std::to_string(given) + " jarls are the player's friends");
+                // Task 0269: Hjerim's offer also needs the Windhelm murders (MS11) behind the player
+                say(openeden::sdk::LogLevel::Info,
+                    std::string("HOUSES test permission: MS11 stage 1 ")
+                        + (mHost.markStageDoneForTest(houses::kMs11Quest, 1) ? "marked done" : "was refused"));
             }
 
             void raiseTestEvent()
@@ -1283,6 +1301,7 @@ namespace game_skyrimse
             std::uint64_t mAmbientEvents = 0;
             bool mStarted = false;
             bool mHouses = false; ///< task 0261
+            const QuestIndex* mHouseQuests = nullptr; ///< task 0269
             bool mHousesPermission = false;
             bool mHousesApplied = false;
             bool mMainQuest = false; ///< task 0268

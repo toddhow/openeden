@@ -2932,6 +2932,16 @@ namespace game_skyrimse
         return true;
     }
 
+    bool PapyrusHost::markStageDoneForTest(FormId quest, std::uint32_t stage)
+    {
+        Impl& m = *mImpl;
+        if (m.mIndex == nullptr || m.mState == nullptr || m.mIndex->quest(quest) == nullptr)
+            return false;
+        m.mState->setStage(*m.mIndex, quest, stage); // state only: no fragment, no event, no script attach
+        m.say(false, "Papyrus: quest " + hex(quest) + " stage " + std::to_string(stage) + " marked done by the test aid");
+        return true;
+    }
+
     std::size_t PapyrusHost::raiseStoryEvent(const StoryEvent& event)
     {
         return mImpl->raiseStory(event);

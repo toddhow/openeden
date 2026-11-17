@@ -12,6 +12,7 @@
 //   applyToAccess  what the trespass rule reads of a cell: the ledger's owner replaces the plugin's
 
 #include <game_skyrimse/crime.hpp>
+#include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/save_chunks.hpp>
@@ -22,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace game_skyrimse::houses
 {
@@ -42,6 +44,25 @@ namespace game_skyrimse::houses
     /// The Whiterun jarl and the Whiterun jarl of the Sons of Skyrim (the HousePurchase aliases 10 and 14).
     inline constexpr FormId kWhiterunJarlBase = 0x00013BBD;
     inline constexpr FormId kWhiterunSonsJarlBase = 0x00013BB5;
+
+    /// Task 0269 (STUB until the tests have run red): the jarls the test aid befriends, the MS11 quest and its marked stage.
+    [[nodiscard]] std::vector<FormId> testPermissionJarlBases();
+    inline constexpr FormId kMs11Quest = 0x0001F7A3;
+
+    /// Task 0269: the five hold dialogue quests (DialogueWhiterun 0x270A4, DialogueRiften 0x368D8, DialogueWindhelm 0x3502E,
+    /// DialogueMarkarth 0x17F05, DialogueSolitude 0x2E1AD): their steward alias puts the steward into JobStewardFaction
+    /// while the quest runs (ALFC), and Falk Firebeard (Solitude) has the faction no other way.
+    [[nodiscard]] std::vector<FormId> holdDialogueQuests();
+
+    struct AliasFactionGrant
+    {
+        FormId mReference = kNullFormId; ///< the placed reference the alias is filled with by the data (ALFR)
+        FormId mFaction = kNullFormId;
+    };
+    /// The (reference, faction) pairs of the quests' data-filled specific-reference
+    /// aliases whose ALFC list names `faction`.
+    [[nodiscard]] std::vector<AliasFactionGrant> aliasFactionGrants(
+        const QuestIndex& quests, const std::vector<FormId>& questIds, FormId faction);
 
     class Ledger
     {

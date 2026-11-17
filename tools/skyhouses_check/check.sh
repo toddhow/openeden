@@ -8,7 +8,7 @@
 #   check.sh <build dir> <base config dir> <Skyrim Data folder> <work dir> [frames]
 #
 # env: INPUT (the input script), PLAN (the Lua list of plan steps, see global.lua), TARGET (record id of the actor's base,
-#      default Proventus Avenicci), CELLID, EVERY (sample period in updates), FROM, FURN (record id text of the furniture a
+#      default Proventus Avenicci), CELLID, EVERY (sample period in updates), FROM, KEY (hex id text of the house key the trace counts, default Breezehome's 00093b08), FURN (record id text of the furniture a
 #      'furn' step looks for), GOLD (the player's gold, default 6000), PERMISSION (default true: the jarls like the player),
 #      SETTINGS_EXTRA, PHASE (run|load: load reads the save the run made, in <work dir>.load), LOADARG, CHECK_TIMEOUT.
 # <work dir> must be under I:/Projects/OpenEden-work.
@@ -23,7 +23,7 @@ case "$(native "$WORK")" in
 esac
 LUA="$WORK.luatest"
 rm -rf "$LUA"; mkdir -p "$LUA"; cp -r "$HERE/luatest/." "$LUA/"
-echo "return { target = '${TARGET:-skyrimse:b80826}', every = ${EVERY:-300}, from = ${FROM:-1}, furn = '${FURN:-bed}', plan = { ${PLAN:-} } }" > "$LUA/scripts/hse/cfg.lua"
+echo "return { target = '${TARGET:-skyrimse:b80826}', every = ${EVERY:-300}, from = ${FROM:-1}, furn = '${FURN:-bed}', key = '${KEY:-00093b08}', plan = { ${PLAN:-} } }" > "$LUA/scripts/hse/cfg.lua"
 if [ "$PHASE" = load ]; then
     SAVE=$(ls "$WORK"/user/saves/*/*.omwsave 2>/dev/null | head -1)
     [ -n "$SAVE" ] || { echo "no save in $WORK/user/saves"; exit 3; }

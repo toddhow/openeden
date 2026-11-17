@@ -6,6 +6,46 @@
 
 namespace game_skyrimse::houses
 {
+    std::vector<FormId> holdDialogueQuests()
+    {
+        return { 0x000270A4, 0x000368D8, 0x0003502E, 0x00017F05, 0x0002E1AD };
+    }
+
+    std::vector<AliasFactionGrant> aliasFactionGrants(
+        const QuestIndex& quests, const std::vector<FormId>& questIds, FormId faction)
+    {
+        std::vector<AliasFactionGrant> out;
+        if (faction == kNullFormId || faction == kUnresolvedFormId)
+            return out;
+        for (const FormId id : questIds)
+        {
+            const QuestRecord* record = quests.quest(id);
+            if (record == nullptr)
+                continue;
+            for (const QuestAlias& alias : record->mAliases)
+            {
+                if (alias.mFill != AliasFillKind::SpecificReference || alias.mReference == kNullFormId
+                    || alias.mReference == kUnresolvedFormId)
+                    continue;
+                if (std::find(alias.mFactions.begin(), alias.mFactions.end(), faction) != alias.mFactions.end())
+                    out.push_back({ alias.mReference, faction });
+            }
+        }
+        return out;
+    }
+
+    std::vector<FormId> testPermissionJarlBases()
+    {
+        // The jarls of the HousePurchase aliases (QUST 0x0A7B33), read from the plugin: Whiterun 10 and 14, Windhelm 11
+        // and 15, Riften 12 and 16, Markarth 13 and 17, Solitude 9. The external aliases (11 to 13 and 9) name a placed
+        // reference of the hold's dialogue quest; its base is listed here.
+        return { 0x00013BBD, 0x00013BB5, // Balgruuf the Greater, Vignar Gray-Mane
+            0x0001414D, 0x00014149, // Ulfric Stormcloak, Brunwulf Free-Winter
+            0x00013366, 0x0001336A, // Laila Law-Giver, Maven Black-Briar
+            0x0001339F, 0x000133BB, // Igmund, Thongvor Silver-Blood
+            0x0001326A }; // Elisif the Fair
+    }
+
     bool Ledger::setCellOwner(FormId cell, FormId owner)
     {
         if (cell == kNullFormId || cell == kUnresolvedFormId || owner == kNullFormId || owner == kUnresolvedFormId)

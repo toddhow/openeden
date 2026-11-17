@@ -28,9 +28,9 @@ local function trace(tag)
     local gold, key = -1, -1
     if okInv and inv.ready() then
         gold = inv.count('player', inv.gold_item())
-        key = inv.count('player', '00093b08')
+        key = inv.count('player', cfg.key or '00093b08')
     end
-    print(string.format('HSE %s u=%d cell=%s player=%.0f,%.0f,%.0f gold=%d breezehomekey=%d', tag, updates,
+    print(string.format('HSE %s u=%d cell=%s player=%.0f,%.0f,%.0f gold=%d key=%d', tag, updates,
         tostring(player.cell.name), p.x, p.y, p.z, gold, key))
 end
 
