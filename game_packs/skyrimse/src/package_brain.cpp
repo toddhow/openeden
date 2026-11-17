@@ -1029,7 +1029,22 @@ namespace game_skyrimse
                 actor.mPhase = Phase::Idle;
         }
         if (chosen != actor.mActive)
+        {
             start(actor, chosen, writer);
+            actor.mGreetWait = 0;
+        }
+        // Task 0271: a ForceGreet package wants the player talked to
+        FormId greetTopic = kNullFormId;
+        if (chosen != nullptr && mGreetHook && mSource.forceGreetTopic(*chosen, greetTopic))
+        {
+            if (actor.mGreetWait <= 0)
+            {
+                actor.mGreetWait = kGreetAskEvaluations;
+                mGreetHook(actor.mHandle.reference, actor.mBase, greetTopic);
+            }
+            else
+                --actor.mGreetWait;
+        }
     }
 
     void PackageBrain::run(Actor& actor, float seconds, sdkgame::ActorRequestWriter& writer)

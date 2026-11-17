@@ -220,6 +220,15 @@ namespace game_skyrimse
         std::unique_ptr<StoryManager> mStoryManager;
         conditions::Evaluator mPackageEvaluator;
         std::map<FormId, std::vector<const PackageRecord*>> mPackageLists; ///< by NPC base: resolved once
+        /// Task 0271: the packages quest aliases give a unique actor (ALPC), by NPC base; built on first use.
+        struct AliasPackages
+        {
+            FormId mQuest = kNullFormId;
+            std::vector<FormId> mPackages;
+        };
+        std::map<FormId, std::vector<AliasPackages>> mAliasPackages;
+        bool mAliasPackagesBuilt = false;
+        SkyrimConditionWorld::LiveQuestVariable mLiveQuestVariable; ///< task 0271
     };
 
     namespace
@@ -1567,28 +1576,58 @@ namespace game_skyrimse
         out.clear();
         if (mDialogue == nullptr || mDialogue->mData == nullptr || mActorIndex == nullptr)
             return false;
+        const PackageIndex& index = mDialogue->mData->mPackages;
         const auto cached = mDialogue->mPackageLists.find(base);
         if (cached != mDialogue->mPackageLists.end())
-        {
             out = cached->second;
-            return true;
+        else
+        {
+            ActorIndex::Resolved resolved;
+            if (mActorIndex->resolve(base, 1, 0, resolved) != ActorIndex::ResolveStatus::Ok)
+                return false;
+            std::vector<const PackageRecord*> list;
+            for (const FormId id : resolved.mPackages)
+                if (const PackageRecord* p = index.package(id))
+                    list.push_back(p);
+            // Then the default package list (an FLST) of the record that supplies the packages.
+            if (const ActorNpc* holder = mActorIndex->npc(resolved.mPackagesFrom))
+                if (const FormListRecord* flst = mDialogue->mData->mDialogue.formList(holder->mDefaultPackageList))
+                    for (const FormId id : flst->mEntries)
+                        if (const PackageRecord* p = index.package(id))
+                            list.push_back(p);
+            out = list;
+            mDialogue->mPackageLists.emplace(base, std::move(list));
         }
-        ActorIndex::Resolved resolved;
-        if (mActorIndex->resolve(base, 1, 0, resolved) != ActorIndex::ResolveStatus::Ok)
-            return false;
-        const PackageIndex& index = mDialogue->mData->mPackages;
-        std::vector<const PackageRecord*> list;
-        for (const FormId id : resolved.mPackages)
-            if (const PackageRecord* p = index.package(id))
-                list.push_back(p);
-        // Then the default package list (an FLST) of the record that supplies the packages.
-        if (const ActorNpc* holder = mActorIndex->npc(resolved.mPackagesFrom))
-            if (const FormListRecord* flst = mDialogue->mData->mDialogue.formList(holder->mDefaultPackageList))
-                for (const FormId id : flst->mEntries)
+        // Task 0271: the packages a running quest's alias gives this actor (ALPC) come first, in the alias's order. Which
+        // quests run is read now; a quest that starts or stops later changes the list when the actor is resolved again.
+        if (!mAliasPackagesOn)
+            return true;
+        if (!mDialogue->mAliasPackagesBuilt)
+        {
+            mDialogue->mAliasPackagesBuilt = true;
+            for (const FormId questId : mDialogue->mData->mQuests.questIds())
+                if (const QuestRecord* quest = mDialogue->mData->mQuests.quest(questId))
+                    for (const QuestAlias& alias : quest->mAliases)
+                        if (alias.mFill == AliasFillKind::UniqueActor && alias.mActor != kNullFormId
+                            && !alias.mPackages.empty())
+                            mDialogue->mAliasPackages[alias.mActor].push_back({ questId, alias.mPackages });
+        }
+        if (const auto found = mDialogue->mAliasPackages.find(base); found != mDialogue->mAliasPackages.end())
+        {
+            std::vector<const PackageRecord*> front;
+            for (const auto& entry : found->second)
+            {
+                if (!mDialogue->mPackageQuests.running(entry.mQuest))
+                    continue;
+                for (const FormId id : entry.mPackages)
                     if (const PackageRecord* p = index.package(id))
-                        list.push_back(p);
-        out = list;
-        mDialogue->mPackageLists.emplace(base, std::move(list));
+                        front.push_back(p);
+            }
+            out.insert(out.begin(), front.begin(), front.end());
+        }
+        if (mPackageTraceLog && base == mPackageTraceBase)
+            for (const PackageRecord* p : out)
+                mPackageTraceLog("PKTRACE base " + std::to_string(base) + " has package " + p->mCommon.mEditorId);
         return true;
     }
 
@@ -1629,8 +1668,25 @@ namespace game_skyrimse
             world.setPlacedRefs(nullptr);
         }
         world.setSpeaker(speaker);
+        // Task 0271: only with `quest alias packages` (else the package conditions are what they were)
+        world.setPlayerPlace(mAliasPackagesOn && mPlayerPlaceKnown, mPlayerInterior, mPlayerCell, mPlayerWorld);
+        world.setLiveQuestVariable(
+            mAliasPackagesOn ? mDialogue->mLiveQuestVariable : SkyrimConditionWorld::LiveQuestVariable());
         world.setPlugin(&mDialogue->mData->mPackages.resolverOf(package));
-        return mDialogue->mPackageEvaluator.evaluate(package.mConditions, world);
+        const bool pass = mDialogue->mPackageEvaluator.evaluate(package.mConditions, world);
+        if (mPackageTraceLog && actorBase == mPackageTraceBase)
+        {
+            std::string line = "PKTRACE " + package.mCommon.mEditorId + (pass ? " passes" : " fails");
+            if (!pass)
+                for (const survey::Ctda& c : package.mConditions) // each alone (the OR chains are not honoured here)
+                {
+                    const std::vector<survey::Ctda> one{ c };
+                    const bool alone = mDialogue->mPackageEvaluator.evaluate(one, world);
+                    line += " [fn" + std::to_string(c.mFunction) + (alone ? " ok]" : " no]");
+                }
+            mPackageTraceLog(line);
+        }
+        return pass;
     }
 
     PackageActivity SkyrimWorldView::activityOf(const PackageRecord& package) const
@@ -2190,6 +2246,7 @@ namespace game_skyrimse
             return state->mRuntime->evaluateQuestConditions(list, quest, data->mQuests.resolverOf(*record));
         };
         out.mSetLiveQuestVariable = [state](SkyrimConditionWorld::LiveQuestVariable source) {
+            state->mLiveQuestVariable = source; // task 0271: the package world reads it with `quest alias packages`
             state->mRuntime->setLiveQuestVariable(source);
             state->mQuestWorld->setLiveQuestVariable(std::move(source)); // task 0261: the story and alias worlds too
         };
@@ -2364,9 +2421,11 @@ namespace game_skyrimse
                         mForcedGreet.mBegan(speaker.mReference);
                     return true;
                 }
+                const bool plain = mForcedGreet.mPlainWhenNone && mForcedGreet.mPlainWhenNone(speaker.mReference);
                 if (mForcedGreet.mEnded)
                     mForcedGreet.mEnded(speaker.mReference);
-                return false;
+                if (!plain)
+                    return false;
             }
         }
         return mDialogue->mRuntime->begin(speaker, out, error);
@@ -2375,6 +2434,13 @@ namespace game_skyrimse
     void SkyrimWorldView::setForcedGreeting(ForcedGreetHooks hooks)
     {
         mForcedGreet = std::move(hooks);
+    }
+
+    bool SkyrimWorldView::forceGreetTopic(const PackageRecord& package, FormId& out) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return false;
+        return mDialogue->mData->mPackages.forceGreetTopic(package, out);
     }
 
     void SkyrimWorldView::setArrestDialogue(ArrestDialogueHooks hooks)

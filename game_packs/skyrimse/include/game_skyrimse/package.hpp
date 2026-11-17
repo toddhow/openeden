@@ -40,6 +40,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -59,6 +60,11 @@ namespace game_skyrimse
         inline constexpr std::int32_t AliasLocation = 9;
         inline constexpr std::int32_t NearSelf = 12;
     }
+
+    /// Task 0271: `[extension.skyrimse] quest alias packages` (needs `actor packages`): the packages a running quest's
+    /// alias gives its unique actor (ALPC) go first in the actor's list, and a ForceGreet package among the chosen ones
+    /// asks for its conversation with the player.
+    inline constexpr std::string_view kQuestAliasPackagesKey = "quest alias packages";
 
     /// PTDA target types (stage S6f; names RECALLED-VERIFY from xEdit, the data's counts fit: Patrol targets are 296
     /// type 0 and 101 type 3, Follow 95 type 0 and 60 type 4, Escort 59 type 0).
@@ -170,7 +176,8 @@ namespace game_skyrimse
         std::vector<PackageLocation> mLocations; ///< PLDT, in order (the first is the package's main location)
         std::vector<PackageTarget> mTargets; ///< PTDA, in order (stage S6f)
         std::vector<std::uint8_t> mBools; ///< the Bool data inputs (ANAM "Bool" + 1 byte CNAM), in order
-        /// Task 0264: the first PDTO (package data, type 0 = a topic) of a package: the topic a ForceGreet package says.
+        /// Task 0264: the first PDTO (package data, type 0 = a topic) of a package: the topic a ForceGreet package says
+        /// (task 0271: a topic of 0 is no topic).
         FormId mForceGreetTopic = kNullFormId;
         std::uint32_t mPlugin = 0; ///< index into PackageIndex's plugins: the plugin whose record won
     };
@@ -228,6 +235,9 @@ namespace game_skyrimse
         [[nodiscard]] PackageActivity activityOf(const PackageRecord& package) const;
         /// Stage S6f: the first target of the package, or of its template when it has none of its own.
         [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const;
+        /// Task 0271: the topic a ForceGreet package says to the player (its own PDTO), when its own or its template's
+        /// procedures name ForceGreet. False for any other package.
+        [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const;
 
     private:
         std::vector<FormIdResolver> mResolvers;

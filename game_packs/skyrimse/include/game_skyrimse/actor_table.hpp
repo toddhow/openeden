@@ -95,6 +95,12 @@ namespace game_skyrimse
         void enablePackages(
             PackageSource& source, std::uint64_t seed, FurnitureSource* furniture = nullptr, bool snapSleepers = false);
         [[nodiscard]] const PackageBrain* packageBrain() const { return mBrain.get(); }
+        /// Task 0271: see PackageBrain::setForceGreetHook (no brain: nothing).
+        void setForceGreetHook(PackageBrain::ForceGreetHook hook)
+        {
+            if (mBrain)
+                mBrain->setForceGreetHook(std::move(hook));
+        }
 
         /// Stage S6f: the player begins or ends a conversation with the actor of this placement (forwarded to the
         /// brain).

@@ -644,6 +644,11 @@
       "key": "marriage test friends",
       "type": "string",
       "default": ""
+    },
+    {
+      "key": "quest alias packages",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

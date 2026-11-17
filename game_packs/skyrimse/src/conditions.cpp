@@ -335,6 +335,14 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inCombat(subject, c.mParam1 != 0));
         }
 
+        // 358 IsPlayerMovingIntoNewSpace (task 0271): the pack is not told when the player walks through a load door or
+        // fast travels, and the packages that test it (a ForceGreet waits for the player to settle) want 0 once he stands
+        // in the place. Always 0.
+        float isPlayerMovingIntoNewSpace(const survey::Ctda&, Subject, const ConditionWorld&)
+        {
+            return 0.f;
+        }
+
         // 49 GetSleeping: state 0 to 4 (CK wiki, toddhow 2026-11-11)
         float getSleeping(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
@@ -783,7 +791,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 125> sTable = { {
+        constexpr std::array<Entry, 126> sTable = { {
             { 1, getDistance },
             { 5, getLockedFn },
             { 14, getActorValue },
@@ -851,6 +859,7 @@ namespace game_skyrimse::conditions
             { 300, isInInterior },
             { 310, getInWorldspace },
             { 314, isActorAVictim },
+            { 358, isPlayerMovingIntoNewSpace },
             { 359, getInCurrentLoc },
             { 360, getInCurrentLocAlias },
             { 365, isChildFn },

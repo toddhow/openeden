@@ -1,11 +1,15 @@
--- Task 0264: a ForceGreet package that a scene gave an actor ends with the actor opening its conversation. The pack
--- publishes the request (`pending_base`, the decimal base of the actor); this script opens it the way the engine opens
--- any talk: the actor is activated by the player. The actor is found among the player's cell objects by its base
--- (`<game>:b<base>`, the nearest of them to the player). One activation per request serial; the pack gives a request
--- up by itself when no conversation begins (its own deterministic timeout), so nothing here is timed.
+-- Forced greetings (tasks 0264 and 0271): a ForceGreet package of a scene (Companions) or of a running quest's alias
+-- (Brynjolf in Riften) ends with the actor opening its conversation. The pack publishes the request (`pending_base`, the
+-- decimal base of the actor); this script opens it the way the engine opens any talk: the actor is activated by the
+-- player. The actor is found among the player's cell objects by its base (`<game>:b<base>`, the nearest of them to the
+-- player). One activation per request serial.
+--
+-- A request that no actor of that base within RANGE of the player can serve is left alone: the pack gives it up by
+-- itself after a fixed number of asks (a package brain's) or of scene updates (a scene's), with no clock.
 local world = require('openmw.world')
 local fg = require('core.skyrimse.forcegreet')
 
+local RANGE = 3000.0 -- the actor must be this near the player
 local askedSerial = -1
 
 local function find(player, base)
@@ -18,7 +22,7 @@ local function find(player, base)
       if d < bestDistance then best, bestDistance = o, d end
     end
   end
-  return best
+  return best, bestDistance
 end
 
 return {
@@ -30,12 +34,11 @@ return {
       if serial == askedSerial then return end
       local player = world.players[1]
       if not player then return end
-      local actor = find(player, base)
-      if actor ~= nil then
-        askedSerial = serial
-        print('[skyrimse forcegreet] the actor opens its conversation')
-        actor:activateBy(player)
-      end
+      local actor, distance = find(player, base)
+      if actor == nil or distance > RANGE then return end
+      askedSerial = serial
+      print('[skyrimse forcegreet] the actor opens its conversation')
+      actor:activateBy(player)
     end,
   },
 }

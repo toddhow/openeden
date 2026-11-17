@@ -296,13 +296,16 @@ namespace game_skyrimse
                             return;
                         case Content::fourCC("PDTO"):
                             // Task 0264: package data (type u32, value u32); type 0 names a topic (VERIFIED on
-                            // C00KodlakForceGreetPlayer: PDTO 0, 0xA3E50, the dialogue topic its force greet says)
+                            // C00KodlakForceGreetPlayer: PDTO 0, 0xA3E50, the dialogue topic its force greet says). Task
+                            // 0271: the first one of type 0 with a topic is the package's own (the ones inside OnBegin and
+                            // OnEnd are all zero).
                             if (data.size() != 8)
                             {
                                 odd(type);
                                 return;
                             }
-                            if (readLe<std::uint32_t>(data.data()) == 0 && p.mForceGreetTopic == kNullFormId)
+                            if (readLe<std::uint32_t>(data.data()) == 0 && p.mForceGreetTopic == kNullFormId
+                                && readLe<std::uint32_t>(data.data() + 4) != 0)
                                 p.mForceGreetTopic = resolved(readLe<std::uint32_t>(data.data() + 4));
                             return;
                         case Content::fourCC("ANAM"):
@@ -538,6 +541,28 @@ namespace game_skyrimse
                 out = current->mTargets.front();
                 return true;
             }
+            if (current->mTemplate == kNullFormId || current->mTemplate == kUnresolvedFormId
+                || !seen.insert(current->mTemplate).second)
+                return false;
+            current = this->package(current->mTemplate);
+        }
+        return false;
+    }
+
+    bool PackageIndex::forceGreetTopic(const PackageRecord& package, FormId& out) const
+    {
+        if (package.mForceGreetTopic == kNullFormId || package.mForceGreetTopic == kUnresolvedFormId)
+            return false;
+        const PackageRecord* current = &package;
+        std::set<FormId> seen;
+        for (int depth = 0; depth < 8 && current != nullptr; ++depth)
+        {
+            for (const std::string& raw : current->mProcedures)
+                if (lowerAscii(raw) == "forcegreet")
+                {
+                    out = package.mForceGreetTopic;
+                    return true;
+                }
             if (current->mTemplate == kNullFormId || current->mTemplate == kUnresolvedFormId
                 || !seen.insert(current->mTemplate).second)
                 return false;

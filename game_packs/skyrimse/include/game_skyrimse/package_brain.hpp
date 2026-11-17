@@ -28,6 +28,7 @@
 #include <openeden/game/actor_rules.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -36,6 +37,9 @@
 
 namespace game_skyrimse
 {
+    /// Task 0271: a chosen ForceGreet package asks for its conversation again after this many evaluations (about one
+    /// per second each), until the greeting is said and the package's own conditions stop it. An estimate.
+    inline constexpr int kGreetAskEvaluations = 5;
     /// How often (seconds of frame time) an actor looks again for the package to run. An estimate.
     inline constexpr float kPackageReevaluateSeconds = 1.f;
     /// A sandbox or wander package without a usable radius wanders this far from its anchor. An estimate.
@@ -168,6 +172,13 @@ namespace game_skyrimse
         {
             (void)reference;
             (void)keyword;
+            (void)out;
+            return false;
+        }
+        /// Task 0271: the topic of a ForceGreet package (the actor says it to the player). Default: none.
+        [[nodiscard]] virtual bool forceGreetTopic(const PackageRecord& package, FormId& out) const
+        {
+            (void)package;
             (void)out;
             return false;
         }
@@ -319,6 +330,12 @@ namespace game_skyrimse
         /// schedule back. Takes effect at the next update. False for an actor the brain does not know.
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package);
 
+        /// Task 0271: told when an actor's chosen package is a ForceGreet one (`reference` is the placement, `topic` the
+        /// DIAL it says): at once, then again every kGreetAskEvaluations evaluations while the package stays chosen.
+        /// The hook only records the wish; opening the conversation is the world's business. Main thread.
+        using ForceGreetHook = std::function<void(openeden::sdk::game::WorldId reference, FormId base, FormId topic)>;
+        void setForceGreetHook(ForceGreetHook hook) { mGreetHook = std::move(hook); }
+
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] std::optional<ActorView> view(openeden::sdk::game::WorldId reference) const;
@@ -387,6 +404,8 @@ namespace game_skyrimse
             bool mFollowPlayer = false; ///< the actor follows the player (set from mFollowRefs)
             bool mFollowEntered = false; ///< enterFollowPlayer ran for this actor
             float mFollowPlayerTimer = 0.f;
+            // Task 0271
+            int mGreetWait = 0; ///< evaluations until a ForceGreet package asks again
         };
 
         void evaluate(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
@@ -426,6 +445,7 @@ namespace game_skyrimse
         Options mOptions;
         std::map<openeden::sdk::game::WorldId, Actor> mActors;
         FurnitureSource* mFurniture = nullptr;
+        ForceGreetHook mGreetHook;
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
         std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)
         std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it

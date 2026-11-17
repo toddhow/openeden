@@ -523,7 +523,9 @@ namespace game_skyrimse
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
             void enableForceGreet() { mForceOn = true; }
-            [[nodiscard]] bool companionsOn() const { return mForceOn; }
+            [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
+            void enableCompanions() { mCompanionsOn = true; }
+            [[nodiscard]] bool companionsOn() const { return mCompanionsOn; }
             [[nodiscard]] ForceGreet& forceGreet() { return mForce; }
 
             // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold (HousePurchase:
@@ -627,7 +629,7 @@ namespace game_skyrimse
                         return true;
                     });
                 }
-                if ((mHouses || mMainQuest) && access.mSetLiveQuestVariable)
+                if ((mHouses || mMainQuest || mView.aliasPackagesOn()) && access.mSetLiveQuestVariable)
                     access.mSetLiveQuestVariable([this](FormId quest, const std::string& name) -> std::optional<float> {
                         const std::optional<double> live = mHost.anyNumberVariable(quest, name);
                         return live ? std::optional<float>(static_cast<float>(*live)) : std::nullopt;
@@ -663,21 +665,23 @@ namespace game_skyrimse
                         [this](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     mHost.setSceneControl(mScenes.get());
                     mScenes->runner().setRetryQuestStart(mMainQuest); // task 0268
-                    if (mForceOn) // task 0264: a ForceGreet package opens a conversation
-                    {
+                    if (mForceOn) // task 0264: a ForceGreet package ends with its conversation
                         mScenes->setForceGreet(&mForce);
-                        SkyrimWorldView::ForcedGreetHooks hooks;
-                        hooks.mTopic = [this](FormId reference) { return mForce.topicFor(reference); };
-                        hooks.mBegan = [this](FormId reference) {
-                            mForce.began(reference);
-                            say(openeden::sdk::LogLevel::Info, "FORCEGREET conversation began with " + hexId(reference));
-                        };
-                        hooks.mEnded = [this](FormId reference) {
-                            mForce.ended(reference);
-                            say(openeden::sdk::LogLevel::Info, "FORCEGREET conversation ended with " + hexId(reference));
-                        };
-                        mView.setForcedGreeting(std::move(hooks));
-                    }
+                }
+                if (mForceOn) // tasks 0264 and 0271: the conversation a ForceGreet package asks for
+                {
+                    SkyrimWorldView::ForcedGreetHooks hooks;
+                    hooks.mTopic = [this](FormId reference) { return mForce.topicFor(reference); };
+                    hooks.mBegan = [this](FormId reference) {
+                        mForce.began(reference);
+                        say(openeden::sdk::LogLevel::Info, "FORCEGREET conversation began with " + hexId(reference));
+                    };
+                    hooks.mEnded = [this](FormId reference) {
+                        mForce.ended(reference);
+                        say(openeden::sdk::LogLevel::Info, "FORCEGREET conversation ended with " + hexId(reference));
+                    };
+                    hooks.mPlainWhenNone = [this](FormId reference) { return mForce.fallsBackToPlain(reference); };
+                    mView.setForcedGreeting(std::move(hooks));
                 }
                 mStarted = true;
                 const auto began = std::chrono::steady_clock::now();
@@ -764,6 +768,9 @@ namespace game_skyrimse
                 mSite = QuestAliasFiller::PlayerSite();
                 mSite.mKnown = true;
                 mSite.mInterior = place.interior;
+                // task 0271: the place, for the package conditions that run on the player
+                mView.setPlayerPlace(
+                    place.interior, static_cast<FormId>(place.cell), static_cast<FormId>(place.world));
                 if (place.interior)
                 {
                     mSite.mCell = static_cast<FormId>(place.cell);
@@ -1350,7 +1357,8 @@ namespace game_skyrimse
             bool mCompanionsTraining = false;
             bool mTrainingPending = false;
             ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
-            bool mForceOn = false;
+            bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
+            bool mCompanionsOn = false; ///< task 0264
             std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
             std::optional<std::vector<std::uint8_t>> mPendingRestore;
             openeden::sdk::game::WorldSourceService* mSources;
@@ -1779,11 +1787,17 @@ namespace game_skyrimse
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info, "HOUSES bought houses are on");
                             }
-                            if (settings->getBool(kPackId, "companions", false)) // task 0264
+                            const bool companions = settings->getBool(kPackId, "companions", false); // task 0264
+                            if (companions)
                             {
-                                driver->enableForceGreet();
+                                driver->enableCompanions();
                                 if (settings->getBool(kPackId, "companions test training", false))
                                     driver->enableCompanionsTraining();
+                            }
+                            // tasks 0264 and 0271: one forced-greeting mechanism for both settings
+                            if (companions || settings->getBool(kPackId, kQuestAliasPackagesKey, false))
+                            {
+                                driver->enableForceGreet();
                                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                                 {
                                     const openeden::sdk::DeclareResult declared = driver->forceGreet().declare(*bindings);
@@ -4957,6 +4971,28 @@ namespace game_skyrimse
                         mCellSource.actorTable().enablePackages(mWorldView, PackageBrain::Options().mSeed, &mWorldView,
                             settings->getBool(kPackId, kActorSleepSnapKey, true));
                         say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
+                        // Task 0271: quest aliases' packages and the ForceGreet conversation (needs the brain)
+                        if (settings->getBool(kPackId, kQuestAliasPackagesKey, false))
+                        {
+                            mWorldView.setAliasPackages(true);
+                            if (const char* trace = std::getenv("OPENEDEN_PACKAGE_TRACE"))
+                                mWorldView.setPackageTrace(static_cast<FormId>(std::strtoul(trace, nullptr, 10)),
+                                    [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                            // the brain's ask joins the one forced-greeting mechanism (task 0264's ForceGreet)
+                            mCellSource.actorTable().setForceGreetHook(
+                                [this, say](openeden::sdk::game::WorldId reference, FormId base, FormId topic) {
+                                    if (mPapyrus != nullptr && mPapyrus->forceGreetOn()
+                                        && mPapyrus->forceGreet().requestFromBrain(
+                                            static_cast<FormId>(reference), base, topic))
+                                        say(openeden::sdk::LogLevel::Info,
+                                            "FORCEGREET the actor placed as " + std::to_string(reference)
+                                                + " (base " + std::to_string(base) + ") wants to say topic "
+                                                + std::to_string(topic));
+                                });
+                            say(openeden::sdk::LogLevel::Info,
+                                "quest alias packages: quests' ALPC packages join the actors' lists, ForceGreet "
+                                "packages greet the player");
+                        }
                         // Task 0196: followers need the package brain.
                         const std::string recruits = settings->getString(kPackId, kFollowerTestRecruitKey, "");
                         if (!mCellSource.actorTable().setTestFollowers(recruits))

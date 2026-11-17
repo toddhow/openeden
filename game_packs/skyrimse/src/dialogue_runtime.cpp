@@ -632,11 +632,12 @@ namespace game_skyrimse
         return true;
     }
 
-    void DialogueRuntime::offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out)
+    void DialogueRuntime::offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out, int depth)
     {
         out.topics.clear();
         mOffered.clear();
         const SelectionOptions opts = options(0);
+        const DialogInfo* silent = nullptr; // task 0271: the first link that is no choice (the speaker goes on)
         for (const FormId link : from.mLinksTo)
         {
             const DialogTopic* topic = mDialogue.topic(link);
@@ -654,7 +655,11 @@ namespace game_skyrimse
                                                : topic->mName.mText;
             text = expandText(text, topic->mQuest != kNullFormId ? topic->mQuest : s.mInfo->mQuest);
             if (text.empty())
+            {
+                if (silent == nullptr && hasResponseText(*s.mInfo))
+                    silent = s.mInfo;
                 continue;
+            }
             if (out.topics.size() >= mLimits.mMaxTopics)
             {
                 ++mStats.mTopicsCut;
@@ -662,6 +667,18 @@ namespace game_skyrimse
             }
             out.topics.push_back({ link, std::move(text) });
             mOffered.insert(link);
+        }
+        constexpr int kMaxChain = 4;
+        if (out.topics.empty() && silent != nullptr && depth < kMaxChain)
+        {
+            std::string said = std::move(out.text);
+            std::vector<std::string> heard = std::move(out.voice);
+            fillTurn(*silent, out);
+            if (!said.empty())
+                out.text = said + ' ' + out.text;
+            heard.insert(heard.end(), out.voice.begin(), out.voice.end());
+            out.voice = std::move(heard);
+            offerLinks(*silent, out, depth + 1);
         }
     }
 

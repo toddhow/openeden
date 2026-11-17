@@ -480,7 +480,8 @@ namespace game_skyrimse
                         || type == Content::fourCC("ALRT") || type == Content::fourCC("ALCO")
                         || type == Content::fourCC("ALCA") || type == Content::fourCC("ALCL")
                         || type == Content::fourCC("ALFE") || type == Content::fourCC("ALFD")
-                        || type == Content::fourCC("KNAM") || type == Content::fourCC("ALFC");
+                        || type == Content::fourCC("KNAM") || type == Content::fourCC("ALFC")
+                        || type == Content::fourCC("ALPC");
                     if (type == Content::fourCC("FNAM") && section == Section::Objective && objective != nullptr)
                     {
                         std::uint32_t flags = 0;
@@ -564,6 +565,15 @@ namespace game_skyrimse
                             if (formField(type, data, faction) && faction != kNullFormId
                                 && alias->mFactions.size() < kMaxAliasFactions)
                                 alias->mFactions.push_back(faction);
+                            return;
+                        }
+                        case Content::fourCC("ALPC"): // task 0271: a package the alias fill runs (first = most important)
+                        {
+                            FormId package = kNullFormId;
+                            constexpr std::size_t kMaxAliasPackages = 32;
+                            if (formField(type, data, package) && package != kNullFormId
+                                && alias->mPackages.size() < kMaxAliasPackages)
+                                alias->mPackages.push_back(package);
                             return;
                         }
                         case Content::fourCC("ALFD"): // task 0194: the event's member ('R1', 'R2', ...)

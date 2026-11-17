@@ -1679,7 +1679,10 @@ namespace game_skyrimse
         {
             reg("ObjectReference", "AddItem", false, [this](const NativeCall& c) {
                 const FormId owner = formOf(c.self);
-                const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                // Task 0271: an item REFERENCE (TG00's ring alias) adds the item it is an instance of
+                if (const FormId viaReference = item != 0 ? baseOfReference(item) : 0; viaReference != 0)
+                    item = viaReference;
                 const std::int32_t count = countArgument(c, 1);
                 if (mHooks != nullptr && owner != 0 && item != 0 && count > 0)
                     (void)mHooks->addItem(owner, item, count);
@@ -2828,6 +2831,16 @@ namespace game_skyrimse
                     && m.sendEvent(instance, "OnItemRemoved",
                         { base, PapyrusValue::makeInt(count), PapyrusValue::makeNone(), m.formValue(to) }))
                     ++m.mCounters.mItemEvents;
+        // Task 0271: an alias that holds a placed reference of this item (TG00's ring) hears of the new container too
+        for (const auto& [key, ids] : m.mByAlias)
+        {
+            const FormId held = m.aliasReferenceOf(key.first, key.second);
+            if (held == 0 || m.baseOfReference(held) != item)
+                continue;
+            for (const InstanceId instance : ids)
+                if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
+                    ++m.mCounters.mItemEvents;
+        }
         // scripts on the item form itself (a script on a MISC base) hear of the new container
         for (const InstanceId instance : m.instancesOf(item))
             if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))

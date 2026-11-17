@@ -1006,6 +1006,8 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::inInterior(conditions::Subject subject) const
     {
+        if (subject == kPlayer && mPlayerPlaceKnown)
+            return mPlayerInterior;
         return isSpeaker(subject) && mSpeaker.mInterior.value_or(false);
     }
 
@@ -1260,6 +1262,8 @@ namespace game_skyrimse
         {
             case 74: // GetGlobalValue: no subject
                 return true;
+            case 358: // IsPlayerMovingIntoNewSpace (task 0271): always 0, answered only where the player's place is told
+                return mPlayerPlaceKnown;
             case 61: // GetAlarmed and CanPayCrimeGold: the crime rules answer (task 0258)
             case 497:
                 return mCrimeSource != nullptr;
@@ -1309,6 +1313,8 @@ namespace game_skyrimse
                     return true;
                 if (mPlayer != nullptr && (c.mFunction == 69 || c.mFunction == 70))
                     return true; // the stand-in's race and sex
+                if (mPlayerPlaceKnown && (c.mFunction == 67 || c.mFunction == 300 || c.mFunction == 310))
+                    return true; // task 0271: the place the core told
                 if (mPlayer != nullptr && c.mFunction == 640 && c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina)
                     return true;
                 return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
@@ -1567,6 +1573,8 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::inCell(conditions::Subject subject, std::uint32_t cell) const
     {
+        if (subject == kPlayer && mPlayerPlaceKnown)
+            return mPlayerInterior && mPlayerCell != kNullFormId && resolve(cell) == mPlayerCell;
         if (isOtherSubject(subject))
         {
             // task 0194: another reference stands in the cell the data places it in
@@ -1614,6 +1622,8 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::inWorldspace(conditions::Subject subject, std::uint32_t worldspace) const
     {
+        if (subject == kPlayer && mPlayerPlaceKnown)
+            return !mPlayerInterior && mPlayerWorld != kNullFormId && resolve(worldspace) == mPlayerWorld;
         return isSpeaker(subject) && mSpeaker.mWorldspace != kNullFormId && resolve(worldspace) == mSpeaker.mWorldspace;
     }
 

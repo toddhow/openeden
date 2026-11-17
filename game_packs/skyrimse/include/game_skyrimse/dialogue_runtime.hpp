@@ -225,7 +225,9 @@ namespace game_skyrimse
         [[nodiscard]] const DialogInfo& responderOf(const DialogInfo& info) const;
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
         /// Task 0258: the link-to topics (TCLT) of `from` that have an INFO passing now, as the turn's choices.
-        void offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out);
+        /// Task 0271: a link whose topic has no name and whose INFO has no prompt is not a choice: the speaker goes on with
+        /// that INFO at once (its text joins the turn, its fragments run) when nothing else is offered, to `depth` 4.
+        void offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out, int depth = 0);
         /// Task 0243 (barkLine's helpers; none changes a conversation). Has the INFO a response with text? No side
         /// effect. Has it a voice file for the speaker (always true with no probe)? The probe's counts are restored.
         [[nodiscard]] bool hasResponseText(const DialogInfo& info) const;

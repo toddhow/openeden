@@ -364,6 +364,7 @@ namespace game_skyrimse
         // Stage S6f: activities (patrol, follow), the linked references and patrol idles of placements.
         [[nodiscard]] PackageActivity activityOf(const PackageRecord& package) const override;
         [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const override;
+        [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const override;
         [[nodiscard]] bool linkedRef(FormId reference, FormId keyword, FormId& out) const override;
         [[nodiscard]] float patrolIdle(FormId reference) const override;
 
@@ -570,6 +571,8 @@ namespace game_skyrimse
             std::function<FormId(FormId reference)> mTopic;
             std::function<void(FormId reference)> mBegan;
             std::function<void(FormId reference)> mEnded;
+            /// Task 0271: asked before `mEnded` when the greeting cannot open: true lets the plain conversation open.
+            std::function<bool(FormId reference)> mPlainWhenNone;
         };
         void setForcedGreeting(ForcedGreetHooks hooks);
         /// What the crime rules tell the conversations' conditions (applied now and to a runtime built later).
@@ -577,6 +580,24 @@ namespace game_skyrimse
         /// Can the guard placed as `reference` (of base `base`) open the forced greeting now? False while the dialogue
         /// data is not built yet (nothing blocks the main thread).
         [[nodiscard]] bool forcedGreetingAvailable(FormId base, FormId reference, std::string* why = nullptr);
+        /// Task 0271: where the player stands, for the package conditions that run on him.
+        void setPlayerPlace(bool interior, FormId cell, FormId world)
+        {
+            mPlayerPlaceKnown = true;
+            mPlayerInterior = interior;
+            mPlayerCell = cell;
+            mPlayerWorld = world;
+        }
+        /// Task 0271: the packages quest aliases give (ALPC) join an actor's list (off by default).
+        void setAliasPackages(bool on) { mAliasPackagesOn = on; }
+        [[nodiscard]] bool aliasPackagesOn() const { return mAliasPackagesOn; }
+        /// Task 0271 (a developer aid, `OPENEDEN_PACKAGE_TRACE=<decimal base id>`): the packages of this NPC base and
+        /// whether each one's conditions pass are written to `log` as they are asked.
+        void setPackageTrace(FormId base, std::function<void(const std::string&)> log)
+        {
+            mPackageTraceBase = base;
+            mPackageTraceLog = std::move(log);
+        }
         /// Task 0261: see SkyrimConditionWorld::setRankMinusOneMembers.
         void setRankMinusOneMembers(std::set<FormId> factions);
         // ---- task 0219 (training, rooms)
@@ -922,6 +943,13 @@ namespace game_skyrimse
         FormId mForcedReference = kNullFormId; ///< the open conversation is the forced one with this actor
         ForcedGreetHooks mForcedGreet; ///< task 0264
         FormId mForcedGreetReference = kNullFormId; ///< task 0264: the open conversation is a ForceGreet package's
+        bool mAliasPackagesOn = false; ///< task 0271
+        bool mPlayerPlaceKnown = false;
+        bool mPlayerInterior = false;
+        FormId mPlayerCell = kNullFormId;
+        FormId mPlayerWorld = kNullFormId;
+        FormId mPackageTraceBase = kNullFormId;
+        std::function<void(const std::string&)> mPackageTraceLog;
         bool mOpenServices = false; ///< task 0219
         std::set<FormId> mRankMinusOneMembers; ///< task 0261
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211

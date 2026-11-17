@@ -419,6 +419,14 @@ namespace game_skyrimse
         /// factions, sex, race and inventory, the reference's initial disabled and dead state, GetDistance between
         /// two references of one cell, GetRelationshipRank from the RELA records. Null (the default): as before.
         void setPlacedRefs(const PlacedRefIndex* refs) { mPlacedRefs = refs; }
+        /// Task 0271: the place the player stands in (an interior cell, or the worldspace of an exterior square).
+        void setPlayerPlace(bool known, bool interior, FormId cell, FormId world)
+        {
+            mPlayerPlaceKnown = known;
+            mPlayerInterior = interior;
+            mPlayerCell = cell;
+            mPlayerWorld = world;
+        }
         /// The packages (for GetOffersServicesNow). Null: unanswered.
         void setPackages(const PackageIndex* packages) { mPackages = packages; }
         /// What package an actor runs now, by the placed reference's id: nullopt when the caller does not know that
@@ -603,6 +611,12 @@ namespace game_skyrimse
         const QuestState* mQuestState = nullptr;
         FormId mContextQuest = kNullFormId;
         const PlayerStandIn* mPlayer = nullptr;
+        // Task 0271: where the player stands (the core tells the pack), for conditions that run on the player
+        // (GetInCell, IsInInterior, GetInWorldspace of a package's ForceGreet).
+        bool mPlayerPlaceKnown = false;
+        bool mPlayerInterior = false;
+        FormId mPlayerCell = kNullFormId;
+        FormId mPlayerWorld = kNullFormId;
         std::function<float()> mGoldSource; // task 0184
         std::function<bool(std::uint32_t)> mWornSource; // task 0270
         std::function<float(std::uint32_t)> mItemSource; // task 0270

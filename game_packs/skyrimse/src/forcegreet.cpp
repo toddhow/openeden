@@ -52,6 +52,31 @@ namespace game_skyrimse
         return true;
     }
 
+    bool ForceGreet::requestFromBrain(FormId reference, FormId base, FormId topic)
+    {
+        const auto it = mEntries.find(reference);
+        if (it != mEntries.end())
+        {
+            Entry& e = it->second;
+            if (e.mBrain && e.mState == State::Waiting && ++e.mAsks > kBrainMaxAsks)
+            {
+                mEntries.erase(it); // nobody opened it: the next ask makes a new request (and a new serial)
+                ++mTimeouts;
+            }
+            return false;
+        }
+        if (!request(reference, base, topic))
+            return false;
+        mEntries[reference].mBrain = true;
+        return true;
+    }
+
+    bool ForceGreet::fallsBackToPlain(FormId reference) const
+    {
+        const auto it = mEntries.find(reference);
+        return it != mEntries.end() && it->second.mBrain;
+    }
+
     void ForceGreet::cancel(FormId reference)
     {
         mEntries.erase(reference);
@@ -75,6 +100,11 @@ namespace game_skyrimse
         const auto it = mEntries.find(reference);
         if (it == mEntries.end())
             return;
+        if (it->second.mBrain)
+        {
+            mEntries.erase(it); // task 0271: the brain asks again if its package still wants the greeting
+            return;
+        }
         // a conversation that failed to open ends at once: the request is over either way
         if (it->second.mState == State::Open)
             it->second.mState = State::Done;
