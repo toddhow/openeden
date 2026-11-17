@@ -74,6 +74,12 @@ namespace
                 c = static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c);
             mScripts[lower] = script.build(PapyrusTest::optionsFor(PexAsm::Target::SkyrimSE)).mBytes;
         }
+        // Task 0276: IsInLocation: the reference stands in location 0x500, which is inside location 0x600
+        FormId locationOf(FormId reference) const override { return reference == kRefG ? 0x500 : 0; }
+        bool locationWithin(FormId location, FormId ancestor) const override
+        {
+            return location != 0 && (location == ancestor || (location == 0x500 && ancestor == 0x600));
+        }
         std::map<std::string, std::vector<std::uint8_t>> mScripts;
         std::map<FormId, std::string> mClasses;
     };
@@ -88,6 +94,7 @@ namespace
         data.add(form);
         ScriptBuilder ref("ObjectReference");
         ref.parent("Form");
+        ref.function("IsInLocation", "Bool").native().param("akLocation", "Form");
         data.add(ref);
         ScriptBuilder actor("Actor");
         actor.parent("ObjectReference");
@@ -99,6 +106,22 @@ namespace
         ScriptBuilder s("TestTimer");
         s.parent("ObjectReference");
         s.var("ticks", "Int");
+        s.var("inside", "Bool");
+        s.function("Ask")
+            .param("akLocation", "Form")
+            .local("b", "Bool")
+            .callMethod("IsInLocation", Id("self"), Id("b"), { Id("akLocation") })
+            .assign(Id("inside"), Id("b"));
+        s.function("AskOther")
+            .param("akOther", "ObjectReference")
+            .param("akLocation", "Form")
+            .local("n", "None")
+            .callMethod("Ask", Id("akOther"), Id("n"), { Id("akLocation") });
+        s.function("RegOther")
+            .param("akOther", "ObjectReference")
+            .param("afHours", "Float")
+            .local("n", "None")
+            .callMethod("RegisterForUpdateGameTime", Id("akOther"), Id("n"), { Id("afHours") });
         s.function("RegRepeat")
             .param("afHours", "Float")
             .local("n", "None")
@@ -247,6 +270,48 @@ namespace
         EXPECT_EQ(rig.ticks(), 2.0) << "the repeating one at hour 3; the replaced single (hour 5) is gone";
         rig.clock(6 * kHour);
         EXPECT_EQ(rig.ticks(), 3.0) << "the repeating one at hour 6 only";
+    }
+
+    TEST(SkyrimGameTime, a_registration_made_on_another_reference_reaches_that_references_script)
+    {
+        // QF_RelationshipMarriageFIN calls Alias_LoveInterest.RegisterForUpdateGameTime(24) on a property: the receiver is
+        // not the script itself, its scripts get the updates
+        GtRig rig;
+        rig.clock(0.0);
+        const PapyrusHost::CallArgument args[]
+            = { PapyrusHost::CallArgument::form(kRefOther), PapyrusHost::CallArgument::number(1.0f) };
+        ASSERT_TRUE(rig.mHost->callFunctionWith(kRefG, "TestTimer", "RegOther", args));
+        EXPECT_EQ(rig.mHost->gameTimerCount(), 1u);
+        rig.clock(kHour + 1.0);
+        EXPECT_EQ(rig.ticks(kRefOther), 1.0);
+        EXPECT_EQ(rig.ticks(kRefG), 0.0);
+    }
+
+    TEST(SkyrimGameTime, a_call_through_a_reference_handle_reaches_the_function_of_the_script_attached_to_it)
+    {
+        // TIF__000D0652 calls LoveInterest.GiveGold(): the property is typed as the alias's script, its value is the
+        // alias handle (class ReferenceAlias), and GiveGold is a function of the script attached to the alias
+        GtRig rig;
+        const PapyrusHost::CallArgument args[]
+            = { PapyrusHost::CallArgument::form(kRefG), PapyrusHost::CallArgument::form(0x600) };
+        ASSERT_TRUE(rig.mHost->callFunctionWith(kRefOther, "TestTimer", "AskOther", args));
+        EXPECT_EQ(rig.mHost->numberVariable(kRefG, "TestTimer", "inside").value_or(-99), 1.0)
+            << "Ask ran on kRefG's script: its location 0x500 is inside 0x600";
+        EXPECT_EQ(rig.mHost->numberVariable(kRefOther, "TestTimer", "inside").value_or(-99), 0.0);
+    }
+
+    TEST(SkyrimGameTime, IsInLocation_is_true_for_the_location_and_the_ones_it_is_inside_only)
+    {
+        GtRig rig;
+        const auto ask = [&](FormId reference, FormId location) {
+            const PapyrusHost::CallArgument args[] = { PapyrusHost::CallArgument::form(location) };
+            EXPECT_TRUE(rig.mHost->callFunctionWith(reference, "TestTimer", "Ask", args));
+            return rig.mHost->numberVariable(reference, "TestTimer", "inside").value_or(-99) == 1.0;
+        };
+        EXPECT_TRUE(ask(kRefG, 0x500)) << "the location itself";
+        EXPECT_TRUE(ask(kRefG, 0x600)) << "a location it is inside";
+        EXPECT_FALSE(ask(kRefG, 0x700)) << "another location";
+        EXPECT_FALSE(ask(kRefOther, 0x500)) << "a reference with no location";
     }
 
     TEST(SkyrimGameTime, the_ignored_form_registers_nothing)

@@ -777,6 +777,8 @@ namespace game_skyrimse
         /// Task 0211: the location of a cell the view has indexed (its XLCN, else for an exterior the location whose
         /// cell list holds its grid square); kNullFormId for none or before the dialogue data is ready. Main thread.
         [[nodiscard]] FormId locationOfCell(FormId cell) const;
+        /// Task 0276: where the player is, once a frame, for the scene conditions (GetDistance to an alias). Main thread.
+        void setPlayerPosition(double x, double y, double z);
         /// Task 0276: is the location the same as `ancestor` or inside it (ObjectReference.IsInLocation)? False before
         /// the dialogue data is ready. Main thread.
         [[nodiscard]] bool locationWithin(FormId location, FormId ancestor) const;

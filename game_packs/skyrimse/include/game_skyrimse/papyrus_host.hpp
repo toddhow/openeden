@@ -250,6 +250,7 @@ namespace game_skyrimse
     {
         FormId reference = 0; ///< the new reference's id; 0: nothing was created
         FormId cell = 0; ///< the pack's id of the cell it went to
+        bool actor = false; ///< task 0276: the new reference is an actor (scripts then see class Actor)
     };
 
     /// Task 0198: what the world natives reach beyond the quest state (inventory, actor values, deaths, plugin

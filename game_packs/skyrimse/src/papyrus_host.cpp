@@ -110,7 +110,7 @@ namespace game_skyrimse
         {
             if (mCreated.count(form) != 0)
             {
-                className = "ObjectReference";
+                className = mCreatedActors.count(form) != 0 ? "Actor" : "ObjectReference"; // task 0276
                 return true;
             }
             if ((form & 0xFF000000u) == kAliasTag && form != 0)
@@ -775,6 +775,8 @@ namespace game_skyrimse
             if (angles != nullptr)
                 created.mAngles = *angles;
             mCreated[made.reference] = created;
+            if (made.actor)
+                mCreatedActors.insert(made.reference); // task 0276: not saved (created actors are not)
             mPositions[made.reference] = { at[0], at[1], at[2] };
             mPositions[self] = { at[0], at[1], at[2] };
             if (angles != nullptr)
@@ -868,6 +870,26 @@ namespace game_skyrimse
             }
         }
 
+        // The scripts a game-time registration is for: the script itself when it calls on its own object, else the
+        // scripts attached to the object the receiver stands for (an alias or a form: QF_RelationshipMarriageFIN calls
+        // Alias_LoveInterest.RegisterForUpdateGameTime(24) and LoveInterestFINScript gets the updates).
+        std::vector<InstanceId> gameTimerTargets(const NativeCall& c) const
+        {
+            if (c.self.attached)
+                return { c.self.handle };
+            FormId quest = 0;
+            std::uint32_t alias = 0;
+            std::vector<InstanceId> out;
+            if (aliasOf(formOf(c.self), quest, alias))
+            {
+                const auto it = mByAlias.find({ quest, alias });
+                if (it != mByAlias.end())
+                    out = it->second;
+                return out;
+            }
+            return instancesOf(formOf(c.self));
+        }
+
         void registerGameUpdate(InstanceId instance, double hours, bool repeat)
         {
             if (!mGameTimersOn)
@@ -890,6 +912,10 @@ namespace game_skyrimse
                 hours = 0.0;
             const double seconds = hours * 3600.0;
             const double base = mGameClockKnown ? mGameClock : 0.0;
+            if (info != mInstances.end())
+                say(false,
+                    std::string(repeat ? "every " : "in ") + std::to_string(hours) + " game hours: update of "
+                        + info->second.mScript + " on " + hex(info->second.mForm));
             mGameTimers.emplace(
                 std::make_pair(base + seconds, mTimerSeq++), Timer{ instance, repeat ? std::max(seconds, 1.0) : 0.0 });
         }
@@ -931,6 +957,15 @@ namespace game_skyrimse
                 const Timer timer = node->second;
                 const double due = node->first.first;
                 mGameTimers.erase(node);
+                const auto info = mInstances.find(timer.mInstance);
+                // a quest that stopped takes its registrations with it (RECALLED-VERIFY)
+                if (info != mInstances.end() && mIndex != nullptr && mState != nullptr
+                    && mIndex->quest(info->second.mForm) != nullptr && !mState->running(info->second.mForm))
+                    continue;
+                if (info != mInstances.end())
+                    say(false,
+                        "game-time update of " + info->second.mScript + " on " + hex(info->second.mForm) + " at "
+                            + std::to_string(mGameClock / 3600.0) + " game hours");
                 (void)sendEvent(timer.mInstance, "OnUpdateGameTime");
                 if (timer.mRepeat > 0.0)
                 {
@@ -1144,18 +1179,18 @@ namespace game_skyrimse
             for (const char* cls : { "Form", "Alias" })
             {
                 reg(cls, "RegisterForSingleUpdateGameTime", false, [this](const NativeCall& c) {
-                    if (c.self.attached)
-                        registerGameUpdate(c.self.handle, argNumber(c, 0), false);
+                    for (const InstanceId target : gameTimerTargets(c))
+                        registerGameUpdate(target, argNumber(c, 0), false);
                     return NativeResult{};
                 });
                 reg(cls, "RegisterForUpdateGameTime", false, [this](const NativeCall& c) {
-                    if (c.self.attached)
-                        registerGameUpdate(c.self.handle, argNumber(c, 0), true);
+                    for (const InstanceId target : gameTimerTargets(c))
+                        registerGameUpdate(target, argNumber(c, 0), true);
                     return NativeResult{};
                 });
                 reg(cls, "UnregisterForUpdateGameTime", false, [this](const NativeCall& c) {
-                    if (c.self.attached)
-                        unregisterGameUpdate(c.self.handle);
+                    for (const InstanceId target : gameTimerTargets(c))
+                        unregisterGameUpdate(target);
                     return NativeResult{};
                 });
             }
@@ -2044,6 +2079,7 @@ namespace game_skyrimse
         // Task 0276: game-time timers. The key's first member is the due time in game seconds (a delta from the first
         // clock while the clock is unknown), the second the sequence number.
         std::map<std::pair<double, std::uint64_t>, Timer> mGameTimers;
+        std::set<FormId> mCreatedActors; // task 0276: relocated actors (class Actor)
         bool mGameTimersOn = false;
         bool mGameClockKnown = false;
         double mGameClock = 0.0;

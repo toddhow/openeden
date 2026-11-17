@@ -286,9 +286,12 @@ namespace game_skyrimse
         else
         {
             const PlacedEntry* entry = mRefs.find(ref);
-            if (entry == nullptr)
+            if (entry != nullptr)
+                base = entry->mBase;
+            else if (mEnvironment.mCreatedBase)
+                base = mEnvironment.mCreatedBase(ref); // task 0276
+            if (base == kNullFormId)
                 return false;
-            base = entry->mBase;
         }
         if (mMatcher && !mMatcher(quest, alias, ref, base))
             return false;

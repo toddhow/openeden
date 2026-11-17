@@ -729,6 +729,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsevampirism.cpp
     skyrimse/testskyrimsevampirismhost.cpp
     skyrimse/testskyrimsegametime.cpp
+    skyrimse/testskyrimseconditionalias.cpp
     skyrimse/testskyrimsevampirismreal.cpp
     skyrimse/testskyrimsevampirismfeed.cpp
     skyrimse/testskyrimsestonenumbers.cpp

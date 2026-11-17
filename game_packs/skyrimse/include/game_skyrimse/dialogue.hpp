@@ -550,6 +550,17 @@ namespace game_skyrimse
         float weaponOutState(conditions::Subject subject) const override;
         bool isEquipped(conditions::Subject subject, std::uint32_t object) const override;
         float distanceTo(conditions::Subject subject, std::uint32_t reference) const override;
+        float distanceToAlias(conditions::Subject subject, std::uint32_t alias) const override;
+        /// Task 0276: where the player is (the pack tells once a frame; main thread). GetDistance of the player to an
+        /// alias is answered from it and the placed reference the alias holds; never told: not answered.
+        /// Task 0276: the base of a reference a script created or moved (a MoveTo of an actor near the player makes a new
+        /// reference): conditions run on it as on a placed actor of that base (factions, race, ...). Null: none.
+        void setCreatedActorBase(std::function<FormId(FormId)> lookup) { mCreatedBase = std::move(lookup); }
+        void setPlayerPosition(double x, double y, double z)
+        {
+            mPlayerPosition = { x, y, z };
+            mPlayerPositionKnown = true;
+        }
         float relationshipRank(conditions::Subject subject, std::uint32_t target) const override;
         bool isPlayerTeammate(conditions::Subject subject) const override; // task 0239
         bool runsPackage(conditions::Subject subject, std::uint32_t package) const override;
@@ -587,9 +598,19 @@ namespace game_skyrimse
         /// its resolution does not depend on a random leveled pick); null when they cannot be given.
         [[nodiscard]] const ActorIndex::Resolved* resolvedOf(conditions::Subject subject) const;
         [[nodiscard]] bool distanceKnown(conditions::Subject subject, std::uint32_t reference) const;
+<<<<<<< HEAD
         /// Task 0277: the live places of the subject and of the reference, when both lookups exist and know them.
         [[nodiscard]] bool livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
             double& az, double& tx, double& ty, double& tz) const;
+=======
+        [[nodiscard]] bool distanceToAliasKnown(conditions::Subject subject, std::uint32_t alias) const;
+        /// A placed reference, else (task 0276) a created one as an entry with only its id and base. Null: neither.
+        [[nodiscard]] const PlacedEntry* findReference(FormId reference) const;
+        std::function<FormId(FormId)> mCreatedBase; // task 0276
+        mutable std::map<FormId, PlacedEntry> mCreatedEntries; // task 0276: nodes are never moved
+        std::array<double, 3> mPlayerPosition{ 0.0, 0.0, 0.0 }; // task 0276
+        bool mPlayerPositionKnown = false;
+>>>>>>> 2cd8da29e0 (Skyrim marriage, second slice: the wedding day, game-time updates, the vows and the married state (task 0276))
         [[nodiscard]] bool relationKnown(conditions::Subject subject, std::uint32_t target) const;
         [[nodiscard]] FormId referenceOf(conditions::Subject subject) const; ///< a placed id, or 0
         /// Task 0239: the placed reference a follower overlay is keyed by: the speaker's, another actor's, 0 for none.

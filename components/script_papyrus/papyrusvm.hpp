@@ -445,6 +445,10 @@ namespace ScriptPapyrus::Vm
         /// HirelingCommentScript) is one object to a script: the instance on the same form (and alias) of the script
         /// `targetId`, or none.
         Val siblingScript(const Val& source, std::uint32_t targetId) const;
+        /// Task 0276: the script attached to the object a form handle stands for (a quest alias, a reference) that
+        /// declares the function  nameId; an empty value when none does. A property typed as a script class that holds
+        /// the alias handle (TIF fragments: `LoveInterest.GiveGold()`) calls through it.
+        Val instanceDefining(const Val& source, std::uint32_t nameId);
         std::uint32_t classOfForm(const Val& value);
         Val readOp(const Stack& stack, const Frame& frame, const COp& op);
         void writeOp(Stack& stack, const Frame& frame, const COp& op, const Val& value);

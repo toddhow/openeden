@@ -387,6 +387,16 @@ namespace game_skyrimse
                 });
                 mHost.setQuestChanged([this](FormId quest, std::uint32_t stage) {
                     mView.setPackageQuestStage(quest, stage);
+                    // task 0276: the test aid sets the married-state quest's stage in the next frame: the wedding
+                    // quest's stage 500 comes after the story event that started it
+                    if (mMarriageOn && quest == marriage::kWeddingQuest && stage == 500 && mMarriageFinStage > 0)
+                        mMarriageFinPending = true;
+                    // Task 0276: the wedding quest's MoveTo of actors (the lover and the witnesses into the temple)
+                    if (mMarriageOn && quest == marriage::kWeddingQuest && !mWeddingRelocation)
+                    {
+                        mWeddingRelocation = true;
+                        mHost.setRelocation(true, mainquest::kRelocateRange);
+                    }
                     // Task 0264: the test aid that stands in for the walk to the training yard
                     if (mCompanionsTraining && quest == kCompanionsQuest && stage == 20)
                         mTrainingPending = true;
@@ -410,6 +420,13 @@ namespace game_skyrimse
                 applyMainQuest(); // task 0268
                 applyTraining(); // task 0264
                 applyMarriage(); // task 0270
+                if (mMarriageFinPending) // task 0276
+                {
+                    mMarriageFinPending = false;
+                    say(openeden::sdk::LogLevel::Info,
+                        "MARRIAGE test: the married-state quest goes to stage " + std::to_string(mMarriageFinStage)
+                            + (mHost.startQuestForTest(marriage::kFinQuest, mMarriageFinStage) ? "" : " (refused)"));
+                }
                 drainStory();
                 mHost.tick(dt);
                 if (mScenes != nullptr)
@@ -444,6 +461,7 @@ namespace game_skyrimse
                     view.mPlace.mKnown = mSite.mKnown;
                     view.mPlace.mInterior = mSite.mInterior;
                     view.mPlace.mCell = mSite.mCell;
+                    mView.setPlayerPosition(view.mX, view.mY, view.mZ); // task 0276
                 }
                 mHost.setPlayerView(view);
                 const std::size_t sent = mHost.updateTriggers();
@@ -530,11 +548,15 @@ namespace game_skyrimse
             }
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
+<<<<<<< HEAD
             /// Task 0275: a quest's current stage (0 when the quest state is not there yet).
             [[nodiscard]] float questStage(FormId quest) const
             {
                 return mQuestStateForStage != nullptr ? mQuestStateForStage->stage(quest) : 0.f;
             }
+=======
+            void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
+>>>>>>> 2cd8da29e0 (Skyrim marriage, second slice: the wedding day, game-time updates, the vows and the married state (task 0276))
             void enableForceGreet() { mForceOn = true; }
             [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
             void enableCompanions() { mCompanionsOn = true; }
@@ -1275,7 +1297,9 @@ namespace game_skyrimse
                     return none;
                 if (actor)
                     mView.noteCreatedActor(static_cast<FormId>(id), base); // speaks as its base does (scene lines)
-                return { static_cast<FormId>(id), hint };
+                ObjectPlaceResult placedResult{ static_cast<FormId>(id), hint };
+                placedResult.actor = actor; // task 0276
+                return placedResult;
             }
 
             // After a load the world is rebuilt from the pack without the scripts' moves (a cell that was not loaded
@@ -1366,6 +1390,9 @@ namespace game_skyrimse
             std::int32_t mMainQuestTestStage = 0;
             double mMainQuestTestDelay = 0.0;
             bool mMarriageOn = false; ///< task 0270
+            bool mWeddingRelocation = false; ///< task 0276
+            std::int32_t mMarriageFinStage = 0; ///< task 0276: the test aid's stage for the married-state quest
+            bool mMarriageFinPending = false;
             bool mMarriageApplied = false;
             std::vector<FormId> mMarriageFriends;
             FollowerState* mMarriageRanks = nullptr;
@@ -1805,9 +1832,11 @@ namespace game_skyrimse
                                 mPapyrus->host().enableGameTimers(true); // task 0276
                                 mPapyrus->host().ignoreGameTimersOf(vampirism::kQuest);
                                 mGameClockOn = true;
+                                mPapyrus->setMarriageFinStage(static_cast<std::int32_t>(
+                                    settings->getInt(kPackId, marriage::kMarriageTestFinStageKey, 0)));
                                 // the priest, the lover and the witnesses are moved into the temple (MoveTo of actors
-                                // near the player: a new reference there, task 0268's rule)
-                                mPapyrus->host().setRelocation(true, mainquest::kRelocateRange);
+                                // near the player: a new reference there, task 0268's rule), but only once the wedding
+                                // quest runs: the start-up quests' own moves stay as they were
                                 // the wedding's travel packages and the priest's forced greeting need these two
                                 if (logger != nullptr
                                     && !(settings->getBool(kPackId, kQuestAliasPackagesKey, false)

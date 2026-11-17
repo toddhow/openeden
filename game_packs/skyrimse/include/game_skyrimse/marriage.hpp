@@ -21,10 +21,17 @@ namespace game_skyrimse::marriage
 {
     inline constexpr std::string_view kMarriageKey = "marriage";
     inline constexpr std::string_view kMarriageTestFriendsKey = "marriage test friends";
+    /// Test aid (task 0276): the stage the married-state quest is set to when it starts (10: the spouse takes a job and
+    /// the daily income is registered; the real stage comes from a dialogue line this slice does not reach).
+    inline constexpr std::string_view kMarriageTestFinStageKey = "marriage test fin stage";
+    /// RelationshipMarriageFIN (QUST 0x21382): the married state, started by the story manager at the vows.
+    inline constexpr FormId kFinQuest = 0x00021382;
     inline constexpr std::size_t kMaxFriends = 64;
 
     /// RelationshipMarriage (QUST 0x74793, Skyrim.esm, start-game-enabled): the courting quest.
     inline constexpr FormId kRelationshipMarriageQuest = 0x00074793;
+    /// RelationshipMarriageWedding (QUST 0x7404E): the wedding day, started by the story manager.
+    inline constexpr FormId kWeddingQuest = 0x0007404E;
     /// ReligiousMaraLove (ARMO 0xC891B): the Amulet of Mara.
     inline constexpr FormId kAmuletOfMara = 0x000C891B;
     /// PotentialMarriageFaction (FACT 0x19809): the 62 NPCs of the five masters who can be asked.

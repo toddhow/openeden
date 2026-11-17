@@ -1315,6 +1315,8 @@ namespace game_skyrimse
                     return true;
                 if (mPlayer != nullptr && (c.mFunction == 69 || c.mFunction == 70))
                     return true; // the stand-in's race and sex
+                if (c.mFunction == 1 && (c.mFlags & 0x02) != 0) // task 0276: GetDistance(alias) of the player
+                    return distanceToAliasKnown(kPlayer, c.mParam1);
                 if (mPlayerPlaceKnown && (c.mFunction == 67 || c.mFunction == 300 || c.mFunction == 310))
                     return true; // task 0271: the place the core told
                 if (mPlayer != nullptr && c.mFunction == 640 && c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina)
@@ -1463,7 +1465,7 @@ namespace game_skyrimse
                     return static_cast<conditions::Subject>(mSpeaker.mBase);
                 if (ref == kPlayerReference)
                     return kPlayer;
-                if (mPlacedRefs != nullptr && ref != kNullFormId && mPlacedRefs->find(ref) != nullptr)
+                if (mPlacedRefs != nullptr && ref != kNullFormId && findReference(ref) != nullptr)
                     return kPlacedTag | ref;
                 return 0;
             }
@@ -1473,7 +1475,7 @@ namespace game_skyrimse
                     return 0;
                 const std::uint32_t which = (reference >> 8) & 0xFF;
                 const FormId ref = which == '1' ? mStoryEvent->mRef1 : which == '2' ? mStoryEvent->mRef2 : kNullFormId;
-                if (ref == kNullFormId || mPlacedRefs->find(ref) == nullptr)
+                if (ref == kNullFormId || findReference(ref) == nullptr)
                     return 0;
                 return kPlacedTag | ref;
             }
@@ -1723,7 +1725,7 @@ namespace game_skyrimse
             return 0;
         // task 0160: an alias that names a reference or an actor the data places
         if (fill.mReference != kNullFormId)
-            return mPlacedRefs->find(fill.mReference) != nullptr ? (kPlacedTag | fill.mReference) : 0;
+            return findReference(fill.mReference) != nullptr ? (kPlacedTag | fill.mReference) : 0;
         if (fill.mActor != kNullFormId)
         {
             const PlacedRefIndex::Range range = mPlacedRefs->byBase(fill.mActor);
@@ -1750,7 +1752,7 @@ namespace game_skyrimse
         const FormId low = static_cast<FormId>(subject & 0xFFFFFFFFull);
         if (tag == kPlacedTag && mPlacedRefs != nullptr)
         {
-            out.mRef = mPlacedRefs->find(low);
+            out.mRef = findReference(low);
             if (out.mRef == nullptr)
                 return false;
             out.mBase = out.mRef->mBase;
@@ -1929,6 +1931,7 @@ namespace game_skyrimse
         return other != nullptr && other->mCell != kNullFormId && other->mCell == view.mRef->mCell;
     }
 
+<<<<<<< HEAD
     bool SkyrimConditionWorld::livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
         double& az, double& tx, double& ty, double& tz) const
     {
@@ -1938,6 +1941,43 @@ namespace game_skyrimse
         if (!viewOf(subject, view) || view.mRef == nullptr)
             return false;
         return mLiveActorPlace(view.mRef->mId, ax, ay, az) && mLiveTargetPlace(resolve(reference), tx, ty, tz);
+=======
+    const PlacedEntry* SkyrimConditionWorld::findReference(FormId reference) const
+    {
+        if (mPlacedRefs == nullptr || reference == kNullFormId)
+            return nullptr;
+        if (const PlacedEntry* placed = mPlacedRefs->find(reference))
+            return placed;
+        const auto known = mCreatedEntries.find(reference);
+        if (known != mCreatedEntries.end())
+            return &known->second;
+        const FormId base = mCreatedBase ? mCreatedBase(reference) : kNullFormId;
+        if (base == kNullFormId)
+            return nullptr;
+        PlacedEntry entry;
+        entry.mId = reference;
+        entry.mBase = base;
+        return &mCreatedEntries.emplace(reference, entry).first->second;
+    }
+
+    bool SkyrimConditionWorld::distanceToAliasKnown(conditions::Subject subject, std::uint32_t alias) const
+    {
+        if (subject != kPlayer || !mPlayerPositionKnown || mPlacedRefs == nullptr)
+            return false;
+        const FormId filled = aliasReference(alias);
+        return filled != kNullFormId && mPlacedRefs->find(filled) != nullptr;
+    }
+
+    float SkyrimConditionWorld::distanceToAlias(conditions::Subject subject, std::uint32_t alias) const
+    {
+        if (!distanceToAliasKnown(subject, alias))
+            return std::numeric_limits<float>::max();
+        const PlacedEntry* other = mPlacedRefs->find(aliasReference(alias));
+        const double dx = mPlayerPosition[0] - other->mX;
+        const double dy = mPlayerPosition[1] - other->mY;
+        const double dz = mPlayerPosition[2] - other->mZ;
+        return static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
+>>>>>>> 2cd8da29e0 (Skyrim marriage, second slice: the wedding day, game-time updates, the vows and the married state (task 0276))
     }
 
     float SkyrimConditionWorld::distanceTo(conditions::Subject subject, std::uint32_t reference) const

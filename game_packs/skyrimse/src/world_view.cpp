@@ -1310,6 +1310,7 @@ namespace game_skyrimse
         {
             raw->mQuestWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
             SkyrimConditionWorld* world = raw->mQuestWorld.get();
+            world->setCreatedActorBase([this](FormId reference) { return createdActorBase(reference); }); // task 0276
             world->setQuests(&raw->mData->mQuests, &raw->mRuntime->questsMutable());
             world->setLocations(&raw->mData->mLocations);
             world->setKeywordData(&mKeywordData); // task 0217
@@ -1340,6 +1341,7 @@ namespace game_skyrimse
             {
                 QuestAliasFiller::Environment env;
                 env.mLocations = &raw->mData->mLocations;
+                env.mCreatedBase = [this](FormId reference) { return createdActorBase(reference); }; // task 0276
                 env.mLocationMatcher
                     = [raw, world](const QuestRecord& quest, const QuestAlias& alias, FormId location) {
                           world->setStoryEvent(nullptr);
@@ -1400,6 +1402,12 @@ namespace game_skyrimse
     void SkyrimWorldView::setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site)
     {
         mPlayerSite = std::move(site);
+    }
+
+    void SkyrimWorldView::setPlayerPosition(double x, double y, double z)
+    {
+        if (mDialogue != nullptr && mDialogue->mQuestWorld != nullptr)
+            mDialogue->mQuestWorld->setPlayerPosition(x, y, z);
     }
 
     bool SkyrimWorldView::locationWithin(FormId location, FormId ancestor) const

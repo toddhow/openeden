@@ -11,6 +11,7 @@ namespace game_skyrimse::conditions
         // "CTDA" as stored (little endian).
         constexpr std::uint32_t kCtda = 'C' | ('T' << 8) | ('D' << 16) | (static_cast<std::uint32_t>('A') << 24);
         constexpr std::uint8_t kFlagOr = 0x01;
+        constexpr std::uint8_t kFlagUseAliases = 0x02;
         constexpr std::uint8_t kFlagUseGlobal = 0x04;
         constexpr std::uint8_t kFlagSwapSubjectAndTarget = 0x10;
         constexpr std::uint32_t kCis1 = 'C' | ('I' << 8) | ('S' << 16) | (static_cast<std::uint32_t>('1') << 24);
@@ -218,6 +219,8 @@ namespace game_skyrimse::conditions
         // 1 GetDistance(reference): nobody as subject is infinitely far (CK wiki, toddhow 2026-11-11)
         float getDistance(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
         {
+            if (subject != 0 && (c.mFlags & kFlagUseAliases) != 0)
+                return world.distanceToAlias(subject, c.mParam1); // task 0276
             return subject != 0 ? world.distanceTo(subject, c.mParam1) : std::numeric_limits<float>::max();
         }
 

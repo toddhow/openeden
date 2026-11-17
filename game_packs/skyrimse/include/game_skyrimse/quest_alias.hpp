@@ -124,6 +124,9 @@ namespace game_skyrimse
             /// Task 0226: the location of a placed reference that no location lists (the location of its cell); empty:
             /// none.
             std::function<FormId(FormId reference)> mReferenceLocation;
+            /// Task 0276: the base of a reference a script created (a MoveTo of an actor made a new one); a story event
+            /// that names such a reference can fill an alias with it. Empty: only placed references.
+            std::function<FormId(FormId reference)> mCreatedBase;
             /// Task 0226: told, around the evaluation of a location alias's conditions, which reference an alias of the
             /// quest holds so far (this plan's fills first, then the saved state; kNullFormId: none), and told an empty
             /// function afterwards. HasSameEditorLocAsRefAlias (fn_181) reads it. Empty: nothing is told.

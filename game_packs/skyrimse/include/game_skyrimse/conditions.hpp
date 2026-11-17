@@ -232,6 +232,13 @@ namespace game_skyrimse::conditions
             (void)subject, (void)reference;
             return std::numeric_limits<float>::max();
         }
+        /// Task 0276: the same with the "use aliases" flag (0x02): the reference is a quest alias id (the wedding
+        /// scene's first phase ends when the player is within 1000 units of the Altar alias).
+        virtual float distanceToAlias(Subject subject, std::uint32_t alias) const
+        {
+            (void)subject, (void)alias;
+            return std::numeric_limits<float>::max();
+        }
         /// fn_161 GetIsCurrentPackage(package): is the subject running this package? Combat and flight interrupts do
         /// not change the answer (CK wiki, shown by toddhow, 2026-11-11).
         virtual bool runsPackage(Subject subject, std::uint32_t package) const

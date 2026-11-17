@@ -523,6 +523,41 @@ namespace ScriptPapyrus::Vm
         return Val{};
     }
 
+    Val Runtime::instanceDefining(const Val& source, std::uint32_t nameId)
+    {
+        if (source.kind != Kind::Form || source.a == 0)
+        {
+            return Val{};
+        }
+        openeden::script::AttachKind kind = openeden::script::AttachKind::Form;
+        openeden::script::FormId form = static_cast<openeden::script::FormId>(source.a);
+        std::uint32_t alias = 0;
+        if (mAliasResolver)
+        {
+            openeden::script::FormId quest = 0;
+            std::uint32_t aliasIndex = 0;
+            if (mAliasResolver(static_cast<std::uint32_t>(source.a), quest, aliasIndex))
+            {
+                kind = openeden::script::AttachKind::Alias;
+                form = quest;
+                alias = aliasIndex;
+            }
+        }
+        for (std::size_t i = 0; i < mInstances.size(); ++i)
+        {
+            const Instance& other = mInstances[i];
+            if (other.key.kind != kind || other.key.formId != form || other.key.aliasIndex != alias)
+            {
+                continue;
+            }
+            if (prepare(other.script) && findFunction(other.script, other.stateId, nameId).found)
+            {
+                return Val::makeInstance(static_cast<std::uint32_t>(i + 1));
+            }
+        }
+        return Val{};
+    }
+
     bool Runtime::castTo(const Val& source, const TypeRef& target, Val& out)
     {
         switch (target.kind)
@@ -1086,6 +1121,21 @@ namespace ScriptPapyrus::Vm
                 ++mStats.ignoredEvents;
                 writeOp(stack, frame, destOp, zeroOf(instr.dest));
                 return mErrKind == ErrorKind::None;
+            }
+            if (self.kind == Kind::Form)
+            {
+                // task 0276: a script typed property that holds an alias or reference handle
+                const Val through = instanceDefining(self, name);
+                if (through.kind == Kind::Instance)
+                {
+                    const Instance* instance = instanceOf(through);
+                    const Resolved viaInstance = findFunction(instance->script, instance->stateId, name);
+                    if (viaInstance.found)
+                    {
+                        return callResolved(
+                            stack, viaInstance, through, mArgScratch.data(), instr.extra, destOp, instr.dest, maxDepth);
+                    }
+                }
             }
             return unresolvedCall(
                 stack, ErrorKind::NoSuchFunction, classId, name, destOp, instr.dest, "has no function");
