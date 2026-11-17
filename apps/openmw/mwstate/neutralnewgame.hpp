@@ -23,6 +23,7 @@
 #include "../mwworld/worldmodel.hpp"
 #include <components/esmbridge/util.hpp>
 #include <components/worldmodel/store.hpp>
+#include <openeden/game/new_game_start.hpp>
 
 #include "error.hpp"
 #include "operation.hpp"
@@ -91,6 +92,21 @@ namespace MWState
 
         bool run(float) override
         {
+            // Task 0268: a game with an opening of its own (Skyrim's cart at Helgen, `main quest start`) says where a new
+            // game starts, and that wins over `--start`
+            if (NeutralWorld::NeutralWorldStore* const store
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore())
+                for (const std::string& gameId : store->gameIds())
+                    if (auto* const own = dynamic_cast<openeden::sdk::game::NewGameStartSource*>(store->source(gameId)))
+                    {
+                        const std::string place = own->newGameStart();
+                        if (place.empty())
+                            continue;
+                        Log(Debug::Info) << "Neutral start: the game '" << gameId << "' starts a new game at '" << place
+                                         << "' (not '" << mStartCell << "')";
+                        mStartCell = MWWorld::chooseNeutralStart(mStartCell, place);
+                        break;
+                    }
             Log(Debug::Info) << "Starting a new game (neutral world) in cell '" << mStartCell << "'";
             try
             {

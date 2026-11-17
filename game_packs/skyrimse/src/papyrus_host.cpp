@@ -718,6 +718,71 @@ namespace game_skyrimse
             return created != mCreated.end() ? created->second.mCell : mData.cellOf(reference);
         }
 
+        // Task 0268: the reference a script's old reference stands for now (an actor it moved was made again).
+        FormId liveReference(FormId reference) const
+        {
+            for (int hops = 0; hops < 16; ++hops)
+            {
+                const auto it = mRedirect.find(reference);
+                if (it == mRedirect.end())
+                    return reference;
+                reference = it->second;
+            }
+            return reference;
+        }
+
+        // Task 0268: a MoveTo of `self` to `at`, near the player, that the world cannot do in place: asks the hook for a
+        // new reference there, hides the old one, points the quest's aliases at the new one. False: not done.
+        bool tryRelocate(FormId self, FormId target, const double* at, const std::array<double, 3>* angles)
+        {
+            if (!mRelocate || mHooks == nullptr || self == kPlayerReference)
+                return false;
+            double player[3] = { 0.0, 0.0, 0.0 };
+            if (!positionOf(kPlayerReference, player))
+                return false;
+            const double dx = at[0] - player[0];
+            const double dy = at[1] - player[1];
+            if (dx * dx + dy * dy > mRelocateRange * mRelocateRange)
+                return false;
+            const FormId base = baseOfReference(self);
+            if (base == 0 || mCreated.size() >= kMaxCreatedKept)
+                return false;
+            const FormId targetCell = cellOfReference(target);
+            const FormId destination = targetCell;
+            ObjectMoveRequest request;
+            request.hasPosition = true;
+            for (int i = 0; i < 3; ++i)
+                request.position[i] = at[i];
+            if (angles != nullptr)
+            {
+                request.hasAngles = true;
+                for (std::size_t i = 0; i < 3; ++i)
+                    request.angles[i] = (*angles)[i];
+            }
+            const ObjectPlaceResult made = mHooks->relocateObject(self, base, request, destination);
+            if (made.reference == 0)
+                return false;
+            CreatedObject created;
+            created.mReference = made.reference;
+            created.mBase = base;
+            created.mCell = made.cell;
+            created.mPosition = { at[0], at[1], at[2] };
+            if (angles != nullptr)
+                created.mAngles = *angles;
+            mCreated[made.reference] = created;
+            mPositions[made.reference] = { at[0], at[1], at[2] };
+            mPositions[self] = { at[0], at[1], at[2] };
+            if (angles != nullptr)
+                mAngles[made.reference] = *angles;
+            mRedirect[self] = made.reference;
+            setEnabled(self, false, 0.f);
+            const std::size_t aliases = mState != nullptr ? mState->replaceReference(self, made.reference) : 0;
+            say(false,
+                "Papyrus: MoveTo of " + hex(self) + " near the player made " + hex(made.reference) + " ("
+                    + std::to_string(aliases) + " aliases follow it)");
+            return true;
+        }
+
         // MoveTo between cells of which one is an interior is refused: the engine keeps an object in its own cell.
         bool crossesCells(FormId a, FormId b) const
         {
@@ -1036,11 +1101,21 @@ namespace game_skyrimse
             reg("ObjectReference", "GetPositionY", false, position(1));
             reg("ObjectReference", "GetPositionZ", false, position(2));
             reg("ObjectReference", "MoveTo", false, [this](const NativeCall& c) {
-                const FormId self = formOf(c.self);
-                const FormId target = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const FormId self = liveReference(formOf(c.self));
+                const FormId target = c.arguments.empty() ? 0 : liveReference(formOf(c.arguments[0]));
                 double where[3] = { 0.0, 0.0, 0.0 };
                 if (self == 0 || target == 0 || !positionOf(target, where))
                     return NativeResult{};
+                {
+                    // Task 0268: what the world cannot move in place is made again at the place (actors, objects of
+                    // other cells), near the player only
+                    const double at[3] = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2),
+                        where[2] + argNumber(c, 3) };
+                    std::array<double, 3> turned{};
+                    const bool turnTo = argNumber(c, 4) != 0.0 && anglesOf(target, turned);
+                    if (tryRelocate(self, target, at, turnTo ? &turned : nullptr))
+                        return NativeResult{};
+                }
                 if (crossesCells(self, target))
                 {
                     say(false,
@@ -1550,6 +1625,17 @@ namespace game_skyrimse
 
             for (const char* name : { "SetVehicle", "SetRestrained", "Say", "EvaluatePackage" })
                 reg("Actor", name, false, nothing);
+            // Task 0268 (the main quest's opening): the cart ride's setup waits for the actors to be loaded, and sets
+            // up what has no meaning here yet (the cart HUD, the title sequence, the gate, a cart's tether to its horse)
+            reg("ObjectReference", "Is3DLoaded", false, [this](const NativeCall& c) {
+                const FormId self = liveReference(formOf(c.self));
+                return result(PapyrusValue::makeBool(
+                    self == kPlayerReference || mHooks == nullptr || mHooks->referenceLoaded(self)));
+            });
+            for (const char* name : { "SetHudCartMode", "StartTitleSequence", "ShowTitleSequenceMenu", "HideTitleSequenceMenu" })
+                reg("Game", name, true, nothing);
+            for (const char* name : { "SetOpen", "TetherToHorse" })
+                reg("ObjectReference", name, false, nothing);
             reg("ObjectReference", "Say", false, nothing); // the declaring class of Say in the game's scripts
             reg("Actor", "PlayIdle", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
             reg("ObjectReference", "IsFurnitureInUse", false,
@@ -1809,6 +1895,9 @@ namespace game_skyrimse
         SceneControl* mScenes = nullptr; ///< task 0194
         StoryEventSink mStorySink; ///< task 0187
         StageEntryCheck mStageEntryCheck; ///< task 0261
+        bool mRelocate = false; ///< task 0268
+        double mRelocateRange = 6000.0;
+        std::map<FormId, FormId> mRedirect; ///< task 0268: a relocated reference -> the new one
         bool mStarted = false;
         bool mInTick = false;
         double mTime = 0.0;
@@ -2618,6 +2707,13 @@ namespace game_skyrimse
         mImpl->mFiller = filler;
     }
 
+    void PapyrusHost::setRelocation(bool on, double maxPlayerDistance)
+    {
+        mImpl->mRelocate = on;
+        if (maxPlayerDistance > 0.0)
+            mImpl->mRelocateRange = maxPlayerDistance;
+    }
+
     void PapyrusHost::setStageEntryCheck(StageEntryCheck check)
     {
         mImpl->mStageEntryCheck = std::move(check);
@@ -2908,6 +3004,27 @@ namespace game_skyrimse
                 (void)m.sendEvent(instance, "OnCellLoad");
                 (void)m.sendEvent(instance, "OnLoad");
             }
+    }
+
+    std::size_t PapyrusHost::replayAliasCellLoad(FormId quest)
+    {
+        Impl& m = *mImpl;
+        if (m.mState == nullptr)
+            return 0;
+        std::size_t sent = 0;
+        for (const auto& [key, ids] : m.mByAlias)
+        {
+            if (key.first != quest)
+                continue;
+            const AliasFill fill = m.mState->aliasFill(quest, key.second);
+            if (!fill.mKnown || fill.mReference == kNullFormId)
+                continue;
+            const std::vector<InstanceId> copy = ids;
+            for (const InstanceId instance : copy)
+                if (m.sendEvent(instance, "OnCellLoad"))
+                    ++sent;
+        }
+        return sent;
     }
 
     void PapyrusHost::onActivate(FormId target, FormId actionRef)

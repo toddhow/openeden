@@ -120,6 +120,10 @@ namespace game_skyrimse
             float mParkSeconds = 120.f;
             float mPackageSeconds = 60.f;
             float mRetrySeconds = 1.f;
+            /// Task 0268: a scene that begins on quest start and found none of its actors loaded waits and asks again every
+            /// `mRetrySeconds` while its quest runs (the opening of the main quest moves its actors after the quest
+            /// started). Off by default: other quests' scenes are dropped as before.
+            bool mRetryQuestStart = false;
             std::uint32_t mMaxPlaying = 64;
         };
         struct Stats
@@ -146,6 +150,8 @@ namespace game_skyrimse
         {
         }
         ~SceneRunner();
+        /// Task 0268: see Options::mRetryQuestStart.
+        void setRetryQuestStart(bool on) { mOptions.mRetryQuestStart = on; }
         SceneRunner(const SceneRunner&) = delete;
         SceneRunner& operator=(const SceneRunner&) = delete;
 
@@ -187,6 +193,8 @@ namespace game_skyrimse
         SceneEnvironment& mEnv;
         Options mOptions;
         std::map<FormId, std::unique_ptr<Instance>> mPlaying;
+        std::vector<FormId> mWaitingStart; ///< task 0268: begin-on-quest-start scenes that found nobody loaded
+        float mWaitingClock = 0.f;
         Stats mStats;
         std::map<FormId, std::set<std::uint32_t>> mDone; ///< scene -> action indexes complete (survives the end)
     };

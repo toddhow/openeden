@@ -24,6 +24,7 @@
 #include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/vampirism.hpp" // task 0260
 #include "game_skyrimse/houses.hpp"
+#include <game_skyrimse/main_quest.hpp>
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
@@ -367,6 +368,9 @@ namespace game_skyrimse
                 updateWordWalls(); // task 0256
                 raiseTestEvent();
                 applyHouses(); // task 0261
+                replayMainQuestCellLoad(); // task 0268
+                applyMainQuestTestStage();
+                applyMainQuest(); // task 0268
                 drainStory();
                 mHost.tick(dt);
                 if (mScenes != nullptr)
@@ -492,6 +496,58 @@ namespace game_skyrimse
             // the player is in the hold), a quest variable a script holds wins in the conversation's conditions (the
             // steward stops offering what the player owns), and the quest of the offers is started (no script does).
             // `permission` is the test aid: the Whiterun jarls like the player.
+            // Task 0268: `main quest start`. The game's own quest MQ101 ("Unbound") is started once when the host runs; its
+            // start-up stage, scenes and fragments then do the opening (nothing is hand-written here but the start).
+            // Task 0268, a developer aid: `main quest test stage = <stage>[,<script seconds>]` sets that stage of MQ101 once
+            // the host's script time reaches the seconds (default 0), so the journal and what follows can be seen without
+            // playing the whole opening (nothing before stage 160 shows in the journal: no objective is displayed)
+            void setMainQuestTestStage(const std::string& text)
+            {
+                if (text.empty())
+                    return;
+                const std::size_t comma = text.find(',');
+                mMainQuestTestStage = static_cast<std::int32_t>(std::strtol(text.c_str(), nullptr, 10));
+                mMainQuestTestDelay = comma == std::string::npos ? 0.0 : std::strtod(text.c_str() + comma + 1, nullptr);
+            }
+            void applyMainQuestTestStage()
+            {
+                if (mMainQuestTestStage <= 0 || !mMainQuestApplied || mHost.scriptTime() < mMainQuestTestDelay)
+                    return;
+                const std::int32_t stage = mMainQuestTestStage;
+                mMainQuestTestStage = 0;
+                say(openeden::sdk::LogLevel::Info,
+                    "MAINQUEST test stage " + std::to_string(stage) + " "
+                        + (mHost.startQuestForTest(mainquest::kUnboundQuest, stage) ? "set" : "refused"));
+            }
+
+            void enableMainQuest()
+            {
+                mMainQuest = true;
+                mHost.setRelocation(true, mainquest::kRelocateRange);
+            }
+            void applyMainQuest()
+            {
+                if (!mMainQuest || mMainQuestApplied || !mHost.started())
+                    return;
+                mMainQuestApplied = true;
+                const bool started = mHost.startQuestForTest(mainquest::kUnboundQuest);
+                say(openeden::sdk::LogLevel::Info,
+                    std::string("MAINQUEST MQ101 ") + (started ? "started" : "was not started (running or done)"));
+                mMainQuestReplay = started;
+            }
+
+            // One frame after the start (the scripts of the quest attach right after it): the cells of the start were
+            // loaded before the quest, so the quest's cell-load registrations are told now (stage 12 waits for them)
+            void replayMainQuestCellLoad()
+            {
+                if (!mMainQuestReplay)
+                    return;
+                mMainQuestReplay = false;
+                say(openeden::sdk::LogLevel::Info,
+                    "MAINQUEST the starting cells are loaded: "
+                        + std::to_string(mHost.replayAliasCellLoad(mainquest::kUnboundQuest)) + " cell-load events sent");
+            }
+
             void enableHouses(bool permission, FollowerState* ranks)
             {
                 mHouses = true;
@@ -521,7 +577,7 @@ namespace game_skyrimse
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
                 mHost.setStoryEventSink(access.mStory);
-                if (mHouses && access.mQuestConditions)
+                if ((mHouses || mMainQuest) && access.mQuestConditions)
                 {
                     const QuestIndex* quests = access.mQuests;
                     const auto conditions = access.mQuestConditions;
@@ -536,7 +592,7 @@ namespace game_skyrimse
                         return true;
                     });
                 }
-                if (mHouses && access.mSetLiveQuestVariable)
+                if ((mHouses || mMainQuest) && access.mSetLiveQuestVariable)
                     access.mSetLiveQuestVariable([this](FormId quest, const std::string& name) -> std::optional<float> {
                         const std::optional<double> live = mHost.anyNumberVariable(quest, name);
                         return live ? std::optional<float>(static_cast<float>(*live)) : std::nullopt;
@@ -571,6 +627,7 @@ namespace game_skyrimse
                     mScenes = std::make_unique<SceneGlue>(access, mHost, dynamic_cast<SkyrimCellSource*>(&mCells),
                         [this](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     mHost.setSceneControl(mScenes.get());
+                    mScenes->runner().setRetryQuestStart(mMainQuest); // task 0268
                 }
                 mStarted = true;
                 const auto began = std::chrono::steady_clock::now();
@@ -1026,6 +1083,62 @@ namespace game_skyrimse
                 return { static_cast<FormId>(id), cell };
             }
 
+            // Task 0268: a script moved an actor, or an object of another cell, to a place near the player: the world
+            // cannot move an actor (the actor system places actors) and keeps an object in its cell, so a NEW reference
+            // of the same base is made at the place. The host hides the old one and points the aliases at the new.
+            // Whether the base of a reference (placed, or created by a script) is an actor.
+            bool isActor(FormId reference) const
+            {
+                FormId base = kNullFormId;
+                for (const PapyrusHost::CreatedObject& created : mHost.createdObjects())
+                    if (created.mReference == reference)
+                        base = created.mBase;
+                if (base == kNullFormId)
+                    if (const PlacedRefIndex* refs = mView.placedRefs())
+                        if (const PlacedEntry* entry = refs->find(reference))
+                            base = entry->mBase;
+                openeden::sdk::game::PlacedObject placed;
+                return base != kNullFormId && mView.describeBase(base, placed)
+                    && placed.baseKind == openeden::sdk::game::BaseKind::Actor;
+            }
+
+            ObjectPlaceResult relocateObject(
+                FormId reference, FormId base, const ObjectMoveRequest& request, FormId destinationCell)
+            {
+                ObjectPlaceResult none;
+                if (mSources == nullptr || !request.hasPosition)
+                    return none;
+                openeden::sdk::game::PlacedObject placed;
+                if (!mView.describeBase(base, placed))
+                    return none;
+                const bool actor = placed.baseKind == openeden::sdk::game::BaseKind::Actor;
+                if (placed.baseKind == openeden::sdk::game::BaseKind::LeveledList
+                    || placed.baseKind == openeden::sdk::game::BaseKind::Unknown)
+                    return none;
+                if (!actor && cellOfReference(reference) == destinationCell)
+                    return none; // the world moves it where it is
+                placed.position = { static_cast<float>(request.position[0]), static_cast<float>(request.position[1]),
+                    static_cast<float>(request.position[2]) };
+                placed.rotation = { static_cast<float>(request.angles[0]), static_cast<float>(request.angles[1]),
+                    static_cast<float>(request.angles[2]) };
+                placed.scale = 1.f;
+                openeden::sdk::game::WorldObject object;
+                std::string problem;
+                if (!toNeutral(placed, object, problem))
+                    return none;
+                const FormId hint = destinationCell != 0 && mData.cellIsInterior(destinationCell) ? destinationCell : 0;
+                const openeden::sdk::game::WorldId id = actor ? mSources->placeActor(mCells, hint, object)
+                                                              : mSources->placeObject(mCells, hint, object);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS relocate " + hexId(reference) + " (" + hexId(base) + (actor ? ", an actor" : "")
+                        + ") near the player: " + (id == openeden::sdk::game::kNoWorldId ? "the world did not take it" : "made " + hexId(static_cast<FormId>(id))));
+                if (id == openeden::sdk::game::kNoWorldId)
+                    return none;
+                if (actor)
+                    mView.noteCreatedActor(static_cast<FormId>(id), base); // speaks as its base does (scene lines)
+                return { static_cast<FormId>(id), hint };
+            }
+
             // After a load the world is rebuilt from the pack without the scripts' moves (a cell that was not loaded
             // when
             // the script ran): tell it again.
@@ -1107,6 +1220,11 @@ namespace game_skyrimse
             bool mHouses = false; ///< task 0261
             bool mHousesPermission = false;
             bool mHousesApplied = false;
+            bool mMainQuest = false; ///< task 0268
+            bool mMainQuestApplied = false;
+            bool mMainQuestReplay = false;
+            std::int32_t mMainQuestTestStage = 0;
+            double mMainQuestTestDelay = 0.0;
             FollowerState* mFollowers = nullptr;
             std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
             std::optional<std::vector<std::uint8_t>> mPendingRestore;
@@ -1496,6 +1614,15 @@ namespace game_skyrimse
                                 return driver->host().globalSetByScript(global, value);
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
+                            if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
+                            {
+                                mPapyrus->enableMainQuest();
+                                mPapyrus->setMainQuestTestStage(settings->getString(kPackId, "main quest test stage", ""));
+                                mCellSource.setNewGameStart(mainquest::kHelgenStart);
+                                if (logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Info,
+                                        std::string("MAINQUEST a new game starts at the cart: ") + mainquest::kHelgenStart);
+                            }
                             if (settings->getBool(kPackId, houses::kHousesKey, false)) // task 0261
                             {
                                 mHousesOn = true;
@@ -1826,6 +1953,15 @@ namespace game_skyrimse
                 };
                 env.moveObject = [this](FormId reference, const ObjectMoveRequest& request) {
                     return mPapyrus != nullptr && mPapyrus->pushMove(reference, request);
+                };
+                env.referenceLoaded = [this](FormId reference) {
+                    // an actor is loaded when the actor system holds it; anything else is taken to be
+                    return mPapyrus == nullptr || !mPapyrus->isActor(reference)
+                        || mCellSource.sceneActorLoaded(reference);
+                };
+                env.relocateObject = [this](FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell) {
+                    return mPapyrus != nullptr ? mPapyrus->relocateObject(reference, base, request, cell)
+                                               : ObjectPlaceResult{};
                 };
                 env.placeObject = [this](const ObjectPlaceRequest& request) {
                     return mPapyrus != nullptr ? mPapyrus->placeObject(request) : ObjectPlaceResult{};

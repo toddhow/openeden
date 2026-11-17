@@ -38,6 +38,13 @@ namespace MWWorld
     /// ignored; coordinates beyond +-10,000,000 units are refused.
     [[nodiscard]] NeutralStartTarget parseNeutralStart(std::string_view text);
 
+    /// Task 0268: where a new game starts. A game with an opening of its own (`NewGameStartSource::newGameStart`, Skyrim's
+    /// cart at Helgen) wins over `--start`; an empty answer leaves `--start`.
+    [[nodiscard]] inline std::string chooseNeutralStart(std::string_view fromArguments, std::string_view fromGame)
+    {
+        return std::string(fromGame.empty() ? fromArguments : fromGame);
+    }
+
     /// The land height under (x, y) in `world`, by bilinear interpolation of its vertices. A square the world has no
     /// land in borrows its parent's when WorldSpaceInfo says so; the world's default land height applies to a cell
     /// with land but no heights. `error` is set and nullopt returned when there is no land at the spot (the world is

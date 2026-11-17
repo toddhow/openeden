@@ -47,6 +47,7 @@ content=HearthFires.esm
 content=Dragonborn.esm
 ${DEMO_ESP:+content=$DEMO_ESP}
 CFG
+[ -n "${CFG_EXTRA:-}" ] && printf '%b' "$CFG_EXTRA" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\nneutral actors = true\n[GUI]\nrmlui = true\nrmlui debug panel = false\n[Video]\nresolution x = %s\nresolution y = %s\nvsync mode = 0\n[extension.skyrimse]\npapyrus = true\njournal = true\n' "${WIDTH:-1280}" "${HEIGHT:-720}" > "$WORK/config/settings.cfg"
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
 [ -n "${INPUT:-}" ] && export OPENEDEN_RMLUI_INPUT_SCRIPT="$(native "$INPUT")"

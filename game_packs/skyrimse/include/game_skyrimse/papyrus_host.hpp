@@ -260,6 +260,23 @@ namespace game_skyrimse
             (void)request;
             return {};
         }
+        /// Task 0268 (the main quest's opening): a script moved `reference` (of base `base`) to a place that the world
+        /// cannot reach by moving the object itself: an actor (the actor system places actors) or an object of another,
+        /// maybe unloaded, cell. The hook makes a NEW reference of the same base at the place (`destinationCell` is the
+        /// pack's id of the cell the target stands in), hides the old one, and returns the new reference. Reference 0:
+        /// not done, the host goes on as before. Main thread.
+        virtual ObjectPlaceResult relocateObject(
+            FormId reference, FormId base, const ObjectMoveRequest& request, FormId destinationCell)
+        {
+            (void)reference, (void)base, (void)request, (void)destinationCell;
+            return {};
+        }
+        /// Task 0268: ObjectReference.Is3DLoaded: the world has the reference. The default is yes (an object).
+        virtual bool referenceLoaded(FormId reference)
+        {
+            (void)reference;
+            return true;
+        }
         /// Task 0261: Cell.SetFactionOwner / SetActorOwner: the cell's owner (a faction or an NPC_ base) is now `owner`.
         virtual bool setCellOwner(FormId cell, FormId owner)
         {
@@ -494,6 +511,9 @@ namespace game_skyrimse
         /// runs, as before.
         using StageEntryCheck = std::function<bool(FormId quest, std::uint32_t stage, std::int32_t entry)>;
         void setStageEntryCheck(StageEntryCheck check);
+        /// Task 0268: a MoveTo near the player that the world cannot do in place (actors, objects of other cells) makes
+        /// a new reference there (PapyrusWorldHooks::relocateObject); the quest's aliases follow it. Off by default.
+        void setRelocation(bool on, double maxPlayerDistance);
         /// Task 0261: the live value of a number or bool variable of a script attached to `form` (by the name the
         /// condition's CIS2 string gives); nullopt when no instance of it has one.
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;
@@ -556,6 +576,10 @@ namespace game_skyrimse
 
         /// A cell's references finished loading: sends OnCellLoad and then OnLoad to the instances attached to them.
         void onCellLoaded(FormId cell, const std::vector<FormId>& references);
+        /// Task 0268: sends OnCellLoad to the alias scripts of a quest whose alias holds a reference. A quest that starts
+        /// after its cells loaded (the main quest's opening: the game starts in the cell, the quest a moment later) has
+        /// missed the event the vanilla game gives it; the caller says the cells are loaded. Returns how many were sent.
+        std::size_t replayAliasCellLoad(FormId quest);
 
         /// Task 0256: a placed reference that is a trigger volume (a sphere primitive). False (counted) when it is not a
         /// supported volume. The scripts on the reference get OnTriggerEnter and OnTriggerLeave with the player.

@@ -493,6 +493,9 @@ namespace game_skyrimse
         bool isCurrentWeather(std::uint32_t weather) const override;
         bool baseInList(conditions::Subject subject, std::uint32_t formList) const override;
         conditions::Subject playerSubject() const override { return kPlayer; }
+        /// Task 0268 (a scene's phase waits for `HasLoaded3D` of the player): the player always has his 3D; another
+        /// subject is not answered (false).
+        bool hasLoaded3D(conditions::Subject subject) const override { return subject == kPlayer; }
         float actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float baseActorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float levelOf(conditions::Subject subject) const override;

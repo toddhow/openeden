@@ -33,6 +33,7 @@
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/follower_rules.hpp>
 #include <openeden/game/display_name_source.hpp>
+#include <openeden/game/new_game_start.hpp>
 #include <openeden/game/grass_source.hpp>
 #include <openeden/game/music_source.hpp>
 #include <openeden/game/player_item_source.hpp>
@@ -187,7 +188,8 @@ namespace game_skyrimse
                                    public openeden::sdk::game::PlayerItemSource,
                                    public openeden::sdk::game::SceneSpeechSource,
                                    public openeden::sdk::game::PlayerPlaceSink,
-                                   public openeden::sdk::game::RidingRules
+                                   public openeden::sdk::game::RidingRules,
+                                   public openeden::sdk::game::NewGameStartSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -246,6 +248,9 @@ namespace game_skyrimse
         {
             return mLockPicked && mLockPicked(placement);
         }
+        /// Task 0268: where a new game starts (`main quest start`); empty means `--start` decides.
+        std::string newGameStart() override { return mNewGameStart; }
+        void setNewGameStart(std::string place) { mNewGameStart = std::move(place); }
         /// Task 0150: forwards to the view's DisplayNameSource.
         std::string displayNameOf(openeden::sdk::game::WorldId base) override;
         /// Task 0224: the pack's name for one placement (a depleted ore vein); empty without a lookup.
@@ -681,6 +686,7 @@ namespace game_skyrimse
         std::function<bool(openeden::sdk::game::WorldId)> mHarvested; ///< task 0221
         /// task 0224
         std::function<std::string(openeden::sdk::game::WorldId, openeden::sdk::game::WorldId)> mPlacementName;
+        std::string mNewGameStart; // task 0268
         std::function<std::optional<openeden::sdk::game::ObjectMove>(openeden::sdk::game::WorldId)> mMoveOverride;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;

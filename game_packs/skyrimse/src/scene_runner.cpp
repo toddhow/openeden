@@ -214,8 +214,14 @@ namespace game_skyrimse
         for (const FormId id : mScenes.scenesOfQuest(quest))
         {
             const SceneRecord* record = mScenes.scene(id);
-            if (record != nullptr && (record->mFlags & SceneFlags::BeginOnQuestStart) != 0 && start(id))
+            if (record == nullptr || (record->mFlags & SceneFlags::BeginOnQuestStart) == 0)
+                continue;
+            const std::uint64_t notLoaded = mStats.mNotLoaded;
+            if (start(id))
                 ++started;
+            else if (mOptions.mRetryQuestStart && mStats.mNotLoaded != notLoaded
+                && std::find(mWaitingStart.begin(), mWaitingStart.end(), id) == mWaitingStart.end())
+                mWaitingStart.push_back(id);
         }
         return started;
     }
@@ -398,6 +404,25 @@ namespace game_skyrimse
     {
         if (!std::isfinite(dt) || dt < 0.f)
             dt = 0.f;
+        if (!mWaitingStart.empty())
+        {
+            mWaitingClock += dt;
+            if (mWaitingClock >= mOptions.mRetrySeconds)
+            {
+                mWaitingClock = 0.f;
+                const std::vector<FormId> waiting = mWaitingStart;
+                mWaitingStart.clear();
+                for (const FormId id : waiting)
+                {
+                    const SceneRecord* record = mScenes.scene(id);
+                    if (record == nullptr || !mEnv.questRunning(record->mQuest))
+                        continue; // its quest stopped: no longer wanted
+                    const std::uint64_t notLoaded = mStats.mNotLoaded;
+                    if (!start(id) && mStats.mNotLoaded != notLoaded)
+                        mWaitingStart.push_back(id);
+                }
+            }
+        }
         std::vector<FormId> ids;
         ids.reserve(mPlaying.size());
         for (const auto& [id, in] : mPlaying)

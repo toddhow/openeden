@@ -717,6 +717,14 @@ namespace game_skyrimse
         /// entry a leveled NPC list picks for `level` (`pick` chooses among equals; nested lists are followed to depth
         /// 4); 0 when it names neither. Reads the actor index (main thread only).
         [[nodiscard]] FormId summonBase(FormId associated, std::uint16_t level, std::uint32_t pick);
+        /// Task 0268: an actor a script's MoveTo made again (a created reference) speaks as its base does: the scene
+        /// lines look the speaker up by reference. Main thread.
+        void noteCreatedActor(FormId reference, FormId base) { mCreatedActorBases[reference] = base; }
+        [[nodiscard]] FormId createdActorBase(FormId reference) const
+        {
+            const auto it = mCreatedActorBases.find(reference);
+            return it != mCreatedActorBases.end() ? it->second : kNullFormId;
+        }
         /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
         [[nodiscard]] FormId questOfInfo(FormId info) const;
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false
@@ -925,6 +933,7 @@ namespace game_skyrimse
         [[nodiscard]] const std::vector<vmad::Script>* baseScriptsOf(FormId base) const;
         std::unordered_map<FormId, CellEntry> mCells;
         std::map<FormId, WorldEntry> mWorlds;
+        std::map<FormId, FormId> mCreatedActorBases; ///< task 0268: created actor reference -> its base
         std::vector<FormId> mCellOrder;
         std::vector<FormId> mWorldOrder;
         std::map<std::string, FormId> mCellByEditorId; ///< lower case

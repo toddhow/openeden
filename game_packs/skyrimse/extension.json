@@ -601,6 +601,16 @@
       "default": 0
     },
     {
+      "key": "main quest test stage",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "main quest start",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "houses",
       "type": "bool",
       "default": false

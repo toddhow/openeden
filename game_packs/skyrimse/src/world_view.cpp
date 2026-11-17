@@ -2133,13 +2133,17 @@ namespace game_skyrimse
         };
         out.mLine = [this, state, data](FormId topic, FormId reference, std::uint32_t pick, SceneLine& line) {
             const PlacedEntry* entry = data->mPlacedRefs.find(reference);
-            if (entry == nullptr)
+            const FormId createdBase = entry == nullptr ? createdActorBase(reference) : kNullFormId;
+            if (entry == nullptr && createdBase == kNullFormId)
                 return false;
             DialogueSpeaker speaker;
             speaker.mReference = reference;
-            speaker.mBase = entry->mBase;
-            fillSpeakerCell(speaker, entry->mCell);
-            speaker.mCell = entry->mCell;
+            speaker.mBase = entry != nullptr ? entry->mBase : createdBase;
+            if (entry != nullptr)
+            {
+                fillSpeakerCell(speaker, entry->mCell);
+                speaker.mCell = entry->mCell;
+            }
             sdkgame::DialogueTurn turn;
             if (!state->mRuntime->sceneLine(topic, speaker, pick, turn))
                 return false;

@@ -313,6 +313,9 @@ namespace game_skyrimse
         /// down stage stops it. A quest that is not running is started first (RECALLED-VERIFY: the game does).
         void setStage(const QuestIndex& index, FormId quest, std::uint32_t stage);
         void setAliasFill(FormId quest, std::uint32_t alias, const AliasFill& fill);
+        /// Task 0268: every alias (of any quest) that holds the reference `from` holds `to` instead (an actor a script
+        /// relocated is a new reference). Returns how many aliases changed.
+        std::size_t replaceReference(FormId from, FormId to);
         /// Task 0181: sets the current stage and nothing else (Quest.SetCurrentStageID: no done mark, no completion,
         /// the caller runs no fragment). RECALLED-VERIFY: the game's exact semantics. Unknown quests are ignored.
         void setCurrentStage(FormId quest, std::uint32_t stage);

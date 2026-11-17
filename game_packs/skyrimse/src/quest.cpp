@@ -901,4 +901,21 @@ namespace game_skyrimse
             ++mRevision;
         }
     }
+
+    std::size_t QuestState::replaceReference(FormId from, FormId to)
+    {
+        std::size_t changed = 0;
+        if (from == kNullFormId || from == to)
+            return 0;
+        for (auto& [quest, entry] : mQuests)
+            for (auto& [alias, fill] : entry.mAliases)
+                if (fill.mReference == from)
+                {
+                    fill.mReference = to;
+                    ++changed;
+                }
+        if (changed != 0)
+            ++mRevision;
+        return changed;
+    }
 }
