@@ -221,14 +221,23 @@ namespace MWPhysics::NeutralMover
         class SweepBodyFilter final : public JPH::BodyFilter
         {
         public:
-            SweepBodyFilter(JPH::BodyID self, const Limits& limits, float feetZ, const std::vector<JPH::BodyID>* actors)
+            SweepBodyFilter(JPH::BodyID self, const Limits& limits, float feetZ, const std::vector<JPH::BodyID>* actors,
+                const std::vector<JPH::BodyID>* alsoIgnore)
                 : mSelf(self)
                 , mLimits(limits)
                 , mFeetZ(feetZ)
                 , mActors(actors)
+                , mAlsoIgnore(alsoIgnore)
             {
             }
-            bool ShouldCollide(const JPH::BodyID& id) const override { return id != mSelf; }
+            bool ShouldCollide(const JPH::BodyID& id) const override
+            {
+                if (id == mSelf)
+                    return false;
+                // Task 0274: bodies a mount walks through (its rider, the other actors' capsules)
+                return mAlsoIgnore == nullptr
+                    || std::find(mAlsoIgnore->begin(), mAlsoIgnore->end(), id) == mAlsoIgnore->end();
+            }
             bool ShouldCollideLocked(const JPH::Body& body) const override
             {
                 if (!(mLimits.mTrampleHeight > 0.f))
@@ -246,6 +255,7 @@ namespace MWPhysics::NeutralMover
             Limits mLimits;
             float mFeetZ;
             const std::vector<JPH::BodyID>* mActors;
+            const std::vector<JPH::BodyID>* mAlsoIgnore;
         };
     }
 
