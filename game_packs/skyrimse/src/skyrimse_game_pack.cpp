@@ -1785,7 +1785,6 @@ namespace game_skyrimse
                             if (settings->getBool(kPackId, houses::kHousesKey, false)) // task 0261
                             {
                                 mHousesOn = true;
-                                mWorldView.setRankMinusOneMembers({ houses::kJobStewardFaction });
                                 mPapyrus->enableHouses(
                                     settings->getBool(kPackId, houses::kHousesTestPermissionKey, false),
                                     &mFollowerState);
@@ -1803,6 +1802,17 @@ namespace game_skyrimse
                                             openeden::sdk::LogLevel::Warning, "the houses chunk was not registered");
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info, "HOUSES bought houses are on");
+                            }
+                            {
+                                // Task 0278: a stablemaster's lines test JobHostlerFaction, which every hostler holds at rank -1
+                                // (as the stewards hold JobStewardFaction: task 0261): rank -1 counts as a member for those.
+                                std::set<FormId> minusOne;
+                                if (mHousesOn)
+                                    minusOne.insert(houses::kJobStewardFaction);
+                                if (settings->getBool(kPackId, kRidingKey, false))
+                                    minusOne.insert(static_cast<FormId>(kJobHostlerFactionId));
+                                if (!minusOne.empty())
+                                    mWorldView.setRankMinusOneMembers(std::move(minusOne));
                             }
                             const bool companions = settings->getBool(kPackId, "companions", false); // task 0264
                             if (companions)
@@ -4942,12 +4952,31 @@ namespace game_skyrimse
                             settings->getFloat(kPackId, kSummonsTestMagickaKey, 0.f));
                         say(openeden::sdk::LogLevel::Info, "summons: on");
                     }
+                    // Task 0278: a lethal sword blow of the player may play the game's paired kill move (off by
+                    // default; needs the engine's neutral combat, actors and player body).
+                    if (settings->getBool(kPackId, killmove::kKillMovesKey, false))
+                    {
+                        mCellSource.killMoves().setEnabled(true);
+                        mCellSource.killMoves().setChance(
+                            settings->getFloat(kPackId, killmove::kKillMovesChanceKey, killmove::kDefaultChance));
+                        mCellSource.killMoves().setSeed(0x4B494C4C4D4F5645ull);
+                        mCellSource.killMoves().setLog(
+                            [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                        say(openeden::sdk::LogLevel::Info, "kill moves: on");
+                    }
                     // Task 0251: the player may ride a horse (off by default; needs creatures and the engine's
                     // neutral actors; the horse the player owns is the test setting for now).
                     if (settings->getBool(kPackId, kRidingKey, false))
                     {
                         mCellSource.riding().setEnabled(true);
                         mCellSource.riding().setTestOwned(settings->getString(kPackId, kHorseTestOwnedKey, ""));
+                        // Task 0278: a horse bought through the stablemaster's own dialogue and script
+                        // (TIF__00068CF1 puts it in PlayerHorseFaction at rank 1) is the player's.
+                        mCellSource.riding().setOwnedLookup([this](openeden::sdk::game::WorldId reference) {
+                            const std::optional<float> rank = mFollowerState.factionRank(
+                                static_cast<FormId>(reference), static_cast<FormId>(kPlayerHorseFactionId));
+                            return rank.has_value() && *rank >= 1.f;
+                        });
                         // Task 0267: the game's paired mount and dismount clips.
                         mCellSource.riding().setPairedAnimations(
                             settings->getBool(kPackId, kPairedAnimationsKey, false));

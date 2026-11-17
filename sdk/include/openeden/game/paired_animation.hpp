@@ -46,6 +46,12 @@ namespace openeden::sdk::game
         float duration = 0.f; ///< seconds
         PairedPose start;
         PairedPose end;
+        /// Task 0278 (added at the end: a trailing field, the version stays 0.1 and an aggregate that stops at `end`
+        /// still compiles): where the SECOND actor's own root node is at the start and at the end, in the same frame;
+        /// `hasSecond` is false when the clip has no such track. A kill move places its victim by it.
+        PairedPose secondStart;
+        PairedPose secondEnd;
+        bool hasSecond = false;
     };
 
     enum class PairedStatus : std::uint8_t

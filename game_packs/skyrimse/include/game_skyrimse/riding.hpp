@@ -44,6 +44,20 @@ namespace game_skyrimse
     inline constexpr float kRidingTurnRate = 1.7f;
     /// How far to the right of the horse the player is put down when he dismounts, game units. OURS.
     inline constexpr float kDismountSide = 110.f;
+    /// Task 0278: the form id of PlayerHorseFaction (the stables' purchase script, TIF__00068CF1, sets the bought horse's
+    /// rank in it to 1: VERIFIED on the data) and the seconds over which the 7 unit step between a paired clip's end pose
+    /// and the riding loop's pose (or the dismount's start pose and the loop's) is blended away (OURS).
+    inline constexpr std::uint32_t kPlayerHorseFactionId = 0x00068D78;
+    inline constexpr float kHandoverBlendSeconds = 0.25f;
+    /// JobHostlerFaction: every stablemaster holds it at rank -1 and the horse-purchase lines test it (VERIFIED: NPC_ SNAM).
+    inline constexpr std::uint32_t kJobHostlerFactionId = 0x00051593;
+    /// 1 at the hand-over, falling linearly to 0 after kHandoverBlendSeconds.
+    [[nodiscard]] inline float handoverWeight(float seconds)
+    {
+        if (!(seconds > 0.f))
+            return 1.f;
+        return seconds >= kHandoverBlendSeconds ? 0.f : 1.f - seconds / kHandoverBlendSeconds;
+    }
     /// A forward control above this starts the horse (below it the stick is at rest). OURS.
     inline constexpr float kRidingDeadZone = 0.15f;
 
@@ -156,6 +170,10 @@ namespace game_skyrimse
         /// The test setting (kHorseTestOwnedKey). Applies to actors added from now on.
         void setTestOwned(std::string editorId);
         void setHorseLookup(HorseLookup lookup) { mLookup = std::move(lookup); }
+        /// Task 0278: does the player own the horse (placement id)? A purchase made through the game's own scripts
+        /// answers true. Asked besides the test setting, which stays an override.
+        using OwnedLookup = std::function<bool(openeden::sdk::game::WorldId reference)>;
+        void setOwnedLookup(OwnedLookup lookup) { mOwnedLookup = std::move(lookup); }
         /// Called with the placement of the horse when the brain must stand aside (true) or may take its package up
         /// again (false).
         void setBrainControl(std::function<void(openeden::sdk::game::WorldId, bool)> control)
@@ -176,6 +194,18 @@ namespace game_skyrimse
         /// saddle, the horse's origin minus the saddle while a paired clip plays (the player himself stays on the
         /// saddle, where his camera is; the clip is in the horse's frame).
         [[nodiscard]] Point bodyOffset() const { return mMounted && mPhase != RidePhase::Ride ? mBodyOffset : Point(); }
+        /// Task 0278: what is added to bodyOffset(): the step between a paired clip's end pose and the riding loop (after a
+        /// mount) or between the loop and the dismount clip's start pose (during a dismount), faded away over
+        /// kHandoverBlendSeconds. Zero otherwise.
+        [[nodiscard]] Point blendOffset() const
+        {
+            float w = 0.f;
+            if (mMounted && mPhase == RidePhase::Dismounting)
+                w = handoverWeight(mPhaseTime);
+            else if (mMounted && mPhase == RidePhase::Ride && mStepActive)
+                w = handoverWeight(mStepTime);
+            return { mStepDelta.mX * w, mStepDelta.mY * w, mStepDelta.mZ * w };
+        }
         /// Called with a line for the log when the rider mounts or dismounts.
         void setLog(std::function<void(const std::string&)> log) { mLog = std::move(log); }
 
@@ -243,6 +273,10 @@ namespace game_skyrimse
         RidePhase mPhase = RidePhase::Ride;
         float mPhaseTime = 0.f; ///< seconds into the paired clip that plays
         Point mBodyOffset; ///< task 0267: see bodyOffset()
+        Point mStepDelta; ///< task 0278: the step to blend away (see bodyOffset)
+        float mStepTime = 0.f;
+        bool mStepActive = false; ///< a mount just ended: the riding body is blended from the clip's last pose
+        OwnedLookup mOwnedLookup;
         float mPairedWait = 0.f; ///< seconds a mount has waited for its clip
         openeden::sdk::game::PairedClipInfo mPairedInfo; ///< of the clip that plays
         std::string mTestOwned; ///< lower case

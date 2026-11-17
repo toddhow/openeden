@@ -167,6 +167,12 @@ namespace MWRender::SkyrimIdle
         const HavokPack::Paired::RootPose& end = description->mEnd;
         out.start = { start.mX, start.mY, start.mZ, start.mYaw };
         out.end = { end.mX, end.mY, end.mZ, end.mYaw };
+        if (const auto second = HavokPack::Paired::describeSecond(clip->mClip)) // task 0278
+        {
+            out.secondStart = { second->mStart.mX, second->mStart.mY, second->mStart.mZ, second->mStart.mYaw };
+            out.secondEnd = { second->mEnd.mX, second->mEnd.mY, second->mEnd.mZ, second->mEnd.mYaw };
+            out.hasSecond = true;
+        }
         return PairedStatus::Ready;
     }
 

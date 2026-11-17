@@ -498,12 +498,15 @@ namespace game_skyrimse
             out.castHoldClip = hands.castHoldClip;
         }
         out.ridingClip = std::string(mRiding.clip()); // task 0251
+        if (out.ridingClip.empty())
+            out.ridingClip = std::string(mKillMoves.playerClip()); // task 0278: his side of a kill move
         out.ridingMount = mRiding.bodyMountReference(); // task 0255 (0267: 0 while a paired clip plays)
         {
             const Point offset = mRiding.bodyOffset(); // task 0267
-            out.bodyOffsetX = static_cast<float>(offset.mX);
-            out.bodyOffsetY = static_cast<float>(offset.mY);
-            out.bodyOffsetZ = static_cast<float>(offset.mZ);
+            const Point blend = mRiding.blendOffset(); // task 0278
+            out.bodyOffsetX = static_cast<float>(offset.mX + blend.mX);
+            out.bodyOffsetY = static_cast<float>(offset.mY + blend.mY);
+            out.bodyOffsetZ = static_cast<float>(offset.mZ + blend.mZ);
         }
         return true;
     }

@@ -167,8 +167,10 @@ namespace MWRender
                     mHaveBaseline = true;
                 }
                 const vsg::vec3 offset = riderBobOffset(bone, mBaseline, playerTransform.rotation);
-                transform.translation = vsg::vec3(playerTransform.translation.x + offset.x,
-                    playerTransform.translation.y + offset.y, playerTransform.translation.z + offset.z);
+                // Task 0278: plus the pack's blend of the step at a paired clip's hand-over (zero otherwise).
+                transform.translation = vsg::vec3(playerTransform.translation.x + offset.x + state.bodyOffsetX,
+                    playerTransform.translation.y + offset.y + state.bodyOffsetY,
+                    playerTransform.translation.z + offset.z + state.bodyOffsetZ);
                 // OPENEDEN_RIDING_TRACE (a developer aid): the bob about twice a second.
                 static const bool trace = std::getenv("OPENEDEN_RIDING_TRACE") != nullptr;
                 if (trace && (++mBobFrames % 30) == 0)

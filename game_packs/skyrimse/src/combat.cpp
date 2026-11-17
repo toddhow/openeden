@@ -1670,6 +1670,9 @@ namespace game_skyrimse
     void SkyrimCombat::applyHit(CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
         const SweepHit& hit, Fighter& victim, const MeleeHit* preset)
     {
+        // Task 0278: while a kill move plays neither the player nor its victim takes a blow
+        if (mKillMoveActive && (victim.mSubject.player || victim.mSubject.actor == mKillMoveVictim))
+            return;
         const WeaponRecord* const swung = weaponFor(attacker); // task 0184
         MeleeInput input;
         input.mWeapon = swung;
@@ -1749,6 +1752,30 @@ namespace game_skyrimse
             && victim.mProfile.mEssential && !victim.mDead;
         if (collapsed)
             after = 1.f;
+        // Task 0278: a lethal sword blow of the player may become a kill move: the victim lives (1 health) until the
+        // clip is over, then dies (tickKillMove)
+        bool killMove = false;
+        if (mKillMoveHook && after <= 0.f && !collapsed && !bash && attacker.mSubject.player && !victim.mSubject.player
+            && !victim.mDead && !mKillMoveActive && swung != nullptr)
+        {
+            KillMoveQuery query;
+            query.mVictim = victim.mSubject.actor;
+            query.mAnimType = swung->mAnimType;
+            query.mCreature = victim.mProfile.mCreature != nullptr;
+            query.mEssential = victim.mProfile.mEssential;
+            if (mKillMoveHook(query))
+            {
+                killMove = true;
+                after = 1.f;
+                mKillMoveActive = true;
+                mKillMoveVictim = victim.mSubject.actor;
+                victim.mStatus.mParalyzedUntil = mClock + 1.0e6f; // does nothing, plays nothing: held
+                holdActor(victim.mSubject.actor);
+                if (mTrace)
+                    trace("COMBAT kill move begins for " + name(victim.mSubject));
+            }
+        }
+        (void)killMove;
         victim.mHealth = after;
         if (collapsed && !victim.mBleedout)
         {
@@ -2171,6 +2198,7 @@ namespace game_skyrimse
             if (!mHaveSettings)
                 loadSettings();
             mSounds.flush(writer); // task 0193: the swings and clip sounds the events asked for
+            tickKillMove(writer); // task 0278
             // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);

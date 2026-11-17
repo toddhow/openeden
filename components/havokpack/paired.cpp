@@ -211,4 +211,39 @@ namespace HavokPack::Paired
         d.mEnd = *end;
         return d;
     }
+
+    std::optional<Description> describeSecond(const Clip& clip)
+    {
+        if (clip.mTrackNames.size() != clip.mNumTransformTracks)
+            return std::nullopt;
+        std::optional<std::size_t> root;
+        for (std::size_t i = 0; i < clip.mTrackNames.size(); ++i)
+        {
+            const TrackRole role = classifyTrack(clip.mTrackNames[i]);
+            if (role.mSide == Side::Second && role.mBone.empty())
+            {
+                root = i;
+                break;
+            }
+        }
+        if (!root)
+            return std::nullopt;
+        std::vector<Transform> out(clip.mNumTransformTracks);
+        auto at = [&](float time) -> std::optional<RootPose> {
+            sample(clip, time, out);
+            const Pose pose = poseOf(out[*root]);
+            if (!finite(pose))
+                return std::nullopt;
+            return rootPose(pose);
+        };
+        const auto start = at(0.f);
+        const auto end = at(clip.mDuration);
+        if (!start || !end)
+            return std::nullopt;
+        Description d;
+        d.mDuration = clip.mDuration;
+        d.mStart = *start;
+        d.mEnd = *end;
+        return d;
+    }
 }

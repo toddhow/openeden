@@ -1717,6 +1717,9 @@ namespace game_skyrimse
                     return NativeResult{};
                 });
             reg("Game", "IncrementStat", true, [](const NativeCall&) { return NativeResult{}; });
+            // Task 0278: TIF__00068CF1 (the stablemaster's sale) calls SetFactionOwner on the horse; riding reads the
+            // faction rank it also sets, so the owner of a placed actor is not kept.
+            reg("ObjectReference", "SetFactionOwner", false, [](const NativeCall&) { return NativeResult{}; });
             reg("ObjectReference", "GetItemCount", false, [this](const NativeCall& c) {
                 const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 const std::int32_t held = mHooks != nullptr ? mHooks->itemCount(formOf(c.self), item) : -1;

@@ -276,6 +276,16 @@
       "default": false
     },
     {
+      "key": "kill moves",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "kill moves chance",
+      "type": "float",
+      "default": 0.25
+    },
+    {
       "key": "horse test owned",
       "type": "string",
       "default": ""

@@ -79,6 +79,11 @@ namespace HavokPack::Paired
     /// the clip has it) and "NPC Root [Root]" composed. Nothing when the clip has no such root track (it needs track
     /// names) or a value is not finite.
     std::optional<Description> describe(const Clip& clip);
+
+    /// Task 0278: where the SECOND actor's own root node (the "2_" track, which names no bone) is at the start and at
+    /// the end, in the same frame (a kill move's victim stands at the clip's origin composed with it: the bear's is
+    /// 157 units in front, F58). Nothing when the clip has no such track, no track names, or a value is not finite.
+    std::optional<Description> describeSecond(const Clip& clip);
 }
 
 #endif

@@ -19,6 +19,7 @@
 #include <game_skyrimse/hud_style.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/killmove.hpp>
 #include <game_skyrimse/riding.hpp>
 #include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/terrain_source.hpp>
@@ -224,6 +225,20 @@ namespace game_skyrimse
             mRiding.setBrainControl([this](openeden::sdk::game::WorldId reference, bool stands) {
                 mActors.onConversation(reference, stands);
             });
+            // Task 0278: a lethal sword blow of the player may become a kill move.
+            mKillMoves.setHold([this](openeden::sdk::game::WorldId reference, bool hold) {
+                mActors.onConversation(reference, hold);
+            });
+            mKillMoves.setFinish(
+                [this](openeden::sdk::game::ActorHandle victim) { mCombat.killMoveFinish(victim); });
+            mCombat.setKillMoveHook([this](const SkyrimCombat::KillMoveQuery& query) {
+                killmove::Candidate candidate;
+                candidate.mAttackerIsPlayer = true;
+                candidate.mWeaponAnimType = query.mAnimType;
+                candidate.mVictimIsCreature = query.mCreature;
+                candidate.mVictimEssential = query.mEssential;
+                return mKillMoves.offer(candidate, query.mVictim);
+            });
             // Task 0180: the combat HUD reads the pack's fighters through the combat rules.
             mHud.setFighterLookup([this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
                 return mCombat.fighterView(subject, out);
@@ -372,6 +387,7 @@ namespace game_skyrimse
             }
             mActors.update(seconds, writer);
             mRiding.update(seconds, writer); // task 0251: after the brain, so a ridden horse's requests win
+            mKillMoves.update(seconds, writer); // task 0278
             if (mBarks != nullptr)
                 updateBarks(seconds, writer); // task 0231
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
@@ -425,6 +441,7 @@ namespace game_skyrimse
         }
         /// Task 0251 (riding): the rules; off (the default) until the game pack turns them on.
         [[nodiscard]] Riding& riding() { return mRiding; }
+        [[nodiscard]] killmove::KillMoves& killMoves() { return mKillMoves; } // task 0278
         [[nodiscard]] bool canMount(openeden::sdk::game::ActorHandle handle) const override
         {
             return mRiding.canMount(handle);
@@ -670,6 +687,7 @@ namespace game_skyrimse
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
         Riding mRiding; ///< task 0251
+        killmove::KillMoves mKillMoves; ///< task 0278
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         void updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer); ///< task 0231

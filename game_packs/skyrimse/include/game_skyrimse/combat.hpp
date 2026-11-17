@@ -868,6 +868,21 @@ namespace game_skyrimse
         bool scriptResetHealth(openeden::sdk::game::ActorHandle handle);
         [[nodiscard]] bool scriptInCombat(openeden::sdk::game::ActorHandle handle) const;
         void setEssentialBleedout(bool on) { mEssentialBleedout = on; }
+        /// Task 0278 (kill moves). When the player's blow would kill a person the hook is asked (once per such blow);
+        /// true means "play a kill move": the blow leaves the victim at 1 health, the victim and the player take no
+        /// damage and the victim does nothing until `killMoveFinish`, which kills it at the next update. With no hook
+        /// nothing changes.
+        struct KillMoveQuery
+        {
+            openeden::sdk::game::ActorHandle mVictim;
+            std::uint8_t mAnimType = 0; ///< the weapon's animation type
+            bool mCreature = false;
+            bool mEssential = false;
+        };
+        using KillMoveHook = std::function<bool(const KillMoveQuery&)>;
+        void setKillMoveHook(KillMoveHook hook) { mKillMoveHook = std::move(hook); }
+        void killMoveFinish(openeden::sdk::game::ActorHandle victim);
+        [[nodiscard]] bool killMoveActive() const { return mKillMoveActive; }
         using BleedoutSink = std::function<void(openeden::sdk::game::ActorHandle actor)>;
         void setBleedoutSink(BleedoutSink sink) { mBleedoutSink = std::move(sink); }
         /// Test aid (task 0204): this actor (editor id, case-insensitive) counts as a guard for the crime rules.
@@ -1309,6 +1324,11 @@ namespace game_skyrimse
         BarkSink mBarkSink; ///< task 0231
         BleedoutSink mBleedoutSink; ///< task 0264
         bool mEssentialBleedout = false; ///< task 0264
+        KillMoveHook mKillMoveHook; ///< task 0278
+        bool mKillMoveActive = false; ///< the player and `mKillMoveVictim` take no damage
+        openeden::sdk::game::ActorHandle mKillMoveVictim;
+        bool mKillMoveFinishPending = false;
+        void tickKillMove(openeden::sdk::game::CombatRequestWriter& writer);
         // Task 0253 (dragons).
         dragons::Settings mDragonSettings;
         std::vector<dragons::DragonState> mDragonStates;

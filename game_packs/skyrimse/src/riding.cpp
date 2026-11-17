@@ -136,6 +136,7 @@ namespace game_skyrimse
     {
         mPhase = RidePhase::Dismounting;
         mPhaseTime = 0.f;
+        mStepActive = false;
         mPairedInfo = info;
         mDismountRequested = false;
         mGait = Gait::Stand;
@@ -168,6 +169,13 @@ namespace game_skyrimse
         const Point saddle = saddlePoint(x, y, z, mHeading);
         (void)player.carryPlayer(saddle.mX, saddle.mY, saddle.mZ, mHeading);
         mBodyOffset = { x - saddle.mX, y - saddle.mY, z - saddle.mZ };
+        if (mPhase == RidePhase::Dismounting)
+        {
+            // The clip starts 7 units from where the loop holds the body: blend that step away at the start.
+            const Point start = horseFramePoint(x, y, z, mHeading, mPairedInfo.start.x, mPairedInfo.start.y,
+                mPairedInfo.start.z);
+            mStepDelta = { saddle.mX - start.mX, saddle.mY - start.mY, saddle.mZ - start.mZ };
+        }
         mPhaseTime += seconds;
         if (!(mPhaseTime >= mPairedInfo.duration))
             return;
@@ -176,6 +184,11 @@ namespace game_skyrimse
             (void)paired->playPairedClip(mHorse, std::string_view());
         if (mPhase == RidePhase::Mounting)
         {
+            // Task 0278: the loop holds the body at the saddle, the clip ended a few units away: blend from there.
+            const Point end = horseFramePoint(x, y, z, mHeading, mPairedInfo.end.x, mPairedInfo.end.y, mPairedInfo.end.z);
+            mStepDelta = { end.mX - saddle.mX, end.mY - saddle.mY, end.mZ - saddle.mZ };
+            mStepTime = 0.f;
+            mStepActive = true;
             mPhase = RidePhase::Ride;
             mGait = Gait::Stand;
             log("RIDING paired mount finished");
@@ -251,7 +264,9 @@ namespace game_skyrimse
         if (mMounted)
             return handle == mHorse; // the horse he sits on: activating it gets him off
         const Row* row = rowOf(handle);
-        return row != nullptr && row->mHorse == 1 && row->mOwned && row->mInfo.mWalkSpeed > 0.f;
+        // Task 0278: owned by the test setting, or bought (the game's own purchase script put it in PlayerHorseFaction).
+        const bool owned = row != nullptr && (row->mOwned || (mOwnedLookup && mOwnedLookup(handle.reference)));
+        return row != nullptr && row->mHorse == 1 && owned && row->mInfo.mWalkSpeed > 0.f;
     }
 
     void Riding::onMountRequested(openeden::sdk::game::ActorHandle handle)
@@ -443,6 +458,12 @@ namespace game_skyrimse
     {
         if (!mEnabled)
             return;
+        if (mStepActive)
+        {
+            mStepTime += seconds;
+            if (mStepTime >= kHandoverBlendSeconds || !mMounted)
+                mStepActive = false;
+        }
         if (!mMounted && (mStopHorse || mRestorePending || mClearHorseClip))
         {
             if (mClearHorseClip)

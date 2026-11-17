@@ -283,6 +283,7 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testlocomotion.cpp
     havokpack/testpairedsurvey.cpp
     havokpack/testpaired.cpp
+    havokpack/testpairedsecond.cpp
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp
@@ -747,6 +748,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseridingstables.cpp
     skyrimse/testskyrimseriding2.cpp
     skyrimse/testskyrimseriding3.cpp
+    skyrimse/testskyrimseriding4.cpp
+    skyrimse/testskyrimsekillmove.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsevmad.cpp
@@ -949,6 +952,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dragons.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/werewolf.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_werewolf.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_killmove.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/killmove.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/werewolf_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_dragon.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai.cpp
