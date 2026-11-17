@@ -2484,6 +2484,20 @@ namespace MWPhysics
         ESM::Position pos = ptr.getRefData().getPosition();
         const vsg::vec3 feet = pos.asVec3();
 
+        // Task 0274: a mount (a cart horse, an NPC's horse) walks through the other neutral actors' capsules: its
+        // rider's overlaps its own, and a herd of horses on one road must not block each other.
+        const openeden::sdk::game::ActorHandle ownHandle = mNeutralBridge.handleOf(entry.mRef);
+        const bool mount = (mNeutralRidden.valid() && ownHandle == mNeutralRidden)
+            || (mNeutralRidingRules != nullptr && ownHandle.valid() && mNeutralRidingRules->usesMountLimits(ownHandle));
+        mNeutralSweepIgnore.clear();
+        if (mount)
+            for (const NeutralActorEntry& other : mNeutralActors)
+                if (other.mRef != entry.mRef)
+                {
+                    const auto otherObject = mObjects.find(other.mRef);
+                    if (otherObject != mObjects.end())
+                        mNeutralSweepIgnore.push_back(otherObject->second->getPhysicsBody());
+                }
         // Task 0255: the horse the player sits on climbs and drops more than a person: its limits follow its capsule.
         // Every other actor keeps the humanoid's (the pack names the ridden horse once a frame). Task 0280: so does a
         // capsule as wide as the dragon's, which also walks over small clutter. Task 0274: a rider of a cart rig's
@@ -2494,7 +2508,8 @@ namespace MWPhysics
         const NeutralMover::Limits limits
             = NeutralMover::limitsFor(2.f * entry.mCapsule.mCentreZ, entry.mCapsule.mRadius, ridden);
         const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
-            object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, limits, &neutralSightIgnore());
+            object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, limits, &neutralSightIgnore(),
+            &mNeutralSweepIgnore);
         const NeutralMover::Result result = NeutralMover::step(feet, entry.mRequest, dt, sweeper, limits);
         ++entry.mWalkFrames;
 

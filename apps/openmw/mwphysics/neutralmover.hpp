@@ -15,6 +15,8 @@
 #include <vector>
 #include <vsg/maths/vec3.h>
 
+#include <vector>
+
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyID.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
@@ -179,7 +181,10 @@ namespace MWPhysics::NeutralMover
         /// `limits` (task 0280) name the small bodies the actor walks over; the default tramples nothing.
         /// `actors` (task 0280, optional) are the bodies of the other actors: a large creature never walks over those.
         JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self, int layerMask,
-            const Limits& limits = Limits(), const std::vector<JPH::BodyID>* actors = nullptr);
+            const Limits& limits = Limits(), const std::vector<JPH::BodyID>* actors = nullptr,
+            const std::vector<JPH::BodyID>* alsoIgnore = nullptr);
+        /// `alsoIgnore` (task 0274, optional) lists bodies left out of every sweep: a mount walks through the other
+        /// actors' capsules (its rider's, a herd's). It must outlive the sweeper.
         [[nodiscard]] Sweep sweep(const vsg::vec3& from, const vsg::vec3& delta) const override;
         [[nodiscard]] Sweep probeDown(const vsg::vec3& from, float depth) const override;
 
@@ -187,6 +192,7 @@ namespace MWPhysics::NeutralMover
         const JPH::PhysicsSystem& mSystem;
         JPH::RefConst<JPH::Shape> mShape;
         JPH::BodyID mSelf;
+        const std::vector<JPH::BodyID>* mAlsoIgnore;
         int mLayerMask;
         Limits mLimits;
         const std::vector<JPH::BodyID>* mActors;

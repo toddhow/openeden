@@ -116,6 +116,12 @@ namespace game_skyrimse
             if (mBrain)
                 mBrain->setPackageEndHook(std::move(hook));
         }
+        /// Task 0274: see PackageBrain::setMount.
+        void setMount(openeden::sdk::game::WorldId rider, openeden::sdk::game::ActorHandle horse)
+        {
+            if (mBrain)
+                mBrain->setMount(rider, horse);
+        }
         /// Task 0274: see PackageBrain::setVehicleRider.
         bool setVehicleRider(openeden::sdk::game::WorldId reference, bool rides)
         {

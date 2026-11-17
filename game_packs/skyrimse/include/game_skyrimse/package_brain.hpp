@@ -344,6 +344,10 @@ namespace game_skyrimse
         /// the brain leaves it alone (no evaluation, no talk request acted on, no goal) until it is set free. Kept by
         /// placement id like followers, so a door does not end it. True when the set changed.
         bool setVehicleRider(openeden::sdk::game::WorldId reference, bool rides);
+        /// Task 0274 (mounted NPCs): an actor that sits on a horse runs its packages as usual, but its goals, stops and
+        /// headings are written for the HORSE's handle (the horse is what walks) and a result told for the horse is
+        /// handed to the rider. Pass an invalid handle to dismount.
+        void setMount(openeden::sdk::game::WorldId rider, openeden::sdk::game::ActorHandle horse);
         /// Task 0274: a package that carries an OnEnd script fragment (`PackageRecord::mEndFunction`) has ended for an
         /// actor: a travel or a patrol with no further marker has arrived. Told once per start of the package.
         using EndHook = std::function<void(openeden::sdk::game::WorldId reference, const PackageRecord& package)>;
@@ -500,6 +504,8 @@ namespace game_skyrimse
         ForceGreetHook mGreetHook;
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
         std::set<openeden::sdk::game::WorldId> mRiderRefs; ///< placements that sit on a cart (task 0274)
+        std::map<openeden::sdk::game::WorldId, openeden::sdk::game::ActorHandle> mMounts; ///< rider -> horse (0274)
+        [[nodiscard]] openeden::sdk::game::ActorHandle moverOf(const Actor& actor) const;
         EndHook mEndHook;
         void fireEnd(Actor& actor);
         std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)

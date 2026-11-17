@@ -677,6 +677,8 @@ namespace game_skyrimse
         [[nodiscard]] std::int32_t itemCountOfPlacement(FormId placement) const;
         /// True when the form is a FACT (else an NPC_). Needs the actor index (built by the combat or the first actor).
         [[nodiscard]] bool isFactionForm(FormId form) const;
+        /// Task 0274: the horse a placed actor starts mounted on (its XHOR), else kNullFormId.
+        [[nodiscard]] FormId horseOf(FormId reference) const;
         /// Task 0274: an NPC_ base (the class `ActorBase`: `GetActorBase() == TriggerActor` casts to it).
         [[nodiscard]] bool isActorBaseForm(FormId form) const;
         /// The crime data of a faction (null: none or no crime values) and its name (the FULL, else the editor id).

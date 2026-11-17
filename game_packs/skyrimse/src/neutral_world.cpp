@@ -807,6 +807,104 @@ namespace game_skyrimse
         return true;
     }
 
+    void SkyrimCellSource::noteMount(FormId reference)
+    {
+        const auto origin = mOriginOf.find(reference);
+        const FormId root = origin != mOriginOf.end() ? origin->second : reference;
+        if (mMountHorse.count(root) != 0)
+            return;
+        mMountCandidates.insert(root); // the placed table is read on a worker: asked again until it is there
+        resolveMountCandidates();
+    }
+
+    void SkyrimCellSource::resolveMountCandidates()
+    {
+        auto* view = dynamic_cast<SkyrimWorldView*>(&mView);
+        if (view == nullptr || view->placedRefs() == nullptr)
+            return;
+        for (const FormId root : mMountCandidates)
+        {
+            const FormId horse = view->horseOf(root);
+            if (horse != kNullFormId && horse != kUnresolvedFormId)
+                mMountHorse[root] = horse;
+        }
+        mMountCandidates.clear();
+    }
+
+    namespace
+    {
+        /// The seat on a horse: the root of a seated actor goes this far above the horse's origin (the saddle is 135
+        /// above it, the sit clip puts the pelvis 39 above its root: both measured, task 0255 and 0135).
+        constexpr double kMountSeatZ = 96.0;
+        constexpr const char* kMountSeatClip = "chair_idlebasevar1";
+    }
+
+    void SkyrimCellSource::updateMounts(openeden::sdk::game::ActorRequestWriter& writer)
+    {
+        namespace sdkgame = openeden::sdk::game;
+        if (!mMountCandidates.empty())
+            resolveMountCandidates();
+        mHorsePlaces.clear(); // refilled here (mounted horses) and by updateCarts (cart horses)
+        for (const auto& [riderOriginal, horseOriginal] : mMountHorse)
+        {
+            const auto cr = mCurrentOf.find(riderOriginal);
+            const auto ch = mCurrentOf.find(horseOriginal);
+            const FormId riderRef = cr != mCurrentOf.end() ? cr->second : riderOriginal;
+            const FormId horseRef = ch != mCurrentOf.end() ? ch->second : horseOriginal;
+            const sdkgame::ActorHandle rider = mActors.handleOf(riderRef);
+            const sdkgame::ActorHandle horse = mActors.handleOf(horseRef);
+            if (!rider.valid() || !horse.valid())
+            {
+                static int sTmp = 0;
+                if (sTmp++ < 6)
+                    std::fprintf(stderr, "TMPMOUNT pair %u->%u refs %u %u invalid\n", static_cast<unsigned>(riderOriginal),
+                        static_cast<unsigned>(horseOriginal), static_cast<unsigned>(riderRef),
+                        static_cast<unsigned>(horseRef));
+                continue;
+            }
+            MountState& state = mMountStates[riderOriginal];
+            if (state.mRider != riderRef || state.mHorse != horseRef)
+            {
+                state = MountState();
+                state.mRider = riderRef;
+                state.mHorse = horseRef;
+                mActors.setMount(riderRef, horse);
+                (void)mActors.setVehicleRider(horseRef, true); // the horse is moved by its rider's packages
+            }
+            double x = 0.0, y = 0.0, z = 0.0;
+            if (!writer.actorPosition(horse, x, y, z))
+                continue;
+            if (state.mHasLast)
+            {
+                const double dx = x - state.mLastX, dy = y - state.mLastY;
+                if (std::hypot(dx, dy) > 0.5)
+                    state.mHeading = static_cast<float>(std::atan2(dx, dy));
+            }
+            state.mLastX = x;
+            state.mLastY = y;
+            state.mHasLast = true;
+            HorsePlace place;
+            place.mReference = horseRef;
+            place.mX = x;
+            place.mY = y;
+            place.mZ = z;
+            place.mRider = riderRef;
+            mHorsePlaces.push_back(place);
+            sdkgame::FurnitureUse use;
+            use.x = x;
+            use.y = y;
+            use.z = z + kMountSeatZ;
+            use.heading = state.mHeading;
+            use.pose = sdkgame::FurniturePose::Sit;
+            use.clip = kMountSeatClip;
+            use.clipPerSex = true;
+            if (!state.mSeated)
+                state.mSeated = writer.useFurniture(rider, use);
+            else if (!writer.placeFurniture(rider, use.x, use.y, use.z, use.heading))
+                state.mSeated = writer.useFurniture(rider, use);
+        }
+    }
+
     void SkyrimCellSource::updateCarts(float seconds, openeden::sdk::game::ActorRequestWriter& writer)
     {
         namespace sdkgame = openeden::sdk::game;
@@ -842,7 +940,6 @@ namespace game_skyrimse
             }
         }
         mCartExits.clear();
-        mHorsePlaces.clear();
         if (mCarts.rigCount() == 0)
             return;
         for (const FormId horse : mCarts.horses())

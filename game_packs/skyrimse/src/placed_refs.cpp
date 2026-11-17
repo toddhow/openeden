@@ -150,6 +150,12 @@ namespace game_skyrimse
                                             ref.mFlags |= PlacedFlags::EnableOpposite;
                                     }
                                     break;
+                                case Content::fourCC("XHOR"): // task 0274: the horse an actor starts mounted on
+                                    if (sub.mData.size() != 4)
+                                        ++mOut.mOddSubrecords;
+                                    else
+                                        ref.mHorse = resolved(le32(sub.mData.data()));
+                                    break;
                                 case Content::fourCC("XLCN"): // task 0230: the reference's own (persistent) location
                                     if (sub.mData.size() != 4)
                                         ++mOut.mOddSubrecords;
@@ -338,7 +344,10 @@ namespace game_skyrimse
                 deleted = false;
                 const FormId base = merged.mBase;
                 const FormId cell = merged.mCell;
+                const FormId horse = merged.mHorse;
                 merged = later;
+                if (merged.mHorse == kNullFormId)
+                    merged.mHorse = horse;
                 if (merged.mBase == kNullFormId)
                     merged.mBase = base;
                 if (merged.mCell == kNullFormId)

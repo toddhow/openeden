@@ -4104,6 +4104,13 @@ namespace game_skyrimse
         return mActorIndex != nullptr && mActorIndex->faction(form) != nullptr;
     }
 
+    FormId SkyrimWorldView::horseOf(FormId reference) const
+    {
+        const PlacedRefIndex* placed = placedRefs();
+        const PlacedEntry* entry = placed != nullptr ? placed->find(reference) : nullptr;
+        return entry != nullptr ? entry->mHorse : kNullFormId;
+    }
+
     bool SkyrimWorldView::isActorBaseForm(FormId form) const
     {
         return mActorIndex != nullptr && mActorIndex->npc(form) != nullptr;

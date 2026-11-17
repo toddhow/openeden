@@ -741,6 +741,7 @@ namespace MWPhysics
         std::uint64_t mNeutralCostRulesMaxNs = 0;
         std::uint64_t mNeutralCostRulesPrevNs = 0; ///< the bridge's running total at the last frame
         std::vector<NeutralActorEntry> mNeutralActors;
+        std::vector<JPH::BodyID> mNeutralSweepIgnore; ///< task 0274: scratch, the bodies a mount's sweeps ignore
         // Task 0157: doors that open for walking neutral actors.
         struct NeutralDoorEntry
         {

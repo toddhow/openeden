@@ -227,8 +227,30 @@ namespace game_skyrimse
         }
     }
 
+    sdkgame::ActorHandle PackageBrain::moverOf(const Actor& actor) const
+    {
+        const auto it = mMounts.find(actor.mHandle.reference);
+        return it != mMounts.end() && it->second.valid() ? it->second : actor.mHandle;
+    }
+
+    void PackageBrain::setMount(sdkgame::WorldId rider, sdkgame::ActorHandle horse)
+    {
+        if (horse.valid())
+            mMounts[rider] = horse;
+        else
+            mMounts.erase(rider);
+    }
+
     void PackageBrain::onGoalFinished(sdkgame::ActorHandle handle, sdkgame::GoalResult result)
     {
+        for (const auto& [riderRef, horse] : mMounts) // task 0274: a result for a horse is its rider's
+            if (horse == handle)
+            {
+                const auto rider = mActors.find(riderRef);
+                if (rider != mActors.end())
+                    handle = rider->second.mHandle;
+                break;
+            }
         const auto it = mActors.find(handle.reference);
         if (it == mActors.end() || it->second.mHandle != handle)
             return;
@@ -356,7 +378,7 @@ namespace game_skyrimse
         Actor& actor, double x, double y, double z, sdkgame::ActorRequestWriter& writer, sdkgame::ActorSpeed speed)
     {
         const sdkgame::ActorGoal goal{ x, y, z, speed };
-        if (!writer.goTo(actor.mHandle, goal))
+        if (!writer.goTo(moverOf(actor), goal))
         {
             ++mStats.mWritesRefused;
             actor.mGoalOut = false;
@@ -699,7 +721,7 @@ namespace game_skyrimse
         actor.mActive = nullptr;
         if (actor.mGoalOut)
         {
-            if (!writer.cancelGoal(actor.mHandle))
+            if (!writer.cancelGoal(moverOf(actor)))
                 ++mStats.mWritesRefused;
             actor.mGoalOut = false;
         }
@@ -712,7 +734,7 @@ namespace game_skyrimse
     {
         if (actor.mGoalOut)
         {
-            if (!writer.cancelGoal(actor.mHandle))
+            if (!writer.cancelGoal(moverOf(actor)))
                 ++mStats.mWritesRefused;
             actor.mGoalOut = false;
         }
@@ -732,7 +754,7 @@ namespace game_skyrimse
         {
             if (actor.mGoalOut)
             {
-                if (!writer.cancelGoal(actor.mHandle))
+                if (!writer.cancelGoal(moverOf(actor)))
                     ++mStats.mWritesRefused;
                 actor.mGoalOut = false;
             }
@@ -814,7 +836,7 @@ namespace game_skyrimse
             }
             if (actor.mGoalOut)
             {
-                if (!writer.cancelGoal(actor.mHandle))
+                if (!writer.cancelGoal(moverOf(actor)))
                     ++mStats.mWritesRefused;
                 actor.mGoalOut = false;
             }
@@ -980,7 +1002,7 @@ namespace game_skyrimse
                 actor.mHasDeferred = true;
                 if (actor.mGoalOut)
                 {
-                    if (!writer.cancelGoal(actor.mHandle))
+                    if (!writer.cancelGoal(moverOf(actor)))
                         ++mStats.mWritesRefused;
                     actor.mGoalOut = false;
                 }
@@ -993,7 +1015,7 @@ namespace game_skyrimse
         actor.mBadSlots.clear();
         if (actor.mGoalOut)
         {
-            if (!writer.cancelGoal(actor.mHandle))
+            if (!writer.cancelGoal(moverOf(actor)))
                 ++mStats.mWritesRefused;
             actor.mGoalOut = false;
         }
@@ -1196,7 +1218,7 @@ namespace game_skyrimse
         if (actor.mFaceNext)
         {
             actor.mFaceNext = false;
-            if (!writer.setHeading(actor.mHandle, actor.mFaceHeading))
+            if (!writer.setHeading(moverOf(actor), actor.mFaceHeading))
                 ++mStats.mWritesRefused;
         }
         switch (actor.mPhase)

@@ -632,7 +632,8 @@ namespace game_skyrimse
                                 + std::to_string(static_cast<int>(move.mPose.heading * 100.f)) + "/100");
                     for (const SkyrimCellSource::HorsePlace& horse : cells->horsePlaces())
                         say(openeden::sdk::LogLevel::Info,
-                            "CART horse " + hexId(horse.mReference) + " at "
+                            "CART horse " + hexId(horse.mReference)
+                                + (horse.mRider != 0 ? " ridden by " + hexId(horse.mRider) : std::string()) + " at "
                                 + std::to_string(static_cast<long long>(horse.mX)) + " "
                                 + std::to_string(static_cast<long long>(horse.mY)) + " "
                                 + std::to_string(static_cast<long long>(horse.mZ)));
@@ -1378,7 +1379,11 @@ namespace game_skyrimse
                 if (id == openeden::sdk::game::kNoWorldId)
                     return none;
                 if (actor)
+                {
                     mView.noteCreatedActor(static_cast<FormId>(id), base); // speaks as its base does (scene lines)
+                    if (auto* cells = dynamic_cast<SkyrimCellSource*>(&mCells))
+                        cells->noteRelocated(reference, static_cast<FormId>(id)); // task 0274: a rider's horse
+                }
                 ObjectPlaceResult placedResult{ static_cast<FormId>(id), hint };
                 placedResult.actor = actor; // task 0276
                 return placedResult;

@@ -336,6 +336,7 @@ namespace game_skyrimse
         /// Actor hooks (task 0135, stage S3): handled by the pack's own table.
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override
         {
+            noteMount(info.handle.reference); // task 0274
             mActors.onActorAdded(info);
             mRiding.onActorAdded(info); // task 0251
             mCombat.onActorAdded(info);
@@ -390,6 +391,7 @@ namespace game_skyrimse
             mActors.update(seconds, writer);
             mRiding.update(seconds, writer); // task 0251: after the brain, so a ridden horse's requests win
             mKillMoves.update(seconds, writer); // task 0278
+            updateMounts(writer); // task 0274
             updateCarts(seconds, writer); // task 0274
             if (mBarks != nullptr)
                 updateBarks(seconds, writer); // task 0231
@@ -442,6 +444,14 @@ namespace game_skyrimse
             mActors.onGoalFinished(handle, result);
             mCombat.aiGoalFinished(handle, result); // task 0190
         }
+        /// Task 0274: a script made `current` where `original` was (a `MoveTo` of an actor makes a new reference).
+        void noteRelocated(FormId original, FormId current)
+        {
+            const auto origin = mOriginOf.find(original);
+            const FormId root = origin != mOriginOf.end() ? origin->second : original;
+            mCurrentOf[root] = current;
+            mOriginOf[current] = root;
+        }
         /// Task 0251 (riding): the rules; off (the default) until the game pack turns them on.
         [[nodiscard]] Riding& riding() { return mRiding; }
         [[nodiscard]] killmove::KillMoves& killMoves() { return mKillMoves; } // task 0278
@@ -461,7 +471,12 @@ namespace game_skyrimse
         /// with steps no person climbs).
         [[nodiscard]] bool usesMountLimits(openeden::sdk::game::ActorHandle handle) const override
         {
-            return mCarts.isHorse(handle.reference);
+            if (mCarts.isHorse(handle.reference))
+                return true;
+            for (const auto& [rider, state] : mMountStates) // a mounted NPC's horse (task 0274)
+                if (state.mHorse == handle.reference)
+                    return true;
+            return false;
         }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
 
@@ -477,6 +492,7 @@ namespace game_skyrimse
         {
             FormId mReference = kNullFormId;
             double mX = 0.0, mY = 0.0, mZ = 0.0;
+            FormId mRider = kNullFormId; ///< task 0274: the NPC that rides it (0 for a cart's horse)
         };
         bool tetherCart(FormId cart, FormId horse, const CartPose& pose) { return mCarts.tether(cart, horse, pose); }
         /// A rider (the player is 0x14) sits on a cart; the brain leaves an actor rider alone from now on.
@@ -743,6 +759,25 @@ namespace game_skyrimse
         std::set<openeden::sdk::game::WorldId> mDirectWalkers; ///< task 0253: dragons walked by setMovement
         // Task 0274
         void updateCarts(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+        void updateMounts(openeden::sdk::game::ActorRequestWriter& writer);
+        void noteMount(FormId reference);
+        void resolveMountCandidates();
+        std::set<FormId> mMountCandidates; ///< original ids of actors not yet looked up for a horse
+        /// Task 0274 (mounted NPCs): an actor placed with a horse (XHOR) rides it. The maps below are keyed by the ORIGINAL placement
+        /// ids; a script's `MoveTo` makes new references (`noteRelocated`), found again through `mCurrentOf`.
+        std::map<FormId, FormId> mMountHorse; ///< rider (original id) -> horse (original id)
+        std::map<FormId, FormId> mCurrentOf; ///< original id -> the reference that replaced it
+        std::map<FormId, FormId> mOriginOf; ///< a replacing reference -> the original
+        struct MountState
+        {
+            FormId mRider = kNullFormId;
+            FormId mHorse = kNullFormId;
+            bool mSeated = false;
+            double mLastX = 0.0, mLastY = 0.0;
+            float mHeading = 0.f;
+            bool mHasLast = false;
+        };
+        std::map<FormId, MountState> mMountStates; ///< by original rider id
         struct CartExit
         {
             FormId mRider = kNullFormId;

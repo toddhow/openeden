@@ -179,6 +179,29 @@ namespace
         EXPECT_TRUE(deleted->mDeleted);
     }
 
+    TEST(SkyrimPlacedRefsParse, anActorPlacedMountedNamesItsHorse)
+    {
+        // Task 0274: an ACHR's XHOR is the horse it starts on (Hadvar's), a wrong-sized one is odd
+        Bytes children = placed("ACHR", 0, kRefA2, kNpcA, 0, 0, 0, sub4("XHOR", Bytes().u32(kRefA)));
+        children.append(placed("ACHR", 0, kRefFollower, kNpcA, 0, 0, 0, sub4("XHOR", Bytes().u8(1))));
+        Bytes cellBlock = record4("CELL", 0, kCell, Bytes());
+        cellBlock.append(group4(kCell, 6, children));
+        Bytes all = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
+        all.append(group4(Content::fourCC("CELL"), 0, cellBlock));
+        bool ok = false;
+        const PlacedRefRecords r = parse(all, ok);
+        ASSERT_TRUE(ok);
+        ASSERT_EQ(r.mRefs.size(), 2u);
+        for (const PlacedEntry& p : r.mRefs)
+        {
+            if (p.mId == kRefA2)
+                EXPECT_EQ(p.mHorse, kRefA);
+            else
+                EXPECT_EQ(p.mHorse, kNullFormId);
+        }
+        EXPECT_EQ(r.mOddSubrecords, 1u);
+    }
+
     TEST(SkyrimPlacedRefsParse, theDeadBitMeansNothingOnAReference)
     {
         Bytes children = placed("REFR", 0x200, kRefA, kNpcA, 0, 0, 0);

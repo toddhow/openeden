@@ -187,4 +187,70 @@ namespace
             brain.update(1.1f, writer);
         EXPECT_EQ(brain.view(kHorse1)->mActive, nullptr);
     }
+
+    // A rider on a horse (task 0274): its goals are written for the horse's handle and the horse's result is the rider's
+    class WanderSource final : public PackageSource
+    {
+    public:
+        bool ready() const override { return true; }
+        bool packagesFor(FormId, std::vector<const PackageRecord*>& out) const override
+        {
+            out = mList;
+            return true;
+        }
+        PackageBehavior behaviorOf(const PackageRecord&) const override { return PackageBehavior::Wander; }
+        bool conditionsPass(const PackageRecord&, FormId, FormId) override { return true; }
+        bool locate(FormId, double&, double&, double&) const override { return false; }
+        std::vector<const PackageRecord*> mList;
+    };
+
+    class RecordingWriter final : public ActorRequestWriter
+    {
+    public:
+        bool setMovement(ActorHandle, float, float) override { return true; }
+        bool goTo(ActorHandle handle, const ActorGoal&) override
+        {
+            mGoalFor.push_back(handle);
+            return true;
+        }
+        bool cancelGoal(ActorHandle handle) override
+        {
+            mCancelledFor.push_back(handle);
+            return true;
+        }
+        bool setHeading(ActorHandle, float) override { return true; }
+        ActorClock clock() const override { return ActorClock{ 12.f, 0, true }; }
+        std::vector<ActorHandle> mGoalFor, mCancelledFor;
+    };
+
+    TEST(SkyrimCartBrain, aRidersGoalIsWrittenForItsHorse)
+    {
+        std::vector<PackageRecord> packs{ package(1) };
+        WanderSource source;
+        source.mList = { &packs[0] };
+        PackageBrain brain(source);
+        RecordingWriter writer;
+        addHorse(brain, kHorse1, 1);
+        addHorse(brain, kHorse2, 2);
+        brain.setMount(kHorse1, ActorHandle{ kHorse2, 2 });
+        for (int i = 0; i < 40; ++i)
+            brain.update(1.1f, writer);
+        ASSERT_FALSE(writer.mGoalFor.empty());
+        for (const ActorHandle& handle : writer.mGoalFor)
+            EXPECT_NE(handle.reference, kHorse1); // the rider itself is never sent anywhere
+    }
+
+    TEST(SkyrimCartBrain, anActorThatIsNotMountedIsSentItself)
+    {
+        std::vector<PackageRecord> packs{ package(1) };
+        WanderSource source;
+        source.mList = { &packs[0] };
+        PackageBrain brain(source);
+        RecordingWriter writer;
+        addHorse(brain, kHorse1, 1);
+        for (int i = 0; i < 40; ++i)
+            brain.update(1.1f, writer);
+        ASSERT_FALSE(writer.mGoalFor.empty());
+        EXPECT_EQ(writer.mGoalFor.front().reference, kHorse1); // not mounted: its own handle
+    }
 }

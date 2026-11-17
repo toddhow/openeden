@@ -250,10 +250,12 @@ namespace MWPhysics::NeutralMover
     }
 
     JoltSweeper::JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self,
-        int layerMask, const Limits& limits, const std::vector<JPH::BodyID>* actors)
+        int layerMask, const Limits& limits, const std::vector<JPH::BodyID>* actors,
+        const std::vector<JPH::BodyID>* alsoIgnore)
         : mSystem(system)
         , mShape(std::move(shape))
         , mSelf(self)
+        , mAlsoIgnore(alsoIgnore)
         , mLayerMask(layerMask)
         , mLimits(limits)
         , mActors(actors)
@@ -278,7 +280,7 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors);
+        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore);
         JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
         mSystem.GetNarrowPhaseQuery().CastShape(
             cast, settings, JPH::RVec3::sZero(), collector, allBroadPhaseLayers, objectLayers, ownBody);
@@ -301,7 +303,7 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors); // a probe starts just above the feet
+        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore); // a probe starts just above the feet
         // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by
         // steep bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by
         // five rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal
