@@ -245,6 +245,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimcombatclips.cpp
     mwrender/testskyrimclipalias.cpp
     mwrender/testskyrimclipaliasfalmer.cpp
+    mwrender/testskyrimclipaliasbeast.cpp
     mwrender/testplayerclipmeta.cpp
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp

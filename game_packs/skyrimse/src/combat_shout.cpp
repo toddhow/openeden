@@ -61,14 +61,23 @@ namespace game_skyrimse
         if (!caster.mSubject.player || caster.mDead || !ready(caster) || isBusyCasting(caster.mSubject)
             || mCasts.size() >= kMaxCasts || spell.mEffects.empty() || spell.mCastType == MagicCast::Concentration)
             return false;
-        const std::uint8_t column = spell.mDelivery == MagicDelivery::Self ? kMagicSelf : kMagicAimed;
-        const std::string_view clip = mMagicSlots.clipFor(ClipSlot::Cast, column);
-        if (clip.empty())
-            return false;
+        // Task 0279: the werewolf shouts its Howl with its own clip, whose spell-fire event (Voice_SpellFire_Event) the
+        // core does not classify: the time is the sidecar's, carried by the pack.
+        const bool beast = mBeast && caster.mSubject.player;
         float time = 0.f;
-        // No first-person arms: the spell goes after the time the cast clip's own event gives.
-        if (!writer.clipEventTime(clip, false, openeden::sdk::game::ClipEventKind::SpellFire, time) || !(time >= 0.f))
-            return false; // the sidecar is still being read: asked again next frame
+        if (beast)
+            time = werewolf::kHowlFireSeconds;
+        else
+        {
+            const std::uint8_t column = spell.mDelivery == MagicDelivery::Self ? kMagicSelf : kMagicAimed;
+            const std::string_view clip = mMagicSlots.clipFor(ClipSlot::Cast, column);
+            if (clip.empty())
+                return false;
+            // No first-person arms: the spell goes after the time the cast clip's own event gives.
+            if (!writer.clipEventTime(clip, false, openeden::sdk::game::ClipEventKind::SpellFire, time)
+                || !(time >= 0.f))
+                return false; // the sidecar is still being read: asked again next frame
+        }
         Cast cast;
         cast.mCaster = caster.mSubject;
         cast.mSpell = &spell;
@@ -77,6 +86,11 @@ namespace game_skyrimse
         cast.mShout = true;
         cast.mRecovery = recovery;
         mCasts.push_back(cast);
+        if (beast)
+        {
+            ++mBeastBodyCount; // task 0279: the body plays the Howl clip
+            mBeastBodyClip.assign(werewolf::kHowlClip);
+        }
         return true;
     }
 

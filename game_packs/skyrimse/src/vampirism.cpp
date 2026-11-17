@@ -284,6 +284,12 @@ namespace game_skyrimse::vampirism
             return;
         }
 
+        if (mCureAt >= 0.0 && mMachine.vampire() && days >= mCureAt)
+        {
+            mCureAt = -1.0;
+            (void)cure();
+        }
+
         const bool safe = !mHooks.mSafe || mHooks.mSafe();
         mMachine.observeInfection(mHooks.mSanguinare && mHooks.mSanguinare() && !mMachine.vampire(), days);
         if (!safe)
@@ -303,5 +309,50 @@ namespace game_skyrimse::vampirism
             case Machine::Action::None:
                 break;
         }
+    }
+
+    // ---- task 0279
+
+    namespace
+    {
+        struct RacePair
+        {
+            FormId mHuman, mVampire;
+        };
+        // VERIFIED: the RACE editor ids of Skyrim.esm (ArgonianRace ... WoodElfRace and the *RaceVampire of the quest
+        // script's own properties).
+        constexpr RacePair kRaces[] = { { 0x13740, 0x8883A }, { 0x13741, 0x8883C }, { 0x13742, 0x8883D },
+            { 0x13743, 0x88840 }, { 0x13744, 0x88844 }, { 0x13745, 0x88845 }, { 0x13746, 0x88794 },
+            { 0x13747, 0xA82B9 }, { 0x13748, 0x88846 }, { 0x13749, 0x88884 } };
+    }
+
+    FormId vampireRaceOf(FormId race)
+    {
+        for (const RacePair& pair : kRaces)
+            if (pair.mHuman == race)
+                return pair.mVampire;
+        return race;
+    }
+
+    FormId humanRaceOf(FormId race)
+    {
+        for (const RacePair& pair : kRaces)
+            if (pair.mVampire == race)
+                return pair.mHuman;
+        return race;
+    }
+
+    bool VampirismService::cure()
+    {
+        if (!mMachine.vampire() || !mPort.ready() || !mPort.cure())
+            return false;
+        ++mRevision;
+        log("VAMPIRE cure: VampireCure runs");
+        return true;
+    }
+
+    void VampirismService::scheduleCure(double days)
+    {
+        mCureAt = std::isfinite(days) ? days : -1.0;
     }
 }

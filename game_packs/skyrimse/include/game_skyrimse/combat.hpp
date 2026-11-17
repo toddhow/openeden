@@ -1002,6 +1002,10 @@ namespace game_skyrimse
         /// Task 0245: the player's casts, like his swings (the first-person arms play the clip).
         [[nodiscard]] std::uint32_t playerCastCount() const { return mPlayerCastCount; }
         [[nodiscard]] const std::string& playerCastClip() const { return mPlayerCastClip; }
+        /// Task 0279: the beast's own body clips (the Howl): a count that grows by one for each and the newest clip
+        /// (a bare clip name of the beast's folder). 0 and empty: none.
+        [[nodiscard]] std::uint32_t playerBeastBodyCount() const { return mBeastBodyCount; }
+        [[nodiscard]] const std::string& playerBeastBodyClip() const { return mBeastBodyClip; }
         /// Task 0249: the player's bow and spell hold for the first-person hands (a snapshot taken at the end of
         /// each combat update; callable from the main thread while the combat update runs).
         [[nodiscard]] PlayerHands playerHands() const;
@@ -1432,6 +1436,8 @@ namespace game_skyrimse
         std::function<void()> mBeastStart; ///< task 0259
         std::uint32_t mPlayerCastCount = 0; ///< task 0245
         std::string mPlayerCastClip; ///< task 0245
+        std::uint32_t mBeastBodyCount = 0; ///< task 0279
+        std::string mBeastBodyClip; ///< task 0279
         // Reserved for the usual cell; a cell with more actors makes onActorAdded grow it (an allocation per added
         // actor beyond that, never one per frame). kMaxCombatFighters bounds it.
         std::vector<Fighter> mFighters; ///< index 0 is the player

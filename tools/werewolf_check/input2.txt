@@ -1,0 +1,30 @@
+# task 0279: the keys of the second werewolf check: the transformation clip (nothing to press), claws, the Howl shout
+# (the engine's shout key, `=`, held for about a second), a held attack (a power attack: 0.5 s and more), feeding on the
+# corpse (Space), and the way back (the form's seconds run out: SECONDS_FORM=60 or so).
+# the creation window's Done button (REAL click)
+248 mouse 62 407
+250 down L 62 407
+254 up L 62 407
+# Beast Form is the second power the list offers
+700 key P down
+704 key P up
+760 key P down
+764 key P up
+# claws at Hulda (four hits kill her)
+1000 down L 400 300
+1004 up L 400 300
+1100 down L 400 300
+1104 up L 400 300
+1200 down L 400 300
+1204 up L 400 300
+1300 down L 400 300
+1304 up L 400 300
+# a held attack: a power attack
+1450 down L 400 300
+1500 up L 400 300
+# the Howl: hold the shout key, release
+1650 key = down
+1700 key = up
+# feed on the corpse
+1900 key Space down
+1904 key Space up

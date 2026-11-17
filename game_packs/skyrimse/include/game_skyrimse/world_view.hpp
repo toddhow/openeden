@@ -466,6 +466,8 @@ namespace game_skyrimse
         void setPlayerEquipment(std::vector<FormId> armour, FormId weapon);
         /// Task 0259: the player is a werewolf (his body is the beast's, in third person only; the revision moves).
         void setBeastForm(bool on);
+        /// Task 0279: the player is a vampire, so his body is drawn with the vampire race of his own.
+        void setVampireLook(bool on);
         [[nodiscard]] bool beastForm() const { return mBeastForm; }
         /// What the beast's claws do for a player of this level (false until the combat records are read; never waits).
         [[nodiscard]] bool beastNumbers(std::uint32_t playerLevel, werewolf::BeastNumbers& out);
@@ -923,6 +925,7 @@ namespace game_skyrimse
         bool mPlayerBodyOn = false; ///< task 0222
         bool mFirstPersonBodyOn = false; ///< task 0245
         bool mBeastForm = false; ///< task 0259
+        bool mVampireLook = false; ///< task 0279
         bool mPlayerLookSet = false; ///< task 0225
         FormId mPlayerRace = kNullFormId; ///< task 0225
         bool mPlayerFemale = false; ///< task 0225

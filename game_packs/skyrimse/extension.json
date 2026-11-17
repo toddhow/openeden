@@ -621,6 +621,11 @@
       "default": 0
     },
     {
+      "key": "vampirism test cure",
+      "type": "float",
+      "default": 0.0
+    },
+    {
       "key": "main quest test stage",
       "type": "string",
       "default": ""

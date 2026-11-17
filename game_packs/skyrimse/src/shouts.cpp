@@ -305,6 +305,23 @@ namespace game_skyrimse::shouts
         return true;
     }
 
+    bool ShoutState::forget(FormId word)
+    {
+        bool any = false;
+        for (std::vector<FormId>* list : { &mLearned, &mUnlocked })
+        {
+            const auto it = std::find(list->begin(), list->end(), word);
+            if (it != list->end())
+            {
+                list->erase(it);
+                any = true;
+            }
+        }
+        if (any)
+            ++mRevision;
+        return any;
+    }
+
     bool ShoutState::learned(FormId word) const
     {
         return contains(mLearned, word);

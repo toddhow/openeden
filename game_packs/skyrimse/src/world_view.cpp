@@ -1,6 +1,7 @@
 #include "game_skyrimse/world_view.hpp"
 
 #include "game_skyrimse/dragons.hpp"
+#include "game_skyrimse/vampirism.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
@@ -817,6 +818,14 @@ namespace game_skyrimse
         ++mPlayerBodyRevision;
     }
 
+    void SkyrimWorldView::setVampireLook(bool on)
+    {
+        if (on == mVampireLook)
+            return;
+        mVampireLook = on;
+        ++mPlayerBodyRevision;
+    }
+
     bool SkyrimWorldView::beastNumbers(std::uint32_t playerLevel, werewolf::BeastNumbers& out)
     {
         out = {};
@@ -1016,6 +1025,18 @@ namespace game_skyrimse
         request.mWeapon = mPlayerWeapon;
         AppearanceLimits limits;
         limits.mHeldGear = true; // the player's own weapon and shield are always shown with his body
+        if (mVampireLook)
+        {
+            // Task 0279: VampireChange's SetRace: the vampire race of his own (its skin); a race the body cannot be
+            // made from falls back to his own, so the player is never left undrawn.
+            PlayerBodyRequest vampire = request;
+            if (vampire.mRace == kNullFormId)
+                vampire.mRace = vampirism::kDefaultPlayerRace;
+            vampire.mRace = vampirism::vampireRaceOf(vampire.mRace);
+            if (makePlayerAppearance(*mActorIndex, vampire, out, error, limits))
+                return true;
+            out = {};
+        }
         return makePlayerAppearance(*mActorIndex, request, out, error, limits);
     }
 

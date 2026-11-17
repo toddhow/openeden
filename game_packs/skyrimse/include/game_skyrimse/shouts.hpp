@@ -124,6 +124,9 @@ namespace game_skyrimse::shouts
         bool unlock(FormId word);
         /// Unlocks a word with no soul (a script's UnlockWord also learns it). True when it was not unlocked.
         bool forceUnlock(FormId word);
+        /// Task 0279: takes a word away again (learned and unlocked); false when it was neither. For words a form
+        /// gave for its duration (the werewolf's Howl).
+        bool forget(FormId word);
         [[nodiscard]] bool learned(FormId word) const;
         [[nodiscard]] bool unlocked(FormId word) const;
         [[nodiscard]] std::size_t learnedCount() const { return mLearned.size(); }

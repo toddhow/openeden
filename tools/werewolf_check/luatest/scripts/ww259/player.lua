@@ -17,6 +17,7 @@ local shot = 1
 local sawEnd = false
 local finishedAt = nil
 local sawNeeded = false
+local endShots = nil
 
 local function cameraBehind()
   camera.setMode(camera.MODE.ThirdPerson, true)
@@ -26,6 +27,18 @@ return {
   engineHandlers = {
     onFrame = function()
       frames = frames + 1
+      -- task 0279: pictures at fixed frames (a vampire run: before, as a vampire, after the cure)
+      if cfg.vshots and #cfg.vshots > 0 and frames > 150 and frames % 30 == 0 and not (okWolf and wolf.active() == 1) then
+        if camera.getMode() ~= camera.MODE.ThirdPerson then camera.setMode(camera.MODE.ThirdPerson, true) end
+        camera.setYaw(self.rotation:getYaw() + math.pi * 0.85)
+        camera.setPitch(0.2)
+        camera.setPreferredThirdPersonDistance(260)
+      end
+      if cfg.vshots then
+        for _, f in ipairs(cfg.vshots) do
+          if frames == f then debug.takeScreenshot(); print('WW259 vshot f' .. frames) end
+        end
+      end
       if cfg.finish and okChr and chr.needed() and not finished then
         neededFrames = neededFrames + 1
         if neededFrames == 60 then
@@ -88,6 +101,14 @@ return {
         debug.takeScreenshot()
         print('WW259 shot ' .. shot .. ' at +' .. offsets[shot] .. ' ' .. string.format('(%.0f,%.0f)', self.position.x, self.position.y))
         shot = shot + 1
+      end
+      -- task 0279: the way back (ww_bleedoutstart): pictures while the form is on with no seconds left
+      if active and wolf.seconds_left() <= 0 and activeAt ~= nil and frames - activeAt > 300 then
+        endShots = (endShots or 0) + 1
+        if endShots % 12 == 1 and endShots < 100 then
+          debug.takeScreenshot()
+          print('WW259 end shot ' .. endShots .. ' f' .. frames)
+        end
       end
       if frames % 60 == 0 then
         local powers = {}

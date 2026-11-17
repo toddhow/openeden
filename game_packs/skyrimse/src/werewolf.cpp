@@ -20,6 +20,11 @@ namespace game_skyrimse::werewolf
             "werewolfbeastproject", "ww_idlebase", "ww_walkforward", "ww_runforward", 93.4308f / 1.33333f,
             222.219f / 0.733333f, 93.4308f, 222.219f, 139.6f, "werewolfbeast::ww_attackrightfast",
             "werewolfbeast::ww_attackrightpowercombo", "ww_staggersmalll", "ww_staggermedium", "ww_deathtemp", 30.f };
+        // Task 0279: the same row with the real power attack (generator AttackRightPower_State, 1.26667 s)
+        const CreatureProfile kPlayerBeast = { "werewolf", "actors/werewolfbeast/character assets/skeleton.nif",
+            "werewolfbeastproject", "ww_idlebase", "ww_walkforward", "ww_runforward", 93.4308f / 1.33333f,
+            222.219f / 0.733333f, 93.4308f, 222.219f, 139.6f, "werewolfbeast::ww_attackrightfast",
+            "werewolfbeast::ww_attackright", "ww_staggersmalll", "ww_staggermedium", "ww_deathtemp", 30.f };
     }
 
     FormId levelAbility(std::uint32_t level)
@@ -102,6 +107,70 @@ namespace game_skyrimse::werewolf
     const CreatureProfile& bareProfile()
     {
         return kBare;
+    }
+
+    // ---- task 0279
+    const CreatureProfile& playerBeastProfile()
+    {
+        return kPlayerBeast;
+    }
+
+    void BeastEnding::begin()
+    {
+        mActive = true;
+        mElapsed = 0.f;
+    }
+
+    void BeastEnding::cancel()
+    {
+        mActive = false;
+        mElapsed = 0.f;
+    }
+
+    bool BeastEnding::tick(float dt)
+    {
+        if (!mActive)
+            return false;
+        mElapsed += std::isfinite(dt) && dt > 0.f ? std::min(dt, kMaxStep) : 0.f;
+        if (mElapsed < kTransformToHumanSeconds)
+            return false;
+        cancel();
+        return true;
+    }
+
+    void BodyClips::queue(std::string_view clip)
+    {
+        if (clip.empty() || mQueue.size() >= kMaxQueued)
+            return;
+        mQueue.emplace_back(clip);
+    }
+
+    void BodyClips::tickFrame()
+    {
+        if (mQueue.empty())
+        {
+            mWaited = 0;
+            return;
+        }
+        if (mWaited < kDelayFrames)
+            ++mWaited;
+        if (mWaited < kDelayFrames)
+            return;
+        ++mCount;
+        mClip = std::move(mQueue.front());
+        mQueue.erase(mQueue.begin());
+    }
+
+    BodyClipMux::Out BodyClipMux::compose(
+        std::uint32_t swingCount, std::string_view swingClip, std::uint32_t specialCount, std::string_view specialClip)
+    {
+        if (specialCount != mSpecial)
+            mClip = std::string(specialClip);
+        else if (swingCount != mSwing)
+            mClip = std::string(swingClip);
+        mSwing = swingCount;
+        mSpecial = specialCount;
+        return { swingCount + specialCount, mClip };
     }
 
     // ---- saving (task 0265) -----------------------------------------------------------------------------------------

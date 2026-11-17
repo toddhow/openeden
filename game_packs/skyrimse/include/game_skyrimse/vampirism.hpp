@@ -58,6 +58,16 @@ namespace game_skyrimse::vampirism
 
     [[nodiscard]] bool isSunDamageSpell(FormId spell);
 
+    // ---- the races (task 0279)
+    /// The vampire race the quest script's own race properties give for a playable race (SetRace in VampireChange;
+    /// VERIFIED: the RACE editor ids ArgonianRaceVampire ... WoodElfRaceVampire). A race with no vampire counterpart
+    /// (and a vampire race) is returned as it is.
+    [[nodiscard]] FormId vampireRaceOf(FormId race);
+    /// The race a body request with no race gets (the stand-in player is a Nord: NordRace).
+    inline constexpr FormId kDefaultPlayerRace = 0x13746;
+    /// The way back (VampireCure's SetRace); a race that is no vampire race is returned as it is.
+    [[nodiscard]] FormId humanRaceOf(FormId race);
+
     // ---- the timers
     // --------------------------------------------------------------------------------------------------
 
@@ -137,6 +147,9 @@ namespace game_skyrimse::vampirism
         virtual bool setStage(int stage, double lastFeedDays) = 0;
         /// GameDaysPassed.
         virtual void setDays(double days) = 0;
+        /// Task 0279: PlayerVampireQuestScript.VampireCure(player), the call the Falion quest VC01's fragment makes.
+        /// A port written before it refuses.
+        virtual bool cure() { return false; }
     };
 
     class VampirismService
@@ -158,6 +171,11 @@ namespace game_skyrimse::vampirism
 
         /// Once a frame.
         void poll();
+        /// Task 0279: the cure, through the game's own VampireCure. False when he is no vampire or the port refuses.
+        /// A cure the game's scripts make themselves (the quest VC01) is seen by `poll` too (status 0).
+        bool cure();
+        /// A test aid: cure at this game day (once, when he is a vampire by then).
+        void scheduleCure(double days);
         /// The player feeds on a sleeper: VampireFeed. False when he is no vampire or the script is not ready.
         bool feed();
         /// A test aid: becomes a vampire at this stage as soon as the script is ready (VampireChange, then the stage).
@@ -184,6 +202,7 @@ namespace game_skyrimse::vampirism
         int mStartStage = 0;
         int mStartStep = 0;
         std::uint64_t mRevision = 1;
+        double mCureAt = -1.0;
     };
 }
 

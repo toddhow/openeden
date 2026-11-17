@@ -22,6 +22,7 @@
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/killmove.hpp>
 #include <game_skyrimse/riding.hpp>
+#include <game_skyrimse/werewolf.hpp>
 #include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
@@ -444,6 +445,8 @@ namespace game_skyrimse
         /// Task 0251 (riding): the rules; off (the default) until the game pack turns them on.
         [[nodiscard]] Riding& riding() { return mRiding; }
         [[nodiscard]] killmove::KillMoves& killMoves() { return mKillMoves; } // task 0278
+        /// Task 0279: clips the pack asks the player's body to play (the beast's transformation and feeding).
+        [[nodiscard]] werewolf::BodyClips& bodyClips() { return mBodyClips; }
         [[nodiscard]] bool canMount(openeden::sdk::game::ActorHandle handle) const override
         {
             return mRiding.canMount(handle);
@@ -724,6 +727,9 @@ namespace game_skyrimse
         SkyrimActorTable mActors;
         Riding mRiding; ///< task 0251
         killmove::KillMoves mKillMoves; ///< task 0278
+        werewolf::BodyClips mBodyClips; ///< task 0279
+        werewolf::BodyClipMux mBodyMux; ///< task 0279
+        std::uint32_t mLastBeastBodyCount = 0; ///< task 0279
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         void updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer); ///< task 0231

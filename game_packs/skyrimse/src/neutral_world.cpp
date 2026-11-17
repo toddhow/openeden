@@ -481,8 +481,20 @@ namespace game_skyrimse
         auto* source = dynamic_cast<openeden::sdk::game::PlayerBodySource*>(&mView);
         if (source == nullptr || !source->playerBody(out))
             return false;
-        out.swingToken = mCombat.playerSwingCount();
-        out.swingClip = std::string(werewolf::bareClip(mCombat.playerSwingClip())); // task 0259: no folder for the body
+        {
+            // Task 0279: one token and one clip name for the body: the combat's swings and the pack's own clips (the
+            // beast's transformation, feeding and Howl). The newest source's clip is played.
+            const std::uint32_t beastBody = mCombat.playerBeastBodyCount();
+            const bool howl = beastBody != mLastBeastBodyCount;
+            mLastBeastBodyCount = beastBody;
+            const std::uint32_t special = mBodyClips.count() + beastBody;
+            const std::string_view specialClip = howl ? std::string_view(mCombat.playerBeastBodyClip())
+                                                      : std::string_view(mBodyClips.clip());
+            auto composed = mBodyMux.compose(mCombat.playerSwingCount(),
+                werewolf::bareClip(mCombat.playerSwingClip()), special, specialClip); // task 0259: no folder
+            out.swingToken = composed.token;
+            out.swingClip = std::move(composed.clip);
+        }
         out.castToken = mCombat.playerCastCount(); // task 0245
         out.castClip = mCombat.playerCastClip();
         {

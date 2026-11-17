@@ -1,0 +1,11 @@
+# task 0279: the keys of the vampire check: the creation window's Done button, then the P key (the power list's powers one
+# after another: the race's first, then the stones' and the vampire's), well after the vampire turn (vampirism test stage).
+248 mouse 62 407
+250 down L 62 407
+254 up L 62 407
+2000 key P down
+2004 key P up
+2100 key P down
+2104 key P up
+2200 key P down
+2204 key P up

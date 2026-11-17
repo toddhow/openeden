@@ -20,7 +20,7 @@ namespace game_skyrimse
                 profile.mBodyMaterial = mBeastForm.mBodyMaterial;
             if (mBeastForm.mUnarmedImpactSet != kNullFormId)
                 profile.mUnarmedImpactSet = mBeastForm.mUnarmedImpactSet;
-            profile.mCreature = &werewolf::playerProfile();
+            profile.mCreature = &werewolf::playerBeastProfile(); // task 0279: the real power attack
             return;
         }
         // Human again: the stand-in's own bare hands and body.

@@ -1747,6 +1747,12 @@ namespace game_skyrimse
                     && mHost.setNumberVariable(
                         vampirism::kQuest, vampirism::kQuestScript, "LastFeedTime", lastFeedDays);
             }
+            bool cure() override // task 0279: what the Falion quest's fragment calls
+            {
+                const PapyrusHost::CallArgument args[]
+                    = { PapyrusHost::CallArgument::form(vampirism::kPlayerReference) };
+                return mHost.callFunctionWith(vampirism::kQuest, vampirism::kQuestScript, "VampireCure", args);
+            }
             void setDays(double days) override
             {
                 if (mDaysGlobal == kNullFormId)
@@ -2666,6 +2672,7 @@ namespace game_skyrimse
                 mVampirism = std::make_unique<vampirism::VampirismService>(*mVampirePort, std::move(hooks));
                 if (const int stage = settings->getInt(kPackId, "vampirism test stage", 0); stage > 0)
                     mVampirism->startAs(stage);
+                mVampireTestCureHours = settings->getFloat(kPackId, "vampirism test cure", 0.f); // task 0279
                 // a sleeper activated by a vampire is fed on, not woken for a talk
                 mCellSource.setFeedHook(
                     [this](openeden::sdk::game::WorldId) { return mVampirism != nullptr && mVampirism->feed(); });
@@ -2681,6 +2688,13 @@ namespace game_skyrimse
                 if (mVampirism == nullptr)
                     return;
                 mVampirism->poll();
+                // Task 0279: VampireChange's SetRace and VampireCure's way back: the body is drawn with the vampire race
+                mWorldView.setVampireLook(mVampirism->vampire());
+                if (mVampireTestCureHours > 0.f && mVampirism->vampire() && !mVampireCureScheduled)
+                {
+                    mVampireCureScheduled = true;
+                    mVampirism->scheduleCure(vampireClockSeconds() / 86400.0 + mVampireTestCureHours / 24.0);
+                }
                 // sunlight: the data's own conditions, re-evaluated when the game minute or the place changes
                 bool sun = false;
                 effectconditions::Place place;
@@ -3400,14 +3414,14 @@ namespace game_skyrimse
 
             void beastStart()
             {
-                if (mWerewolf == nullptr || mBeastClock.active())
+                if (mWerewolf == nullptr || mBeastClock.active() || mBeastEnding.active())
                     return;
                 (void)beastBegin(mWerewolfTestSeconds > 0.f ? mWerewolfTestSeconds : werewolf::kStandardSeconds, {});
             }
 
             /// Starts the form with `seconds` on the clock and `fed` already fed on (a fresh change: none; a load: the
             /// saved ones). False (nothing changed) when the race's numbers are not read yet.
-            bool beastBegin(float seconds, const std::set<std::uint64_t>& fed, bool warn = true)
+            bool beastBegin(float seconds, const std::set<std::uint64_t>& fed, bool warn = true, bool fresh = true)
             {
                 const std::uint32_t level = mProgression != nullptr && mProgression->progression() != nullptr
                     ? mProgression->progression()->level()
@@ -3427,6 +3441,9 @@ namespace game_skyrimse
                 applyExtraAbilities();
                 mWorldView.setBeastForm(true);
                 mWerewolf->setState(true, mBeastClock.remaining());
+                if (fresh)
+                    mCellSource.bodyClips().queue(werewolf::kTransformInClip); // task 0279
+                beastGiveHowl(fresh);
                 mWerewolfLog(openeden::sdk::LogLevel::Info,
                     "WEREWOLF transformed: " + std::to_string(static_cast<int>(mBeastClock.remaining())) + " s, claws "
                         + std::to_string(numbers.mUnarmedDamage) + " reach " + std::to_string(numbers.mUnarmedReach)
@@ -3434,8 +3451,46 @@ namespace game_skyrimse
                 return true;
             }
 
+            // Task 0279: PlayerWerewolfChangeScript.StartTracking learns and equips the quest's CurrentHowl
+            // (HowlWerewolfFear: Fury, then its two other words) and the end removes it; what the player held is given back.
+            // A form restored from a save (`fresh` false) already finds the Howl in the shouts chunk: every word of it is
+            // taken as ours, so the end removes them.
+            void beastGiveHowl(bool fresh)
+            {
+                mBeastHowlWords.clear();
+                mBeastPrevShout = kNullFormId;
+                if (mShouts == nullptr)
+                    return;
+                shouts::ShoutState& state = mShouts->state();
+                for (const FormId word : werewolf::kDefaultHowlWords)
+                {
+                    if (!fresh)
+                        mBeastHowlWords.push_back(word);
+                    else if (!state.unlocked(word) && state.forceUnlock(word))
+                        mBeastHowlWords.push_back(word);
+                }
+                if (fresh && state.equipped() != werewolf::kDefaultHowl)
+                    mBeastPrevShout = state.equipped();
+                state.equip(werewolf::kDefaultHowl);
+            }
+
+            void beastTakeHowl()
+            {
+                if (mShouts == nullptr)
+                    return;
+                shouts::ShoutState& state = mShouts->state();
+                if (state.equipped() == werewolf::kDefaultHowl)
+                    state.equip(mBeastPrevShout);
+                for (const FormId word : mBeastHowlWords)
+                    (void)state.forget(word);
+                mBeastHowlWords.clear();
+                mBeastPrevShout = kNullFormId;
+            }
+
             void beastEnd(const char* why, bool announce = true)
             {
+                mBeastEnding.cancel();
+                beastTakeHowl();
                 mBeastClock.stop();
                 mBeastAbilities.clear();
                 mCellSource.combat().setPlayerBeast(nullptr);
@@ -3485,7 +3540,7 @@ namespace game_skyrimse
             {
                 const std::set<std::uint64_t> fed(mBeastPending->mFed.begin(), mBeastPending->mFed.end());
                 // a loaded form waits for the race's numbers: said once, tried again every frame
-                if (beastBegin(mBeastPending->mRemaining, fed, !mBeastPendingWarned))
+                if (beastBegin(mBeastPending->mRemaining, fed, !mBeastPendingWarned, false))
                 {
                     mBeastPending.reset();
                     mBeastPendingWarned = false;
@@ -3498,9 +3553,17 @@ namespace game_skyrimse
 
             void werewolfFrame(float dt)
             {
+                mCellSource.bodyClips().tickFrame(); // task 0279
                 if (mBeastPending.has_value())
                 {
                     beastApplyPending();
+                    return;
+                }
+                if (mBeastEnding.active())
+                {
+                    // the quest script changes the race back at the clip's TransformToHuman event
+                    if (mBeastEnding.tick(dt))
+                        beastEnd("the time ran out");
                     return;
                 }
                 if (!mBeastClock.active())
@@ -3512,7 +3575,11 @@ namespace game_skyrimse
                         mWerewolfLog(openeden::sdk::LogLevel::Info, "WEREWOLF the form is about to end");
                         break;
                     case werewolf::BeastClock::Event::Ended:
-                        beastEnd("the time ran out");
+                        // Task 0279: the way back plays ww_bleedoutstart; the body changes at its TransformToHuman
+                        mBeastEnding.begin();
+                        mCellSource.bodyClips().queue(werewolf::kTransformOutClip);
+                        mWerewolf->setState(true, 0.f);
+                        mWerewolfLog(openeden::sdk::LogLevel::Info, "WEREWOLF the time ran out: the way back begins");
                         return;
                     case werewolf::BeastClock::Event::None:
                         break;
@@ -3526,6 +3593,7 @@ namespace game_skyrimse
                     return false; // a corpse is fed on once
                 const bool person = mWorldView.baseIsPerson(static_cast<openeden::sdk::game::WorldId>(base));
                 (void)mBeastClock.feed(person);
+                mCellSource.bodyClips().queue(werewolf::kFeedClip); // task 0279
                 const bool healed = mCellSource.combat().queuePlayerHeal(werewolf::kFeedHealth);
                 mWerewolf->announce("You feed.");
                 mWerewolf->setState(true, mBeastClock.remaining());
@@ -5511,6 +5579,9 @@ namespace game_skyrimse
             std::unique_ptr<shouts::ShoutService> mShouts; // task 0205; refers to the world view
             std::unique_ptr<werewolf::WerewolfService> mWerewolf; // task 0259; its lambdas refer to the pack
             werewolf::BeastClock mBeastClock; // task 0259
+            werewolf::BeastEnding mBeastEnding; // task 0279
+            std::vector<FormId> mBeastHowlWords; // task 0279: the Howl's words the form gave
+            FormId mBeastPrevShout = kNullFormId; // task 0279: the shout he held before the Howl
             std::vector<FormId> mBeastAbilities; // task 0259: AbWerewolf and the level ability while the form lasts
             std::set<std::uint64_t> mBeastFed; // task 0259: the corpses fed on in this form
             std::unique_ptr<openeden::sdk::SaveChunkHandler> mBeastChunk; // task 0265
@@ -5534,6 +5605,8 @@ namespace game_skyrimse
             std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver
             std::unique_ptr<diseases::DiseaseService> mDiseases; // task 0240; refers to the combat and the view
             FormId mDiseaseTestInfect = kNullFormId; // task 0240: a test aid
+            float mVampireTestCureHours = 0.f; // task 0279
+            bool mVampireCureScheduled = false; // task 0279
             std::unique_ptr<VampireQuestPort> mVampirePort; // task 0260; outlives mVampirism
             std::unique_ptr<vampirism::VampirismService>
                 mVampirism; // task 0260; refers to the host, the diseases, the combat

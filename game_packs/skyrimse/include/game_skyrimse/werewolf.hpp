@@ -23,9 +23,11 @@
 
 #include <openeden/game/save_chunks.hpp>
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -126,6 +128,99 @@ namespace game_skyrimse::werewolf
     [[nodiscard]] const CreatureProfile& playerProfile();
     /// The same row with bare clip names (what an NPC werewolf's table entry would hold).
     [[nodiscard]] const CreatureProfile& bareProfile();
+
+    // ---- the clips besides the claws, the Howl and the real power attack (task 0279) --------------------------------
+
+    // Where each fact comes from (docs/tasks/0279-skyrim-werewolf-vampire-2.md section 1; the sidecar
+    // `animationdata/werewolfbeastproject.txt` and the IDLE records of Skyrim.esm):
+    //   VERIFIED  the quest script ends the form when the clip `ww_bleedoutstart` (generator `BleedOutStart.HKX`) raises
+    //             its event `TransformToHuman` at 1.799 s (`OnAnimationEvent`, PlayerWerewolfChangeScript); the IDLE
+    //             `SpecialTransformToHuman` sends `bleedOutIdleStart` to the beast's behaviour graph;
+    //             the file `ww_howl` is played by the generators `WW Howl.hkx` (5.0 s, HowlEnd) and `WW Howl.hkx01`, the
+    //             one that carries `SoundPlay.NPCWerewolfTransformationB3D/B2D` at 0.2 s: the transformation into the beast;
+    //             the file `ww_howlforward` (3.333 s) by `WW Howl.hkx03`, whose events are `BeginCastVoice` and
+    //             `Voice_SpellFire_Event` at 0.733 s: the shout; the IDLE `SpecialFeeding` (event `SpecialFeeding`) names
+    //             the file `ww_specialfeeding`; the quest PlayerWerewolfQuest's VMAD gives CurrentHowl = HowlWerewolfFear
+    //             0xCF790 with the words 0xCF78E, 0xCF794 and 0xCF795 (PlayerWerewolfChangeScript.StartTracking learns
+    //             and equips them);
+    //             the file `ww_attackright` (1.26667 s) is the generator `AttackRightPower_State` (cache block 12,
+    //             playback speed 1.1, `HitFrame` at 0.232 s).
+    //   RECALLED-VERIFY  that `AttackRightPower_State` is the right power attack (the name and the matching duration say
+    //             so; the behaviour graph itself is not read); that the shift into the beast plays `ww_howl`.
+    inline constexpr std::string_view kTransformInClip = "ww_howl";
+    inline constexpr std::string_view kTransformOutClip = "ww_bleedoutstart";
+    /// The `TransformToHuman` event of `ww_bleedoutstart` (VERIFIED, the sidecar): the race changes back here.
+    inline constexpr float kTransformToHumanSeconds = 1.799f;
+    inline constexpr std::string_view kFeedClip = "ww_specialfeeding";
+    inline constexpr std::string_view kHowlClip = "ww_howlforward";
+    /// `Voice_SpellFire_Event` of `WW Howl.hkx03` (VERIFIED, the sidecar): the Howl's spell goes this long after it
+    /// began. The core does not classify that event (it is not a hand cast), so the number is carried here, as the
+    /// dragon's breath carries its own.
+    inline constexpr float kHowlFireSeconds = 0.733f;
+    /// PlayerWerewolfQuest's CurrentHowl and its three words (VERIFIED, the quest's VMAD).
+    inline constexpr FormId kDefaultHowl = 0xCF790;
+    inline constexpr std::array<FormId, 3> kDefaultHowlWords = { 0xCF78E, 0xCF794, 0xCF795 };
+
+    /// The row of the player's beast with the real power attack `ww_attackright` (the older `playerProfile()` keeps the
+    /// three-hit combo, which an existing test pins). Clip names carry the creature folder like `playerProfile()`.
+    [[nodiscard]] const CreatureProfile& playerBeastProfile();
+
+    /// The way back: the form ends not when the clock runs out but 1.799 s into the clip `ww_bleedoutstart`
+    /// (`TransformToHuman`). A pure timer.
+    class BeastEnding
+    {
+    public:
+        void begin();
+        void cancel();
+        [[nodiscard]] bool active() const { return mActive; }
+        /// A frame of `dt` seconds (a bad or negative dt counts as 0). True once, when the event time has passed.
+        bool tick(float dt);
+
+    private:
+        bool mActive = false;
+        float mElapsed = 0.f;
+    };
+
+    /// Clips the pack asks the player's body to play (the transformation, the feeding): `queue` them, call `tickFrame`
+    /// once a frame; `count()` grows by one for each clip announced and `clip()` is the newest. A clip is announced
+    /// `kDelayFrames` frames after it was queued, so that the body, which is rebuilt when the form begins, has been
+    /// built by the time the count changes (a rebuild adopts the count without playing).
+    class BodyClips
+    {
+    public:
+        static constexpr int kDelayFrames = 3;
+        static constexpr std::size_t kMaxQueued = 4;
+        void queue(std::string_view clip);
+        void tickFrame();
+        [[nodiscard]] std::uint32_t count() const { return mCount; }
+        [[nodiscard]] const std::string& clip() const { return mClip; }
+
+    private:
+        std::vector<std::string> mQueue;
+        int mWaited = 0;
+        std::uint32_t mCount = 0;
+        std::string mClip;
+    };
+
+    /// The body polls one token and one clip name for "something new to play"; the pack has two sources (the combat's
+    /// swings and the special clips above). The token is the sum of both counts, the clip the newest source's (the
+    /// special one when both are new in one poll).
+    class BodyClipMux
+    {
+    public:
+        struct Out
+        {
+            std::uint32_t token = 0;
+            std::string clip;
+        };
+        Out compose(std::uint32_t swingCount, std::string_view swingClip, std::uint32_t specialCount,
+            std::string_view specialClip);
+
+    private:
+        std::uint32_t mSwing = 0;
+        std::uint32_t mSpecial = 0;
+        std::string mClip;
+    };
 
     // ---- saving (task 0265) -----------------------------------------------------------------------------------------
 

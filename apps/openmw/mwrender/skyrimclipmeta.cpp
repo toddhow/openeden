@@ -108,6 +108,10 @@ namespace MWRender::SkyrimClipMeta
             if (rest == "attackleftfast" || rest == "attackrightfast")
                 out.push_back("ww " + rest + "low.hkx");
             out.push_back("ww " + rest + ".hkx");
+            // Task 0279: the file `ww_attackright` (1.26667 s) is the generator `AttackRightPower_State` (cache block
+            // 12, speed 1.1, HitFrame at 0.232 s): the right power attack.
+            if (rest == "attackright")
+                out.push_back("AttackRightPower_State");
             for (int i = 0; i <= 10; ++i)
                 out.push_back("ww " + rest + ".hkx" + (i < 10 ? "0" : "") + std::to_string(i));
         }

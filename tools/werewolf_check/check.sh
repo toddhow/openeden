@@ -23,7 +23,7 @@ PHASE=${PHASE:-run}
 GRANT=${GRANT:-true}
 LUA="$WORK.luatest"
 rm -rf "$LUA"; mkdir -p "$LUA"; cp -r "$HERE/luatest/." "$LUA/"
-echo "return { placeAt = ${PLACE_AT:-400}, dist = ${DIST:-170}, hulda = '${HULDA:-skyrimse:b80803}', finish = ${FINISH:-false}, pitch = ${PITCH:-0.3}, distance = ${CAMDIST:-300} }" > "$LUA/scripts/ww259/cfg.lua"
+echo "return { placeAt = ${PLACE_AT:-400}, dist = ${DIST:-170}, hulda = '${HULDA:-skyrimse:b80803}', finish = ${FINISH:-false}, pitch = ${PITCH:-0.3}, distance = ${CAMDIST:-300}, vshots = { ${VSHOTS:-} } }" > "$LUA/scripts/ww259/cfg.lua"
 echo "return { saveAt = ${SAVE_AT:-0} }" > "$LUA/scripts/ww259/save.lua"
 if [ "$PHASE" = load ]; then
     SAVE=$(ls "$WORK"/user/saves/*/*.omwsave 2>/dev/null | head -1)
