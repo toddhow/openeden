@@ -301,7 +301,9 @@ namespace
         EXPECT_GE(direct, 1u);
         for (const auto& m : mMoves)
             if (m.mKind == Kind::GoTo && m.mActor.reference == 30)
+            {
                 EXPECT_FALSE(m.mDirect);
+            }
         EXPECT_GE(nav, 1u);
     }
 

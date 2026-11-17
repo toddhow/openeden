@@ -297,7 +297,9 @@ namespace
         if (errorOut != nullptr)
             *errorOut = error;
         if (!ok)
+        {
             EXPECT_TRUE(back.mCorpsePoses.empty());
+        }
         return ok;
     }
 
@@ -420,7 +422,9 @@ namespace
             std::string error;
             (void)decodeNeutralSave(bytes, back, error); // true or false, never a crash, and canonical when true
             if (!back.mCorpsePoses.empty())
+            {
                 EXPECT_LE(back.mCorpsePoses.size(), kNeutralSaveMaxPoses);
+            }
         }
     }
 }

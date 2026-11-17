@@ -114,7 +114,9 @@ namespace
         LocationRecords out;
         EXPECT_NE(plugin, nullptr);
         if (plugin != nullptr)
+        {
             EXPECT_TRUE(parseLocationRecords(*plugin, order(), LocationLimits(), out));
+        }
         return out;
     }
 
@@ -151,7 +153,9 @@ namespace
         PlacedRefRecords out;
         EXPECT_NE(plugin, nullptr);
         if (plugin != nullptr)
+        {
             EXPECT_TRUE(parsePlacedRefs(*plugin, order(), PlacedRefLimits(), out));
+        }
         return out;
     }
 
