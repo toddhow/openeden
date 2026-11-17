@@ -868,6 +868,79 @@ namespace game_skyrimse
             }
         }
 
+        void registerGameUpdate(InstanceId instance, double hours, bool repeat)
+        {
+            if (!mGameTimersOn)
+                return;
+            const auto info = mInstances.find(instance);
+            if (info != mInstances.end() && mGameTimeIgnore.count(info->second.mForm) != 0)
+                return;
+            // a repeating and a single registration are separate (the wedding quest has both); each kind replaces
+            // its own earlier one (RECALLED-VERIFY)
+            for (auto it = mGameTimers.begin(); it != mGameTimers.end();)
+            {
+                if (it->second.mInstance == instance && (it->second.mRepeat > 0.0) == repeat)
+                    it = mGameTimers.erase(it);
+                else
+                    ++it;
+            }
+            if (mGameTimers.size() >= kMaxGameTimers)
+                return;
+            if (!(hours >= 0.0) || !std::isfinite(hours))
+                hours = 0.0;
+            const double seconds = hours * 3600.0;
+            const double base = mGameClockKnown ? mGameClock : 0.0;
+            mGameTimers.emplace(
+                std::make_pair(base + seconds, mTimerSeq++), Timer{ instance, repeat ? std::max(seconds, 1.0) : 0.0 });
+        }
+
+        void unregisterGameUpdate(InstanceId instance)
+        {
+            for (auto it = mGameTimers.begin(); it != mGameTimers.end();)
+            {
+                if (it->second.mInstance == instance)
+                    it = mGameTimers.erase(it);
+                else
+                    ++it;
+            }
+        }
+
+        void setGameClock(double seconds)
+        {
+            if (!mGameTimersOn || !std::isfinite(seconds))
+                return;
+            if (!mGameClockKnown)
+            {
+                // registrations made before the first clock were deltas
+                std::map<std::pair<double, std::uint64_t>, Timer> moved;
+                for (const auto& [key, timer] : mGameTimers)
+                    moved.emplace(std::make_pair(key.first + seconds, key.second), timer);
+                mGameTimers = std::move(moved);
+                mGameClockKnown = true;
+            }
+            mGameClock = seconds;
+        }
+
+        void fireGameTimers()
+        {
+            if (!mGameTimersOn || !mGameClockKnown)
+                return;
+            while (!mGameTimers.empty() && mGameTimers.begin()->first.first <= mGameClock)
+            {
+                const auto node = mGameTimers.begin();
+                const Timer timer = node->second;
+                const double due = node->first.first;
+                mGameTimers.erase(node);
+                (void)sendEvent(timer.mInstance, "OnUpdateGameTime");
+                if (timer.mRepeat > 0.0)
+                {
+                    // the next multiple of the interval after the clock: a long wait fires once, not once per hour
+                    const double missed = std::floor((mGameClock - due) / timer.mRepeat) + 1.0;
+                    mGameTimers.emplace(std::make_pair(due + missed * timer.mRepeat, mTimerSeq++), timer);
+                }
+            }
+        }
+
         void fireTimers()
         {
             while (!mTimers.empty() && mTimers.begin()->first.first <= mTime)
@@ -1068,6 +1141,24 @@ namespace game_skyrimse
                     unregisterUpdate(c.self.handle);
                 return NativeResult{};
             });
+            for (const char* cls : { "Form", "Alias" })
+            {
+                reg(cls, "RegisterForSingleUpdateGameTime", false, [this](const NativeCall& c) {
+                    if (c.self.attached)
+                        registerGameUpdate(c.self.handle, argNumber(c, 0), false);
+                    return NativeResult{};
+                });
+                reg(cls, "RegisterForUpdateGameTime", false, [this](const NativeCall& c) {
+                    if (c.self.attached)
+                        registerGameUpdate(c.self.handle, argNumber(c, 0), true);
+                    return NativeResult{};
+                });
+                reg(cls, "UnregisterForUpdateGameTime", false, [this](const NativeCall& c) {
+                    if (c.self.attached)
+                        unregisterGameUpdate(c.self.handle);
+                    return NativeResult{};
+                });
+            }
             reg("Form", "RegisterForAnimationEvent", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
             reg("ObjectReference", "GetCurrentDestructionStage", false,
@@ -1078,6 +1169,20 @@ namespace game_skyrimse
                 return result(formValue(reference != 0 ? mData.locationOf(reference) : 0));
             };
             reg("ObjectReference", "GetCurrentLocation", false, locationOfSelf);
+            // Task 0276: IsInLocation(akLocation): the reference's location (a created reference: its cell's) is the
+            // location or inside it. The wedding quest asks it of the priest, the lover and the witnesses.
+            reg("ObjectReference", "IsInLocation", false, [this](const NativeCall& c) {
+                const FormId reference = formOf(c.self);
+                FormId here = reference != 0 ? mData.locationOf(reference) : 0;
+                if (here == 0)
+                {
+                    const auto created = mCreated.find(reference);
+                    if (created != mCreated.end())
+                        here = mData.locationOfCell(created->second.mCell);
+                }
+                const FormId place = c.arguments.empty() ? FormId(0) : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(here != 0 && place != 0 && mData.locationWithin(here, place)));
+            });
             reg("ObjectReference", "GetEditorLocation", false, locationOfSelf);
             // ObjectReference
             const auto enable = [this](bool on) {
@@ -1889,6 +1994,7 @@ namespace game_skyrimse
             ++mCounters.mTicks;
             runReplays();
             fireTimers();
+            fireGameTimers();
             for (int round = 0; round < 8; ++round)
             {
                 const openeden::script::TickResult r = mRuntime->tick(mTime);
@@ -1935,6 +2041,14 @@ namespace game_skyrimse
             InstanceId mInstance = 0;
             double mRepeat = 0.0;
         };
+        // Task 0276: game-time timers. The key's first member is the due time in game seconds (a delta from the first
+        // clock while the clock is unknown), the second the sequence number.
+        std::map<std::pair<double, std::uint64_t>, Timer> mGameTimers;
+        bool mGameTimersOn = false;
+        bool mGameClockKnown = false;
+        double mGameClock = 0.0;
+        std::set<FormId> mGameTimeIgnore;
+        static constexpr std::size_t kMaxGameTimers = 1024;
 
         PapyrusGameData& mData;
         PapyrusHostOptions mOptions;
@@ -2125,7 +2239,7 @@ namespace game_skyrimse
         constexpr std::uint32_t kStateMagic = 0x31534850u; // "PHS1"
         // 4 (task 0241) adds the perks; 3 (task 0202) adds created references and angles; 2 (task 0198) adds actor
         // value changes and deaths; 1, 2 and 3 are still read
-        constexpr std::uint32_t kStateVersion = 4;
+        constexpr std::uint32_t kStateVersion = 5;
         constexpr std::uint32_t kMaxEntries = 1u << 22; // a hostile count never allocates more than the bytes allow
 
         std::uint64_t fnv1a(const std::uint8_t* data, std::size_t size)
@@ -2272,8 +2386,9 @@ namespace game_skyrimse
 
         ByteWriter w;
         w.u32(kStateMagic);
-        // version 4 only when perks are held: a state with none keeps the version 3 layout byte for byte
-        w.u32(mPerks.empty() ? 3u : kStateVersion);
+        // version 4 only when perks are held, 5 only with game-time timers (task 0276): a state with none keeps the
+        // version 3 layout byte for byte
+        w.u32(!mGameTimers.empty() ? 5u : mPerks.empty() ? 3u : 4u);
         w.f64(mTime);
         w.u64(mTimerSeq);
         const PapyrusHostCounters& c = mCounters;
@@ -2427,13 +2542,24 @@ namespace game_skyrimse
             for (const double v : angles)
                 w.f64(v);
         }
-        if (!mPerks.empty())
+        if (!mPerks.empty() || !mGameTimers.empty())
         {
             w.u32(static_cast<std::uint32_t>(mPerks.size())); // version 4 (task 0241)
             for (const auto& [actor, perk] : mPerks)
             {
                 w.u32(actor);
                 w.u32(perk);
+            }
+        }
+        if (!mGameTimers.empty())
+        {
+            w.u32(static_cast<std::uint32_t>(mGameTimers.size())); // version 5 (task 0276)
+            for (const auto& [key, timer] : mGameTimers)
+            {
+                w.f64(key.first);
+                w.u64(key.second);
+                w.u32(timer.mInstance);
+                w.f64(timer.mRepeat);
             }
         }
         return w.finish();
@@ -2458,7 +2584,7 @@ namespace game_skyrimse
         if (r.u32() != kStateMagic)
             return refuse("this is not a Papyrus state");
         const std::uint32_t version = r.u32();
-        if (version != 1 && version != 2 && version != 3 && version != kStateVersion)
+        if (version < 1 || version > kStateVersion)
             return refuse("the Papyrus state has version " + std::to_string(version));
 
         struct LedgerEntry
@@ -2667,6 +2793,20 @@ namespace game_skyrimse
                     return refuse("the Papyrus state holds too many perks");
                 perks.emplace(actor, perk);
             }
+        std::vector<SavedTimer> gameTimers;
+        if (version >= 5)
+            for (std::uint32_t i = 0, n = r.count(28); i < n; ++i)
+            {
+                SavedTimer t;
+                t.mDue = r.f64();
+                t.mSeq = r.u64();
+                t.mInstance = r.u32();
+                t.mRepeat = r.f64();
+                if (gameTimers.size() >= kMaxGameTimers || !std::isfinite(t.mDue) || !std::isfinite(t.mRepeat)
+                    || t.mRepeat < 0.0)
+                    return refuse("the Papyrus state has a bad game-time timer");
+                gameTimers.push_back(t);
+            }
         if (r.failed())
             return refuse("the Papyrus state is damaged (a field runs past the end)");
         if (r.remaining() != 0)
@@ -2676,6 +2816,9 @@ namespace game_skyrimse
         for (const SavedTimer& t : timers)
             if (t.mInstance == 0 || t.mInstance > ledger.size())
                 return refuse("a timer names an instance that does not exist");
+        for (const SavedTimer& t : gameTimers)
+            if (t.mInstance == 0 || t.mInstance > ledger.size())
+                return refuse("a game-time timer names an instance that does not exist");
         if (ledger.size() > mOptions.mMaxInstances)
             return refuse("the state holds more instances than the host allows");
 
@@ -2722,6 +2865,11 @@ namespace game_skyrimse
         mTimers.clear();
         for (const SavedTimer& t : timers)
             mTimers.emplace(std::make_pair(t.mDue, t.mSeq), Timer{ t.mInstance, t.mRepeat });
+        mGameTimers.clear();
+        for (const SavedTimer& t : gameTimers)
+            mGameTimers.emplace(std::make_pair(t.mDue, t.mSeq), Timer{ t.mInstance, t.mRepeat });
+        if (!mGameTimers.empty())
+            mGameClockKnown = true; // the dues are absolute game seconds
         mTime = time;
         mTimerSeq = timerSeq;
         mCounters = std::move(counters);
@@ -3319,6 +3467,26 @@ namespace game_skyrimse
     std::uint64_t PapyrusHost::perkRevision() const
     {
         return mImpl->mPerkRevision;
+    }
+
+    void PapyrusHost::enableGameTimers(bool on)
+    {
+        mImpl->mGameTimersOn = on;
+    }
+
+    void PapyrusHost::setGameClock(double gameSeconds)
+    {
+        mImpl->setGameClock(gameSeconds);
+    }
+
+    void PapyrusHost::ignoreGameTimersOf(FormId form)
+    {
+        mImpl->mGameTimeIgnore.insert(form);
+    }
+
+    std::size_t PapyrusHost::gameTimerCount() const
+    {
+        return mImpl->mGameTimers.size();
     }
 
     double PapyrusHost::gameSeconds() const

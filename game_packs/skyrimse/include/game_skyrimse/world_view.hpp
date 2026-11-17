@@ -777,6 +777,9 @@ namespace game_skyrimse
         /// Task 0211: the location of a cell the view has indexed (its XLCN, else for an exterior the location whose
         /// cell list holds its grid square); kNullFormId for none or before the dialogue data is ready. Main thread.
         [[nodiscard]] FormId locationOfCell(FormId cell) const;
+        /// Task 0276: is the location the same as `ancestor` or inside it (ObjectReference.IsInLocation)? False before
+        /// the dialogue data is ready. Main thread.
+        [[nodiscard]] bool locationWithin(FormId location, FormId ancestor) const;
         /// Task 0211: the location of a grid square of a worldspace (the cell XLCN when the data has the cell, else the
         /// location lists). Main thread.
         [[nodiscard]] FormId locationOfGridSquare(FormId world, std::int32_t x, std::int32_t y) const;

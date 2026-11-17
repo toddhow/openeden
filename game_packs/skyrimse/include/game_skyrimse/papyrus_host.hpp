@@ -185,6 +185,17 @@ namespace game_skyrimse
             (void)reference;
             return 0;
         }
+        /// Task 0276: the location of a cell (0: none), and whether a location is the ancestor or inside it
+        /// (ObjectReference.IsInLocation). Defaults: none, and only the same location.
+        [[nodiscard]] virtual FormId locationOfCell(FormId cell) const
+        {
+            (void)cell;
+            return 0;
+        }
+        [[nodiscard]] virtual bool locationWithin(FormId location, FormId ancestor) const
+        {
+            return location != 0 && location == ancestor;
+        }
         /// Task 0202: the pack's id of the cell a placed reference stands in (0: not known), and whether a cell is an
         /// interior. A MoveTo between two different cells of which one is an interior is refused (the engine keeps an
         /// object in its own cell).
@@ -726,6 +737,16 @@ namespace game_skyrimse
         [[nodiscard]] std::uint64_t perkRevision() const;
         /// The game seconds a script sees (script time at the host's time scale).
         [[nodiscard]] double gameSeconds() const;
+        /// Task 0276: game-time updates (Form/Alias RegisterForUpdateGameTime, RegisterForSingleUpdateGameTime,
+        /// UnregisterForUpdateGameTime: OnUpdateGameTime). Off by default (the natives then do nothing, as before). With
+        /// them on the pack gives the game clock in game seconds each frame (`setGameClock`); a registration made before
+        /// the first clock waits for it. A repeating timer that a long wait jumped over fires once and goes on at its
+        /// next multiple. Timers are saved in the host's state (version 5, only when there are any).
+        void enableGameTimers(bool on);
+        void setGameClock(double gameSeconds);
+        /// Registrations by scripts of this form are dropped (the pack runs that quest's updates itself).
+        void ignoreGameTimersOf(FormId form);
+        [[nodiscard]] std::size_t gameTimerCount() const;
         /// Message.Show of a message box asks the player through this sink and answers the last button (the usual
         /// "No"); `answerMessage` then makes the activation of the same object run again with that answer.
         using MessageSink = std::function<void(FormId message, const PapyrusMessageInfo& info)>;

@@ -1402,6 +1402,16 @@ namespace game_skyrimse
         mPlayerSite = std::move(site);
     }
 
+    bool SkyrimWorldView::locationWithin(FormId location, FormId ancestor) const
+    {
+        if (location == kNullFormId || ancestor == kNullFormId)
+            return false;
+        if (location == ancestor)
+            return true;
+        return mDialogue != nullptr && mDialogue->mData != nullptr
+            && mDialogue->mData->mLocations.isWithin(location, ancestor);
+    }
+
     FormId SkyrimWorldView::locationOfCell(FormId cell) const
     {
         if (mDialogue == nullptr || mDialogue->mData == nullptr)

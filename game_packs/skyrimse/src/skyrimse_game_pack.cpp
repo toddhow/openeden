@@ -180,6 +180,12 @@ namespace game_skyrimse
                 const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
                 return entry != nullptr ? mView.locationOfCell(entry->mCell) : kNullFormId;
             }
+            // Task 0276
+            FormId locationOfCell(FormId cell) const override { return mView.locationOfCell(cell); }
+            bool locationWithin(FormId location, FormId ancestor) const override
+            {
+                return mView.locationWithin(location, ancestor);
+            }
             // Task 0198
             FormId linkedRef(FormId reference, FormId keyword) const override
             {
@@ -1647,6 +1653,7 @@ namespace game_skyrimse
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
                     syncFollowerAlias();
+                    feedGameClock(); // task 0276
                     syncStones(); // task 0237
                     syncDiseases(); // task 0240
                     syncVampirism(); // task 0260
@@ -1678,6 +1685,20 @@ namespace game_skyrimse
                     if (mCharacter != nullptr)
                         pollCharacter(); // task 0225
                 });
+            }
+
+            // Task 0276: the game clock for the Papyrus host's game-time updates and the GameDaysPassed global that the
+            // wedding scripts read (GLOB 0x39). Only with `marriage`; the vampirism quest keeps its own hand-written
+            // update (its registrations are ignored).
+            void feedGameClock()
+            {
+                if (!mGameClockOn || mPapyrus == nullptr)
+                    return;
+                if (mRest != nullptr && !(mRest->now() > 0.0))
+                    return; // the rest clock is not known yet: the two clocks must not switch under a timer
+                const double clock = vampireClockSeconds();
+                mPapyrus->host().setGameClock(clock);
+                mPapyrus->host().setGlobalValue(kGameDaysPassedGlobal, static_cast<float>(clock / 86400.0));
             }
 
             // Task 0196: the game's own recruit path. A script (DialogueFollowerScript) forces the follower into the
@@ -1781,6 +1802,19 @@ namespace game_skyrimse
                                     logger->log(openeden::sdk::LogLevel::Warning,
                                         "the setting 'marriage test friends' is not a list of hexadecimal base ids");
                                 mPapyrus->enableMarriage(std::move(friends), &mFollowerState);
+                                mPapyrus->host().enableGameTimers(true); // task 0276
+                                mPapyrus->host().ignoreGameTimersOf(vampirism::kQuest);
+                                mGameClockOn = true;
+                                // the priest, the lover and the witnesses are moved into the temple (MoveTo of actors
+                                // near the player: a new reference there, task 0268's rule)
+                                mPapyrus->host().setRelocation(true, mainquest::kRelocateRange);
+                                // the wedding's travel packages and the priest's forced greeting need these two
+                                if (logger != nullptr
+                                    && !(settings->getBool(kPackId, kQuestAliasPackagesKey, false)
+                                        && settings->getBool(kPackId, kActorPackagesKey, false)))
+                                    logger->log(openeden::sdk::LogLevel::Warning,
+                                        "marriage: the wedding scene needs 'actor packages' and 'quest alias "
+                                        "packages' (its travel packages and the priest's forced greeting)");
                             }
                             if (settings->getBool(kPackId, houses::kHousesKey, false)) // task 0261
                             {
@@ -5298,6 +5332,8 @@ namespace game_skyrimse
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
             std::unique_ptr<travel::TravelService>
                 mTravel; // task 0218; refers to mMap and the combat; declared after mMap
+            bool mGameClockOn = false; // task 0276
+            static constexpr FormId kGameDaysPassedGlobal = 0x39; // GLOB GameDaysPassed (Skyrim.esm)
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<RidingBindings> mRidingBindings; // task 0255; refers to the cell source's riding rules
             std::unique_ptr<RidingChunk> mRidingChunk; // task 0255
