@@ -341,6 +341,10 @@ namespace game_skyrimse
         /// count of GetItemCount and the bribe check read it (at the moment of the check; a negative or non-finite
         /// answer is 0); without one (the default) they read the stand-in's gold, as before.
         void setGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
+        /// Task 0270: what the player wears and carries, read at the moment of the check (the inventory's equipment and
+        /// stacks). Without a source (the default) the stand-in wears and carries nothing but gold, as before.
+        void setPlayerWornSource(std::function<bool(std::uint32_t)> source) { mWornSource = std::move(source); }
+        void setPlayerItemSource(std::function<float(std::uint32_t)> source) { mItemSource = std::move(source); }
         /// Task 0239: what the follower scripts changed (factions, globals, WaitingForPlayer, relationship ranks, the
         /// teammate flag) wins over the data. Not owned; null (the default): the data alone answers.
         void setFollowerOverlay(const FollowerOverlay* overlay) { mFollowerOverlay = overlay; }
@@ -600,6 +604,8 @@ namespace game_skyrimse
         FormId mContextQuest = kNullFormId;
         const PlayerStandIn* mPlayer = nullptr;
         std::function<float()> mGoldSource; // task 0184
+        std::function<bool(std::uint32_t)> mWornSource; // task 0270
+        std::function<float(std::uint32_t)> mItemSource; // task 0270
         const FollowerOverlay* mFollowerOverlay = nullptr; // task 0239
         [[nodiscard]] float playerGold() const;
         bool mConversationKnown = false;

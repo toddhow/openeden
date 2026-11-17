@@ -26,6 +26,7 @@
 #include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/houses.hpp"
 #include <game_skyrimse/main_quest.hpp>
+#include "game_skyrimse/marriage.hpp"
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
@@ -400,6 +401,7 @@ namespace game_skyrimse
                 applyMainQuestTestStage();
                 applyMainQuest(); // task 0268
                 applyTraining(); // task 0264
+                applyMarriage(); // task 0270
                 drainStory();
                 mHost.tick(dt);
                 if (mScenes != nullptr)
@@ -900,6 +902,35 @@ namespace game_skyrimse
                         + (mHost.startQuestForTest(kCompanionsTrainingQuest) ? "started by the test aid" : "was refused"));
             }
 
+            // Task 0270: the test aid of marriage: the listed NPCs are the player's friends (rank 2), once, when the host
+            // runs. The real rank comes from favour and follower quests this build does not run.
+            void enableMarriage(std::vector<FormId> friends, FollowerState* ranks)
+            {
+                mMarriageFriends = std::move(friends);
+                mMarriageRanks = ranks;
+                mMarriageOn = true;
+            }
+
+            void applyMarriage()
+            {
+                if (!mMarriageOn || mMarriageApplied || mMarriageRanks == nullptr || !mHost.started())
+                    return;
+                mMarriageApplied = true;
+                const PlacedRefIndex* placed = mView.placedRefs();
+                if (placed == nullptr)
+                    return;
+                std::size_t given = 0;
+                for (const FormId base : mMarriageFriends)
+                {
+                    const PlacedRefIndex::Range range = placed->byBase(base);
+                    for (const PlacedEntry* const* it = range.mBegin; it != range.mEnd; ++it)
+                        if (mMarriageRanks->setRelationshipRank((*it)->mId, kPapyrusPlayerReference, 2))
+                            ++given;
+                }
+                say(openeden::sdk::LogLevel::Info,
+                    "MARRIAGE test friends: " + std::to_string(given) + " placements are the player's friends");
+            }
+
             // Task 0261 (once, when the host runs): the offers' quest starts and the test aid gives the permission
             void applyHouses()
             {
@@ -1309,6 +1340,10 @@ namespace game_skyrimse
             bool mMainQuestReplay = false;
             std::int32_t mMainQuestTestStage = 0;
             double mMainQuestTestDelay = 0.0;
+            bool mMarriageOn = false; ///< task 0270
+            bool mMarriageApplied = false;
+            std::vector<FormId> mMarriageFriends;
+            FollowerState* mMarriageRanks = nullptr;
             FollowerState* mFollowers = nullptr;
             static constexpr FormId kCompanionsQuest = 0x0004B2D9; // C00 "Take Up Arms"
             static constexpr FormId kCompanionsTrainingQuest = 0x000A3EBC; // C00VilkasTrainingQuest
@@ -1712,6 +1747,15 @@ namespace game_skyrimse
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info,
                                         std::string("MAINQUEST a new game starts at the cart: ") + mainquest::kHelgenStart);
+                            if (settings->getBool(kPackId, marriage::kMarriageKey, false)) // task 0270
+                            {
+                                std::vector<FormId> friends;
+                                if (!marriage::parseBaseIdList(
+                                        settings->getString(kPackId, marriage::kMarriageTestFriendsKey, ""), friends)
+                                    && logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Warning,
+                                        "the setting 'marriage test friends' is not a list of hexadecimal base ids");
+                                mPapyrus->enableMarriage(std::move(friends), &mFollowerState);
                             }
                             if (settings->getBool(kPackId, houses::kHousesKey, false)) // task 0261
                             {
@@ -3349,6 +3393,16 @@ namespace game_skyrimse
                     }
                 }
                 // Task 0184: the speech and bribe checks read the inventory's gold, and a key in it opens a lock.
+                if (settings->getBool(kPackId, marriage::kMarriageKey, false)) // task 0270
+                {
+                    mWorldView.setPlayerWornSource(
+                        [this](FormId item) { return mInventory != nullptr && mInventory->model().isEquipped(item); });
+                    mWorldView.setPlayerItemSource([this](FormId item) {
+                        return mInventory != nullptr
+                            ? static_cast<float>(mInventory->model().count(inventory::kPlayerOwner, item))
+                            : 0.f;
+                    });
+                }
                 mWorldView.setPlayerGoldSource([this]() -> float {
                     return mInventory != nullptr
                         ? static_cast<float>(mInventory->model().count(inventory::kPlayerOwner, inventory::kGoldItem))

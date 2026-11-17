@@ -634,6 +634,16 @@
       "key": "companions",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "marriage",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "marriage test friends",
+      "type": "string",
+      "default": ""
     }
   ],
   "licence": "GPL-3.0-or-later"

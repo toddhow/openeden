@@ -1231,6 +1231,10 @@ namespace game_skyrimse
             raw->mRuntime->setPlayer(player);
             if (mGoldSource)
                 raw->mRuntime->setGoldSource(mGoldSource); // task 0184
+            if (mWornSource)
+                raw->mRuntime->setPlayerWornSource(mWornSource); // task 0270
+            if (mItemSource)
+                raw->mRuntime->setPlayerItemSource(mItemSource);
             // Task 0156: locations, and the quest scripts' values before any script ran (the .pex through the VFS).
             raw->mRuntime->setLocations(&raw->mData->mLocations);
             raw->mRuntime->setKeywordData(&mKeywordData); // task 0217
@@ -3778,6 +3782,8 @@ namespace game_skyrimse
         const std::uint32_t type = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex].mType;
         if (type == Content::fourCC("SPEL"))
             return "Spell";
+        if (type == Content::fourCC("KYWD"))
+            return "Keyword"; // task 0270
         return type == Content::fourCC("MESG") ? "Message" : std::string();
     }
 

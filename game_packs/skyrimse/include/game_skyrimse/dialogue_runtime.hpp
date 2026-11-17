@@ -167,6 +167,9 @@ namespace game_skyrimse
         /// Task 0184: the player's gold from the inventory (see SkyrimConditionWorld::setGoldSource); empty: the
         /// stand-in's.
         void setGoldSource(std::function<float()> source) { mWorld.setGoldSource(std::move(source)); }
+        /// Task 0270: the player's worn items and item counts (see SkyrimConditionWorld).
+        void setPlayerWornSource(std::function<bool(std::uint32_t)> source) { mWorld.setPlayerWornSource(std::move(source)); }
+        void setPlayerItemSource(std::function<float(std::uint32_t)> source) { mWorld.setPlayerItemSource(std::move(source)); }
 
         /// Locations (LCTN) and the quest scripts' initial values (task 0156); both must outlive the runtime. Without
         /// them fn_359, fn_562 and fn_629 stay unanswered.

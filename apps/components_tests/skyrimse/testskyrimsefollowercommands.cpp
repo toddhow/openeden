@@ -1162,4 +1162,18 @@ namespace
         ASSERT_FALSE(blob.bytes.empty());
         EXPECT_TRUE(rig.mHost->restoreState(blob)) << "an INFO is something the game still has";
     }
+
+    // Task 0270: a script's ForceRefTo is what the conversation's conditions read for a condition run on that alias
+    // (the marriage quest asks GetRelationshipRank on its LoveInterest alias), so it also fills the quest state.
+    TEST(SkyrimMarriageAlias, forcingAnActorIntoTheAliasFillsTheQuestStatesAliasAndClearingEmptiesIt)
+    {
+        HostRig rig;
+        EXPECT_FALSE(rig.mQuests.aliasFill(kQuestA, 0).mKnown);
+        ASSERT_TRUE(rig.call("Force"));
+        const AliasFill filled = rig.mQuests.aliasFill(kQuestA, 0);
+        EXPECT_TRUE(filled.mKnown);
+        EXPECT_EQ(filled.mReference, kActorA);
+        ASSERT_TRUE(rig.call("Clear"));
+        EXPECT_FALSE(rig.mQuests.aliasFill(kQuestA, 0).mKnown);
+    }
 }

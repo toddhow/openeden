@@ -657,6 +657,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecompanions.cpp
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsehouses2.cpp
+    skyrimse/testskyrimsemarriage.cpp
     skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsespeech.cpp
     skyrimse/testskyrimsequestscripts.cpp
@@ -880,6 +881,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/houses.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/forcegreet.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_companions.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/marriage.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud_style.cpp

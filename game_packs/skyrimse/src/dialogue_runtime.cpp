@@ -245,8 +245,12 @@ namespace game_skyrimse
             for (const FormId id : mChoices)
             {
                 const DialogTopic* topic = mDialogue.topic(id);
-                if (topic != nullptr && topic->mCategory == TopicCategory::Topic && topic->mName.mPresent
-                    && selectInfo(mDialogue, id, mWorld, mSpeaker, opts).mInfo != nullptr)
+                if (topic == nullptr || topic->mCategory != TopicCategory::Topic)
+                    continue;
+                // task 0270: a choice may have no name of its own (the marriage branch's yes and no): the prompt of its
+                // INFO (RNAM) is what the player reads, so a nameless topic counts when the chosen INFO has one
+                const Selection pick = selectInfo(mDialogue, id, mWorld, mSpeaker, opts);
+                if (pick.mInfo != nullptr && (topic->mName.mPresent || pick.mInfo->mPrompt.mPresent))
                     linked.push_back(id);
             }
             if (!linked.empty())
@@ -260,12 +264,16 @@ namespace game_skyrimse
         for (FormId id : candidates)
         {
             const DialogTopic* topic = mDialogue.topic(id);
-            if (topic == nullptr || topic->mCategory != TopicCategory::Topic || !topic->mName.mPresent)
+            if (topic == nullptr || topic->mCategory != TopicCategory::Topic)
+                continue;
+            if (!topic->mName.mPresent && !choices) // a nameless topic is only ever a choice (task 0270)
                 continue;
             if (!choices && !mDialogue.isBranchStart(id))
                 continue;
             const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, opts);
             if (s.mInfo == nullptr)
+                continue;
+            if (!topic->mName.mPresent && !s.mInfo->mPrompt.mPresent)
                 continue;
             // The prompt of the response (RNAM) is what the player reads when it is set, else the topic's name.
             std::string text;

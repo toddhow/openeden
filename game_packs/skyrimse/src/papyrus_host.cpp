@@ -1393,6 +1393,8 @@ namespace game_skyrimse
                     const FormId old = before != mAliasForced.end() ? before->second : 0;
                     mAliasForced[{ quest, alias }] = now;
                     aliasFactionChange(quest, alias, old, now); // task 0239
+                    if (mState != nullptr && now != 0) // task 0270: conditions run on the alias read the quest state
+                        mState->setAliasFill(quest, alias, AliasFill{ true, now, kNullFormId });
                 }
                 return NativeResult{};
             });
@@ -1434,6 +1436,8 @@ namespace game_skyrimse
                     const FormId old = before != mAliasForced.end() ? before->second : 0;
                     mAliasForced.erase({ quest, alias });
                     aliasFactionChange(quest, alias, old, 0); // task 0239
+                    if (mState != nullptr && old != 0)
+                        mState->setAliasFill(quest, alias, AliasFill{});
                 }
                 return NativeResult{};
             });

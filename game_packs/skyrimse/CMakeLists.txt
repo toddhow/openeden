@@ -66,6 +66,7 @@ openeden_add_game_pack(skyrimse
         src/houses.cpp
         src/forcegreet.cpp
         src/combat_companions.cpp
+        src/marriage.cpp
         src/combat.cpp
         src/combat_crowd.cpp
         src/combat_gear.cpp
@@ -292,6 +293,7 @@ add_library(game_skyrimse_world STATIC
     src/houses.cpp
     src/forcegreet.cpp
     src/combat_companions.cpp
+    src/marriage.cpp
     src/combat.cpp
     src/combat_crowd.cpp
     src/combat_gear.cpp

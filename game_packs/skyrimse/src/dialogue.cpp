@@ -960,6 +960,11 @@ namespace game_skyrimse
     float SkyrimConditionWorld::itemCount(conditions::Subject subject, std::uint32_t item) const
     {
         constexpr FormId kGold001 = 0x0000000F;
+        if (subject == kPlayer && mItemSource && resolve(item) != kGold001)
+        {
+            const float count = mItemSource(resolve(item)); // task 0270: read at the moment of the check
+            return std::isfinite(count) && count > 0.f ? count : 0.f;
+        }
         if (mPlayer != nullptr && subject == kPlayer)
             return resolve(item) == kGold001 ? playerGold() : 0.f;
         ActorView view;
@@ -1892,6 +1897,8 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::isEquipped(conditions::Subject subject, std::uint32_t object) const
     {
+        if (subject == kPlayer && mWornSource)
+            return mWornSource(resolve(object)); // task 0270: what the inventory says the player wears
         ActorView view;
         if (!viewOf(subject, view))
             return false; // the stand-in player wears nothing

@@ -407,6 +407,7 @@ namespace game_skyrimse
                     case Content::fourCC("SPEL"):
                     case Content::fourCC("TXST"):
                     case Content::fourCC("MESG"):
+                    case Content::fourCC("KYWD"): // task 0270: a script calls Keyword.SendStoryEvent on one
                         break;
                     default:
                         return true;
@@ -494,6 +495,7 @@ namespace game_skyrimse
                     case Content::fourCC("ASPC"):
                     case Content::fourCC("SPEL"):
                     case Content::fourCC("TXST"):
+                    case Content::fourCC("KYWD"): // task 0270
                     case Content::fourCC("MESG"): // task 0224: DESC only
                         ok = readStatic(record, bytes);
                         break;

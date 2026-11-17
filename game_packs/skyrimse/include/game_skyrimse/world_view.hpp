@@ -521,6 +521,10 @@ namespace game_skyrimse
         /// Where the player's gold comes from (the inventory's Gold001) for the speech and bribe checks; empty: the
         /// stand-in's. Applied when the dialogue runtime is built (set it before the first conversation).
         void setPlayerGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
+        /// Task 0270: what the player wears and how many of an item he carries, for GetEquipped and GetItemCount on the
+        /// player in the conversation's conditions (the Amulet of Mara). Applied like the gold source.
+        void setPlayerWornSource(std::function<bool(FormId)> source) { mWornSource = std::move(source); }
+        void setPlayerItemSource(std::function<float(FormId)> source) { mItemSource = std::move(source); }
 
         /// Task 0198: Game.GetFormFromFile. The load-order id of local id `local` of the plugin `lowerFile` (lower case);
         /// 0 when the index is not built or the plugin is not in the order. Main thread.
@@ -893,6 +897,8 @@ namespace game_skyrimse
         std::uint16_t mProgressionLevel = 1;
         std::array<std::uint8_t, progression::kSkillCount> mProgressionSkills{};
         std::function<float()> mGoldSource; // task 0184
+        std::function<bool(FormId)> mWornSource; // task 0270
+        std::function<float(FormId)> mItemSource; // task 0270
         bool ensureActorIndex();
         std::unique_ptr<CombatIndex> mCombatIndex; ///< WEAP, RACE combat fields and GMSTs of every plugin (task 0171)
         // Review fix of task 0171: the combat records (and the actor records, when nothing else has read them yet) are
