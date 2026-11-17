@@ -102,6 +102,14 @@ namespace game_skyrimse
         options.mSnapSleepers = snapSleepers;
         mBrain = std::make_unique<PackageBrain>(source, options);
         mBrain->setFurnitureSource(furniture);
+        mBrain->setCarryTravellers(mCarryTravellers); // task 0277: asked before or after the brain is made
+    }
+
+    void SkyrimActorTable::setCarryTravellers(bool on)
+    {
+        mCarryTravellers = on;
+        if (mBrain)
+            mBrain->setCarryTravellers(on);
     }
 
     void SkyrimActorTable::onGoalFinished(
@@ -284,11 +292,17 @@ namespace game_skyrimse
     {
         if (!mBrain)
             return 0;
-        std::size_t n = 0;
+        // Task 0277: an actor on its way to a place in another cell is carried through the player's doors like a
+        // follower (it stays no follower otherwise: isFollower and sideOf do not list it). Ascending, no repeats.
+        std::set<openeden::sdk::game::WorldId> carried;
         for (const auto id : mBrain->followerRefs())
+            if (!mBrain->followerWaiting(id)) // task 0239: a follower told to wait stays where it is at a door
+                carried.insert(id);
+        for (const auto id : mBrain->travellerRefs())
+            carried.insert(id);
+        std::size_t n = 0;
+        for (const auto id : carried)
         {
-            if (mBrain->followerWaiting(id))
-                continue; // task 0239: a follower told to wait stays where it is when the player goes through a door
             if (out != nullptr && n < capacity)
                 out[n] = id;
             ++n;

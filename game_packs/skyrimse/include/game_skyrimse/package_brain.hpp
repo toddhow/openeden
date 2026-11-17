@@ -57,6 +57,8 @@ namespace game_skyrimse
     inline constexpr float kFailurePauseSeconds = 8.f;
     /// After a failed trip to the anchor it waits this long before asking again.
     inline constexpr float kRetrySeconds = 30.f;
+    /// Task 0277: how often an actor whose Travel target is in another cell looks again.
+    inline constexpr float kElsewhereRetrySeconds = 0.5f;
 
     /// Stage S6f constants. Estimates unless marked.
     /// A patrol marker without an XPRD idles this long (seconds of frame time).
@@ -180,6 +182,13 @@ namespace game_skyrimse
         {
             (void)package;
             (void)out;
+            return false;
+        }
+        /// Task 0277: true when the reference exists but stands in a cell other than the player's (an interior against
+        /// anything else), so an actor in the player's cell cannot walk to it before the player goes there. Default: no.
+        [[nodiscard]] virtual bool targetIsElsewhere(FormId reference) const
+        {
+            (void)reference;
             return false;
         }
         /// Seconds a patrolling actor idles at this marker; negative when the marker says nothing.
@@ -330,6 +339,12 @@ namespace game_skyrimse
         /// schedule back. Takes effect at the next update. False for an actor the brain does not know.
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package);
 
+        /// Task 0277 (companions): an actor whose Travel package leads to a reference in another cell waits (it does not
+        /// finish at once) and is listed by travellerRefs() so the core carries it through the doors the player uses,
+        /// until the target is reachable. Off by default; the pack turns it on with `[extension.skyrimse] companions`.
+        void setCarryTravellers(bool on) { mCarryTravellers = on; }
+        [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& travellerRefs() const { return mTravellerRefs; }
+
         /// Task 0271: told when an actor's chosen package is a ForceGreet one (`reference` is the placement, `topic`
         /// the DIAL it says): at once, then again every kGreetAskEvaluations evaluations while the package stays
         /// chosen. The hook only records the wish; opening the conversation is the world's business. Main thread.
@@ -404,6 +419,8 @@ namespace game_skyrimse
             bool mFollowPlayer = false; ///< the actor follows the player (set from mFollowRefs)
             bool mFollowEntered = false; ///< enterFollowPlayer ran for this actor
             float mFollowPlayerTimer = 0.f;
+            // Task 0277
+            FormId mElsewhereRef = kNullFormId; ///< the Travel target that stands in another cell (0: none)
             // Task 0271
             int mGreetWait = 0; ///< evaluations until a ForceGreet package asks again
         };
@@ -448,6 +465,9 @@ namespace game_skyrimse
         ForceGreetHook mGreetHook;
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
         std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)
+        std::set<openeden::sdk::game::WorldId> mTravellerRefs; ///< task 0277: waiting for the player to reach the target
+        std::map<openeden::sdk::game::WorldId, const PackageRecord*> mForcedRefs; ///< task 0277: scenes' packages by placement
+        bool mCarryTravellers = false;
         std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it
         std::vector<FurnitureSlot> mScratch;
         Stats mStats;

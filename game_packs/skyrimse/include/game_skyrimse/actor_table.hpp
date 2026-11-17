@@ -134,6 +134,8 @@ namespace game_skyrimse
             const auto it = mRows.find(reference);
             return it == mRows.end() ? openeden::sdk::game::ActorHandle{} : it->second.mHandle;
         }
+        /// Task 0277: actors travelling to another cell are carried through doors (needs the package brain).
+        void setCarryTravellers(bool on);
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package)
         {
             return mBrain != nullptr && mBrain->forcePackage(reference, package);
@@ -223,6 +225,7 @@ namespace game_skyrimse
         std::size_t mPacers = 0;
         Stats mStats;
         std::unique_ptr<PackageBrain> mBrain;
+        bool mCarryTravellers = false; // task 0277
         std::set<std::string> mTestFollowerNames; ///< lower case editor ids (task 0196)
         float mTestDismissAfter = 0.f;
         float mTestFollowClock = -1.f; ///< seconds since the first test follower appeared; negative: none yet

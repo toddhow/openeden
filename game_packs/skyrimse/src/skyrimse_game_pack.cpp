@@ -1808,6 +1808,7 @@ namespace game_skyrimse
                             if (companions)
                             {
                                 driver->enableCompanions();
+                                mCellSource.actorTable().setCarryTravellers(true); // task 0277
                                 if (settings->getBool(kPackId, "companions test training", false))
                                     driver->enableCompanionsTraining();
                             }

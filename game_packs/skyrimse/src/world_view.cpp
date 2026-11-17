@@ -1756,6 +1756,23 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::targetIsElsewhere(FormId reference) const
+    {
+        if (!mPlayerPlaceKnown)
+            return false;
+        const PlacedRefIndex* refs = placedRefs();
+        if (refs == nullptr)
+            return false;
+        const PlacedEntry* entry = refs->find(reference);
+        if (entry == nullptr || entry->mCell == kNullFormId)
+            return false;
+        if (mPlayerInterior)
+            return entry->mCell != mPlayerCell; // an interior holds nothing but its own cell's references
+        FormId location = kNullFormId;
+        bool interior = false;
+        return cellLocation(entry->mCell, location, interior) && interior; // outside, only an interior is elsewhere
+    }
+
     const std::vector<FurnitureMarker>& SkyrimWorldView::markersOf(const std::string& model)
     {
         std::string key(model);

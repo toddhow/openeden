@@ -367,6 +367,8 @@ namespace game_skyrimse
         [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const override;
         [[nodiscard]] bool linkedRef(FormId reference, FormId keyword, FormId& out) const override;
         [[nodiscard]] float patrolIdle(FormId reference) const override;
+        /// Task 0277: the reference stands in a cell other than the player's, an interior being on one side.
+        [[nodiscard]] bool targetIsElsewhere(FormId reference) const override;
 
         // ---- FurnitureSource (task 0135, S6b) ----
         // Sit and sleep markers of the furniture placements of the cells loadCell returned, read from the models

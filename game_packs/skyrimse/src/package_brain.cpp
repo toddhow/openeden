@@ -208,6 +208,9 @@ namespace game_skyrimse
         actor.mRng = mOptions.mSeed ^ (static_cast<std::uint64_t>(info.handle.reference) * 0x9E3779B97F4A7C15ull);
         (void)splitmix(actor.mRng); // scramble the seed once
         actor.mFollowPlayer = mFollowRefs.count(info.handle.reference) != 0; // task 0196: still a follower after a door
+        const auto forced = mForcedRefs.find(info.handle.reference); // task 0277: a scene's package outlives a door
+        if (forced != mForcedRefs.end())
+            actor.mForced = forced->second;
         mActors[info.handle.reference] = std::move(actor);
         ++mStats.mActorsAdded;
     }
@@ -218,6 +221,7 @@ namespace game_skyrimse
         if (it != mActors.end() && it->second.mHandle == handle)
         {
             releaseFurniture(it->second); // the core already forgot the actor: nothing to write
+            mTravellerRefs.erase(handle.reference); // task 0277: a carried actor asks again when it is added
             mActors.erase(it);
         }
     }
@@ -850,6 +854,33 @@ namespace game_skyrimse
 
     void PackageBrain::begin(Actor& actor, sdkgame::ActorRequestWriter& writer)
     {
+        if (actor.mElsewhereRef != kNullFormId)
+        {
+            // Task 0277: the Travel target stands in another cell. Wait, and be carried through the player's doors;
+            // when the target can be placed the actor walks to it, and when the player's cell is the target's and it
+            // still cannot be placed the old answer (the home is the anchor) applies.
+            double x = 0, y = 0, z = 0;
+            if (mSource.locate(actor.mElsewhereRef, x, y, z))
+            {
+                actor.mAnchorX = x;
+                actor.mAnchorY = y;
+                actor.mAnchorZ = z;
+                actor.mElsewhereRef = kNullFormId;
+                mTravellerRefs.erase(actor.mHandle.reference);
+            }
+            else if (mSource.targetIsElsewhere(actor.mElsewhereRef))
+            {
+                mTravellerRefs.insert(actor.mHandle.reference);
+                actor.mPhase = Phase::Failed;
+                actor.mTimer = kElsewhereRetrySeconds;
+                return;
+            }
+            else
+            {
+                actor.mElsewhereRef = kNullFormId;
+                mTravellerRefs.erase(actor.mHandle.reference);
+            }
+        }
         if (actor.mActivity == PackageActivity::Patrol)
         {
             beginPatrol(actor, writer);
@@ -946,6 +977,8 @@ namespace game_skyrimse
         actor.mPatrolFirst = kNullFormId;
         actor.mPatrolMarker = kNullFormId;
         actor.mFollowTarget = kNullFormId;
+        actor.mElsewhereRef = kNullFormId;
+        mTravellerRefs.erase(actor.mHandle.reference);
         if (actor.mBehavior == PackageBehavior::Stand || actor.mBehavior == PackageBehavior::Unsupported)
             actor.mActivity = mSource.activityOf(*package);
         if (actor.mActivity == PackageActivity::Escort)
@@ -1007,6 +1040,10 @@ namespace game_skyrimse
                     placed = false; // in cell, linked reference, alias, object id/type, unknown: not placeable yet
                     break;
             }
+            if (!placed && mCarryTravellers && actor.mBehavior == PackageBehavior::Travel
+                && loc.mType == PackageLocationType::NearReference && loc.mValue != kNullFormId
+                && loc.mValue != kUnresolvedFormId && mSource.targetIsElsewhere(static_cast<FormId>(loc.mValue)))
+                actor.mElsewhereRef = static_cast<FormId>(loc.mValue); // task 0277: begin() waits for the target
             if (!placed)
                 ++mStats.mUnresolvedLocations;
             const auto radius = static_cast<double>(loc.mRadius);
@@ -1223,6 +1260,13 @@ namespace game_skyrimse
 
     bool PackageBrain::forcePackage(sdkgame::WorldId reference, const PackageRecord* package)
     {
+        if (mCarryTravellers) // task 0277: remembered by placement, so the package outlives the actor being removed
+        {
+            if (package != nullptr)
+                mForcedRefs[reference] = package;
+            else
+                mForcedRefs.erase(reference);
+        }
         const auto it = mActors.find(reference);
         if (it == mActors.end())
             return false;
