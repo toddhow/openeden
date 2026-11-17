@@ -1747,6 +1747,7 @@ namespace game_skyrimse
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info,
                                         std::string("MAINQUEST a new game starts at the cart: ") + mainquest::kHelgenStart);
+                            }
                             if (settings->getBool(kPackId, marriage::kMarriageKey, false)) // task 0270
                             {
                                 std::vector<FormId> friends;
