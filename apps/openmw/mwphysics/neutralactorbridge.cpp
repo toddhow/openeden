@@ -395,6 +395,19 @@ namespace MWPhysics
         return true;
     }
 
+    bool NeutralActorBridge::Writer::placeActor(ActorHandle handle, double x, double y, double z, float heading)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !std::isfinite(heading))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        return mSink->placeLiving(key, x, y, z, heading);
+    }
+
     bool NeutralActorBridge::Writer::placeCorpse(ActorHandle handle, double x, double y, double z, float heading)
     {
         const void* key = keyOf(handle);

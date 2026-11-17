@@ -33,7 +33,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorRulesVersion{ 0, 7 };
+    inline constexpr Version kActorRulesVersion{ 0, 8 };
 
     struct ActorHandle
     {
@@ -222,6 +222,21 @@ namespace openeden::sdk::game
         /// False (counted) for a stale handle, a value that is not finite or a call outside update(). The default
         /// refuses.
         virtual bool placeCorpse(ActorHandle handle, double x, double y, double z, float heading)
+        {
+            (void)handle;
+            (void)x;
+            (void)y;
+            (void)z;
+            (void)heading;
+            return false;
+        }
+
+        /// (0.8, additive; task 0277; declared after clock()) Puts a LIVING actor at (x, y, z) facing `heading` and clears its
+        /// movement request and goal: what a pack does for an actor whose walk to a package's place cannot succeed
+        /// (a ledge the mover will not cross), the way the game moves an actor whose package begins while its cell is
+        /// not loaded. False (counted) for a stale handle, a value that is not finite or a call outside update().
+        /// The default refuses.
+        virtual bool placeActor(ActorHandle handle, double x, double y, double z, float heading)
         {
             (void)handle;
             (void)x;

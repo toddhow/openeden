@@ -1809,6 +1809,10 @@ namespace game_skyrimse
                             {
                                 driver->enableCompanions();
                                 mCellSource.actorTable().setCarryTravellers(true); // task 0277
+                                mWorldView.setLiveActorPlace(
+                                    [this](FormId reference, double& x, double& y, double& z) {
+                                        return mCellSource.actorTable().brainPlace(reference, x, y, z);
+                                    });
                                 if (settings->getBool(kPackId, "companions test training", false))
                                     driver->enableCompanionsTraining();
                             }

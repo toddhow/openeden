@@ -349,6 +349,15 @@ namespace game_skyrimse
         /// Task 0239: what the follower scripts changed (factions, globals, WaitingForPlayer, relationship ranks, the
         /// teammate flag) wins over the data. Not owned; null (the default): the data alone answers.
         void setFollowerOverlay(const FollowerOverlay* overlay) { mFollowerOverlay = overlay; }
+        /// Task 0277: where an actor stands NOW (the package brain's estimate) and where a loaded placement stands. With
+        /// both, GetDistance between an actor and a loaded reference uses them instead of the records' initial places
+        /// (a walker that left its cell, the cell of the target). Either may be empty.
+        using PlaceLookup = std::function<bool(std::uint32_t reference, double& x, double& y, double& z)>;
+        void setLivePlaces(PlaceLookup actor, PlaceLookup target)
+        {
+            mLiveActorPlace = std::move(actor);
+            mLiveTargetPlace = std::move(target);
+        }
         /// The voice type (VTYP) of the speaker given to `setSpeaker`: the traits record's VTCK (after templates), else
         /// the race's voice type for its sex; kNullFormId when none (task 0143).
         [[nodiscard]] FormId speakerVoiceType() const;
@@ -578,6 +587,9 @@ namespace game_skyrimse
         /// its resolution does not depend on a random leveled pick); null when they cannot be given.
         [[nodiscard]] const ActorIndex::Resolved* resolvedOf(conditions::Subject subject) const;
         [[nodiscard]] bool distanceKnown(conditions::Subject subject, std::uint32_t reference) const;
+        /// Task 0277: the live places of the subject and of the reference, when both lookups exist and know them.
+        [[nodiscard]] bool livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
+            double& az, double& tx, double& ty, double& tz) const;
         [[nodiscard]] bool relationKnown(conditions::Subject subject, std::uint32_t target) const;
         [[nodiscard]] FormId referenceOf(conditions::Subject subject) const; ///< a placed id, or 0
         /// Task 0239: the placed reference a follower overlay is keyed by: the speaker's, another actor's, 0 for none.
@@ -626,6 +638,8 @@ namespace game_skyrimse
         std::function<bool(std::uint32_t)> mWornSource; // task 0270
         std::function<float(std::uint32_t)> mItemSource; // task 0270
         const FollowerOverlay* mFollowerOverlay = nullptr; // task 0239
+        PlaceLookup mLiveActorPlace; // task 0277
+        PlaceLookup mLiveTargetPlace; // task 0277
         [[nodiscard]] float playerGold() const;
         bool mConversationKnown = false;
         bool mConversationOpen = false;

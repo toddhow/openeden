@@ -66,6 +66,11 @@ namespace
             return true;
         }
         bool cancelGoal(ActorHandle) override { return true; }
+        bool placeActor(ActorHandle h, double x, double y, double z, float) override
+        {
+            mPlaced.push_back({ h.reference, x, y, z });
+            return true;
+        }
         bool actorPosition(ActorHandle h, double& x, double& y, double& z) const override
         {
             const auto it = mPositions.find(h.reference);
@@ -83,6 +88,7 @@ namespace
             double mX, mY, mZ;
         };
         std::vector<Goal> mGoals;
+        std::vector<Goal> mPlaced;
         std::map<WorldId, std::array<double, 3>> mPositions;
     };
 
@@ -105,19 +111,23 @@ namespace
         Writer w;
         std::unique_ptr<PackageBrain> brain;
 
-        explicit Rig(bool carry)
+        explicit Rig(bool carry, bool scene = true)
         {
             pkg.mCommon.mId = 1;
             pkg.mHasPkdt = true;
             pkg.mType = 18;
             pkg.mLocations.push_back({ PackageLocationType::NearReference, kMarker, 0 });
-            src.mLists[kBase] = { &pkg };
+            src.mLists[kBase] = {};
             src.mBehavior[1] = PackageBehavior::Travel;
             src.mElsewhere.insert(kMarker);
             brain = std::make_unique<PackageBrain>(src);
             brain->setCarryTravellers(carry);
             w.mPositions[kRef] = { 100, 200, 66 };
             brain->onActorAdded(infoOf(kRef, 1));
+            if (scene)
+                brain->forcePackage(kRef, &pkg); // a scene's package; without it the actor's own list is empty
+            else
+                src.mLists[kBase] = { &pkg };
         }
         void step(int n)
         {
@@ -133,6 +143,14 @@ namespace
         EXPECT_TRUE(r.w.mGoals.empty());
         EXPECT_NE(r.brain->view(kRef)->mPhase, PackageBrain::Phase::Done);
         EXPECT_EQ(r.brain->travellerRefs().count(kRef), 1u);
+    }
+
+    TEST(SkyrimTravellers, aTravelOfTheActorsOwnScheduleIsNotCarriedOnlyASceneLeadsThePlayer)
+    {
+        Rig r(true, false);
+        r.step(6);
+        EXPECT_TRUE(r.brain->travellerRefs().empty());
+        EXPECT_EQ(r.brain->view(kRef)->mPhase, PackageBrain::Phase::Done);
     }
 
     TEST(SkyrimTravellers, withTheOptionOffTheOldBehaviourStaysAndNobodyIsCarried)
@@ -167,6 +185,37 @@ namespace
         EXPECT_TRUE(r.w.mGoals.empty());
         EXPECT_TRUE(r.brain->travellerRefs().empty());
         EXPECT_EQ(r.brain->view(kRef)->mPhase, PackageBrain::Phase::Done);
+    }
+
+    TEST(SkyrimTravellers, aSceneWalkThatCannotBeWalkedEndsWithTheActorPlacedAtItsAnchor)
+    {
+        Rig r(true);
+        r.step(2);
+        r.src.mElsewhere.clear();
+        r.src.mPlaces[kMarker] = { 5000, 6000, 10 };
+        r.step(2);
+        ASSERT_FALSE(r.w.mGoals.empty());
+        r.brain->onGoalFinished({ kRef, 1 }, GoalResult::Blocked);
+        EXPECT_TRUE(r.w.mPlaced.empty()); // the request is written at the next update, where a writer is open
+        r.step(1);
+        ASSERT_EQ(r.w.mPlaced.size(), 1u);
+        EXPECT_NEAR(r.w.mPlaced[0].mX, 5000.0, 1e-6);
+        EXPECT_NEAR(r.w.mPlaced[0].mY, 6000.0, 1e-6);
+        EXPECT_EQ(r.brain->view(kRef)->mPhase, PackageBrain::Phase::Done);
+        EXPECT_EQ(r.brain->stats().mTravelSnaps, 1u);
+    }
+
+    TEST(SkyrimTravellers, theSameFailureWithTheOptionOffDoesNotPlaceAnyone)
+    {
+        Rig r(false);
+        r.src.mPlaces[kMarker] = { 5000, 6000, 10 };
+        r.src.mElsewhere.clear();
+        r.step(3);
+        ASSERT_FALSE(r.w.mGoals.empty());
+        r.brain->onGoalFinished({ kRef, 1 }, GoalResult::NoPath);
+        r.step(3);
+        EXPECT_TRUE(r.w.mPlaced.empty());
+        EXPECT_EQ(r.brain->view(kRef)->mPhase, PackageBrain::Phase::Failed);
     }
 
     TEST(SkyrimTravellers, aForcedPackageSurvivesTheActorBeingAddedAgainAfterADoor)
@@ -220,6 +269,7 @@ namespace
         table.enablePackages(r.src, 1);
         table.setCarryTravellers(true);
         table.onActorAdded(infoOf(kRef, 1));
+        ASSERT_TRUE(table.forcePackage(kRef, &r.pkg));
         WorldId ids[4] = {};
         for (int i = 0; i < 4; ++i)
             table.update(0.5f, r.w);
@@ -227,5 +277,98 @@ namespace
         EXPECT_EQ(ids[0], kRef);
         EXPECT_FALSE(table.isFollower(kRef));
         EXPECT_EQ(table.sideOf(kRef), FollowerSide::None);
+    }
+}
+
+// ---- the conversation's GetDistance with live places ----------------------------------------------------------------
+#include <game_skyrimse/dialogue.hpp>
+#include <game_skyrimse/placed_refs.hpp>
+
+namespace
+{
+    using namespace game_skyrimse;
+
+    constexpr FormId kNpc = 0x01000200;
+    constexpr FormId kSpeakerRef = 0x01000500; // placed in the basement (cell 0x100), initial place (1000, 0, 0)
+    constexpr FormId kMarkerRef = 0x01000501; // placed in the exterior (cell 0x101)
+
+    struct DistanceRig
+    {
+        ActorIndex mActors;
+        DialogueIndex mDialogue;
+        PlacedRefIndex mRefs;
+        SkyrimConditionWorld mWorld{ mActors, mDialogue };
+
+        DistanceRig()
+        {
+            ActorRecords ar;
+            ActorNpc a;
+            a.mCommon.mId = kNpc;
+            ar.mNpcs.push_back(a);
+            mActors.add(ar);
+            PlacedRefRecords r;
+            PlacedEntry speaker;
+            speaker.mId = kSpeakerRef;
+            speaker.mBase = kNpc;
+            speaker.mCell = 0x01000100;
+            speaker.mX = 1000.f;
+            speaker.mFlags = PlacedFlags::IsActor;
+            PlacedEntry marker;
+            marker.mId = kMarkerRef;
+            marker.mBase = kNpc;
+            marker.mCell = 0x01000101;
+            marker.mX = 30000.f;
+            r.mRefs.push_back(speaker);
+            r.mRefs.push_back(marker);
+            mRefs.add(std::move(r));
+            mRefs.finish();
+            mWorld.setPlacedRefs(&mRefs);
+            DialogueSpeaker s;
+            s.mBase = kNpc;
+            s.mReference = kSpeakerRef;
+            s.mCell = 0x01000100;
+            mWorld.setSpeaker(s);
+        }
+    };
+
+    TEST(SkyrimLiveDistance, referencesOfTwoCellsAreInfinitelyFarWithoutLivePlaces)
+    {
+        DistanceRig r;
+        EXPECT_GT(r.mWorld.distanceTo(SkyrimConditionWorld::kPlacedTag | kSpeakerRef, kMarkerRef), 1e30f);
+    }
+
+    TEST(SkyrimLiveDistance, anActorThatWalkedToTheLoadedTargetIsMeasuredFromWhereItStandsNow)
+    {
+        DistanceRig r;
+        r.mWorld.setLivePlaces(
+            [](std::uint32_t reference, double& x, double& y, double& z) {
+                if (reference != kSpeakerRef)
+                    return false;
+                x = 3.0;
+                y = 4.0;
+                z = 0.0;
+                return true;
+            },
+            [](std::uint32_t reference, double& x, double& y, double& z) {
+                if (reference != kMarkerRef)
+                    return false;
+                x = 0.0;
+                y = 0.0;
+                z = 0.0;
+                return true;
+            });
+        EXPECT_FLOAT_EQ(r.mWorld.distanceTo(SkyrimConditionWorld::kPlacedTag | kSpeakerRef, kMarkerRef), 5.f);
+    }
+
+    TEST(SkyrimLiveDistance, aTargetThatIsNotLoadedKeepsTheOldAnswer)
+    {
+        DistanceRig r;
+        r.mWorld.setLivePlaces(
+            [](std::uint32_t, double& x, double& y, double& z) {
+                x = y = z = 0.0;
+                return true;
+            },
+            [](std::uint32_t, double&, double&, double&) { return false; });
+        EXPECT_GT(r.mWorld.distanceTo(SkyrimConditionWorld::kPlacedTag | kSpeakerRef, kMarkerRef), 1e30f);
     }
 }

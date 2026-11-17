@@ -195,6 +195,11 @@ namespace game_skyrimse
         }
         /// Task 0239: what the follower scripts changed wins over the data in the conversation's conditions.
         void setFollowerOverlay(const FollowerOverlay* overlay) { mWorld.setFollowerOverlay(overlay); }
+        /// Task 0277: see SkyrimConditionWorld::setLivePlaces.
+        void setLivePlaces(SkyrimConditionWorld::PlaceLookup actor, SkyrimConditionWorld::PlaceLookup target)
+        {
+            mWorld.setLivePlaces(std::move(actor), std::move(target));
+        }
         void setVendorServicesLookup(SkyrimConditionWorld::VendorServicesLookup lookup) // task 0189
         {
             mWorld.setVendorServicesLookup(std::move(lookup));

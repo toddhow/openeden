@@ -555,6 +555,9 @@ namespace game_skyrimse
         void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
         /// Task 0239: what the follower scripts changed, read by the dialogue conditions. Not owned.
         void setFollowerOverlay(const FollowerOverlay* overlay);
+        /// Task 0277: where an actor stands now (the pack's package brain); the view supplies where a loaded reference
+        /// stands. Conversation conditions that measure a distance use them (the Companions' yard greeting).
+        void setLiveActorPlace(std::function<bool(FormId reference, double& x, double& y, double& z)> lookup);
         /// Task 0258: the arrest conversation. `mWants(reference)`: should a conversation with the actor placed as
         /// `reference` open as the guard's forced greeting? The others tell the crime rules that it began, ended or
         /// could not begin. Every function may be empty (then no conversation is forced).
@@ -941,6 +944,7 @@ namespace game_skyrimse
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
+        std::function<bool(FormId, double&, double&, double&)> mLiveActorPlace; ///< task 0277
         ArrestDialogueHooks mArrest; ///< task 0258
         CrimeConditionSource mCrimeSource; ///< task 0258
         bool mCrimeSourceSet = false;

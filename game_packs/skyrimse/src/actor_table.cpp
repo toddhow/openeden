@@ -105,6 +105,19 @@ namespace game_skyrimse
         mBrain->setCarryTravellers(mCarryTravellers); // task 0277: asked before or after the brain is made
     }
 
+    bool SkyrimActorTable::brainPlace(openeden::sdk::game::WorldId reference, double& x, double& y, double& z) const
+    {
+        if (!mBrain)
+            return false;
+        const auto view = mBrain->view(reference);
+        if (!view)
+            return false;
+        x = view->mX;
+        y = view->mY;
+        z = view->mZ;
+        return true;
+    }
+
     void SkyrimActorTable::setCarryTravellers(bool on)
     {
         mCarryTravellers = on;

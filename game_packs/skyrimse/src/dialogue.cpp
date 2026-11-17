@@ -1920,14 +1920,31 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::distanceKnown(conditions::Subject subject, std::uint32_t reference) const
     {
         ActorView view;
+        double lx = 0, ly = 0, lz = 0;
+        if (livePlaces(subject, reference, lx, ly, lz, lx, ly, lz))
+            return true;
         if (mPlacedRefs == nullptr || !viewOf(subject, view) || view.mRef == nullptr)
             return false;
         const PlacedEntry* other = mPlacedRefs->find(resolve(reference));
         return other != nullptr && other->mCell != kNullFormId && other->mCell == view.mRef->mCell;
     }
 
+    bool SkyrimConditionWorld::livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
+        double& az, double& tx, double& ty, double& tz) const
+    {
+        if (!mLiveActorPlace || !mLiveTargetPlace || subject == 0)
+            return false;
+        ActorView view;
+        if (!viewOf(subject, view) || view.mRef == nullptr)
+            return false;
+        return mLiveActorPlace(view.mRef->mId, ax, ay, az) && mLiveTargetPlace(resolve(reference), tx, ty, tz);
+    }
+
     float SkyrimConditionWorld::distanceTo(conditions::Subject subject, std::uint32_t reference) const
     {
+        double ax = 0, ay = 0, az = 0, tx = 0, ty = 0, tz = 0;
+        if (livePlaces(subject, reference, ax, ay, az, tx, ty, tz)) // task 0277
+            return static_cast<float>(std::sqrt((ax - tx) * (ax - tx) + (ay - ty) * (ay - ty) + (az - tz) * (az - tz)));
         if (!distanceKnown(subject, reference))
             return std::numeric_limits<float>::max();
         ActorView view;

@@ -136,6 +136,8 @@ namespace game_skyrimse
         }
         /// Task 0277: actors travelling to another cell are carried through doors (needs the package brain).
         void setCarryTravellers(bool on);
+        /// Task 0277: where the brain thinks the actor stands (arrivals and leg ends); false for an unknown actor.
+        [[nodiscard]] bool brainPlace(openeden::sdk::game::WorldId reference, double& x, double& y, double& z) const;
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package)
         {
             return mBrain != nullptr && mBrain->forcePackage(reference, package);

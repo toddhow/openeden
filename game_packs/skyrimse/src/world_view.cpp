@@ -1293,6 +1293,9 @@ namespace game_skyrimse
         if (mVendorServicesLookup)
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
         raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
+        if (mLiveActorPlace)
+            raw->mRuntime->setLivePlaces(mLiveActorPlace,
+                [this](std::uint32_t reference, double& x, double& y, double& z) { return locate(reference, x, y, z); });
         if (mCrimeSourceSet)
             raw->mRuntime->setCrimeSource(mCrimeSource); // task 0258
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
@@ -1963,6 +1966,14 @@ namespace game_skyrimse
         mVendorServicesLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setVendorServicesLookup(mVendorServicesLookup);
+    }
+
+    void SkyrimWorldView::setLiveActorPlace(std::function<bool(FormId, double&, double&, double&)> lookup)
+    {
+        mLiveActorPlace = std::move(lookup);
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setLivePlaces(mLiveActorPlace,
+                [this](std::uint32_t reference, double& x, double& y, double& z) { return locate(reference, x, y, z); });
     }
 
     void SkyrimWorldView::setFollowerOverlay(const FollowerOverlay* overlay)

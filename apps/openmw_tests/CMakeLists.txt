@@ -247,6 +247,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testplayerclipmeta.cpp
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp
+    mwphysics/testneutralactorplace.cpp
     mwphysics/testneutralpathfollower.cpp
     mwphysics/testneutralpathpartial.cpp
     mwphysics/testneutralprocess.cpp

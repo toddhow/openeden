@@ -325,6 +325,16 @@ namespace game_skyrimse
             ++mStats.mNoPath;
         else
             ++mStats.mBlocked;
+        // Task 0277: a scene's Travel package that cannot be walked (a ledge the mover will not cross, no navmesh yet)
+        // ends with the actor where it was going, as the game puts an actor whose package begins in an unloaded cell.
+        if (mCarryTravellers && actor.mForced != nullptr && actor.mForced == actor.mActive
+            && actor.mBehavior == PackageBehavior::Travel && actor.mToAnchor)
+        {
+            actor.mSnapNext = true;
+            actor.mPhase = Phase::Failed;
+            actor.mTimer = kElsewhereRetrySeconds;
+            return;
+        }
         if (wanders(actor) && wasLeg)
         {
             actor.mPhase = Phase::Pausing;
@@ -1040,7 +1050,8 @@ namespace game_skyrimse
                     placed = false; // in cell, linked reference, alias, object id/type, unknown: not placeable yet
                     break;
             }
-            if (!placed && mCarryTravellers && actor.mBehavior == PackageBehavior::Travel
+            if (!placed && mCarryTravellers && actor.mForced == package // only a scene's package leads the player
+                && actor.mBehavior == PackageBehavior::Travel
                 && loc.mType == PackageLocationType::NearReference && loc.mValue != kNullFormId
                 && loc.mValue != kUnresolvedFormId && mSource.targetIsElsewhere(static_cast<FormId>(loc.mValue)))
                 actor.mElsewhereRef = static_cast<FormId>(loc.mValue); // task 0277: begin() waits for the target
@@ -1087,6 +1098,25 @@ namespace game_skyrimse
 
     void PackageBrain::run(Actor& actor, float seconds, sdkgame::ActorRequestWriter& writer)
     {
+        if (actor.mSnapNext)
+        {
+            actor.mSnapNext = false;
+            if (writer.placeActor(actor.mHandle, actor.mAnchorX, actor.mAnchorY, actor.mAnchorZ, actor.mHeading))
+            {
+                ++mStats.mTravelSnaps;
+                actor.mX = actor.mAnchorX;
+                actor.mY = actor.mAnchorY;
+                actor.mZ = actor.mAnchorZ;
+                actor.mPhase = Phase::Done;
+            }
+            else
+            {
+                ++mStats.mWritesRefused;
+                actor.mPhase = Phase::Failed;
+                actor.mTimer = kRetrySeconds;
+            }
+            return;
+        }
         if (actor.mUseNext)
         {
             actor.mUseNext = false;

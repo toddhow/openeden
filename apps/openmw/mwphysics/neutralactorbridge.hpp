@@ -78,6 +78,16 @@ namespace MWPhysics
             (void)heading;
             return false;
         }
+        // Task 0277: puts a living actor at a place (its movement request and fall state are cleared).
+        virtual bool placeLiving(const void* key, double x, double y, double z, float heading)
+        {
+            (void)key;
+            (void)x;
+            (void)y;
+            (void)z;
+            (void)heading;
+            return false;
+        }
         virtual bool positionOf(const void* key, double& x, double& y, double& z) const
         {
             (void)key;
@@ -209,6 +219,8 @@ namespace MWPhysics
             bool placeFurniture(
                 openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
             bool placeCorpse(
+                openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
+            bool placeActor(
                 openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
             bool actorPosition(openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }

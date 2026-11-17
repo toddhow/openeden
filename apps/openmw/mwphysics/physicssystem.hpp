@@ -776,6 +776,7 @@ namespace MWPhysics
             void leaveFurniture(const void* key, double x, double y, double z) override;
             bool placeSeated(const void* key, double x, double y, double z, float heading) override;
             bool placeCorpse(const void* key, double x, double y, double z, float heading) override;
+            bool placeLiving(const void* key, double x, double y, double z, float heading) override;
             bool positionOf(const void* key, double& x, double& y, double& z) const override;
 
         private:

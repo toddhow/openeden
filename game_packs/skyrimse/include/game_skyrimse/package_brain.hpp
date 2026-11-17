@@ -254,6 +254,8 @@ namespace game_skyrimse
             std::uint64_t mFollowerDismissals = 0; ///< setFollowPlayer(false) calls that changed something
             std::uint64_t mFollowerNoPlayer = 0; ///< a repath skipped because the core gave no player position
             std::uint64_t mFollowerWaits = 0; ///< setFollowerWaiting(true) calls that changed something
+            // Task 0277
+            std::uint64_t mTravelSnaps = 0; ///< scene Travel walks that failed and ended with the actor placed there
         };
 
         enum class Phase : std::uint8_t
@@ -421,6 +423,7 @@ namespace game_skyrimse
             float mFollowPlayerTimer = 0.f;
             // Task 0277
             FormId mElsewhereRef = kNullFormId; ///< the Travel target that stands in another cell (0: none)
+            bool mSnapNext = false; ///< a scene's Travel walk failed: put the actor at the anchor at the next update
             // Task 0271
             int mGreetWait = 0; ///< evaluations until a ForceGreet package asks again
         };
