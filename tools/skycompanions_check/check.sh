@@ -12,6 +12,13 @@
 #      'furn' step looks for), GOLD (the player's gold, default 6000), PERMISSION (default true: the jarls like the player),
 #      SETTINGS_EXTRA, PHASE (run|load: load reads the save the run made, in <work dir>.load), LOADARG, CHECK_TIMEOUT.
 # <work dir> must be under I:/Projects/OpenEden-work.
+#
+# Task 0272, the training scenario: CELLID=WhiterunJorrvaskrBasement, SETTINGS_EXTRA with `companions = true` and
+# `companions test training = true`, INPUT=training_input.txt (next to this file) and
+#   PLAN="{5800,'talk'},{8900,'face',108180,11800},{10000,'ids','b108180'},{11000,'ids','b108180'}", 12100 frames.
+# Do NOT talk to Kodlak earlier than about frame 5000: the game's quest C00 sets itself back to stage 1 60 s of script time after
+# the host starts (CompanionsHousekeepingScript.SetUpCompanions: Wait(60), then SetStage(1)), and a conversation that sets stage 20
+# before that finds Vilkas' topic (needs GetStage(C00) == 20) failing. See docs/tasks/0272-skyrim-c00-stage-reset.md.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; FRAMES=${5:-6000}
