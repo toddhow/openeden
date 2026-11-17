@@ -47,6 +47,7 @@ namespace game_skyrimse
         Entry entry;
         entry.mBase = base;
         entry.mTopic = topic;
+        entry.mSerial = mSerial + 1; // the value serial() has once this request is counted
         mEntries[reference] = entry;
         ++mSerial;
         return true;
@@ -147,6 +148,17 @@ namespace game_skyrimse
         return {};
     }
 
+    std::vector<ForceGreet::Pending> ForceGreet::pendingRequests() const
+    {
+        std::vector<Pending> out;
+        for (const auto& [reference, e] : mEntries)
+        {
+            if (e.mState == State::Waiting)
+                out.push_back({ reference, e.mBase, e.mSerial });
+        }
+        return out;
+    }
+
     openeden::sdk::DeclareResult ForceGreet::declare(openeden::sdk::BindingsService& service)
     {
         using openeden::sdk::BindingResult;
@@ -167,6 +179,20 @@ namespace game_skyrimse
         };
         add("pending_base", BindingType::String, [self, &m](std::span<const BindingValue>) {
             m.mText = self->pendingBase();
+            BindingResult r;
+            r.value.type = BindingType::String;
+            r.value.text = m.mText;
+            return r;
+        });
+        // Task 0273b: every waiting request as "reference:base:serial", joined by ';' (decimal numbers)
+        add("pending_requests", BindingType::String, [self, &m](std::span<const BindingValue>) {
+            m.mText.clear();
+            for (const Pending& p : self->pendingRequests())
+            {
+                if (!m.mText.empty())
+                    m.mText += ';';
+                m.mText += std::to_string(p.mReference) + ':' + std::to_string(p.mBase) + ':' + std::to_string(p.mSerial);
+            }
             BindingResult r;
             r.value.type = BindingType::String;
             r.value.text = m.mText;

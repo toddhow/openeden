@@ -825,9 +825,17 @@ namespace ScriptPapyrus::Vm
                 return fail(ErrorKind::UnregisteredNative, "native '" + label() + "' is declared and not registered");
             }
             ++mStats.unregisteredNativeCalls;
-            ++mStats.unregisteredByName[label()];
-            logOnce("native:" + label(),
-                "native '" + label() + "' is declared and not registered; it returns the zero of its type");
+            // Task 0273b: the name is built and logged on the FIRST call of a native only; later calls count through
+            // a pointer into the (node based, so stable) ranking map.
+            auto counter = mUnregisteredCounters.find(key);
+            if (counter == mUnregisteredCounters.end())
+            {
+                std::uint64_t& slot = mStats.unregisteredByName[label()];
+                counter = mUnregisteredCounters.emplace(key, &slot).first;
+                logOnce("native:" + label(),
+                    "native '" + label() + "' is declared and not registered; it returns the zero of its type");
+            }
+            ++*counter->second;
         }
         else if (mNatives[bound->second].desc.latent && !mOptions.runLatentNatives)
         {
@@ -837,8 +845,9 @@ namespace ScriptPapyrus::Vm
                     "latent native '" + label() + "' is not supported yet (task 0093 stage d)");
             }
             ++mStats.latentSkipped;
-            logOnce("latent:" + label(),
-                "latent native '" + label() + "' is not supported yet; it returns the zero of its type");
+            if (mLatentLogged.insert(key).second)
+                logOnce("latent:" + label(),
+                    "latent native '" + label() + "' is not supported yet; it returns the zero of its type");
         }
         else
         {

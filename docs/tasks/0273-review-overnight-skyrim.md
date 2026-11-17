@@ -156,3 +156,50 @@ destructor); all four `CombatRequestWriter` wrappers forward every virtual inclu
 No build, no test run, no in-game run. The areas listed above under "did NOT read" are open. A second review pass over
 `combat*.cpp` (the largest source of per-frame work), `crime*.cpp` (the save ledger), `crafting*.cpp` and the HUD Lua is
 recommended before these tasks are called done.
+
+## Task 0273b: fixes of findings 1 to 5 and a second review pass (2026-11-17)
+
+Approved by toddhow on 2026-11-17. Branch: the worktree branch of this task, based on `34beb9d459`.
+
+### Part A: fixes (each with a test written first)
+
+1. **Finding 1.** `World::clear` now clears the scene speech queue (`NeutralSceneSpeech::clear`), the speaker and mouth
+   tables and the projectile handles. A neutral actor removed with its cell is noted by `PhysicsSystem::remove`
+   (`NeutralRemovedRefs`) and the world drops its lines, `Ptr`, mouth driver and corpse rest record
+   (`forgetNeutralSpeaker`). The World and PhysicsSystem wiring has no unit test (they need a whole engine); the pure
+   parts have (`testneutralspeechreset.cpp`, `testneutralremovedrefs.cpp`).
+2. **Finding 2.** `playerPosition` and `placeCorpse` now follow `clock()`; `kActorRulesVersion` 0.7. Pinned by
+   `ActorRulesFrozen` (vtable slots 7 to 10). No existing test needed an edit.
+3. **Finding 3.** New binding `pending_requests` ("reference:base:serial;..."), per-request serials; the script serves
+   every waiting request and activates the REQUESTING reference (id `@0x3fffffff<8 hex>`), with the old nearest-of-base
+   lookup only when the reference is not in the player's cell. `pending_base` and `pending_serial` are unchanged.
+4. **Finding 4.** Tolerant and skipped-latent native calls count through a cached pointer and log on the first call only.
+5. **Finding 5.** `mCorpseRest` entries are erased with the actor's removal (same channel as finding 1).
+   `riding.cpp:updatePaired` with a NaN duration and process-wide statics were NOT changed (see "listed" below).
+
+### Part B: second review pass
+
+Read: `crime.cpp` (the guard approach), `crime_global.lua`, `crafting_service.cpp` (worker thread, empty-effect
+guards), `crafting.cpp` (recipes), `music.cpp` (worker), `progression.cpp` (save blob), `perks.cpp` (decoder pushes),
+`combat.cpp` (fighter table, trace sites), `combat_dragon.cpp`, `combat_ai_run.cpp` (front() guards), `harvest_global.lua`.
+NOT read in depth: `combat_magic.cpp`, `combat_stats.cpp`, `combat_ai.cpp`, `combat_status.cpp`, `combat_race_effects.cpp`,
+the HUD scripts and most window scripts. "No finding" there means "not read".
+
+Ranked:
+
+1. **FIXED. A replacement guard's offer used the dead guard's record** (`crime.cpp`, Approach branch). When the walking
+   guard died or vanished, the next guard became `mGuard`, but the local `guard` stayed the old one, so `mGuardBase`
+   and the dialogue probe were about the dead guard (or a default record). The script then looked for the wrong base
+   and the arrest conversation fell back to the window after 4 seconds. Fix: `guard = next;`. Test
+   `SkyrimCrimeReplacementGuard`.
+2. **LISTED (small, not fixed).** `crime_global.lua` `findGuard` finds the guard by base, the same weakness as finding 3:
+   several guards share a base. The pack knows the guard's reference (`guardReference()`); publishing it would let the
+   script match by reference as `forcegreet_global.lua` now does.
+3. **LISTED (design).** `mFighters` stops accepting actors at `kMaxCombatFighters` with no log line (`onActorAdded`);
+   a crowded hold could silently leave actors out of combat.
+4. **LISTED (design).** `NeutralDisplayNames` is a function-local static in `mwclass/neutral.cpp` and is never cleared;
+   it hands out views valid "until clear()", so clearing on load needs care. Names of a previous game stay.
+5. **LISTED (not changed).** `riding.cpp:updatePaired` with a NaN clip duration, and the trace-only process statics in
+   `worldimp.cpp`: harmless in practice; the duration should be validated on the pack side (`paired.cpp`).
+6. **Finding 7 of the first review** (the test `theVersionIsOneZero` edited and still named for 1.0): NOT edited; for
+   toddhow to approve a rename.

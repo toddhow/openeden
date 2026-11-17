@@ -77,6 +77,15 @@ namespace game_skyrimse
         [[nodiscard]] State stateOf(FormId reference) const;
         [[nodiscard]] std::uint32_t serial() const { return mSerial; }
         [[nodiscard]] std::string pendingBase() const;
+        /// Task 0273b: one Waiting request as the script sees it.
+        struct Pending
+        {
+            FormId mReference = kNullFormId;
+            FormId mBase = kNullFormId;
+            std::uint32_t mSerial = 0; ///< the request's own number (the value of `serial()` when it was made)
+        };
+        /// Every Waiting request, in reference order.
+        [[nodiscard]] std::vector<Pending> pendingRequests() const;
         [[nodiscard]] std::uint64_t timeouts() const { return mTimeouts; }
 
         [[nodiscard]] openeden::sdk::DeclareResult declare(openeden::sdk::BindingsService& service);
@@ -90,6 +99,7 @@ namespace game_skyrimse
             std::uint32_t mChecks = 0;
             bool mBrain = false; ///< task 0271
             std::uint32_t mAsks = 0; ///< task 0271: brain asks while Waiting
+            std::uint32_t mSerial = 0; ///< task 0273b: `mSerial` of the table when the request was made
         };
         std::map<FormId, Entry> mEntries;
         std::uint32_t mSerial = 0;

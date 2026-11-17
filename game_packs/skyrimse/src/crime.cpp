@@ -718,6 +718,7 @@ namespace game_skyrimse::crime
                     return;
                 }
                 const CrimeActor& next = mRoster[mScratch.front().second];
+                guard = next; // task 0273b: the offer below is made by this guard (its base, its conversation probe)
                 mGuard = next.mHandle;
                 mGuardName = next.mName;
                 mLastGoalAt = -1.0e9f;

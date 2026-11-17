@@ -33,7 +33,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorRulesVersion{ 0, 6 };
+    inline constexpr Version kActorRulesVersion{ 0, 7 };
 
     struct ActorHandle
     {
@@ -203,8 +203,11 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// (0.6) Where the player stands now (game units, the feet): the target of a follower. False when the core has
-        /// no player position (a test, a session with no player). The default refuses. Valid during update() only.
+        /// (0.3) The game clock of this frame. The default is an invalid clock. Valid during update() only.
+        [[nodiscard]] virtual ActorClock clock() const { return {}; }
+
+        /// (0.6; declared after clock() since 0.7) Where the player stands now (game units, the feet): the target of a
+        /// follower. False when the core has no player position (a test, a session with no player). The default refuses. Valid during update() only.
         virtual bool playerPosition(double& x, double& y, double& z) const
         {
             (void)x;
@@ -213,8 +216,8 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// (task 0254, additive, version unchanged) Puts a dead actor back where it lay when a saved game was loaded:
-        /// moves it to (x, y, z) facing `heading` and clears its movement request. Nothing else changes: the pack
+        /// (0.7, additive; task 0254; declared after clock() so that clock() keeps its place in the table) Puts a dead
+        /// actor back where it lay when a saved game was loaded: moves it to (x, y, z) facing `heading` and clears its movement request. Nothing else changes: the pack
         /// reports the death afterwards as it would a new one, so a core that makes ragdolls makes one for the corpse.
         /// False (counted) for a stale handle, a value that is not finite or a call outside update(). The default
         /// refuses.
@@ -227,9 +230,6 @@ namespace openeden::sdk::game
             (void)heading;
             return false;
         }
-
-        /// (0.3) The game clock of this frame. The default is an invalid clock. Valid during update() only.
-        [[nodiscard]] virtual ActorClock clock() const { return {}; }
     };
 
     /// Implemented by a WorldCellSource whose game has actors with a life.

@@ -40,6 +40,8 @@ namespace MWWorld
         void update(Sink& sink);
         /// An actor is gone: its lines are dropped.
         void remove(const void* actor);
+        /// Task 0273b: every actor's lines are dropped (a load or a new game: the actors are gone). The counters stay.
+        void clear();
 
         /// Task 0235: the actor has a line queued or one that has not finished (the mouth keeps moving while it is).
         [[nodiscard]] bool busy(const void* actor) const;
@@ -67,6 +69,17 @@ namespace MWWorld
         std::uint64_t mFilesStarted = 0;
         std::uint64_t mDropped = 0;
     };
+
+    /// Task 0273b: an actor's cell unloaded. Drops its queued lines, its entry of the speaker table (the `Ptr` kept for
+    /// it would dangle) and its mouth driver. `speech` may be null (nothing was ever queued).
+    template <class Speakers, class Mouths>
+    void forgetNeutralSpeaker(NeutralSceneSpeech* speech, Speakers& speakers, Mouths& mouths, const void* actor)
+    {
+        if (speech != nullptr)
+            speech->remove(actor);
+        speakers.erase(actor);
+        mouths.erase(actor);
+    }
 }
 
 #endif

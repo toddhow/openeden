@@ -33,6 +33,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralclock.cpp
     mwworld/testneutraldialogue.cpp
     mwworld/testneutralscenespeech.cpp
+    mwworld/testneutralspeechreset.cpp
     mwworld/testneutralmouth.cpp
     mwworld/testneutralservice.cpp
     mwworld/testneutraldisplayname.cpp
@@ -202,6 +203,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     # Task 0093: the Papyrus runtime allocates nothing per instruction (the counter lives in this binary).
     script_papyrus/testpapyrusallocation.cpp
+    script_papyrus/testpapyrustolerantallocation.cpp
     script_papyrus/testpapyrusschedalloc.cpp
 
     # Task 0035 stage b: the RAGDOLL layer, HostedWorldConfig::gravityFactor and MWPhysics::RagdollHost.
@@ -209,6 +211,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testgravityfactor.cpp
     mwphysics/testneutralplayerhealth.cpp
     mwphysics/testragdollhost.cpp
+    mwphysics/testneutralremovedrefs.cpp
     # Task 0110 stage N3a-4b: collision from a Skyrim SE model's visual triangles (the Jolt half and the shape manager hook).
     mwphysics/testskyrimshape.cpp
     mwphysics/testskyrimhavok.cpp

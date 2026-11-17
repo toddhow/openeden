@@ -34,6 +34,7 @@
 #include "neutralmover.hpp"
 #include "neutralpathfollower.hpp"
 #include "neutralplanelinks.hpp"
+#include "neutralremovedrefs.hpp"
 #include "neutralplayerattack.hpp"
 #include "neutralplayerplace.hpp"
 #include "neutralprocess.hpp"
@@ -307,6 +308,9 @@ namespace MWPhysics
             std::vector<std::string> mVoice;
         };
         const std::vector<NeutralSpeechLine>& getNeutralSpeech() const { return mNeutralSpeech; }
+        /// Task 0273b: the keys (reference pointers) of the neutral actors removed since the last call, which the world
+        /// uses to drop their scene speech, speaker `Ptr`, mouth driver and corpse rest record. Main thread.
+        std::vector<const void*> takeNeutralRemoved() { return mNeutralRemoved.take(); }
 
         /// Task 0148: the horizontal ground speed (units a second, measured over the last frame) of each neutral actor
         /// whose measured speed changed in the last updateNeutralActors, or that walked in it; a stopped actor is
@@ -751,6 +755,7 @@ namespace MWPhysics
         void updateNeutralDoors(float dt);
         std::vector<NeutralPoseChange> mNeutralPoseChanges;
         std::vector<NeutralSpeechLine> mNeutralSpeech;
+        NeutralRemovedRefs mNeutralRemoved; // task 0273b
         // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.
         class NeutralRequestApplier final : public NeutralRequestSink
         {

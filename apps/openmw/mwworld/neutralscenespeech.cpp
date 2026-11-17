@@ -64,6 +64,11 @@ namespace MWWorld
         mSpeakers.erase(actor);
     }
 
+    void NeutralSceneSpeech::clear()
+    {
+        mSpeakers.clear();
+    }
+
     bool NeutralSceneSpeech::busy(const void* actor) const
     {
         const auto it = mSpeakers.find(actor);

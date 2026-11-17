@@ -601,6 +601,9 @@ namespace ScriptPapyrus::Vm
         double mSuspendWake = 0.0;
 
         std::unordered_set<std::string> mLoggedOnce;
+        // Task 0273b: pointers into mStats.unregisteredByName (stable map nodes) and the latent natives already logged
+        std::unordered_map<std::uint64_t, std::uint64_t*> mUnregisteredCounters;
+        std::unordered_set<std::uint64_t> mLatentLogged;
         std::string mScratch; ///< Reused text buffer.
         std::string mScratchClass;
         AliasResolver mAliasResolver; ///< task 0264

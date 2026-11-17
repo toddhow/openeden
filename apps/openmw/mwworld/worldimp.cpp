@@ -613,6 +613,13 @@ namespace MWWorld
         mNeutralSaveBytes.clear();
         mCorpsePoses.clear(); // task 0263
         mCorpseRest.clear();
+        // Task 0273b: the actors are gone with the cells: nothing of their speech, speakers, mouths or arrows stays.
+        if (mNeutralSceneSpeech)
+            mNeutralSceneSpeech->clear();
+        mNeutralSpeakers.clear();
+        mNeutralMouths.clear();
+        if (mNeutralProjectiles)
+            mNeutralProjectiles->clear();
         // Task 0209: nothing of the music is saved; a new or loaded game starts a fresh director.
         mNeutralMusic.reset();
         mNeutralMusicTried = false;
@@ -1767,6 +1774,12 @@ namespace MWWorld
             ++speechFrame;
             if (!mNeutralSceneSpeech)
                 mNeutralSceneSpeech = std::make_unique<NeutralSceneSpeech>();
+            // Task 0273b: an actor whose cell unloaded loses its lines, its `Ptr`, its mouth and its corpse rest record
+            for (const void* removed : mPhysics->takeNeutralRemoved())
+            {
+                forgetNeutralSpeaker(mNeutralSceneSpeech.get(), mNeutralSpeakers, mNeutralMouths, removed);
+                mCorpseRest.erase(static_cast<const MWWorld::LiveCellRefBase*>(removed));
+            }
             for (const auto& line : mPhysics->getNeutralSpeech())
             {
                 mNeutralSpeakers[line.mPtr.mRef] = line.mPtr;

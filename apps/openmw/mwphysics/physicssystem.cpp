@@ -1015,7 +1015,8 @@ namespace MWPhysics
                 mNeutralBridge.remove(mNeutralRulesResolver ? mNeutralRulesResolver() : nullptr, ptr.mRef);
             if (!mActorRagdolls.empty())
                 stopActorRagdoll(ptr); // task 0174: a neutral actor's ragdoll goes with it
-            std::erase_if(mNeutralActors, [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; });
+            if (std::erase_if(mNeutralActors, [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; }) != 0)
+                mNeutralRemoved.note(ptr.mRef); // task 0273b: the world forgets what it kept for the actor
             std::erase_if(mNeutralDoors, [&](const NeutralDoorEntry& e) { return e.mRef == ptr.mRef; });
             mAnimatedObjects.erase(foundObject->second.get());
 
