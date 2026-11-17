@@ -26,8 +26,8 @@ namespace MWWorld
         const vsg::mat4 mat(
             right.x, right.y, right.z, 0.f, dir.x, dir.y, dir.z, 0.f, up.x, up.y, up.z, 0.f, 0.f, 0.f, 0.f, 1.f);
         const vsg::dquat q = Misc::VsgMath::rotationOf(mat);
-        return vsg::quat(static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z),
-            static_cast<float>(q.w));
+        return vsg::quat(
+            static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z), static_cast<float>(q.w));
     }
 
     NeutralProjectiles::NeutralProjectiles() = default;
@@ -53,8 +53,8 @@ namespace MWWorld
                                  << (op.mKind == Kind::Spawn         ? "spawn"
                                             : op.mKind == Kind::Move ? "move"
                                                                      : "remove")
-                                 << " id " << op.mId << " at " << op.mPose.mX << " " << op.mPose.mY << " " << op.mPose.mZ
-                                 << " drawn " << mHandles.size();
+                                 << " id " << op.mId << " at " << op.mPose.mX << " " << op.mPose.mY << " "
+                                 << op.mPose.mZ << " drawn " << mHandles.size();
             switch (op.mKind)
             {
                 case Kind::Spawn:
@@ -68,8 +68,8 @@ namespace MWWorld
                         = neutralProjectileAttitude(vsg::vec3(op.mPose.mDirX, op.mPose.mDirY, op.mPose.mDirZ));
                     try
                     {
-                        mHandles[op.mId] = projectiles->add(op.mModel, position, attitude, false, std::nullopt,
-                            std::nullopt, std::string(), {});
+                        mHandles[op.mId] = projectiles->add(
+                            op.mModel, position, attitude, false, std::nullopt, std::nullopt, std::string(), {});
                     }
                     catch (const std::exception& e)
                     {

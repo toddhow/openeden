@@ -1,6 +1,6 @@
-// Task 0253 (dragons): read-only survey of the installed data for the dragon: every clip of the dragon folder (duration,
-// track count, skeleton, sidecar link, events, root motion) and the skin bounds. Prints SKYRIMSE-DRAGON-* lines.
-// Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0253 (dragons): read-only survey of the installed data for the dragon: every clip of the dragon folder
+// (duration, track count, skeleton, sidecar link, events, root motion) and the skin bounds. Prints SKYRIMSE-DRAGON-*
+// lines. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/havokpack/animation.hpp>
 #include <components/havokpack/animationdata.hpp>
@@ -176,8 +176,8 @@ namespace
         }
     }
 
-    // Where the dragons stand: every ACHR whose NPC resolves to the dragon skeleton, with its cell, position and whether
-    // it starts disabled. Prints SKYRIMSE-DRAGON-PLACED lines.
+    // Where the dragons stand: every ACHR whose NPC resolves to the dragon skeleton, with its cell, position and
+    // whether it starts disabled. Prints SKYRIMSE-DRAGON-PLACED lines.
     TEST(SkyrimDragonSurvey, whereTheDragonsStand)
     {
         using namespace game_skyrimse;
@@ -225,8 +225,8 @@ namespace
                             && lowered(r->skeleton(Sex::Male)).find("actors/character/") == std::string::npos
                             && ref.mPosition.x > 12000 && ref.mPosition.x < 42000 && ref.mPosition.y > -36000
                             && ref.mPosition.y < -4000)
-                            std::cout << "SKYRIMSE-DRAGON-NEAR npc:" << index.npc(ref.mBase)->mCommon.mEditorId << " at "
-                                      << int(ref.mPosition.x) << "," << int(ref.mPosition.y) << ","
+                            std::cout << "SKYRIMSE-DRAGON-NEAR npc:" << index.npc(ref.mBase)->mCommon.mEditorId
+                                      << " at " << int(ref.mPosition.x) << "," << int(ref.mPosition.y) << ","
                                       << int(ref.mPosition.z) << std::endl;
                         if (lowered(r->skeleton(Sex::Male)).find("actors/dragon/") == std::string::npos)
                             continue;

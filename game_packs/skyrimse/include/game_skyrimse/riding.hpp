@@ -132,8 +132,7 @@ namespace game_skyrimse
 
     /// The heading the horse must have for a rider standing at (riderX, riderY) to be at its left flank (the paired
     /// mount clip starts there). `fallback` when the two are (nearly) at the same place or a value is not finite.
-    [[nodiscard]] float headingForLeftFlank(
-        double horseX, double horseY, double riderX, double riderY, float fallback);
+    [[nodiscard]] float headingForLeftFlank(double horseX, double horseY, double riderX, double riderY, float fallback);
 
     /// The rider clip of a gait: a path under the actor's animations folder (`horse_rider/idle`, ...), with no
     /// extension. The files are in Skyrim - Animations.bsa under actors/character/animations/horse_rider.
@@ -146,8 +145,7 @@ namespace game_skyrimse
         float mRunSpeed = 0.f;
     };
     /// True with `out` filled when the base (with this placement as the variation) is a horse.
-    using HorseLookup
-        = std::function<bool(openeden::sdk::game::WorldId base, std::uint32_t variation, HorseInfo& out)>;
+    using HorseLookup = std::function<bool(openeden::sdk::game::WorldId base, std::uint32_t variation, HorseInfo& out)>;
 
     class Riding final : public openeden::sdk::game::RidingRules
     {
@@ -236,8 +234,8 @@ namespace game_skyrimse
         // Task 0267: a paired clip is playing.
         void beginDismount(openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player,
             const openeden::sdk::game::PairedClipInfo& info);
-        void updatePaired(float seconds, openeden::sdk::game::ActorRequestWriter& writer,
-            openeden::sdk::game::RidingWriter& player);
+        void updatePaired(
+            float seconds, openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter& player);
         void clearHorseClip(openeden::sdk::game::RidingWriter* anyWriter);
 
         bool mEnabled = false;

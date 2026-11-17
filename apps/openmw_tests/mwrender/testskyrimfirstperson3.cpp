@@ -1,7 +1,7 @@
 // Task 0249 (the player's first-person hands, third slice): the pure rules of apps/openmw/mwrender/skyrimhands.hpp and
-// the loop offset of the Timeline. The hands' loop for a bow and for a held spell, the weapon that appears and leaves at
-// its equip and unequip clip's own event, and where the event falls in a clip's meta. Nothing reads a file. The event
-// times are those of animationdata/firstperson.txt: 1HM_Equip weaponDraw 0.566667, 1HM_Unequip weaponSheathe 1.0,
+// the loop offset of the Timeline. The hands' loop for a bow and for a held spell, the weapon that appears and leaves
+// at its equip and unequip clip's own event, and where the event falls in a clip's meta. Nothing reads a file. The
+// event times are those of animationdata/firstperson.txt: 1HM_Equip weaponDraw 0.566667, 1HM_Unequip weaponSheathe 1.0,
 // Bow_Equip weaponDraw 0.533333.
 #include <apps/openmw/mwrender/skyrimhands.hpp>
 #include <apps/openmw/mwrender/skyrimheldgear.hpp>

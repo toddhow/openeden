@@ -48,8 +48,8 @@ namespace game_skyrimse::harvest
         Unknown, ///< the clock's month is not known yet (or out of range)
     };
 
-    /// The month 0 to 11 (0 = Morning Star, the first of the year) to a season: months 2 to 4 spring, 5 to 7 summer, 8 to
-    /// 10 fall, 11, 0 and 1 winter. Anything else is Unknown. OURS.
+    /// The month 0 to 11 (0 = Morning Star, the first of the year) to a season: months 2 to 4 spring, 5 to 7 summer, 8
+    /// to 10 fall, 11, 0 and 1 winter. Anything else is Unknown. OURS.
     [[nodiscard]] Season seasonOfMonth(int month);
 
     /// The chance in percent that a harvest gives its ingredient: the PFPC byte of the season; all four zero is

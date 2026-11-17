@@ -52,9 +52,9 @@
 #include "skyrimlocomotion.hpp"
 #include "skyrimpose.hpp"
 #include "skyrimragdoll.hpp"
+#include "skyrimragdollmap.hpp"
 #include "skyrimsequence.hpp"
 #include <components/vsgutil/addchildren.hpp>
-#include "skyrimragdollmap.hpp"
 #include <cstdlib>
 
 #include "switches.hpp"
@@ -204,7 +204,8 @@ namespace MWRender
         const MWWorld::Ptr& ptr, const std::string& mesh, MWAnim::Context& ctx)
     {
         const auto kind = ptr.get<MWWorld::NeutralBase>()->mBase->mKind;
-        if (mesh.empty() || (kind != openeden::sdk::game::ObjectKind::Door && kind != openeden::sdk::game::ObjectKind::Container))
+        if (mesh.empty()
+            || (kind != openeden::sdk::game::ObjectKind::Door && kind != openeden::sdk::game::ObjectKind::Container))
             return nullptr;
         Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
         if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
@@ -477,10 +478,9 @@ namespace MWRender
                     gait.mWalkLeftFoot = 0.f;
                     gait.mRunLeftFoot = 0.f;
                 }
-                auto controller
-                    = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(std::move(future),
-                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, walkName),
-                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, runName), bones, phase, gait));
+                auto controller = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(
+                    std::move(future), SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, walkName),
+                    SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, runName), bones, phase, gait));
                 anim.addController(controller, anim.transform());
                 anim.keepAlive.push_back(controller);
                 addPose();
@@ -536,7 +536,6 @@ namespace MWRender
             anim.keepAlive.push_back(controller);
         }
     }
-
 
     std::unique_ptr<MWAnim::ObjectAnimation> Scene::makeNeutralActorObject(
         const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance, bool player)
@@ -882,8 +881,8 @@ namespace MWRender
         return ragdoll->armFrozen(names, states, reason);
     }
 
-    bool Scene::neutralRagdollDrivenPose(const MWWorld::Ptr& ptr, std::vector<std::string>& names,
-        std::vector<MWPhysics::RagdollBoneState>& states)
+    bool Scene::neutralRagdollDrivenPose(
+        const MWWorld::Ptr& ptr, std::vector<std::string>& names, std::vector<MWPhysics::RagdollBoneState>& states)
     {
         SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr);
         return ragdoll != nullptr && ragdoll->drivenPose(names, states);
@@ -906,8 +905,8 @@ namespace MWRender
             if (resources == nullptr || resources->getVFS() == nullptr)
                 return {};
             const VFS::Manager& vfs = *resources->getVFS();
-            // Task 0259: a clip named `<creature folder>::<clip>` is a creature's (the werewolf beast's): its skeleton is
-            // `actors/<folder>/character assets/skeleton.nif` and its sidecar `<folder>project`.
+            // Task 0259: a clip named `<creature folder>::<clip>` is a creature's (the werewolf beast's): its skeleton
+            // is `actors/<folder>/character assets/skeleton.nif` and its sidecar `<folder>project`.
             const std::size_t separator = clip.find("::");
             if (separator != std::string_view::npos && separator > 0)
             {

@@ -89,8 +89,8 @@ namespace game_skyrimse
             /// when it does not know the item. May be empty (then a scroll is refused and kept).
             std::function<int(FormId item)> mUseScroll;
             // ---- task 0240 (diseases)
-            /// Is this potion effect (an MGEF id) a Cure Disease effect? A potion with one is drunk although it restores no
-            /// health. May be empty.
+            /// Is this potion effect (an MGEF id) a Cure Disease effect? A potion with one is drunk although it
+            /// restores no health. May be empty.
             std::function<bool(FormId effect)> mIsCureEffect;
             /// The player drank a potion with a Cure Disease effect: the diseases go.
             std::function<void()> mCureDisease;

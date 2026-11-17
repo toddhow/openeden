@@ -1,5 +1,5 @@
-// Task 0211: the story events the world raises: the KILL event of a death, the location a place belongs to, and the rule for
-// "the player changed location". Pure; generated location records. Written first and run red against stubs.
+// Task 0211: the story events the world raises: the KILL event of a death, the location a place belongs to, and the
+// rule for "the player changed location". Pure; generated location records. Written first and run red against stubs.
 #include <game_skyrimse/location.hpp>
 #include <game_skyrimse/story_events.hpp>
 

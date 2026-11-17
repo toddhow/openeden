@@ -126,15 +126,15 @@ namespace Render::ImageSpace
         const float weatherStops = weather.on ? finite(weather.stops, 0.f) : 0.f;
         const Grade base = weather.on ? weather.grade : Grade{};
 
-        const float saturation = finite(base.saturation, 1.f) * finite(modifier.saturationMult, 1.f)
-            + finite(modifier.saturationAdd, 0.f);
+        const float saturation
+            = finite(base.saturation, 1.f) * finite(modifier.saturationMult, 1.f) + finite(modifier.saturationAdd, 0.f);
         const float contrast
             = finite(base.contrast, 1.f) * finite(modifier.contrastMult, 1.f) + finite(modifier.contrastAdd, 0.f);
         out.grade.saturation = std::clamp(saturation, 0.f, kMaxGradeValue);
         out.grade.contrast = std::clamp(contrast, 0.f, kMaxGradeValue);
 
-        const float brightness = std::exp2(weatherStops) * finite(modifier.brightnessMult, 1.f)
-            + finite(modifier.brightnessAdd, 0.f);
+        const float brightness
+            = std::exp2(weatherStops) * finite(modifier.brightnessMult, 1.f) + finite(modifier.brightnessAdd, 0.f);
         out.stops = std::clamp(std::log2(std::max(brightness, kMinBrightness)), -kMaxStops, kMaxStops);
 
         const float weatherAmount = std::clamp(finite(base.tintAmount, 0.f), 0.f, 1.f);

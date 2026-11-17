@@ -124,8 +124,8 @@ namespace game_skyrimse::pickup
         return std::min(xcnt, kMaxPickupCount);
     }
 
-    float pickpocketChance(const PickpocketSettings& settings, float skill, std::int32_t value, float weight,
-        std::int32_t count)
+    float pickpocketChance(
+        const PickpocketSettings& settings, float skill, std::int32_t value, float weight, std::int32_t count)
     {
         const float s = std::max(0.f, finiteOr(skill, 0.f));
         const double v = static_cast<double>(std::max<std::int32_t>(0, value))

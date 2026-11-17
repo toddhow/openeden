@@ -86,8 +86,8 @@ namespace MWPhysics::NeutralMover
     /// the floor normal limit kAnimalMinFloorNormalZ.
     [[nodiscard]] Limits limitsForHeight(float height);
 
-    /// The limits of an actor of `height`: those of a mount (`limitsForHeight`) when `ridden`, else the humanoid's (task
-    /// 0255: only the horse the player sits on has them, so nothing else in the world changes).
+    /// The limits of an actor of `height`: those of a mount (`limitsForHeight`) when `ridden`, else the humanoid's
+    /// (task 0255: only the horse the player sits on has them, so nothing else in the world changes).
     [[nodiscard]] Limits limitsFor(float height, bool ridden);
 
     /// The result of sweeping the actor's capsule: `mFraction` of the way along the motion is free.

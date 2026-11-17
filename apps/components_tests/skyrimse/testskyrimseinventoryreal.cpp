@@ -63,12 +63,11 @@ namespace
             ASSERT_TRUE(parseRecordsFile(data / n, order, ParseLimits(), parsed, parseError)) << parseError.describe();
             table.addLeveledLists(parsed.mLeveledLists);
         }
-        const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - started)
-                                .count();
-        std::cout << "SKYRIMSE-INV items " << table.itemCount() << " containers " << table.containerCount()
-                  << " odd " << table.oddSubrecords() << " failed " << failed << " unresolved " << unresolved << " in "
-                  << millis << " ms\n";
+        const auto millis
+            = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
+        std::cout << "SKYRIMSE-INV items " << table.itemCount() << " containers " << table.containerCount() << " odd "
+                  << table.oddSubrecords() << " failed " << failed << " unresolved " << unresolved << " in " << millis
+                  << " ms\n";
         EXPECT_EQ(failed, 0u);
         EXPECT_EQ(table.oddSubrecords(), 0u) << "a DATA, ENIT or CNTO has a size the header does not describe";
 

@@ -48,7 +48,8 @@ namespace game_skyrimse
         /// Updates the runner makes before a request that has not opened is given up (about 15 s at 60 updates).
         static constexpr std::uint32_t kTimeoutChecks = 900;
         static constexpr std::size_t kMaxRequests = 16;
-        /// Task 0271: asks of the brain, after the first, that a request waits for its conversation before it is dropped.
+        /// Task 0271: asks of the brain, after the first, that a request waits for its conversation before it is
+        /// dropped.
         static constexpr std::uint32_t kBrainMaxAsks = 2;
 
         ForceGreet();
@@ -59,8 +60,8 @@ namespace game_skyrimse
         /// A request for the actor placed as `reference` (of base `base`) to say `topic`. False when the table is full
         /// or a request of the actor is live already.
         bool request(FormId reference, FormId base, FormId topic);
-        /// Task 0271: the package brain's ask (the same actor again and again). True when it made a new request; false when
-        /// the actor's is live already (that counts as an ask) or the table is full.
+        /// Task 0271: the package brain's ask (the same actor again and again). True when it made a new request; false
+        /// when the actor's is live already (that counts as an ask) or the table is full.
         bool requestFromBrain(FormId reference, FormId base, FormId topic);
         /// Task 0271: true for a request the brain made: no greeting passing must not stop the plain conversation.
         [[nodiscard]] bool fallsBackToPlain(FormId reference) const;

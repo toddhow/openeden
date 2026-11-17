@@ -1,8 +1,8 @@
-// Task 0252: the frame art of the Skyrim-style combat HUD (files/data/openeden/hud/skyrimstyle.lua, the pictures made by
-// tools/hudart/generate.py). The module over the headless UI backend: with `env.hasArt()` true the frames, fills and the
-// emblem carry RCSS decorators, otherwise the plain boxes of task 0244 are drawn unchanged. Written from the task spec
-// first and run red against the module of task 0244; the real RmlUi parse of the decorator strings is checked on a real
-// context, the picture files by reading their PNG headers.
+// Task 0252: the frame art of the Skyrim-style combat HUD (files/data/openeden/hud/skyrimstyle.lua, the pictures made
+// by tools/hudart/generate.py). The module over the headless UI backend: with `env.hasArt()` true the frames, fills and
+// the emblem carry RCSS decorators, otherwise the plain boxes of task 0244 are drawn unchanged. Written from the task
+// spec first and run red against the module of task 0244; the real RmlUi parse of the decorator strings is checked on a
+// real context, the picture files by reading their PNG headers.
 #include "uiluafixture.hpp"
 
 #include <RmlUi/Core.h>
@@ -128,8 +128,9 @@ namespace
                  "mod.ACTOR_SMALL_HEIGHT" })
         {
             const int h = get<int>(std::string(expr) + " + 2 * mod.ART_INSET");
-            const bool listed = get<bool>("(function(n) for _, v in ipairs(mod.ART_FRAME_HEIGHTS) do if v == n then "
-                                          "return true end end return false end)("
+            const bool listed = get<bool>(
+                "(function(n) for _, v in ipairs(mod.ART_FRAME_HEIGHTS) do if v == n then "
+                "return true end end return false end)("
                 + std::to_string(h) + ")");
             EXPECT_TRUE(listed) << expr << " + inset = " << h;
         }

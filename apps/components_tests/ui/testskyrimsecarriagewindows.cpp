@@ -1,5 +1,5 @@
-// Task 0223: the world map indoors. `openeden.skyrimse.mapplace` (the place the map window shows when the player stands in
-// an interior: the last exterior world, else the world of the interior's location) and the window itself drawing no
+// Task 0223: the world map indoors. `openeden.skyrimse.mapplace` (the place the map window shows when the player stands
+// in an interior: the last exterior world, else the world of the interior's location) and the window itself drawing no
 // player marker when the place has no position. Over the headless UI backend and fake packages written in Lua.
 #include "uiluafixture.hpp"
 

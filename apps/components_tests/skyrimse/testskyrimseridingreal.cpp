@@ -12,10 +12,10 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
-#include <vector>
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -62,8 +62,8 @@ namespace
             for (auto it = chain.rbegin(); it != chain.rend(); ++it)
             {
                 const NifScene::Transform& local = scene.mNodes[*it].mTransform;
-                const std::array<float, 3> moved{ rotation[0] * local.mTranslation[0] + rotation[1] * local.mTranslation[1]
-                        + rotation[2] * local.mTranslation[2],
+                const std::array<float, 3> moved{ rotation[0] * local.mTranslation[0]
+                        + rotation[1] * local.mTranslation[1] + rotation[2] * local.mTranslation[2],
                     rotation[3] * local.mTranslation[0] + rotation[4] * local.mTranslation[1]
                         + rotation[5] * local.mTranslation[2],
                     rotation[6] * local.mTranslation[0] + rotation[7] * local.mTranslation[1]
@@ -74,15 +74,13 @@ namespace
                 for (int r = 0; r < 3; ++r)
                     for (int c = 0; c < 3; ++c)
                         for (int k = 0; k < 3; ++k)
-                            next[static_cast<std::size_t>(r * 3 + c)]
-                                += rotation[static_cast<std::size_t>(r * 3 + k)]
+                            next[static_cast<std::size_t>(r * 3 + c)] += rotation[static_cast<std::size_t>(r * 3 + k)]
                                 * local.mRotation[static_cast<std::size_t>(k * 3 + c)];
                 rotation = next;
                 scale *= local.mScale;
-                std::cout << "SKYRIMSE-RIDING-CHAIN " << scene.mNodes[*it].mName << " local ("
-                          << local.mTranslation[0] << ", " << local.mTranslation[1] << ", " << local.mTranslation[2]
-                          << ") -> world (" << position[0] << ", " << position[1] << ", " << position[2] << ")"
-                          << std::endl;
+                std::cout << "SKYRIMSE-RIDING-CHAIN " << scene.mNodes[*it].mName << " local (" << local.mTranslation[0]
+                          << ", " << local.mTranslation[1] << ", " << local.mTranslation[2] << ") -> world ("
+                          << position[0] << ", " << position[1] << ", " << position[2] << ")" << std::endl;
             }
             std::cout << "SKYRIMSE-RIDING-SADDLE x " << position[0] << " y " << position[1] << " z " << position[2]
                       << std::endl;

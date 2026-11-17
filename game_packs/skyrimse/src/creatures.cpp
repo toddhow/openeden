@@ -69,11 +69,13 @@ namespace game_skyrimse
             // the pack reads events by the file's name, so the attacks are the two clips whose names agree: the sweep
             // of both fists `attack1x2` and the stomp. The plain run is the combat run (415 units in 1 s).
             { "giant", "actors/giant/character assets/", "giantproject", "idle", "walkforward", "runforward",
-                164.134f / 2.666667f, 415.f / 1.f, 164.134f, 415.f, 267.f, "attack1x2", "attack_stomp",
-                "stagger_small", "stagger_large", "deathpose", 32.f },
+                164.134f / 2.666667f, 415.f / 1.f, 164.134f, 415.f, 267.f, "attack1x2", "attack_stomp", "stagger_small",
+                "stagger_large", "deathpose", 32.f },
             // ---- task 0246: the third slice. Each number is from docs/tasks/0246-skyrim-creatures-third.md section 2.
-            // The draugr row takes the three skeletons of the draugr folder (skeleton, skeletonf, skeletons: a prefix of
-            // the file name, not a folder), so a skeleton of a DLC subfolder is not matched. The skeleton race has its own
+            // The draugr row takes the three skeletons of the draugr folder (skeleton, skeletonf, skeletons: a prefix
+            // of
+            // the file name, not a folder), so a skeleton of a DLC subfolder is not matched. The skeleton race has its
+            // own
             // project file with the same generators and blocks (410 and 214, sizes differ by the name only).
             { "draugr", "actors/draugr/character assets/skeleton", "draugrproject", "mtidle", "mtforward",
                 "mtfastforward", 76.9733f / 1.f, 180.921f / 0.533333f, 76.9733f, 180.921f, 145.f, "1hmattacka",
@@ -106,8 +108,10 @@ namespace game_skyrimse
                 "powerattackforwardx2", "recoilr", "staggerback_small", "death", 16.f },
             // The dragon (task 0262, moved here from dragons.cpp; docs/tasks/0253-skyrim-dragons.md section 1). Clips:
             // `CLIP_Ground_Combat_Default_Standing_Idle` (ground_combatidle), `CLIP_Ground_Locomotion_Forward`
-            // (mtforwardground, 1.33333 s, motion 512 units), the bite (3 s, HitFrame 1.5667 s), the tail whip (2.66667 s,
-            // HitFrame 1.4 s), `CLIP_Ground_Stagger`; the death is mtdeathintro. Height 414 is the z extent of dragon.nif
+            // (mtforwardground, 1.33333 s, motion 512 units), the bite (3 s, HitFrame 1.5667 s), the tail whip (2.66667
+            // s,
+            // HitFrame 1.4 s), `CLIP_Ground_Stagger`; the death is mtdeathintro. Height 414 is the z extent of
+            // dragon.nif
             // at rest; the radius 150 is OURS (the skin's mid-body slab includes the spread wings: 1675 wide).
             { "dragon", "actors/dragon/character assets/skeleton.nif", "dragonproject", "ground_combatidle",
                 "mtforwardground", "mtforwardground", 512.f / 1.33333f, 512.f / 1.33333f, 512.f, 512.f, 414.f,

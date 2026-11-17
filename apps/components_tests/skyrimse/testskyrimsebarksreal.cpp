@@ -1,5 +1,5 @@
-// Task 0231: the aggregate survey of the dialogue subtypes (the SNAM of each DIAL) and of the greeting and idle GMSTs of
-// the player's own Skyrim SE masters. Prints counts and subtype names only (lines starting SKYRIMSE-BARKS), never a
+// Task 0231: the aggregate survey of the dialogue subtypes (the SNAM of each DIAL) and of the greeting and idle GMSTs
+// of the player's own Skyrim SE masters. Prints counts and subtype names only (lines starting SKYRIMSE-BARKS), never a
 // response text. Skipped unless OPENEDEN_SKYRIMSE_DATA names the Data folder.
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/dialogue.hpp>

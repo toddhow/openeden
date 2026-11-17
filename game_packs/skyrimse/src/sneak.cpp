@@ -175,7 +175,8 @@ namespace game_skyrimse::sneak
         return std::max(outcome.mValue, 0.f);
     }
 
-    // ---- the system --------------------------------------------------------------------------------------------------
+    // ---- the system
+    // --------------------------------------------------------------------------------------------------
 
     SneakSystem::SneakSystem(Hooks hooks, Settings settings)
         : mHooks(std::move(hooks))
@@ -362,8 +363,8 @@ namespace game_skyrimse::sneak
                 {
                     if (rays < mSettings.mMaxRays)
                     {
-                        const Factions::SightRay ray = Factions::sightRay(
-                            c.mState.x, c.mState.y, c.mState.z, player.x, player.y, player.z);
+                        const Factions::SightRay ray
+                            = Factions::sightRay(c.mState.x, c.mState.y, c.mState.z, player.x, player.y, player.z);
                         if (ray.mValid)
                         {
                             ++rays;
@@ -380,9 +381,10 @@ namespace game_skyrimse::sneak
                 o.mAlert = classify(mSettings, o.mNotice, o.mAlert);
             }
             if (o.mAlert != was)
-                note("SNEAK " + (a.mName.empty() ? std::to_string(reference) : a.mName) + " " + std::string(alertName(was))
-                    + " -> " + std::string(alertName(o.mAlert)) + " notice " + fmt(o.mNotice, 2) + " distance "
-                    + fmt(c.mDistance, 1) + " range " + fmt(mRange, 1) + " speed " + fmt(mSpeed, 0));
+                note("SNEAK " + (a.mName.empty() ? std::to_string(reference) : a.mName) + " "
+                    + std::string(alertName(was)) + " -> " + std::string(alertName(o.mAlert)) + " notice "
+                    + fmt(o.mNotice, 2) + " distance " + fmt(c.mDistance, 1) + " range " + fmt(mRange, 1) + " speed "
+                    + fmt(mSpeed, 0));
             if (o.mAlert != was && mAlertHook)
             {
                 try
@@ -411,7 +413,8 @@ namespace game_skyrimse::sneak
             mHooks.mTrain(training);
     }
 
-    // ---- the script package --------------------------------------------------------------------------------------------
+    // ---- the script package
+    // --------------------------------------------------------------------------------------------
 
     namespace
     {

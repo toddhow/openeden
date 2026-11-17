@@ -31,8 +31,8 @@ namespace
         GroundSpeed speed;
         (void)speed.update(0.0, 0.0, 0.1f);
         EXPECT_NEAR(speed.update(10.0, 0.0, 0.1f), 100.f, 1e-3f);
-        for (const float dt : { 0.f, -1.f, std::numeric_limits<float>::quiet_NaN(),
-                 std::numeric_limits<float>::infinity() })
+        for (const float dt :
+            { 0.f, -1.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
             EXPECT_NEAR(speed.update(500.0, 0.0, dt), 100.f, 1e-3f) << dt;
         // the place was not taken over by the refused frames: the next delta is from x = 10
         EXPECT_NEAR(speed.update(20.0, 0.0, 0.1f), 100.f, 1e-3f);

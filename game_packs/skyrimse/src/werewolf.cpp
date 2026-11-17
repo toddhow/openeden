@@ -188,7 +188,8 @@ namespace game_skyrimse::werewolf
         saved.mRemaining = seconds;
         saved.mFed.resize(count);
         if (count != 0)
-            std::memcpy(saved.mFed.data(), data + kHeaderBytes, static_cast<std::size_t>(count) * sizeof(std::uint64_t));
+            std::memcpy(
+                saved.mFed.data(), data + kHeaderBytes, static_cast<std::size_t>(count) * sizeof(std::uint64_t));
         for (std::size_t i = 1; i < saved.mFed.size(); ++i)
         {
             if (saved.mFed[i - 1] >= saved.mFed[i])

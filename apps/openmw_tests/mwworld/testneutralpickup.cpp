@@ -18,10 +18,10 @@ namespace
 
     TEST(NeutralPickupDecision, nothingButAnItemIsPickedUp)
     {
-        for (const ObjectKind kind : { ObjectKind::Unknown, ObjectKind::Static, ObjectKind::MovableStatic,
-                 ObjectKind::Furniture, ObjectKind::Door, ObjectKind::Activator, ObjectKind::Container,
-                 ObjectKind::Flora, ObjectKind::Tree, ObjectKind::Light, ObjectKind::Actor, ObjectKind::LeveledList,
-                 ObjectKind::Other })
+        for (const ObjectKind kind :
+            { ObjectKind::Unknown, ObjectKind::Static, ObjectKind::MovableStatic, ObjectKind::Furniture,
+                ObjectKind::Door, ObjectKind::Activator, ObjectKind::Container, ObjectKind::Flora, ObjectKind::Tree,
+                ObjectKind::Light, ObjectKind::Actor, ObjectKind::LeveledList, ObjectKind::Other })
             EXPECT_EQ(decideNeutralPickup(kind, true, true), NeutralInventoryDecision::NotApplicable)
                 << static_cast<int>(kind);
     }

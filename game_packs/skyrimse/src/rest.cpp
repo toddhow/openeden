@@ -37,8 +37,8 @@ namespace game_skyrimse::rest
     {
         if (!std::isfinite(hours))
             return kMinWaitHours;
-        return static_cast<int>(std::clamp(std::floor(hours), static_cast<double>(kMinWaitHours),
-            static_cast<double>(kMaxWaitHours)));
+        return static_cast<int>(
+            std::clamp(std::floor(hours), static_cast<double>(kMinWaitHours), static_cast<double>(kMaxWaitHours)));
     }
 
     double regenSeconds(double hours, double timeScale)
@@ -269,19 +269,19 @@ namespace game_skyrimse::rest
         static const BindingType clockParam[] = { BindingType::Double };
         static const BindingType restParams[] = { BindingType::Int32, BindingType::Double, BindingType::Bool };
 
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, bool hasResult,
-                             BindingType result, Fn::Body body,
-                             openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = hasResult;
-            f.result = result;
-            f.access = access;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, bool hasResult, BindingType result,
+                  Fn::Body body, openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = hasResult;
+                  f.result = result;
+                  f.access = access;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
 
         add("ready", {}, true, BindingType::Bool, [self](std::span<const BindingValue>) {
             BindingResult r;
@@ -319,13 +319,15 @@ namespace game_skyrimse::rest
             r.value = number(self->mRested.hoursLeft(self->mNow));
             return r;
         });
-        add("set_clock", clockParam, false, BindingType::Bool,
+        add(
+            "set_clock", clockParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 self->setClock(a[0].number);
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("rest", restParams, false, BindingType::Bool,
+        add(
+            "rest", restParams, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 (void)self->perform(a[0].integer, a[1].number, a[2].boolean);
                 return BindingResult();

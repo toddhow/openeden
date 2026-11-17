@@ -318,8 +318,8 @@ namespace
 
     constexpr FormId kNpc = 0x01000200;
 
-    survey::Ctda cond(std::uint16_t function, std::uint32_t p1, std::uint8_t compare, float value,
-        std::uint32_t runOn = 0)
+    survey::Ctda cond(
+        std::uint16_t function, std::uint32_t p1, std::uint8_t compare, float value, std::uint32_t runOn = 0)
     {
         survey::Ctda c;
         c.mFunction = function;

@@ -97,9 +97,8 @@ namespace game_skyrimse
             engaged->mMoving = false;
     }
 
-    bool SkyrimCombat::applyStatusEffect(
-        CombatRequestWriter& writer, Fighter& caster, Fighter& target, const SpellEffect& effect,
-        const MagicEffectRecord& record)
+    bool SkyrimCombat::applyStatusEffect(CombatRequestWriter& writer, Fighter& caster, Fighter& target,
+        const SpellEffect& effect, const MagicEffectRecord& record)
     {
         const float seconds = static_cast<float>(effect.mDuration);
         const std::uint32_t archetype = record.mArchetype;
@@ -107,8 +106,8 @@ namespace game_skyrimse
             && archetype != StatusArchetype::Demoralize)
             return false;
         const char* const name = archetype == StatusArchetype::Paralysis ? "paralysis"
-            : archetype == StatusArchetype::Frenzy                        ? "frenzy"
-                                                                          : "fear";
+            : archetype == StatusArchetype::Frenzy                       ? "frenzy"
+                                                                         : "fear";
         if (target.mSubject.player)
         {
             trace(std::string("COMBAT effect ") + name + " on the player is not applied (the engine owns his body)");

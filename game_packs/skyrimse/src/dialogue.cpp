@@ -825,7 +825,8 @@ namespace game_skyrimse
                 continue;
             bool same = true;
             for (std::size_t i = 0; i < name.size() && same; ++i)
-                same = std::tolower(static_cast<unsigned char>(editor[i])) == std::tolower(static_cast<unsigned char>(name[i]));
+                same = std::tolower(static_cast<unsigned char>(editor[i]))
+                    == std::tolower(static_cast<unsigned char>(name[i]));
             if (same)
                 return &value;
         }
@@ -1034,7 +1035,8 @@ namespace game_skyrimse
         // else the one left)
         if (subject == kPlayer && mStoryEvent != nullptr && mSpeaker.mBase == kNullFormId)
         {
-            const FormId at = mStoryEvent->mLocation2 != kNullFormId ? mStoryEvent->mLocation2 : mStoryEvent->mLocation1;
+            const FormId at
+                = mStoryEvent->mLocation2 != kNullFormId ? mStoryEvent->mLocation2 : mStoryEvent->mLocation1;
             return mLocations != nullptr && id != kNullFormId && at != kNullFormId && mLocations->isWithin(at, id);
         }
         return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown && id != kNullFormId
@@ -1071,9 +1073,10 @@ namespace game_skyrimse
     }
 
     // Task 0230: the editor location of a reference, from the first source that knows it: the reference's own XLCN (the
-    // data's "persistent location": 5,639 of 10,504 placed actors of the five masters have one), the location a unique-NPC
-    // list gives its actor, the location whose special or persistent reference list names it, the location of its cell.
-    // RECALLED-VERIFY: the order (the Creation Kit wiki is unreachable); each source is a named fallback of the one before.
+    // data's "persistent location": 5,639 of 10,504 placed actors of the five masters have one), the location a
+    // unique-NPC list gives its actor, the location whose special or persistent reference list names it, the location
+    // of its cell. RECALLED-VERIFY: the order (the Creation Kit wiki is unreachable); each source is a named fallback
+    // of the one before.
     FormId SkyrimConditionWorld::editorLocationOf(FormId reference, FormId base) const
     {
         const PlacedEntry* entry
@@ -1164,8 +1167,7 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::playerCanBribe(conditions::Subject subject) const
     {
-        return mPlayer != nullptr && isSpeaker(subject) && speakerStats()
-            && bribeSucceeds(playerGold(), mStats.level);
+        return mPlayer != nullptr && isSpeaker(subject) && speakerStats() && bribeSucceeds(playerGold(), mStats.level);
     }
 
     FormId SkyrimConditionWorld::resolve(std::uint32_t stored) const
@@ -1178,8 +1180,8 @@ namespace game_skyrimse
         return id ? *id : kNullFormId;
     }
 
-    // Task 0258: what the crime rules tell the conversation. Only the speaker is asked about (run on the speaker's crime
-    // faction when the condition names none); without a source the fresh-game answers stand.
+    // Task 0258: what the crime rules tell the conversation. Only the speaker is asked about (run on the speaker's
+    // crime faction when the condition names none); without a source the fresh-game answers stand.
     float SkyrimConditionWorld::crimeGold(conditions::Subject subject, std::uint32_t faction) const
     {
         if (mCrimeSource == nullptr || !mCrimeSource->mCrimeGold || (faction == 0 && !isSpeaker(subject)))
@@ -1201,10 +1203,10 @@ namespace game_skyrimse
             && mCrimeSource->mAlarmed(mSpeaker.mBase);
     }
 
-    // fn_125 IsGuard (task 0258): the NPC's class (after templates) carries the Guard flag, OR the NPC is a member of the
-    // game's own guard faction (IsGuardFaction, the marker task 0197 settled on: the street guards' class is the civil war
-    // soldier's, which has no Guard flag, yet the quest DialogueCrimeGuards asks IsGuard of every guard it speaks for).
-    // RECALLED-VERIFY: what the engine reads for IsGuard.
+    // fn_125 IsGuard (task 0258): the NPC's class (after templates) carries the Guard flag, OR the NPC is a member of
+    // the game's own guard faction (IsGuardFaction, the marker task 0197 settled on: the street guards' class is the
+    // civil war soldier's, which has no Guard flag, yet the quest DialogueCrimeGuards asks IsGuard of every guard it
+    // speaks for). RECALLED-VERIFY: what the engine reads for IsGuard.
     bool SkyrimConditionWorld::isGuardClass(conditions::Subject subject) const
     {
         const ActorIndex::Resolved* r = resolvedOf(subject);
@@ -1219,10 +1221,9 @@ namespace game_skyrimse
                 continue;
             const std::string& id = faction->mCommon.mEditorId;
             const std::string_view guardId = "IsGuardFaction";
-            if (id.size() == guardId.size()
-                && std::equal(id.begin(), id.end(), guardId.begin(), [](char a, char b) {
-                       return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
-                   }))
+            if (id.size() == guardId.size() && std::equal(id.begin(), id.end(), guardId.begin(), [](char a, char b) {
+                    return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+                }))
                 return true;
         }
         return false;
@@ -1262,7 +1263,8 @@ namespace game_skyrimse
         {
             case 74: // GetGlobalValue: no subject
                 return true;
-            case 358: // IsPlayerMovingIntoNewSpace (task 0271): always 0, answered only where the player's place is told
+            case 358: // IsPlayerMovingIntoNewSpace (task 0271): always 0, answered only where the player's place is
+                      // told
                 return mPlayerPlaceKnown;
             case 61: // GetAlarmed and CanPayCrimeGold: the crime rules answer (task 0258)
             case 497:
@@ -1513,10 +1515,9 @@ namespace game_skyrimse
         // Task 0239: a rank of -1 (255 in the stored byte) is a placeholder, not a membership: the hirelings are
         // listed in CurrentFollowerFaction and CurrentHireling that way until they are hired (GetInFaction needs
         // rank 0 or more)
-        return std::any_of(r->mFactions.begin(), r->mFactions.end(),
-            [&](const FactionMembership& f) {
-                return f.mFaction == id && (f.mRank >= 0 || mRankMinusOneMembers.count(id) != 0); // task 0261
-            });
+        return std::any_of(r->mFactions.begin(), r->mFactions.end(), [&](const FactionMembership& f) {
+            return f.mFaction == id && (f.mRank >= 0 || mRankMinusOneMembers.count(id) != 0); // task 0261
+        });
     }
 
     float SkyrimConditionWorld::factionRank(conditions::Subject subject, std::uint32_t faction) const

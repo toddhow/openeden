@@ -1,5 +1,5 @@
-// Task 0228: the core's decision to write a game pack's player name into the player record: only when the pack reports a
-// new revision, never for revision 0 or an empty name.
+// Task 0228: the core's decision to write a game pack's player name into the player record: only when the pack reports
+// a new revision, never for revision 0 or an empty name.
 #include "apps/openmw/mwworld/neutralplayername.hpp"
 
 #include <gtest/gtest.h>

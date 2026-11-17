@@ -135,8 +135,8 @@ namespace
         NeutralObjectNow now = nowAt(1.f, 2.f, 3.f);
         now.mScale = 2.5f;
         now.mEnabled = false;
-        const NeutralSavedObject o = saveCreatedNeutralObject(
-            static_cast<std::uint32_t>(kCreatedObjectBase) + 1, barrelInfo(), now);
+        const NeutralSavedObject o
+            = saveCreatedNeutralObject(static_cast<std::uint32_t>(kCreatedObjectBase) + 1, barrelInfo(), now);
         EXPECT_NE(o.mFlags & NeutralSaveScaled, 0);
         EXPECT_EQ(o.mScale, 2.5f);
         EXPECT_NE(o.mFlags & NeutralSaveEnabledChanged, 0);

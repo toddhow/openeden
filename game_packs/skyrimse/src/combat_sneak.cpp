@@ -23,8 +23,8 @@ namespace game_skyrimse
     {
         if (!mSneakMultiplier || !attacker.mSubject.player || victim.mSubject.player)
             return 1.f;
-        const std::uint8_t animType = ranged ? WeaponAnimType::Bow
-                                             : (swung != nullptr ? swung->mAnimType : WeaponAnimType::HandToHand);
+        const std::uint8_t animType
+            = ranged ? WeaponAnimType::Bow : (swung != nullptr ? swung->mAnimType : WeaponAnimType::HandToHand);
         float multiplier = mSneakMultiplier(victim.mSubject.actor.reference, animType, ranged);
         if (!(multiplier > 1.f))
             return 1.f;

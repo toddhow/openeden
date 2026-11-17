@@ -1,6 +1,6 @@
 // Task 0266: the Skyrim SE shout menu window of files/data/openeden/skyrimse/shout_windows.lua over the headless UI
-// backend and a fake `core.skyrimse.shouts` package written in Lua. Written before the module and run red against a stub
-// module first.
+// backend and a fake `core.skyrimse.shouts` package written in Lua. Written before the module and run red against a
+// stub module first.
 #include "uiluafixture.hpp"
 
 #include <string>

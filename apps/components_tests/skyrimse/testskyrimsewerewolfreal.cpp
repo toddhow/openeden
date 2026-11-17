@@ -1,6 +1,6 @@
 // Task 0259 (werewolf): read-only survey of the installed data for the werewolf beast: every clip of its folder, the
-// sidecar link by the generators `WW <clip>.hkx<nn>`, events, root motion, and the skin bounds. Prints SKYRIMSE-WW-* lines.
-// Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// sidecar link by the generators `WW <clip>.hkx<nn>`, events, root motion, and the skin bounds. Prints SKYRIMSE-WW-*
+// lines. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/havokpack/animation.hpp>
 #include <components/havokpack/animationdata.hpp>
@@ -38,7 +38,8 @@ namespace
         return s;
     }
 
-    // The generator of a clip file `ww_<name>`: the sidecar names it `WW <Name>.hkx`, `.hkx00` ... `.hkx10`. Case is ignored.
+    // The generator of a clip file `ww_<name>`: the sidecar names it `WW <Name>.hkx`, `.hkx00` ... `.hkx10`. Case is
+    // ignored.
     std::vector<std::string> aliasesOf(const std::string& stem)
     {
         std::vector<std::string> out;

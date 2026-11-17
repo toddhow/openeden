@@ -1,5 +1,5 @@
-// Task 0218: fast travel from the Skyrim SE world map window (files/data/openeden/skyrimse/worldmap.lua) over the headless
-// UI backend, a fake `core.skyrimse.map` package and a fake `core.skyrimse.travel` package written in Lua.
+// Task 0218: fast travel from the Skyrim SE world map window (files/data/openeden/skyrimse/worldmap.lua) over the
+// headless UI backend, a fake `core.skyrimse.map` package and a fake `core.skyrimse.travel` package written in Lua.
 #include "uiluafixture.hpp"
 
 #include <string>
@@ -201,6 +201,7 @@ namespace
             EXPECT_NE(text.find("travel"), std::string::npos) << reason;
         }
         EXPECT_EQ(get<std::string>("W.refusalText('combat')"), "You cannot fast travel while in combat.");
-        EXPECT_GT(get<std::string>("W.refusalText('something new')").size(), 10u); // an unknown reason still says something
+        EXPECT_GT(
+            get<std::string>("W.refusalText('something new')").size(), 10u); // an unknown reason still says something
     }
 }

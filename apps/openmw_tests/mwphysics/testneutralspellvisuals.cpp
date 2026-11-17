@@ -337,9 +337,8 @@ namespace
     TEST_F(SpellVisualsFixture, aVisualShotIsDrawnAndGoesWithoutAWordToThePack)
     {
         bool accepted = false;
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            accepted = w.launchProjectile(CombatSubject::of(mHandleA), shot());
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { accepted = w.launchProjectile(CombatSubject::of(mHandleA), shot()); };
         frame();
         ASSERT_TRUE(accepted);
         EXPECT_EQ(mSink.count(Op::Spawn), 1u);
@@ -356,9 +355,8 @@ namespace
     {
         mWorld.mCandidates = { capsule(mHandleB, 150.0, 0.0) };
         bool accepted = false;
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            accepted = w.launchProjectile(CombatSubject::of(mHandleA), shot(500.f));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { accepted = w.launchProjectile(CombatSubject::of(mHandleA), shot(500.f)); };
         frame();
         ASSERT_TRUE(accepted);
         for (int i = 0; i < 4; ++i)
@@ -368,9 +366,8 @@ namespace
 
         mWorld.mCandidates.clear();
         mWorld.mWallX = 150.0;
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            accepted = w.launchProjectile(CombatSubject::of(mHandleA), shot(500.f));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { accepted = w.launchProjectile(CombatSubject::of(mHandleA), shot(500.f)); };
         frame();
         for (int i = 0; i < 4; ++i)
             frame();
@@ -414,9 +411,8 @@ namespace
 
     TEST_F(SpellVisualsFixture, anEffectFollowsTheSubjectEveryFrameUntilItIsHidden)
     {
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleA), effect()));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleA), effect())); };
         frame();
         mWorld.mState.x = 33.0;
         mWorld.mState.y = -7.0;
@@ -461,9 +457,8 @@ namespace
 
     TEST_F(SpellVisualsFixture, anEffectGoesWhenItsSubjectGoes)
     {
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleB), effect()));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleB), effect())); };
         frame();
         mActors.remove(nullptr, &mKeyB);
         frame();
@@ -478,9 +473,8 @@ namespace
     {
         mWorld.mPlayer.x = 5.0;
         mWorld.mPlayer.y = 6.0;
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            EXPECT_TRUE(w.showEffect(CombatSubject::ofPlayer(), effect()));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { EXPECT_TRUE(w.showEffect(CombatSubject::ofPlayer(), effect())); };
         frame();
         ASSERT_EQ(mSink.count(Op::Spawn), 1u);
         EXPECT_NEAR(mSink.mOps[0].mPose.mX, 5.0, 1e-6);
@@ -489,9 +483,8 @@ namespace
 
     TEST_F(SpellVisualsFixture, everythingShownGoesWhenThePackIsGone)
     {
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleA), effect()));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleA), effect())); };
         frame();
         mCombat.update(nullptr, 0.1f, mSink, mMetaFn, &mWorld);
         EXPECT_EQ(mSink.count(Op::Remove), 1u);
@@ -550,9 +543,8 @@ namespace
     TEST_F(SpellVisualsFixture, framesWithRaysEffectsAndVisualShotsAllocateNothing)
     {
         mWorld.mCandidates = { capsule(mHandleB, 250.0, 0.0) };
-        mRules.mOnUpdate = [&](CombatRequestWriter& w) {
-            EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleA), effect()));
-        };
+        mRules.mOnUpdate
+            = [&](CombatRequestWriter& w) { EXPECT_TRUE(w.showEffect(CombatSubject::of(mHandleA), effect())); };
         frame();
         NullSink quiet;
         for (int i = 0; i < 3; ++i)

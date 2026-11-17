@@ -114,7 +114,8 @@ namespace
         for (const std::pair<int, int>& ready : { std::pair{ 2, 9 }, { 9, 2 }, { 12, 12 }, { 30, 3 } })
         {
             const Result other = run(ready.first, ready.second, true);
-            EXPECT_EQ(other.mLog, reference.mLog) << "meta visible in frames " << ready.first << " and " << ready.second;
+            EXPECT_EQ(other.mLog, reference.mLog)
+                << "meta visible in frames " << ready.first << " and " << ready.second;
         }
     }
 

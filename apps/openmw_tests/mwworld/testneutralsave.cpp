@@ -8,8 +8,8 @@
 
 #include "apps/openmw/mwworld/neutralsave.hpp"
 
-// Task 0177 (neutral world saves, stage N6): the pure part of a neutral session's save. Written from the spec before the
-// code and run red against a stub that answers nothing.
+// Task 0177 (neutral world saves, stage N6): the pure part of a neutral session's save. Written from the spec before
+// the code and run red against a stub that answers nothing.
 
 namespace
 {
@@ -243,9 +243,11 @@ namespace
         {
             const std::uint32_t v = static_cast<std::uint32_t>(bytes[i]) | static_cast<std::uint32_t>(bytes[i + 1]) << 8
                 | static_cast<std::uint32_t>(bytes[i + 2]) << 16 | static_cast<std::uint32_t>(bytes[i + 3]) << 24;
-            if (v == 1 && bytes[i + 4 < bytes.size() ? i + 4 : i] == std::byte{ static_cast<unsigned char>(NeutralSaveMoved) })
+            if (v == 1
+                && bytes[i + 4 < bytes.size() ? i + 4 : i] == std::byte{ static_cast<unsigned char>(NeutralSaveMoved) })
                 first = i;
-            if (v == 2 && i + 4 < bytes.size() && bytes[i + 4] == std::byte{ static_cast<unsigned char>(NeutralSaveMoved) })
+            if (v == 2 && i + 4 < bytes.size()
+                && bytes[i + 4] == std::byte{ static_cast<unsigned char>(NeutralSaveMoved) })
                 second = i;
         }
         ASSERT_NE(first, 0u);

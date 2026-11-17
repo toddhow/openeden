@@ -86,8 +86,9 @@ namespace
 
     TEST_F(SkyrimWorldBookWindow, withNoTakeHookThereIsNoTakeButtonEither)
     {
-        ASSERT_TRUE(run("env2 = { ui = ui, lb = lb }; win2 = W.create(env2); win2.open('00000a01', '0000a001', true); "
-                        "ui.update()"));
+        ASSERT_TRUE(
+            run("env2 = { ui = ui, lb = lb }; win2 = W.create(env2); win2.open('00000a01', '0000a001', true); "
+                "ui.update()"));
         EXPECT_EQ(buttonsWith("Take").size(), 0u);
     }
 

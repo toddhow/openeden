@@ -1,7 +1,7 @@
 // Task 0179 (milestone M-S5, stage S5-7): the perk records on the player's own Skyrim SE masters. Gated: skipped unless
 // OPENEDEN_SKYRIMSE_DATA names the game's Data folder. Prints aggregates only (lines SKYRIMSE-PERKS, no game text) and
-// checks the layout facts the stage log states: every PERK decodes with no odd subrecord, every NPC_ PRKR names a decoded
-// PERK, and three named perks hold the numbers an independent Python scan read from the same files.
+// checks the layout facts the stage log states: every PERK decodes with no odd subrecord, every NPC_ PRKR names a
+// decoded PERK, and three named perks hold the numbers an independent Python scan read from the same files.
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/pack_core.hpp>
@@ -92,10 +92,11 @@ namespace
                     conditions += t.mConditions.size();
             }
         }
-        std::cout << "SKYRIMSE-PERKS perks-found-by-id " << ids.size() << " effects " << effects << " abilities " << abilities
-                  << " tab-conditions " << conditions << " odd-subrecords " << odd << " errors " << errors
-                  << " npcs-with-perks " << npcsWithPerks << " prkr-entries " << npcPerks << " unknown " << npcPerksUnknown
-                  << " entry-point-kinds " << byEntryPoint.size() << " modAttackDamage " << byEntryPoint[35] << std::endl;
+        std::cout << "SKYRIMSE-PERKS perks-found-by-id " << ids.size() << " effects " << effects << " abilities "
+                  << abilities << " tab-conditions " << conditions << " odd-subrecords " << odd << " errors " << errors
+                  << " npcs-with-perks " << npcsWithPerks << " prkr-entries " << npcPerks << " unknown "
+                  << npcPerksUnknown << " entry-point-kinds " << byEntryPoint.size() << " modAttackDamage "
+                  << byEntryPoint[35] << std::endl;
         EXPECT_EQ(odd, 0u);
         EXPECT_EQ(errors, 0u);
         EXPECT_EQ(npcPerksUnknown, 0u);

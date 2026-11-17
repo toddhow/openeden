@@ -6,7 +6,8 @@
 // The effect's own list (the CTDAs after its EFID/EFIT in the SPEL) and the MGEF's list must both hold. Everything the
 // record can say about "who" (race keywords, perks, level) is what actorParticipant already gives the perk engine; the
 // running effects, the vitals and the combat state are read from the fighter here. A list the pack cannot answer fails
-// closed: the effect does nothing and the function is traced once (magic_conditions.hpp has the list of what is answered).
+// closed: the effect does nothing and the function is traced once (magic_conditions.hpp has the list of what is
+// answered).
 namespace game_skyrimse
 {
     namespace
@@ -31,9 +32,8 @@ namespace game_skyrimse
         out.mDead = fighter.mDead;
         out.mInCombat = fighter.mCombatUntil > mClock;
         const FighterProfile& p = fighter.mProfile;
-        const auto fraction = [](float value, float maximum) {
-            return maximum > 0.f ? std::clamp(value / maximum, 0.f, 1.f) : 1.f;
-        };
+        const auto fraction
+            = [](float value, float maximum) { return maximum > 0.f ? std::clamp(value / maximum, 0.f, 1.f) : 1.f; };
         out.mHealthFraction = fraction(fighter.mHealth, p.mHealthMax);
         out.mMagickaFraction = fraction(fighter.mMagicka, p.mMagickaMax);
         out.mStaminaFraction = fraction(fighter.mStamina, p.mStaminaMax);
@@ -59,8 +59,8 @@ namespace game_skyrimse
         const std::uint32_t conditions = effect.mConditions + record.mConditions;
         if (conditions == 0 || mApplyEffectConditions)
             return true;
-        const bool listed = effect.mConditionList.size() == effect.mConditions
-            && record.mConditionList.size() == record.mConditions;
+        const bool listed
+            = effect.mConditionList.size() == effect.mConditions && record.mConditionList.size() == record.mConditions;
         if (!listed && unlistedPasses)
         {
             if (mTrace)

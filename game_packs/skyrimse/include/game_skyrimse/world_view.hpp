@@ -25,20 +25,20 @@
 #include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/barter.hpp>
 #include <game_skyrimse/crime.hpp>
-#include <game_skyrimse/furniture.hpp>
-#include <game_skyrimse/mining.hpp>
-#include <game_skyrimse/map_markers.hpp>
-#include <game_skyrimse/music_data.hpp>
-#include <game_skyrimse/menus.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
+#include <game_skyrimse/furniture.hpp>
+#include <game_skyrimse/map_markers.hpp>
+#include <game_skyrimse/menus.hpp>
+#include <game_skyrimse/mining.hpp>
+#include <game_skyrimse/music_data.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/progression.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/quest_alias.hpp>
+#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/scene_runner.hpp>
 #include <game_skyrimse/story.hpp>
-#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
 #include <game_skyrimse/werewolf.hpp>
 
@@ -196,8 +196,8 @@ namespace game_skyrimse
             QuestAliasFiller* mAliases = nullptr;
             /// task 0187: the story manager: raises an event and returns the quests it starts (the caller starts them)
             std::function<std::vector<FormId>(const StoryEvent& event)> mStory;
-            /// task 0194: the scenes, their conditions (with fn_550 answered by `mSetSceneLookup`'s function), the line a
-            /// topic gives an actor, and the package records
+            /// task 0194: the scenes, their conditions (with fn_550 answered by `mSetSceneLookup`'s function), the line
+            /// a topic gives an actor, and the package records
             const SceneIndex* mScenes = nullptr;
             std::function<bool(const std::vector<survey::Ctda>&, FormId scene, FormId quest)> mEvaluate;
             std::function<bool(FormId topic, FormId speakerReference, std::uint32_t pick, SceneLine& out)> mLine;
@@ -490,7 +490,8 @@ namespace game_skyrimse
             const progression::SkillTable*& skills, const PerkLibrary*& perks, progression::Settings& settings);
         /// Task 0200: the player's real level and skills for the speech and bribe checks (replaces the stand-in's
         /// level and skills; applied at once to a running conversation runtime).
-        void setProgressionPlayer(std::uint16_t level, const std::array<std::uint8_t, progression::kSkillCount>& skills);
+        void setProgressionPlayer(
+            std::uint16_t level, const std::array<std::uint8_t, progression::kSkillCount>& skills);
 
         // ---- task 0160
         /// What package an actor runs now (by the placed reference's id), nullopt when unknown, 0 for none. Used by
@@ -527,25 +528,25 @@ namespace game_skyrimse
         void setPlayerWornSource(std::function<bool(FormId)> source) { mWornSource = std::move(source); }
         void setPlayerItemSource(std::function<float(FormId)> source) { mItemSource = std::move(source); }
 
-        /// Task 0198: Game.GetFormFromFile. The load-order id of local id `local` of the plugin `lowerFile` (lower case);
-        /// 0 when the index is not built or the plugin is not in the order. Main thread.
+        /// Task 0198: Game.GetFormFromFile. The load-order id of local id `local` of the plugin `lowerFile` (lower
+        /// case); 0 when the index is not built or the plugin is not in the order. Main thread.
         [[nodiscard]] FormId formFromFile(std::string_view lowerFile, std::uint32_t local) const;
 
         // ---- task 0182 (inventory)
         /// What the inventory reader needs, copied out once the index is built (false before: ask again, nothing
         /// waits). `leveled` gets every plugin's leveled lists in load order (the reader keeps the later one).
-        [[nodiscard]] bool inventoryInputs(std::vector<std::filesystem::path>& paths, LoadOrder& order,
-            std::vector<LeveledList>& leveled) const;
+        [[nodiscard]] bool inventoryInputs(
+            std::vector<std::filesystem::path>& paths, LoadOrder& order, std::vector<LeveledList>& leveled) const;
         /// The CNTO entries of an NPC_ base with its default outfit's items (after templates); false when unknown.
         /// Reads the actor index like describeActor (main thread).
         [[nodiscard]] bool npcInventory(FormId base, std::vector<InventoryEntry>& out);
 
         // ---- task 0189 (barter)
-        /// The vendor data of an NPC_ base: its first faction (templates followed, SNAM order) whose FACT has a buy list
-        /// and a chest, with the chest REFR's base from the placed-reference table and the list's keywords from the
-        /// form lists. Pending until the conversation records are read (there is always a conversation first: barter
-        /// is a dialogue service); NotVendor for an NPC with no such faction or a chest the data does not know. Main
-        /// thread; the actor index is read on the first call like describeActor.
+        /// The vendor data of an NPC_ base: its first faction (templates followed, SNAM order) whose FACT has a buy
+        /// list and a chest, with the chest REFR's base from the placed-reference table and the list's keywords from
+        /// the form lists. Pending until the conversation records are read (there is always a conversation first:
+        /// barter is a dialogue service); NotVendor for an NPC with no such faction or a chest the data does not know.
+        /// Main thread; the actor index is read on the first call like describeActor.
         [[nodiscard]] barter::VendorLookup vendorOf(FormId npcBase, barter::VendorInfo& out);
         /// A merchant's GetOffersServicesNow is true whatever its package (see SkyrimConditionWorld); set before the
         /// first conversation or any time after.
@@ -563,9 +564,9 @@ namespace game_skyrimse
             std::function<void(FormId reference)> mFailed;
         };
         void setArrestDialogue(ArrestDialogueHooks hooks);
-        /// Task 0264: a ForceGreet package's conversation. `mTopic(reference)`: the topic whose first passing INFO is the
-        /// greeting of the conversation that opens with the actor placed as `reference` (0: none is wanted); `mBegan` and
-        /// `mEnded` tell the force-greet system that it opened and closed. Every function may be empty.
+        /// Task 0264: a ForceGreet package's conversation. `mTopic(reference)`: the topic whose first passing INFO is
+        /// the greeting of the conversation that opens with the actor placed as `reference` (0: none is wanted);
+        /// `mBegan` and `mEnded` tell the force-greet system that it opened and closed. Every function may be empty.
         struct ForcedGreetHooks
         {
             std::function<FormId(FormId reference)> mTopic;
@@ -618,11 +619,11 @@ namespace game_skyrimse
         /// NotVendor when the NPC has no such script or property; Pending until the index is built.
         [[nodiscard]] barter::VendorLookup rentBedOf(FormId npcBase, FormId& bed);
         // ---- task 0204 (crime)
-        /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every cell
-        /// loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
+        /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every
+        /// cell loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
         [[nodiscard]] std::optional<openeden::sdk::game::OwnerComponent> ownerOfPlacement(FormId placement) const;
-        /// Task 0261: the cell a placed reference stands in (0 when unknown: the placed-reference table is not ready, or
-        /// the reference is a created one), and a cell's form id by its editor id (0 when unknown). Main thread.
+        /// Task 0261: the cell a placed reference stands in (0 when unknown: the placed-reference table is not ready,
+        /// or the reference is a created one), and a cell's form id by its editor id (0 when unknown). Main thread.
         [[nodiscard]] FormId cellOfPlacement(FormId placement) const;
         [[nodiscard]] FormId cellIdByEditorId(std::string_view editorId);
         /// Task 0221: the harvest data of a FLOR or TREE base that names an ingredient, and its name (the FULL, else
@@ -652,7 +653,8 @@ namespace game_skyrimse
         /// (`powerShrineScript`, `TempleBlessingScript`), else empty. Main thread.
         [[nodiscard]] std::string stoneNameOf(FormId base);
         /// Task 0237: the Papyrus class of a base form the other lookups do not class: "Spell" for a SPEL, "Message"
-        /// for a MESG (a script's `Spell.Cast` and `Message.Show` need the class on the VALUE); empty for anything else.
+        /// for a MESG (a script's `Spell.Cast` and `Message.Show` need the class on the VALUE); empty for anything
+        /// else.
         [[nodiscard]] std::string scriptClassOf(FormId form);
         /// Task 0221: with this on, displayNameOf answers a harvestable plant's prompt ("Harvest Canis Root") instead
         /// of its name. Set before the first cell is built.
@@ -668,8 +670,8 @@ namespace game_skyrimse
         /// editor id, position and heading). False when the marker or its teleport is not known.
         [[nodiscard]] bool jailDestination(FormId faction, crime::JailDestination& out);
         // ---- task 0213 (trespass)
-        /// What the CELL records of the load order say of a cell (the latest plugin that has a DATA or an XOWN wins each).
-        /// False for a cell the view does not know. Main thread.
+        /// What the CELL records of the load order say of a cell (the latest plugin that has a DATA or an XOWN wins
+        /// each). False for a cell the view does not know. Main thread.
         [[nodiscard]] bool cellAccessOf(FormId cell, crime::CellAccess& out) const;
         /// The same, by editor id (case-insensitive); False when no such cell.
         [[nodiscard]] bool cellAccessByName(std::string_view editorId, crime::CellAccess& out) const;
@@ -724,8 +726,8 @@ namespace game_skyrimse
         /// Task 0181: a placement's own scripts followed by those of its base form (see vmad::combineScripts).
         [[nodiscard]] std::vector<ReferenceScripts> scriptsOfCell(FormId cell);
         /// Task 0181: does the form (a placed reference: its base form's keywords) have the keyword? Base records
-        /// (ACTI, DOOR, items ...) by their KWDA; an NPC by its own keywords and its race's, once the actor index exists.
-        /// False when the data cannot say. Main thread.
+        /// (ACTI, DOOR, items ...) by their KWDA; an NPC by its own keywords and its race's, once the actor index
+        /// exists. False when the data cannot say. Main thread.
         [[nodiscard]] bool formHasKeyword(FormId form, FormId keyword) const;
         /// A script set a quest's stage: the package brain's own copy of the quest state follows.
         void setPackageQuestStage(FormId quest, std::uint32_t stage);
@@ -739,8 +741,8 @@ namespace game_skyrimse
         /// Task 0223: the default value of a GLOB (a Papyrus GlobalVariable). False when the form is no global or the
         /// dialogue data is not read yet.
         [[nodiscard]] bool globalValue(FormId global, float& value) const;
-        /// Task 0223: the exterior world a player in the interior cell `editorId` belongs to by its location (its parent
-        /// chain up to the first location that lists a grid square): kNullFormId when none can be found.
+        /// Task 0223: the exterior world a player in the interior cell `editorId` belongs to by its location (its
+        /// parent chain up to the first location that lists a grid square): kNullFormId when none can be found.
         [[nodiscard]] FormId worldOfInterior(std::string_view editorId) const;
         /// Task 0202: the description of a BASE form as an object that is not placed anywhere yet (PlaceAtMe): its
         /// kind,
@@ -766,16 +768,16 @@ namespace game_skyrimse
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false
         /// when the cell is not known. Main thread.
         [[nodiscard]] bool cellLocation(FormId cell, FormId& location, bool& interior) const;
-        /// Task 0211: the location of a cell the view has indexed (its XLCN, else for an exterior the location whose cell
-        /// list holds its grid square); kNullFormId for none or before the dialogue data is ready. Main thread.
+        /// Task 0211: the location of a cell the view has indexed (its XLCN, else for an exterior the location whose
+        /// cell list holds its grid square); kNullFormId for none or before the dialogue data is ready. Main thread.
         [[nodiscard]] FormId locationOfCell(FormId cell) const;
         /// Task 0211: the location of a grid square of a worldspace (the cell XLCN when the data has the cell, else the
         /// location lists). Main thread.
         [[nodiscard]] FormId locationOfGridSquare(FormId world, std::int32_t x, std::int32_t y) const;
         /// Task 0211: where the player stands, for the alias filler's closest-first rule. Main thread.
         void setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site);
-        /// Task 0230: a measurement switch. False leaves GetIsEditorLocAlias (fn_567) unanswered, as before the task; it
-        /// must be set before the quest evaluator is built (the first dialogue or Papyrus use).
+        /// Task 0230: a measurement switch. False leaves GetIsEditorLocAlias (fn_567) unanswered, as before the task;
+        /// it must be set before the quest evaluator is built (the first dialogue or Papyrus use).
         void setAnswerEditorLocAlias(bool answer) { mAnswerEditorLocAlias = answer; }
         /// Task 0217: what scripts store on locations (Location.SetKeywordData; fn_606 and fn_651 read it). Owned by
         /// the view, so the Papyrus host and the condition worlds share it. Main thread.
@@ -1014,7 +1016,8 @@ namespace game_skyrimse
         const std::vector<FurnitureMarker>& markersOf(const std::string& model);
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
-        std::unordered_map<FormId, openeden::sdk::game::OwnerComponent> mOwners; ///< task 0204: every loaded owned placement
+        std::unordered_map<FormId, openeden::sdk::game::OwnerComponent>
+            mOwners; ///< task 0204: every loaded owned placement
         std::unordered_map<FormId, std::int32_t> mItemCounts; ///< task 0208: XCNT of every loaded placed stack
         std::vector<Content::Error> mErrors;
         Stats mStats;

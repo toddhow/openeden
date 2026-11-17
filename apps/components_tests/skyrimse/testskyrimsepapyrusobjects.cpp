@@ -221,10 +221,12 @@ namespace
         s.function("MoveToNobody")
             .local("n", "None")
             .callMethod("MoveTo", Id("self"), Id("n"), { Nil(), Flt(1.f), Flt(1.f), Flt(1.f), Bool(true) });
-        s.function("SetPos").local("n", "None").callMethod(
-            "SetPosition", Id("self"), Id("n"), { Flt(1.f), Flt(2.f), Flt(3.f) });
-        s.function("SetAng").local("n", "None").callMethod(
-            "SetAngle", Id("self"), Id("n"), { Flt(90.f), Flt(0.f), Flt(180.f) });
+        s.function("SetPos")
+            .local("n", "None")
+            .callMethod("SetPosition", Id("self"), Id("n"), { Flt(1.f), Flt(2.f), Flt(3.f) });
+        s.function("SetAng")
+            .local("n", "None")
+            .callMethod("SetAngle", Id("self"), Id("n"), { Flt(90.f), Flt(0.f), Flt(180.f) });
         s.function("Home").local("n", "None").callMethod("MoveToMyEditorLocation", Id("self"), Id("n"));
         s.function("ReadPosition")
             .local("v", "Float")
@@ -308,13 +310,10 @@ namespace
             mData.mPositions[kOther] = { 3.0, 4.0, 12.0 };
             mData.mBases[kBarrel] = kBaseBarrel;
             mHost = std::make_unique<PapyrusHost>(mData);
-            mHost->setLog([this](bool error, const std::string& line) {
-                (error ? mErrors : mLogs).push_back(line);
-            });
+            mHost->setLog([this](bool error, const std::string& line) { (error ? mErrors : mLogs).push_back(line); });
             mHost->setWorldHooks(&mHooks);
-            mHost->setEnableChanged([this](FormId reference, bool enabled) {
-                mFallbackEnables.emplace_back(reference, enabled);
-            });
+            mHost->setEnableChanged(
+                [this](FormId reference, bool enabled) { mFallbackEnables.emplace_back(reference, enabled); });
             Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
             Bytes quest;
             quest.append(sub4("EDID", Bytes().zstring("Q1")));
@@ -412,7 +411,8 @@ namespace
         rig.mData.mInteriors = { 0x100 };
         ASSERT_TRUE(rig.call("MoveToOther"));
         EXPECT_TRUE(rig.mHooks.mMoves.empty());
-        EXPECT_FALSE(rig.mHost->positionOverride(kBarrel).has_value()) << "the world did not move, so nothing is recorded";
+        EXPECT_FALSE(rig.mHost->positionOverride(kBarrel).has_value())
+            << "the world did not move, so nothing is recorded";
         bool said = false;
         for (const std::string& line : rig.mLogs)
             said = said || line.find("another cell") != std::string::npos;

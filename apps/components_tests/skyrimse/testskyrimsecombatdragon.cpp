@@ -1,8 +1,9 @@
 // Task 0253 (dragons): the dragon in the combat rules (game_skyrimse/combat_dragon.cpp), through a fake data source and
 // a recording writer. Numbers by hand:
-//  - the breath spell is the shout DragonFireBreathShout01's: concentration, aimed, cost 5 a second, cast duration 2.4 s,
-//    one health damage effect of 20 a second (VoiceDragonFire01 in the data), projectile range 2000; the shout's recovery
-//    is 5 s and kBreathMinGap 6 s, the clip is 3 s long and the spell goes 0.3333 s after it starts;
+//  - the breath spell is the shout DragonFireBreathShout01's: concentration, aimed, cost 5 a second, cast duration 2.4
+//  s,
+//    one health damage effect of 20 a second (VoiceDragonFire01 in the data), projectile range 2000; the shout's
+//    recovery is 5 s and kBreathMinGap 6 s, the clip is 3 s long and the spell goes 0.3333 s after it starts;
 //  - so one breath on a target in the cone costs it 20 x 2.4 = 48 health, a second breath starts no sooner than the
 //    clip's end (3 s) plus 6 s after the first began;
 //  - the dragon's unarmed reach is 130 units; a breath needs the target farther than reach + 22 - 4 + 250 = 398;
@@ -169,8 +170,8 @@ namespace
         }
         std::size_t clipsNamed(const std::string& name) const
         {
-            return static_cast<std::size_t>(std::count_if(
-                mClips.begin(), mClips.end(), [&](const Clip& c) { return c.mName == name; }));
+            return static_cast<std::size_t>(
+                std::count_if(mClips.begin(), mClips.end(), [&](const Clip& c) { return c.mName == name; }));
         }
         std::size_t clipsOf(ClipSlot slot) const
         {

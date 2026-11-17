@@ -7,9 +7,8 @@ namespace game_skyrimse
     void FollowerChunk::write(openeden::sdk::ChunkWriter& writer)
     {
         std::vector<FollowerEntry> entries = mGet ? mGet() : std::vector<FollowerEntry>();
-        std::sort(entries.begin(), entries.end(), [](const FollowerEntry& a, const FollowerEntry& b) {
-            return a.mId < b.mId;
-        });
+        std::sort(entries.begin(), entries.end(),
+            [](const FollowerEntry& a, const FollowerEntry& b) { return a.mId < b.mId; });
         entries.erase(std::unique(entries.begin(), entries.end(),
                           [](const FollowerEntry& a, const FollowerEntry& b) { return a.mId == b.mId; }),
             entries.end());
@@ -47,8 +46,7 @@ namespace game_skyrimse
         {
             std::uint32_t id = 0;
             std::uint32_t home = 0;
-            if (!reader.readValue(id) || !reader.readValue(home) || id == 0
-                || (!ids.empty() && id <= ids.back().mId))
+            if (!reader.readValue(id) || !reader.readValue(home) || id == 0 || (!ids.empty() && id <= ids.back().mId))
             {
                 mRefusal = "followers chunk: ids are not strictly ascending and non-zero";
                 return false;

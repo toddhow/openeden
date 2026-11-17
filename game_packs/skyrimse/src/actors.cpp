@@ -652,7 +652,8 @@ namespace game_skyrimse
                             if (data.size() >= 36)
                             {
                                 r.mHasData = true;
-                                // seven (actor value, boost) pairs; a value outside the skills (255) or no boost is unused
+                                // seven (actor value, boost) pairs; a value outside the skills (255) or no boost is
+                                // unused
                                 for (std::size_t i = 0; i < 7; ++i)
                                 {
                                     const std::uint8_t value = std::to_integer<std::uint8_t>(data[2 * i]);

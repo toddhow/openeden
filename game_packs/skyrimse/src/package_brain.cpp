@@ -631,7 +631,8 @@ namespace game_skyrimse
             ++mStats.mFollowerDismissals;
         const auto it = mActors.find(reference);
         if (it != mActors.end())
-            it->second.mFollowPlayer = follow; // the actor's own state changes at the next update(), where a writer exists
+            it->second.mFollowPlayer
+                = follow; // the actor's own state changes at the next update(), where a writer exists
         return true;
     }
 

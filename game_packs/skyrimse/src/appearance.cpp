@@ -291,7 +291,8 @@ namespace game_skyrimse
                 addHeadPart(index, head, 0, limits, seen, out);
         }
 
-        // Task 0220: what the actor holds. A shield is not a skinned part, so it leaves the part list for its own field.
+        // Task 0220: what the actor holds. A shield is not a skinned part, so it leaves the part list for its own
+        // field.
         if (limits.mHeldGear && creature == nullptr)
         {
             HeldGear held;

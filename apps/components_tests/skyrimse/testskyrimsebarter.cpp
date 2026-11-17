@@ -80,7 +80,8 @@ namespace
         return records;
     }
 
-    Bytes venv(std::uint16_t start, std::uint16_t end, std::uint32_t radius, std::uint8_t stolen, std::uint8_t exclusion)
+    Bytes venv(
+        std::uint16_t start, std::uint16_t end, std::uint32_t radius, std::uint8_t stolen, std::uint8_t exclusion)
     {
         return sub4("VENV", Bytes().u16(start).u16(end).u32(radius).u8(stolen).u8(exclusion).u16(0));
     }
@@ -244,7 +245,8 @@ namespace
 
     // ---- what the vendor buys --------------------------------------------------------------------------------------
 
-    ItemStat item(FormId id, std::int32_t value, std::vector<FormId> keywords, inventory::Category c = inventory::Category::Misc)
+    ItemStat item(
+        FormId id, std::int32_t value, std::vector<FormId> keywords, inventory::Category c = inventory::Category::Misc)
     {
         ItemStat s;
         s.mId = id;
@@ -330,7 +332,10 @@ namespace
 
         std::int32_t gold(std::uint64_t owner) const { return mModel.count(owner, kGoldItem); }
 
-        TradeResult buyItem(FormId id, std::int32_t n) { return buy(mModel, mTable, kChest, id, n, mSpeech, mSettings); }
+        TradeResult buyItem(FormId id, std::int32_t n)
+        {
+            return buy(mModel, mTable, kChest, id, n, mSpeech, mSettings);
+        }
         TradeResult sellItem(FormId id, std::int32_t n)
         {
             return sell(mModel, mTable, mVendor, kChest, id, n, mSpeech, mSettings);
@@ -472,7 +477,8 @@ namespace
         EXPECT_EQ(mModel.touchedCount(), before + 2); // the player and the vendor chest are saved
     }
 
-    // ---- the service and its bindings --------------------------------------------------------------------------------
+    // ---- the service and its bindings
+    // --------------------------------------------------------------------------------
 
     class StubBindings final : public openeden::sdk::BindingsService
     {
@@ -544,10 +550,10 @@ namespace
             Bytes sword = sub4("DATA", Bytes().u32(25).f32(9.f).u16(7));
             sword.append(kw({ kKwWeapon }));
             all.append(group4(Content::fourCC("WEAP"), 0, record4("WEAP", 0, kSword, sword)));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, kPebble, sub4("DATA", Bytes().u32(10).f32(0.5f)))));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, kPebble, sub4("DATA", Bytes().u32(10).f32(0.5f)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
             Bytes cont;
             cont.append(sub4("CNTO", Bytes().u32(0x0000000F).u32(50)));
             cont.append(sub4("CNTO", Bytes().u32(kBread).u32(4)));
@@ -557,7 +563,8 @@ namespace
                 / (std::string("oe_barter_") + testing::UnitTest::GetInstance()->current_test_info()->name());
             std::filesystem::create_directories(mDir);
             mPath = mDir / "test.esp";
-            std::ofstream(mPath, std::ios::binary).write(all.str().data(), static_cast<std::streamsize>(all.str().size()));
+            std::ofstream(mPath, std::ios::binary)
+                .write(all.str().data(), static_cast<std::streamsize>(all.str().size()));
 
             inventory::Hooks hooks;
             hooks.mInputs = [this](inventory::Inputs& out) {
@@ -628,7 +635,10 @@ namespace
         {
             return mBindings.call(fn, std::move(args)).value.integer;
         }
-        void open(FormId npc = kNpc) { mBindings.call("open", { str("1a66e"), str(inventory::formatId(npc)), str("Hulda") }); }
+        void open(FormId npc = kNpc)
+        {
+            mBindings.call("open", { str("1a66e"), str(inventory::formatId(npc)), str("Hulda") });
+        }
         void buyCall(FormId item, int n) { mBindings.call("buy", { str(inventory::formatId(item)), num(n) }); }
         void sellCall(FormId item, int n) { mBindings.call("sell", { str(inventory::formatId(item)), num(n) }); }
         std::int32_t held(std::uint64_t owner, FormId item) { return mInventory->model().count(owner, item); }

@@ -34,8 +34,10 @@
 // The walk (RECALLED-VERIFY, not settled by the data; every rule is a named option of `StoryManager`):
 //  - the event node of the event type is the root; children are tried in sibling order (random order for a node with
 //    the random bit, a seeded shuffle);
-//  - a node whose conditions fail is skipped with its children; a branch or event node whose conditions pass is entered;
-//  - a quest node whose conditions pass starts quests: its quests in order, each one not running and not completed whose
+//  - a node whose conditions fail is skipped with its children; a branch or event node whose conditions pass is
+//  entered;
+//  - a quest node whose conditions pass starts quests: its quests in order, each one not running and not completed
+//  whose
 //    own start conditions pass, up to the node's number (MNAM, else 1); with "do all before repeating" a quest the node
 //    started is skipped until every quest of the node has been started once;
 //  - when a node started a quest and does not share the event, the walk ends.
@@ -179,8 +181,8 @@ namespace game_skyrimse
         [[nodiscard]] virtual FormId storyBaseOf(FormId reference) const = 0;
     };
 
-    /// fn_576 GetEventData for the story walk: the extra function a `conditions::Evaluator` needs (the global table does
-    /// not know the index).
+    /// fn_576 GetEventData for the story walk: the extra function a `conditions::Evaluator` needs (the global table
+    /// does not know the index).
     [[nodiscard]] const std::vector<conditions::ExtraFunction>& storyExtraFunctions();
 
     class StoryManager
@@ -215,11 +217,12 @@ namespace game_skyrimse
 
         /// Raises an event: walks the tree and returns the quests to start, in order. `isStartable(quest)` says whether
         /// the quest may start (exists, is not running or completed); `evaluate(list, resolver)` evaluates a condition
-        /// list written by the plugin the resolver belongs to against the event. Deterministic: the only varying input is
-        /// the event counter (the seed of the random shuffle).
+        /// list written by the plugin the resolver belongs to against the event. Deterministic: the only varying input
+        /// is the event counter (the seed of the random shuffle).
         using Evaluate = std::function<bool(const std::vector<survey::Ctda>&, const FormIdResolver&)>;
         using Startable = std::function<bool(FormId quest)>;
-        [[nodiscard]] std::vector<FormId> raise(const StoryEvent& event, const Evaluate& evaluate, const Startable& startable);
+        [[nodiscard]] std::vector<FormId> raise(
+            const StoryEvent& event, const Evaluate& evaluate, const Startable& startable);
 
         [[nodiscard]] const Stats& stats() const { return mStats; }
 

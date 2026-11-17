@@ -56,7 +56,8 @@ namespace
     // CTDA: type 0x60 (operator 3, ">="), compare 1.0, function 47 (GetItemCount), parameter 1 the item.
     Bytes itemCountCondition(FormId item)
     {
-        return sub4("CTDA", Bytes().u8(0x60).u8(0).u16(0).f32(1.f).u16(47).u16(0).u32(item).u32(0).u32(0).u32(0).u32(0));
+        return sub4(
+            "CTDA", Bytes().u8(0x60).u8(0).u16(0).f32(1.f).u16(47).u16(0).u32(item).u32(0).u32(0).u32(0).u32(0));
     }
 
     Bytes recipe(FormId id, FormId result, FormId bench, std::vector<std::pair<FormId, int>> items, bool counted)

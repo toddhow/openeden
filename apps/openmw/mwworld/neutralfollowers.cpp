@@ -30,7 +30,8 @@ namespace MWWorld
                 return nullptr;
             MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
             NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
-            return dynamic_cast<openeden::sdk::game::FollowerRules*>(store != nullptr ? store->source(gameId) : nullptr);
+            return dynamic_cast<openeden::sdk::game::FollowerRules*>(
+                store != nullptr ? store->source(gameId) : nullptr);
         }
     }
 
@@ -92,7 +93,8 @@ namespace MWWorld
             });
         }
         std::sort(hits.begin(), hits.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-        hits.erase(std::unique(hits.begin(), hits.end(), [](const auto& a, const auto& b) { return a.first == b.first; }),
+        hits.erase(
+            std::unique(hits.begin(), hits.end(), [](const auto& a, const auto& b) { return a.first == b.first; }),
             hits.end());
         for (auto& [id, ptr] : hits)
             found.push_back(ptr);

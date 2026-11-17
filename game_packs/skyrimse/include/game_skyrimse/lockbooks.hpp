@@ -221,7 +221,11 @@ namespace game_skyrimse
             bool learnSpell(FormId spell);
             [[nodiscard]] bool knowsSpell(FormId spell) const;
             [[nodiscard]] const std::vector<FormId>& spells() const { return mSpells; }
-            void addBroken() { ++mBroken; ++mRevision; }
+            void addBroken()
+            {
+                ++mBroken;
+                ++mRevision;
+            }
             [[nodiscard]] std::uint32_t broken() const { return mBroken; }
             [[nodiscard]] std::size_t pickedCount() const { return mPicked.size(); }
             [[nodiscard]] std::size_t readCount() const { return mRead.size(); }

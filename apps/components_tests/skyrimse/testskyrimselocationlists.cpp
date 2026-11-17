@@ -1,6 +1,6 @@
-// Task 0211: the location records' own lists (exterior cells, special references, persistent references, unique NPCs) and the
-// index questions radiant quests and the exterior "change location" story event ask of them. Generated records; no game
-// data. Written first and run red against stubs.
+// Task 0211: the location records' own lists (exterior cells, special references, persistent references, unique NPCs)
+// and the index questions radiant quests and the exterior "change location" story event ask of them. Generated records;
+// no game data. Written first and run red against stubs.
 #include <game_skyrimse/location.hpp>
 
 #include <gtest/gtest.h>
@@ -86,8 +86,17 @@ namespace
 
     TEST(LocationLists, exteriorCellsSpecialPersistentAndUniqueListsAreRead)
     {
-        const Bytes special = Bytes().u32(kRefType).u32(kRefA).u32(kWorld).u16(static_cast<std::uint16_t>(-3)).u16(7)
-                                  .u32(kRefType2).u32(kRefB).u32(kWorld).u16(1).u16(2);
+        const Bytes special = Bytes()
+                                  .u32(kRefType)
+                                  .u32(kRefA)
+                                  .u32(kWorld)
+                                  .u16(static_cast<std::uint16_t>(-3))
+                                  .u16(7)
+                                  .u32(kRefType2)
+                                  .u32(kRefB)
+                                  .u32(kWorld)
+                                  .u16(1)
+                                  .u16(2);
         const Bytes persistent = Bytes().u32(kRefA).u32(kWorld).u16(4).u16(5);
         const Bytes unique = Bytes().u32(kActor).u32(kRefB).u32(kCity);
         const Parsed p({ lctn(kCity, "City", 0,
@@ -119,8 +128,7 @@ namespace
     {
         const Parsed p({ lctn(kCity, "City", 0,
             { sub4("LCEC", cells(kWorld, { { 0, 0 } })), sub4("ACEC", cells(kWorld2, { { 1, 1 } })),
-                sub4("RCEC", cells(kWorld, { { 2, 2 } })),
-                sub4("LCPR", Bytes().u32(kRefA).u32(kWorld).u16(0).u16(0)),
+                sub4("RCEC", cells(kWorld, { { 2, 2 } })), sub4("LCPR", Bytes().u32(kRefA).u32(kWorld).u16(0).u16(0)),
                 sub4("ACPR", Bytes().u32(kRefB).u32(kWorld).u16(0).u16(0)),
                 sub4("RCPR", Bytes().u32(kRefA).u32(kWorld).u16(1).u16(1)) }) });
         ASSERT_TRUE(p.mOk);
@@ -172,9 +180,10 @@ namespace
 
     TEST(LocationIndexLists, aGridSquareBelongsToTheLocationThatListsFewestCells)
     {
-        const Parsed p({ lctn(kCity, "City", 0, { sub4("LCEC", cells(kWorld, { { 0, 0 }, { 0, 1 }, { 1, 0 }, { 1, 1 } })) }),
-            lctn(kInner, "Inner", kCity, { sub4("LCEC", cells(kWorld, { { 1, 1 } })) }),
-            lctn(kOther, "Other", 0, { sub4("LCEC", cells(kWorld2, { { 1, 1 } })) }) });
+        const Parsed p(
+            { lctn(kCity, "City", 0, { sub4("LCEC", cells(kWorld, { { 0, 0 }, { 0, 1 }, { 1, 0 }, { 1, 1 } })) }),
+                lctn(kInner, "Inner", kCity, { sub4("LCEC", cells(kWorld, { { 1, 1 } })) }),
+                lctn(kOther, "Other", 0, { sub4("LCEC", cells(kWorld2, { { 1, 1 } })) }) });
         ASSERT_TRUE(p.mOk);
         // the grid is stored Y then X: the pair (0, 1) is X 1, Y 0
         EXPECT_EQ(p.mIndex.locationOfGrid(kWorld, 1, 0), kCity);
@@ -207,8 +216,8 @@ namespace
 
     TEST(LocationIndexLists, gridOfGivesAListedCellAndIdsAreSorted)
     {
-        const Parsed p({ lctn(kOther, "Other", 0, { sub4("LCEC", cells(kWorld2, { { 6, 5 } })) }),
-            lctn(kCity, "City", 0, {}) });
+        const Parsed p(
+            { lctn(kOther, "Other", 0, { sub4("LCEC", cells(kWorld2, { { 6, 5 } })) }), lctn(kCity, "City", 0, {}) });
         FormId world = 0;
         std::int32_t x = 0, y = 0;
         EXPECT_TRUE(p.mIndex.gridOf(kOther, world, x, y));
@@ -222,8 +231,22 @@ namespace
 
     TEST(LocationIndexLists, specialReferencesAreFoundByTheirType)
     {
-        const Bytes special = Bytes().u32(kRefType).u32(kRefA).u32(kWorld).u16(0).u16(0).u32(kRefType2).u32(kRefB).u32(kWorld)
-                                  .u16(0).u16(0).u32(kRefType).u32(kRefB).u32(kWorld).u16(0).u16(0);
+        const Bytes special = Bytes()
+                                  .u32(kRefType)
+                                  .u32(kRefA)
+                                  .u32(kWorld)
+                                  .u16(0)
+                                  .u16(0)
+                                  .u32(kRefType2)
+                                  .u32(kRefB)
+                                  .u32(kWorld)
+                                  .u16(0)
+                                  .u16(0)
+                                  .u32(kRefType)
+                                  .u32(kRefB)
+                                  .u32(kWorld)
+                                  .u16(0)
+                                  .u16(0);
         const Parsed p({ lctn(kCity, "City", 0, { sub4("LCSR", special) }) });
         EXPECT_TRUE(p.mIndex.hasRefType(kCity, kRefType));
         EXPECT_FALSE(p.mIndex.hasRefType(kCity, kKeywordA));

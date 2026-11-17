@@ -1,14 +1,16 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_MAP_MARKERS_H
 #define OPENEDEN_GAME_SKYRIMSE_MAP_MARKERS_H
 
-// The compass and the world map of a Skyrim SE session (task 0201, milestone M-S7). Off unless [extension.skyrimse] map.
+// The compass and the world map of a Skyrim SE session (task 0201, milestone M-S7). Off unless [extension.skyrimse]
+// map.
 //
 // This file is the pack's side: the map markers of the data, the discovered state, the quest targets of the displayed
 // objectives, and the script package `core.skyrimse.map` that the Lua compass and world map windows read. The windows
 // themselves are Lua on the RmlUi library (files/data/openeden/skyrimse/compass.lua, worldmap.lua).
 //
 // Layouts (settled by the data, docs/tasks/0201-skyrim-map-and-compass.md section 3):
-//  - A map marker is a REFR (base 0x10, the MapMarker static) whose subrecords include the empty XMRK, then FNAM (1 byte
+//  - A map marker is a REFR (base 0x10, the MapMarker static) whose subrecords include the empty XMRK, then FNAM (1
+//  byte
 //    of flags), FULL (a string id in a localised plugin) and TNAM (2 bytes: the marker type, then a byte that is 0 in
 //    all 397 markers of the five masters). DATA is the usual 24 byte position and rotation. 362 of the 397 sit in a
 //    worldspace's persistent cell, 35 in interiors (their world is none: they are not exterior markers).
@@ -28,7 +30,6 @@
 #include <game_skyrimse/records.hpp>
 
 #include <components/contentsource/plugin.hpp>
-
 
 #include <cstdint>
 #include <functional>
@@ -125,8 +126,7 @@ namespace game_skyrimse::map
         /// shown by its flag is marked too, so that the chunk is the whole truth). Returns how many were new.
         std::size_t visit(const MarkerIndex& index, FormId world, float x, float y, float radius);
         /// The same over several worlds (a world and the parents it borrows its land from share coordinates).
-        std::size_t visit(
-            const MarkerIndex& index, std::span<const FormId> worlds, float x, float y, float radius);
+        std::size_t visit(const MarkerIndex& index, std::span<const FormId> worlds, float x, float y, float radius);
         [[nodiscard]] std::size_t count() const { return mFound.size(); }
         [[nodiscard]] std::uint64_t revision() const { return mRevision; }
         [[nodiscard]] const std::vector<FormId>& found() const { return mFound; } ///< ascending

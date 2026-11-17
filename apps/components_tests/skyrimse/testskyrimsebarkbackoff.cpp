@@ -1,5 +1,6 @@
 // Task 0243: a fight cry or taunt that finds no line backs off (a named gap of ours) instead of asking again on every
-// update, and the pickpocket and crime kinds. No game data. Written against stubs first and run red (see the stage log).
+// update, and the pickpocket and crime kinds. No game data. Written against stubs first and run red (see the stage
+// log).
 #include <game_skyrimse/barks.hpp>
 #include <game_skyrimse/crime.hpp>
 

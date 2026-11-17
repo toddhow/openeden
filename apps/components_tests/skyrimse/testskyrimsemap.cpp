@@ -6,10 +6,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <map>
-#include <memory>
 #include <cstring>
 #include <limits>
+#include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -57,9 +57,8 @@ namespace
 
     Bytes testPlugin(std::uint32_t headerFlags = 0, bool localized = false)
     {
-        const auto name = [&](const char* text, std::uint32_t id) {
-            return localized ? Bytes().u32(id) : Bytes().zstring(text);
-        };
+        const auto name
+            = [&](const char* text, std::uint32_t id) { return localized ? Bytes().u32(id) : Bytes().zstring(text); };
         Bytes persistent;
         persistent.append(marker(kSelf | 0x200, 0x400, 1, 5, name("Whiterun", 7), 100, 200));
         persistent.append(marker(kSelf | 0x201, 0x400, 0, 7, name("Riverwood", 8), 5000, -300));
@@ -319,9 +318,9 @@ namespace
 
     TEST(SkyrimMapQuery, nearestFirstThenByReferenceAndOnlyShownOrHinted)
     {
-        const MarkerIndex index = indexOf({ m(10, kWorld, 300, 0, MarkerFlags::Visible), m(11, kWorld, 100, 0, MarkerFlags::Visible),
-            m(12, kWorld, 100, 0, MarkerFlags::Visible), m(13, kWorld, 200, 0, 0), m(14, kWorld, 9000, 0, 0),
-            m(15, kWorld, 20000, 0, MarkerFlags::Visible) });
+        const MarkerIndex index = indexOf({ m(10, kWorld, 300, 0, MarkerFlags::Visible),
+            m(11, kWorld, 100, 0, MarkerFlags::Visible), m(12, kWorld, 100, 0, MarkerFlags::Visible),
+            m(13, kWorld, 200, 0, 0), m(14, kWorld, 9000, 0, 0), m(15, kWorld, 20000, 0, MarkerFlags::Visible) });
         Discovery d;
         std::vector<View> out;
         query(index, d, kWorld, 0, 0, 16384.f, 1000.f, 0, 256, out);
@@ -386,8 +385,8 @@ namespace
     constexpr FormId kCellExt = kSelf | 0x600;
     constexpr FormId kCellInt = kSelf | 0x601;
 
-    QuestRecord quest(FormId id, std::uint16_t flags, std::vector<QuestObjective> objectives,
-        std::vector<QuestAlias> aliases)
+    QuestRecord quest(
+        FormId id, std::uint16_t flags, std::vector<QuestObjective> objectives, std::vector<QuestAlias> aliases)
     {
         QuestRecord q;
         q.mCommon.mId = id;
@@ -448,8 +447,10 @@ namespace
                 { objective(10, "Go to the reference", { 1 }), objective(20, "Find the NPC", { 2 }),
                     objective(30, "Not displayed", { 1 }), objective(40, "Done already", { 1 }),
                     objective(50, "In a cave", { 3 }), objective(60, "Nobody fills it", { 4 }) },
-                { alias(1, AliasFillKind::SpecificReference, kRefA), alias(2, AliasFillKind::UniqueActor, kNullFormId, kNpc),
-                    alias(3, AliasFillKind::SpecificReference, kRefB), alias(4, AliasFillKind::FindMatching, kNullFormId) }));
+                { alias(1, AliasFillKind::SpecificReference, kRefA),
+                    alias(2, AliasFillKind::UniqueActor, kNullFormId, kNpc),
+                    alias(3, AliasFillKind::SpecificReference, kRefB),
+                    alias(4, AliasFillKind::FindMatching, kNullFormId) }));
             records.mQuests.push_back(quest(kQuest2, 0, { objective(10, "Not running", { 1 }) },
                 { alias(1, AliasFillKind::SpecificReference, kRefA) }));
             QuestRecords wrapped;
@@ -740,7 +741,7 @@ namespace
             std::vector<double> out;
             for (std::size_t i = 0; i < r.value.count; ++i)
                 out.push_back(r.value.elements[i].type == BindingType::Int32 ? r.value.elements[i].integer
-                                                                              : r.value.elements[i].number);
+                                                                             : r.value.elements[i].number);
             return out;
         }
 
@@ -754,9 +755,9 @@ namespace
     {
         EXPECT_EQ(mBindings.mName, "skyrimse.map");
         EXPECT_EQ(mBindings.mVersion.major, 1);
-        for (const char* name : { "ready", "revision", "marker_x", "marker_y", "marker_type", "marker_discovered",
-                 "marker_name", "target_x", "target_y", "target_world", "target_text", "raster_info", "raster_row",
-                 "visit" })
+        for (const char* name :
+            { "ready", "revision", "marker_x", "marker_y", "marker_type", "marker_discovered", "marker_name",
+                "target_x", "target_y", "target_world", "target_text", "raster_info", "raster_row", "visit" })
             EXPECT_TRUE(mBindings.mFunctions.count(name)) << name;
         EXPECT_EQ(mBindings.mFunctions["visit"].access, openeden::sdk::BindingAccess::Mutate);
         EXPECT_EQ(mBindings.mFunctions["marker_x"].access, openeden::sdk::BindingAccess::Read);
@@ -802,7 +803,8 @@ namespace
         EXPECT_GT(mBindings.call("revision").value.integer, before);
         const auto found = mBindings.call("marker_discovered", queryArgs(kWorld, 0, 0, 16384, 8192));
         EXPECT_TRUE(found.value.elements[1].boolean);
-        EXPECT_NE(std::find_if(mLog.begin(), mLog.end(), [](const std::string& l) { return l.find("MAP discovered") == 0; }),
+        EXPECT_NE(
+            std::find_if(mLog.begin(), mLog.end(), [](const std::string& l) { return l.find("MAP discovered") == 0; }),
             mLog.end());
     }
 

@@ -11,8 +11,8 @@
 #include <openeden/game/actor_appearance.hpp>
 
 #include <functional>
-#include <string_view>
 #include <string>
+#include <string_view>
 
 namespace game_skyrimse
 {

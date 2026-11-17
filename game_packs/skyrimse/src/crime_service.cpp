@@ -83,9 +83,8 @@ namespace game_skyrimse::crime
         , mSystem(mLedger, *this, settings)
     {
         // Task 0258: the arrest conversation runs for a guard when the pack says it can
-        mSystem.setDialogueProbe([this](const CrimeActor& guard) {
-            return mHooks.mDialogueAvailable && mHooks.mDialogueAvailable(guard);
-        });
+        mSystem.setDialogueProbe(
+            [this](const CrimeActor& guard) { return mHooks.mDialogueAvailable && mHooks.mDialogueAvailable(guard); });
     }
 
     CrimeService::~CrimeService() = default;
@@ -168,7 +167,8 @@ namespace game_skyrimse::crime
         if (mSystem.state() != State::Offer || faction == kNullFormId || faction != mSystem.offerFaction())
             return false;
         // The pack's pay always takes the stolen goods too (RECALLED-VERIFY: the game's flag); the flag is only logged.
-        log(std::string("CRIME script pays the bounty (remove stolen items: ") + (removeStolenItems ? "yes" : "no") + ")");
+        log(std::string("CRIME script pays the bounty (remove stolen items: ") + (removeStolenItems ? "yes" : "no")
+            + ")");
         return choose("pay") == ChoiceStatus::Ok;
     }
 
@@ -416,15 +416,15 @@ namespace game_skyrimse::crime
         doubleFn("jail_y", [jailFaction](CrimeService& s) { return s.jailOf(jailFaction(s)).mY; });
         doubleFn("jail_z", [jailFaction](CrimeService& s) { return s.jailOf(jailFaction(s)).mZ; });
         doubleFn("jail_heading", [jailFaction](CrimeService& s) { return s.jailOf(jailFaction(s)).mHeading; });
-        doubleFn("jail_seconds",
-            [](CrimeService& s) { return static_cast<double>(s.mSystem.settings().mJailSeconds); });
+        doubleFn(
+            "jail_seconds", [](CrimeService& s) { return static_cast<double>(s.mSystem.settings().mJailSeconds); });
         add("choose", s1, false, BindingType::Bool, BindingAccess::Mutate, [self](std::span<const BindingValue> a) {
             const ChoiceStatus status = self->choose(a[0].text);
             if (status != ChoiceStatus::Ok)
                 self->log("CRIME choice " + std::string(a[0].text) + " refused ("
-                    + (status == ChoiceStatus::NoOffer
-                              ? "no offer"
-                              : status == ChoiceStatus::NotEnoughGold ? "not enough gold" : "unknown choice")
+                    + (status == ChoiceStatus::NoOffer              ? "no offer"
+                            : status == ChoiceStatus::NotEnoughGold ? "not enough gold"
+                                                                    : "unknown choice")
                     + ")");
             return ok();
         });

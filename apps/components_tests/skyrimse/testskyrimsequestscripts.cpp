@@ -416,7 +416,8 @@ namespace
         data.add(location);
     }
 
-    /// TIF script: begin fragment sets the property quest to stage 10 and notes the speaker; end fragment appends to a trace.
+    /// TIF script: begin fragment sets the property quest to stage 10 and notes the speaker; end fragment appends to a
+    /// trace.
     ScriptBuilder tifScript()
     {
         ScriptBuilder s("TIF__00000900");
@@ -432,9 +433,7 @@ namespace
             .callMethod("GetFormID", Id("akSpeakerRef"), Id("n"))
             .assign(Id("speakerId"), Id("n"))
             .assign(Id("trace"), Int(1));
-        s.function("Fragment_1")
-            .param("akSpeakerRef", "ObjectReference")
-            .iadd(Id("trace"), Id("trace"), Int(10));
+        s.function("Fragment_1").param("akSpeakerRef", "ObjectReference").iadd(Id("trace"), Id("trace"), Int(10));
         return s;
     }
 
@@ -646,8 +645,8 @@ namespace
             r.mRefs = std::move(refs);
             mRefs.add(std::move(r));
             mRefs.finish();
-            mFiller = std::make_unique<QuestAliasFiller>(mIndex, mRefs,
-                [this](const QuestRecord&, const QuestAlias& a, FormId reference, FormId) {
+            mFiller = std::make_unique<QuestAliasFiller>(
+                mIndex, mRefs, [this](const QuestRecord&, const QuestAlias& a, FormId reference, FormId) {
                     mAsked.push_back(reference);
                     return mAccept.count(reference) != 0 && a.mId != 99;
                 });
@@ -706,13 +705,15 @@ namespace
     TEST(SkyrimQuestAlias, aDisabledOrDeadCandidateIsSkippedUnlessTheAliasAllowsIt)
     {
         const Bytes cond = ctda(72, 0, 1.0f, kBaseA);
-        FillRig rig({ alias(4, "Any", 0, Bytes(), cond), alias(5, "Dis", AliasFlags::AllowDisabled | AliasFlags::AllowReuseInQuest, Bytes(), cond) },
+        FillRig rig({ alias(4, "Any", 0, Bytes(), cond),
+                        alias(5, "Dis", AliasFlags::AllowDisabled | AliasFlags::AllowReuseInQuest, Bytes(), cond) },
             { placedRef(kRef1, kBaseA, PlacedFlags::IsActor | PlacedFlags::Disabled),
                 placedRef(kRef2, kBaseA, PlacedFlags::IsActor | PlacedFlags::Dead), placedRef(kRef3, kBaseA) });
         rig.mAccept = { kRef1, kRef2, kRef3 };
         (void)rig.mFiller->fillQuest(kQuestA, rig.mState, true);
         EXPECT_EQ(rig.mState.aliasFill(kQuestA, 4).mReference, kRef3);
-        EXPECT_EQ(rig.mState.aliasFill(kQuestA, 5).mReference, kRef1); // the disabled one is allowed; the dead one is not
+        EXPECT_EQ(
+            rig.mState.aliasFill(kQuestA, 5).mReference, kRef1); // the disabled one is allowed; the dead one is not
     }
 
     TEST(SkyrimQuestAlias, aReferenceAlreadyInAnotherAliasIsNotTakenAgainUnlessReuseIsAllowed)
@@ -907,8 +908,8 @@ namespace
     constexpr FormId kNodeSecond = kSelf | 0x1004;
     constexpr FormId kNodeThird = kSelf | 0x1005;
 
-    Bytes nodeCommon(const std::string& name, FormId parent, FormId sibling, const Bytes& conditions, std::uint32_t dnam,
-        std::uint32_t conditionCount)
+    Bytes nodeCommon(const std::string& name, FormId parent, FormId sibling, const Bytes& conditions,
+        std::uint32_t dnam, std::uint32_t conditionCount)
     {
         Bytes b;
         b.append(edid(name));
@@ -931,7 +932,8 @@ namespace
     Bytes smbn(FormId id, FormId parent, FormId sibling, std::uint32_t dnam = 0, const Bytes& conds = Bytes(),
         std::uint32_t nconds = 0)
     {
-        return record4("SMBN", 0u, id, nodeCommon("Br" + std::to_string(id & 0xFFF), parent, sibling, conds, dnam, nconds));
+        return record4(
+            "SMBN", 0u, id, nodeCommon("Br" + std::to_string(id & 0xFFF), parent, sibling, conds, dnam, nconds));
     }
 
     Bytes smqn(FormId id, FormId parent, FormId sibling, const std::vector<FormId>& quests, std::uint32_t dnam = 0,
@@ -964,9 +966,9 @@ namespace
                 std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), "test.esp", error);
             mNodes.add(std::move(parsed), FormIdResolver(plugin->header(), "test.esp", order()));
             Rig builder;
-            builder.quests(questRecords.empty() ? std::vector<Bytes>{ questRecord(kQuestA, 0), questRecord(kQuestB, 0),
-                                                      questRecord(kQuestC, 0) }
-                                                : questRecords);
+            builder.quests(questRecords.empty()
+                    ? std::vector<Bytes>{ questRecord(kQuestA, 0), questRecord(kQuestB, 0), questRecord(kQuestC, 0) }
+                    : questRecords);
             mQuests = std::move(builder.mIndex);
             mState = QuestState::initial(mQuests);
             mManager = std::make_unique<StoryManager>(mNodes, mQuests);
@@ -976,7 +978,8 @@ namespace
             StoryEvent e;
             e.mType = type;
             return mManager->raise(
-                e, [pass, this](const std::vector<survey::Ctda>& l, const FormIdResolver&) {
+                e,
+                [pass, this](const std::vector<survey::Ctda>& l, const FormIdResolver&) {
                     mEvaluated.push_back(l.size());
                     return pass;
                 },
@@ -995,9 +998,9 @@ namespace
     TEST(SkyrimStory, nodesAreDecodedAndTheChildrenFollowThePreviousSiblingChain)
     {
         // SNAM names the PREVIOUS sibling: Third -> Second -> First
-        StoryRig rig({ smbn(kRoot, 0, 0), smen(kEvent, kRoot, "SCPT"),
-            smqn(kNodeThird, kEvent, kNodeSecond, { kQuestC }), smqn(kNodeFirst, kEvent, 0, { kQuestA }),
-            smqn(kNodeSecond, kEvent, kNodeFirst, { kQuestB }) });
+        StoryRig rig(
+            { smbn(kRoot, 0, 0), smen(kEvent, kRoot, "SCPT"), smqn(kNodeThird, kEvent, kNodeSecond, { kQuestC }),
+                smqn(kNodeFirst, kEvent, 0, { kQuestA }), smqn(kNodeSecond, kEvent, kNodeFirst, { kQuestB }) });
         ASSERT_TRUE(rig.mOk);
         EXPECT_EQ(rig.mParsed, 5u);
         EXPECT_EQ(rig.mOdd, 0u);
@@ -1036,17 +1039,15 @@ namespace
 
     TEST(SkyrimStory, aNodeThatSharesTheEventLetsTheWalkGoOn)
     {
-        StoryRig rig({ smen(kEvent, kRoot, "SCPT"),
-            smqn(kNodeFirst, kEvent, 0, { kQuestA }, StoryFlags::SharesEvent),
+        StoryRig rig({ smen(kEvent, kRoot, "SCPT"), smqn(kNodeFirst, kEvent, 0, { kQuestA }, StoryFlags::SharesEvent),
             smqn(kNodeSecond, kEvent, kNodeFirst, { kQuestC }) });
         EXPECT_EQ(rig.raise("SCPT"), (std::vector<FormId>{ kQuestA, kQuestC }));
     }
 
     TEST(SkyrimStory, aNodeWhoseConditionsFailIsSkippedWithItsChildren)
     {
-        StoryRig rig({ smen(kEvent, kRoot, "SCPT"),
-            smbn(kBranch, kEvent, 0, 0, ctda(576, 0, 1.0f), 1), smqn(kNodeFirst, kBranch, 0, { kQuestA }),
-            smqn(kNodeSecond, kEvent, kBranch, { kQuestB }) });
+        StoryRig rig({ smen(kEvent, kRoot, "SCPT"), smbn(kBranch, kEvent, 0, 0, ctda(576, 0, 1.0f), 1),
+            smqn(kNodeFirst, kBranch, 0, { kQuestA }), smqn(kNodeSecond, kEvent, kBranch, { kQuestB }) });
         // every condition list fails: the branch is skipped, the second node has no conditions (an empty list passes)
         StoryEvent e;
         e.mType = "SCPT";
@@ -1124,7 +1125,10 @@ namespace
         float globalValue(std::uint32_t) const override { return 0; }
         const StoryEvent* currentStoryEvent() const override { return &mEvent; }
         FormId resolveStoryForm(std::uint32_t stored) const override { return stored; }
-        bool storyLocationWithin(FormId l, FormId a) const override { return l == a || (l == kLocation2 && a == kLocation); }
+        bool storyLocationWithin(FormId l, FormId a) const override
+        {
+            return l == a || (l == kLocation2 && a == kLocation);
+        }
         bool storyLocationHasKeyword(FormId l, FormId k) const override { return l == kLocation && k == kKeyword; }
         FormId storyBaseOf(FormId r) const override { return r == kRef1 ? kBaseA : 0; }
         StoryEvent mEvent;
@@ -1193,7 +1197,8 @@ namespace
         EXPECT_FALSE(passes(w, member('R', '2', 0), kBaseA, 0, 1.0f));
     }
 
-    // ---- 7. SendStoryEvent through the host --------------------------------------------------------------------------
+    // ---- 7. SendStoryEvent through the host
+    // --------------------------------------------------------------------------
 
     ScriptBuilder sender()
     {
@@ -1217,7 +1222,8 @@ namespace
         vmad::Vmad v;
         vmad::Script s;
         s.mName = "Sender";
-        for (auto [name, form] : { std::pair<const char*, FormId>{ "Kw", kKeyword }, { "Where", kLocation }, { "Who", kRef2 } })
+        for (auto [name, form] :
+            { std::pair<const char*, FormId>{ "Kw", kKeyword }, { "Where", kLocation }, { "Who", kRef2 } })
         {
             vmad::Property p;
             p.mName = name;

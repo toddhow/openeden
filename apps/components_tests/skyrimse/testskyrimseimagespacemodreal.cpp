@@ -1,6 +1,7 @@
 // Task 0257: the IMAD records on the player's own Skyrim SE masters (Night Eye and the others).
-// Gated: skipped unless OPENEDEN_SKYRIMSE_DATA names the game's Data folder. Prints aggregates (lines SKYRIMSE-IMAD) and
-// checks the numbers the Night Eye view reads: the winning records are Update.esm's, a milder version than Skyrim.esm's.
+// Gated: skipped unless OPENEDEN_SKYRIMSE_DATA names the game's Data folder. Prints aggregates (lines SKYRIMSE-IMAD)
+// and checks the numbers the Night Eye view reads: the winning records are Update.esm's, a milder version than
+// Skyrim.esm's.
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/image_space_mod.hpp>
 #include <game_skyrimse/pack_core.hpp>

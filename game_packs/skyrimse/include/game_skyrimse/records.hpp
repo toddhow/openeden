@@ -246,8 +246,8 @@ namespace game_skyrimse
     /// The most links kept for one placement.
     inline constexpr std::size_t kMaxRefLinks = 16;
 
-    /// REFR XPRM (task 0256): the primitive of a trigger volume. VERIFIED size 32: three floats of bounds, three of colour,
-    /// one float, then a u32 type (2 = sphere in every word wall trigger of the five masters).
+    /// REFR XPRM (task 0256): the primitive of a trigger volume. VERIFIED size 32: three floats of bounds, three of
+    /// colour, one float, then a u32 type (2 = sphere in every word wall trigger of the five masters).
     struct RefPrimitive
     {
         float mBounds[3] = {};
@@ -273,7 +273,8 @@ namespace game_skyrimse
         /// XPRD (stage S6f): the seconds a patrolling actor idles at this marker. VERIFIED size 4 (a float: 10.0, 3.0,
         /// 6.0 in the data) on 4,340 placements; negative means none.
         float mPatrolIdle = -1.f;
-        /// VMAD (task 0176): the scripts the placement carries, form ids resolved to load order ids (0 when unresolved).
+        /// VMAD (task 0176): the scripts the placement carries, form ids resolved to load order ids (0 when
+        /// unresolved).
         std::vector<vmad::Script> mScripts;
         /// XPRM (task 0256): set when the placement is a primitive volume.
         std::optional<RefPrimitive> mPrimitive;
@@ -434,8 +435,8 @@ namespace game_skyrimse
         /// FULL: the display name (doors, containers, activators ...). Empty when the record has none; a localised name
         /// is resolved by the view like the other names (task 0150).
         LString mName;
-        /// VMAD (task 0181): the scripts of the base form, form ids resolved to load order ids (0 when unresolved). Every
-        /// placement of the base carries them.
+        /// VMAD (task 0181): the scripts of the base form, form ids resolved to load order ids (0 when unresolved).
+        /// Every placement of the base carries them.
         std::vector<vmad::Script> mScripts;
         /// KWDA (task 0181): the keywords, resolved.
         std::vector<FormId> mKeywords;
@@ -443,7 +444,8 @@ namespace game_skyrimse
         std::optional<HarvestData> mHarvest;
         /// DESC of a MESG record (task 0224: the text of a message box); other types leave it absent.
         LString mDescription;
-        /// ITXT of a MESG (task 0237): the buttons' texts, in order, and DNAM bit 0: a message box (else a corner text).
+        /// ITXT of a MESG (task 0237): the buttons' texts, in order, and DNAM bit 0: a message box (else a corner
+        /// text).
         std::vector<LString> mButtons;
         bool mMessageBox = false;
         /// RNAM of an ACTI (task 0224: the activate text override, "Mine" on an ore vein); a FLOR's is in mHarvest.

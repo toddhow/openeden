@@ -56,8 +56,8 @@ namespace game_skyrimse::map
                     if (in.mCellWorld && in.mCellWorld(placed->mCell, world, interior) && !interior)
                         t.mWorld = world;
                     if (in.mText)
-                        t.mText = journal::expandTags(
-                            in.mText(objective.mText, quest->mPlugin, StringTableKind::Strings));
+                        t.mText
+                            = journal::expandTags(in.mText(objective.mText, quest->mPlugin, StringTableKind::Strings));
                     out.push_back(std::move(t));
                 }
             }
@@ -168,7 +168,10 @@ namespace game_skyrimse::map
             b.text = v;
             return b;
         }
-        std::int32_t world32(const BindingValue& v) { return v.integer; }
+        std::int32_t world32(const BindingValue& v)
+        {
+            return v.integer;
+        }
     }
 
     struct MapService::Impl
@@ -316,7 +319,8 @@ namespace game_skyrimse::map
             r.value = integer(static_cast<std::int32_t>(self->revision() & 0x7FFFFFFF));
             return r;
         });
-        add("marker_x", queryParams, true, BindingType::Double,
+        add(
+            "marker_x", queryParams, true, BindingType::Double,
             [&m, runQuery, arrayResult](std::span<const BindingValue> a) {
                 runQuery(a);
                 m.mElements.clear();
@@ -325,7 +329,8 @@ namespace game_skyrimse::map
                 return arrayResult(BindingType::Double);
             },
             BindingShape::Array);
-        add("marker_y", queryParams, true, BindingType::Double,
+        add(
+            "marker_y", queryParams, true, BindingType::Double,
             [&m, runQuery, arrayResult](std::span<const BindingValue> a) {
                 runQuery(a);
                 m.mElements.clear();
@@ -334,7 +339,8 @@ namespace game_skyrimse::map
                 return arrayResult(BindingType::Double);
             },
             BindingShape::Array);
-        add("marker_type", queryParams, true, BindingType::Int32,
+        add(
+            "marker_type", queryParams, true, BindingType::Int32,
             [&m, runQuery, arrayResult](std::span<const BindingValue> a) {
                 runQuery(a);
                 m.mElements.clear();
@@ -343,7 +349,8 @@ namespace game_skyrimse::map
                 return arrayResult(BindingType::Int32);
             },
             BindingShape::Array);
-        add("marker_discovered", queryParams, true, BindingType::Bool,
+        add(
+            "marker_discovered", queryParams, true, BindingType::Bool,
             [&m, runQuery, arrayResult](std::span<const BindingValue> a) {
                 runQuery(a);
                 m.mElements.clear();
@@ -353,7 +360,8 @@ namespace game_skyrimse::map
             },
             BindingShape::Array);
         // the name of an undiscovered marker is not given (an empty text)
-        add("marker_name", queryParams, true, BindingType::String,
+        add(
+            "marker_name", queryParams, true, BindingType::String,
             [self, &m, runQuery, arrayResult](std::span<const BindingValue> a) {
                 runQuery(a);
                 m.mStrings.clear();
@@ -379,20 +387,30 @@ namespace game_skyrimse::map
                 pick(t, m);
             return arrayResult(type);
         };
-        add("target_x", {}, true, BindingType::Double, [targetArray](std::span<const BindingValue>) {
-            return targetArray(BindingType::Double,
-                [](const Target& t, Impl& impl) { impl.mElements.push_back(number(t.mX)); });
-        }, BindingShape::Array);
-        add("target_y", {}, true, BindingType::Double, [targetArray](std::span<const BindingValue>) {
-            return targetArray(BindingType::Double,
-                [](const Target& t, Impl& impl) { impl.mElements.push_back(number(t.mY)); });
-        }, BindingShape::Array);
-        add("target_world", {}, true, BindingType::Int32, [targetArray](std::span<const BindingValue>) {
-            return targetArray(BindingType::Int32, [](const Target& t, Impl& impl) {
-                impl.mElements.push_back(integer(static_cast<std::int32_t>(t.mWorld)));
-            });
-        }, BindingShape::Array);
-        add("target_text", {}, true, BindingType::String,
+        add(
+            "target_x", {}, true, BindingType::Double,
+            [targetArray](std::span<const BindingValue>) {
+                return targetArray(
+                    BindingType::Double, [](const Target& t, Impl& impl) { impl.mElements.push_back(number(t.mX)); });
+            },
+            BindingShape::Array);
+        add(
+            "target_y", {}, true, BindingType::Double,
+            [targetArray](std::span<const BindingValue>) {
+                return targetArray(
+                    BindingType::Double, [](const Target& t, Impl& impl) { impl.mElements.push_back(number(t.mY)); });
+            },
+            BindingShape::Array);
+        add(
+            "target_world", {}, true, BindingType::Int32,
+            [targetArray](std::span<const BindingValue>) {
+                return targetArray(BindingType::Int32, [](const Target& t, Impl& impl) {
+                    impl.mElements.push_back(integer(static_cast<std::int32_t>(t.mWorld)));
+                });
+            },
+            BindingShape::Array);
+        add(
+            "target_text", {}, true, BindingType::String,
             [self, &m, arrayResult](std::span<const BindingValue>) {
                 const std::vector<Target>& targets = self->targets();
                 m.mStrings.clear();
@@ -405,7 +423,8 @@ namespace game_skyrimse::map
             },
             BindingShape::Array);
 
-        add("raster_info", worldParam, true, BindingType::Int32,
+        add(
+            "raster_info", worldParam, true, BindingType::Int32,
             [self, &m, arrayResult](std::span<const BindingValue> a) {
                 m.mElements.clear();
                 std::int32_t minX = 0, minY = 0, width = 0, height = 0;
@@ -419,7 +438,8 @@ namespace game_skyrimse::map
                 return arrayResult(BindingType::Int32);
             },
             BindingShape::Array);
-        add("raster_row", rowParams, true, BindingType::Int32,
+        add(
+            "raster_row", rowParams, true, BindingType::Int32,
             [self, &m, arrayResult](std::span<const BindingValue> a) {
                 m.mElements.clear();
                 m.mRow.clear();
@@ -443,11 +463,14 @@ namespace game_skyrimse::map
             r.value = integer(static_cast<std::int32_t>(world));
             return r;
         });
-        add("visit", visitParams, false, BindingType::Bool, [self](std::span<const BindingValue> a) {
-            (void)self->visit(static_cast<FormId>(world32(a[0])), static_cast<float>(a[1].number),
-                static_cast<float>(a[2].number));
-            return BindingResult();
-        }, BindingShape::Single, openeden::sdk::BindingAccess::Mutate);
+        add(
+            "visit", visitParams, false, BindingType::Bool,
+            [self](std::span<const BindingValue> a) {
+                (void)self->visit(static_cast<FormId>(world32(a[0])), static_cast<float>(a[1].number),
+                    static_cast<float>(a[2].number));
+                return BindingResult();
+            },
+            BindingShape::Single, openeden::sdk::BindingAccess::Mutate);
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = kNamespace;

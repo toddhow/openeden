@@ -1,7 +1,7 @@
 // Task 0212 (creatures, first slice: the wolf): the profile of a creature race, its appearance, and its combat clips.
 // Hand-built records; no plugin bytes, no game data. The numbers asserted are the ones in
-// docs/tasks/0212-skyrim-creatures-wolf.md section 2 (read from the installed data): the stride of WalkForward00_Wolf is
-// 89.448 units in 1.2 s, of RunForward 300.081 units in 0.533333 s.
+// docs/tasks/0212-skyrim-creatures-wolf.md section 2 (read from the installed data): the stride of WalkForward00_Wolf
+// is 89.448 units in 1.2 s, of RunForward 300.081 units in 0.533333 s.
 #include <game_skyrimse/appearance.hpp>
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/creatures.hpp>

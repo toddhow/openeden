@@ -60,8 +60,8 @@ namespace MWRender::SkyrimSequence
 
     /// The model for a Skyrim NIF path, or null when the file cannot be read or has no usable Open sequence. Cached by
     /// path (a null answer too). Thread safe. Never throws.
-    [[nodiscard]] std::shared_ptr<const Model> loadModel(const VFS::Manager& vfs, const std::string& path,
-        bool surfaceMaps);
+    [[nodiscard]] std::shared_ptr<const Model> loadModel(
+        const VFS::Manager& vfs, const std::string& path, bool surfaceMaps);
 
     /// The pure half of loadModel: from a scene and the flattener's limits. Null when there is no Open sequence or
     /// nothing it moves draws.
@@ -76,8 +76,8 @@ namespace MWRender::SkyrimSequence
 
         Instance(std::shared_ptr<const Model> model, PartList parts);
 
-        /// Main thread. Shows the door `progress` open (0..1); closing picks the Close sequence when there is one. Stops
-        /// any timed motion.
+        /// Main thread. Shows the door `progress` open (0..1); closing picks the Close sequence when there is one.
+        /// Stops any timed motion.
         void setProgress(float progress, bool closing);
         /// Main thread. The lid moves on its own toward open or closed over the sequence's own time.
         void setTarget(bool open);

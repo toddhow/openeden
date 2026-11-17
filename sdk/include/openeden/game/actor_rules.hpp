@@ -203,8 +203,8 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// (0.6) Where the player stands now (game units, the feet): the target of a follower. False when the core has no
-        /// player position (a test, a session with no player). The default refuses. Valid during update() only.
+        /// (0.6) Where the player stands now (game units, the feet): the target of a follower. False when the core has
+        /// no player position (a test, a session with no player). The default refuses. Valid during update() only.
         virtual bool playerPosition(double& x, double& y, double& z) const
         {
             (void)x;
@@ -214,9 +214,10 @@ namespace openeden::sdk::game
         }
 
         /// (task 0254, additive, version unchanged) Puts a dead actor back where it lay when a saved game was loaded:
-        /// moves it to (x, y, z) facing `heading` and clears its movement request. Nothing else changes: the pack reports
-        /// the death afterwards as it would a new one, so a core that makes ragdolls makes one for the corpse. False
-        /// (counted) for a stale handle, a value that is not finite or a call outside update(). The default refuses.
+        /// moves it to (x, y, z) facing `heading` and clears its movement request. Nothing else changes: the pack
+        /// reports the death afterwards as it would a new one, so a core that makes ragdolls makes one for the corpse.
+        /// False (counted) for a stale handle, a value that is not finite or a call outside update(). The default
+        /// refuses.
         virtual bool placeCorpse(ActorHandle handle, double x, double y, double z, float heading)
         {
             (void)handle;

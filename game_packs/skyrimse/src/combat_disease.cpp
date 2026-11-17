@@ -13,8 +13,8 @@ namespace game_skyrimse
 {
     namespace
     {
-        // Realises `wanted` on a profile value: the value without what was applied before, plus the wanted amount, never
-        // below `floor`. Returns the amount really added.
+        // Realises `wanted` on a profile value: the value without what was applied before, plus the wanted amount,
+        // never below `floor`. Returns the amount really added.
         float realise(float& value, float applied, float wanted, float floor)
         {
             const float base = value - applied;
@@ -67,18 +67,17 @@ namespace game_skyrimse
         PlayerValueModifiers& applied = mValueModsApplied;
         applied.mStaminaMax = realise(profile.mStaminaMax, applied.mStaminaMax, wanted.mStaminaMax, 0.f);
         applied.mMagickaMax = realise(profile.mMagickaMax, applied.mMagickaMax, wanted.mMagickaMax, 0.f);
-        applied.mStaminaRegen
-            = realise(profile.mStaminaRegenPercent, applied.mStaminaRegen, wanted.mStaminaRegen, 0.f);
-        applied.mMagickaRegen
-            = realise(profile.mMagickaRegenPercent, applied.mMagickaRegen, wanted.mMagickaRegen, 0.f);
+        applied.mStaminaRegen = realise(profile.mStaminaRegenPercent, applied.mStaminaRegen, wanted.mStaminaRegen, 0.f);
+        applied.mMagickaRegen = realise(profile.mMagickaRegenPercent, applied.mMagickaRegen, wanted.mMagickaRegen, 0.f);
         player->mStamina = std::min(player->mStamina, profile.mStaminaMax);
         player->mMagicka = std::min(player->mMagicka, profile.mMagickaMax);
         mValueModsDirty = false;
         if (mTrace)
             trace("COMBAT player value modifiers: stamina max " + std::to_string(profile.mStaminaMax) + " ("
                 + std::to_string(applied.mStaminaMax) + "), magicka max " + std::to_string(profile.mMagickaMax) + " ("
-                + std::to_string(applied.mMagickaMax) + "), stamina regen " + std::to_string(profile.mStaminaRegenPercent)
-                + ", magicka regen " + std::to_string(profile.mMagickaRegenPercent));
+                + std::to_string(applied.mMagickaMax) + "), stamina regen "
+                + std::to_string(profile.mStaminaRegenPercent) + ", magicka regen "
+                + std::to_string(profile.mMagickaRegenPercent));
     }
 
     void SkyrimCombat::applySkillPercent(const Fighter& attacker, const WeaponRecord* weapon, MeleeHit& hit) const
@@ -95,7 +94,7 @@ namespace game_skyrimse
         hit.mDamageBefore *= scale;
         hit.mDamageAfter *= scale;
         if (mTrace)
-            trace("COMBAT skill modifier " + std::to_string(percent)
-                + " percent on the weapon's skill: damage x " + std::to_string(scale));
+            trace("COMBAT skill modifier " + std::to_string(percent) + " percent on the weapon's skill: damage x "
+                + std::to_string(scale));
     }
 }

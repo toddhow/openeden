@@ -18,15 +18,15 @@
 
 #include <algorithm>
 #include <cmath>
-#include <span>
-#include <tuple>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
 #include <set>
+#include <span>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../contentsource/pluginbuilder.hpp"
@@ -228,12 +228,11 @@ namespace
     {
         // two chains meet under one event node, as Skyrim.esm's and Dragonborn's do: heads A (prev 0) and B (prev 0),
         // D after A, C after B, and a fork E and F both after D. The form id order would be A B C D E F.
-        WalkRig rig({ smen(kEvent, "SCPT"), smqn(kNodeA, kEvent, 0, { kQuestA }, 0),
-            smqn(kNodeB, kEvent, 0, { kQuestB }, 0), smqn(kNodeC, kEvent, kNodeB, { kQuestC }, 0),
-            smqn(kNodeD, kEvent, kNodeA, { kQuestD }, 0), smqn(kNodeF, kEvent, kNodeD, { kQuestF }, 0),
-            smqn(kNodeE, kEvent, kNodeD, { kQuestE }, 0) });
-        EXPECT_EQ(rig.mNodes.children(kEvent),
-            (std::vector<FormId>{ kNodeA, kNodeD, kNodeE, kNodeF, kNodeB, kNodeC }));
+        WalkRig rig(
+            { smen(kEvent, "SCPT"), smqn(kNodeA, kEvent, 0, { kQuestA }, 0), smqn(kNodeB, kEvent, 0, { kQuestB }, 0),
+                smqn(kNodeC, kEvent, kNodeB, { kQuestC }, 0), smqn(kNodeD, kEvent, kNodeA, { kQuestD }, 0),
+                smqn(kNodeF, kEvent, kNodeD, { kQuestF }, 0), smqn(kNodeE, kEvent, kNodeD, { kQuestE }, 0) });
+        EXPECT_EQ(rig.mNodes.children(kEvent), (std::vector<FormId>{ kNodeA, kNodeD, kNodeE, kNodeF, kNodeB, kNodeC }));
     }
 
     TEST(SkyrimRadiant2Walk, aSecondChainIsReachedWhenTheFirstSharesTheEvent)
@@ -293,7 +292,8 @@ namespace
         EXPECT_EQ(list[2], std::make_tuple(kInn, kKeywordB, 3.f));
     }
 
-    // ---- the conditions -----------------------------------------------------------------------------------------------
+    // ---- the conditions
+    // -----------------------------------------------------------------------------------------------
 
     Bytes lctn(FormId id, FormId parent, const std::vector<FormId>& keywords)
     {
@@ -339,10 +339,7 @@ namespace
             mIndex.add(std::move(parsed));
             mWorld.setLocations(&mIndex);
         }
-        bool holds(const survey::Ctda& c)
-        {
-            return mEvaluator.evaluate(std::span<const survey::Ctda>(&c, 1), mWorld);
-        }
+        bool holds(const survey::Ctda& c) { return mEvaluator.evaluate(std::span<const survey::Ctda>(&c, 1), mWorld); }
         ActorIndex mActors;
         DialogueIndex mDialogue;
         SkyrimConditionWorld mWorld{ mActors, mDialogue };
@@ -652,7 +649,8 @@ namespace
         EXPECT_EQ(rig.mHost->numberVariable(kRef, "Probe", "seen"), std::optional<double>(0.0));
     }
 
-    // ---- 3. alias names in the journal ---------------------------------------------------------------------------------
+    // ---- 3. alias names in the journal
+    // ---------------------------------------------------------------------------------
 
     TEST(SkyrimRadiant2Journal, anAliasTagBecomesTheNameOfWhatFillsTheAlias)
     {
@@ -663,8 +661,8 @@ namespace
                 return "Bleak Falls Barrow";
             return {};
         };
-        EXPECT_EQ(
-            journal::expandTags("<Alias=QuestGiver> has sent me to destroy the <Alias=Boss> at <Alias=Dungeon>.", names),
+        EXPECT_EQ(journal::expandTags(
+                      "<Alias=QuestGiver> has sent me to destroy the <Alias=Boss> at <Alias=Dungeon>.", names),
             "Arngeir has sent me to destroy the ... at Bleak Falls Barrow.");
         EXPECT_EQ(journal::expandTags("See <Alias.ShortName=QuestGiver>", names), "See Arngeir");
         EXPECT_EQ(journal::expandTags("pay <Global=Gold>", names), "pay ...");
@@ -733,7 +731,8 @@ namespace
         EXPECT_EQ(snapshot.mRunning[0].mObjectives[0].mText, "Kill the ... at Bleak Falls Barrow");
     }
 
-    // ---- 4. the story manager's state in a save ------------------------------------------------------------------------
+    // ---- 4. the story manager's state in a save
+    // ------------------------------------------------------------------------
 
     StoryState sampleState()
     {
@@ -842,7 +841,8 @@ namespace
     }
 }
 
-// ---- the walk on the player's own masters (gated; prints the official editor ids of what a walk tries) ------------------
+// ---- the walk on the player's own masters (gated; prints the official editor ids of what a walk tries)
+// ------------------
 
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>

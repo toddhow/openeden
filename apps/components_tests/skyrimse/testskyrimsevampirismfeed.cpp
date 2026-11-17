@@ -1,6 +1,6 @@
-// Task 0260 (vampirism): what the cell source gained for the player's feeding on a sleeper and for the sunlight test: the feed
-// hook is asked only for an actor that cannot talk (asleep or getting up), the feed turn is one closing line, and the place the
-// core told is readable as the effect-condition place. No game data.
+// Task 0260 (vampirism): what the cell source gained for the player's feeding on a sleeper and for the sunlight test:
+// the feed hook is asked only for an actor that cannot talk (asleep or getting up), the feed turn is one closing line,
+// and the place the core told is readable as the effect-condition place. No game data.
 #include <game_skyrimse/diseases.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
@@ -74,7 +74,8 @@ namespace
         EXPECT_EQ(place.mWorld, 0u);
     }
 
-    // ---- Sanguinare Vampiris goes at the turn without a "cured" message -----------------------------------------------------
+    // ---- Sanguinare Vampiris goes at the turn without a "cured" message
+    // -----------------------------------------------------
 
     class TinyDiseaseLibrary final : public PerkLibrary
     {

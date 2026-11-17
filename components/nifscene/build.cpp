@@ -156,7 +156,8 @@ namespace NifScene
                         track.mNodeName = block.mNodeName;
                         track.mHasDefault = true;
                         const Nif::NiQuatTransform& value = interpolator->mDefaultValue;
-                        track.mDefaultTranslation = { value.mTranslation.x, value.mTranslation.y, value.mTranslation.z };
+                        track.mDefaultTranslation
+                            = { value.mTranslation.x, value.mTranslation.y, value.mTranslation.z };
                         track.mDefaultRotation
                             = { static_cast<float>(value.mRotation.x), static_cast<float>(value.mRotation.y),
                                   static_cast<float>(value.mRotation.z), static_cast<float>(value.mRotation.w) };
@@ -171,10 +172,9 @@ namespace NifScene
                                 {
                                     if (track.mTranslations.size() >= maxKeys)
                                         break;
-                                    track.mTranslations.push_back(
-                                        { time, { key.mValue.x, key.mValue.y, key.mValue.z },
-                                            { key.mInTan.x, key.mInTan.y, key.mInTan.z },
-                                            { key.mOutTan.x, key.mOutTan.y, key.mOutTan.z } });
+                                    track.mTranslations.push_back({ time, { key.mValue.x, key.mValue.y, key.mValue.z },
+                                        { key.mInTan.x, key.mInTan.y, key.mInTan.z },
+                                        { key.mOutTan.x, key.mOutTan.y, key.mOutTan.z } });
                                 }
                             }
                             if (data.mRotations && data.mRotations->mInterpolationType != Nif::InterpolationType_XYZ)

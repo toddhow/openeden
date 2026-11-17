@@ -126,7 +126,8 @@ namespace
     {
         const float nan = std::numeric_limits<float>::quiet_NaN();
         const float inf = std::numeric_limits<float>::infinity();
-        // 20 bytes is shorter than any block in the data (84, 88 or 92); the other two carry a float that is not finite.
+        // 20 bytes is shorter than any block in the data (84, 88 or 92); the other two carry a float that is not
+        // finite.
         const std::vector<Bytes> blocks = { projData(0, 64, 0.f, 6000.f, 15000.f, 20),
             projData(0, 64, 0.f, nan, 15000.f), projData(0, 64, inf, 6000.f, 15000.f) };
         std::uint64_t odd = 0;

@@ -1,10 +1,10 @@
-// Task 0250: summons and raise dead, the combat side (members of SkyrimCombat). A Summon Creature effect (MGEF archetype
-// 18) asks the world, through SummonHooks, for a new actor of the effect's associated NPC_ 150 units ahead of the caster;
-// a Reanimate effect (22) does the same at a corpse's place and hides the corpse. The new actor is an ally of the caster
-// (a follower of the player for the player's summons), lives for the effect's duration and is then taken out of the world
-// (a summon) or falls dead where it stands (a raised corpse). Main thread only, from combatUpdate and the cast; nothing
-// here reads a clock but the combat clock. Behind `combat spell delivery` plus the summons switch (off by default).
-// See docs/tasks/0250-skyrim-summons-and-raise-dead.md.
+// Task 0250: summons and raise dead, the combat side (members of SkyrimCombat). A Summon Creature effect (MGEF
+// archetype 18) asks the world, through SummonHooks, for a new actor of the effect's associated NPC_ 150 units ahead of
+// the caster; a Reanimate effect (22) does the same at a corpse's place and hides the corpse. The new actor is an ally
+// of the caster (a follower of the player for the player's summons), lives for the effect's duration and is then taken
+// out of the world (a summon) or falls dead where it stands (a raised corpse). Main thread only, from combatUpdate and
+// the cast; nothing here reads a clock but the combat clock. Behind `combat spell delivery` plus the summons switch
+// (off by default). See docs/tasks/0250-skyrim-summons-and-raise-dead.md.
 #include <game_skyrimse/combat.hpp>
 
 #include <algorithm>
@@ -175,8 +175,8 @@ namespace game_skyrimse
         if (best == nullptr)
         {
             if (mTrace)
-                trace("COMBAT reanimate " + name + " " + subjectText(caster.mSubject)
-                    + " found no corpse in the sights");
+                trace(
+                    "COMBAT reanimate " + name + " " + subjectText(caster.mSubject) + " found no corpse in the sights");
             return true;
         }
         if (!ready(*best) || !reanimateLevelAllowed(best->mProfile.mLevel, effect->mMagnitude))
@@ -245,7 +245,8 @@ namespace game_skyrimse
         // A raised corpse falls dead where it stands and stays as a corpse.
         Fighter* f = find(CombatSubject::of(entry.mHandle));
         if (f != nullptr && !f->mDead && writer != nullptr && ready(*f))
-            (void)changeVital(*writer, nullptr, *f, kHealthValue, -(f->mProfile.mHealthMax + f->mHealth + 1.f), nullptr);
+            (void)changeVital(
+                *writer, nullptr, *f, kHealthValue, -(f->mProfile.mHealthMax + f->mHealth + 1.f), nullptr);
     }
 
     void SkyrimCombat::setTestKill(std::string_view editorId)
@@ -328,8 +329,8 @@ namespace game_skyrimse
             return;
         entry->mArrived = true;
         entry->mHandle = info.handle;
-        const bool playerSide = entry->mMaster.player
-            || (mFollowerQuery && mFollowerQuery(entry->mMaster.actor.reference));
+        const bool playerSide
+            = entry->mMaster.player || (mFollowerQuery && mFollowerQuery(entry->mMaster.actor.reference));
         if (playerSide && mSummonHooks.follow)
             mSummonHooks.follow(info.handle.reference, true);
         if (mTrace)

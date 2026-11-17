@@ -125,8 +125,9 @@ namespace
         {
             mWorld.mData[kHold] = hold();
             mSystem = std::make_unique<CrimeSystem>(mLedger, mWorld);
-            mSystem->setWitnessHook(
-                [this](Kind kind, ActorHandle witness) { mSeen.push_back({ kind, witness.reference }); });
+            mSystem->setWitnessHook([this](Kind kind, ActorHandle witness) {
+                mSeen.push_back({ kind, witness.reference });
+            });
         }
         void add(std::uint32_t reference, double x, FormId faction = kHold)
         {

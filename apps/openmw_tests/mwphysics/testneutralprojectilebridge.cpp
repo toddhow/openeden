@@ -423,7 +423,8 @@ namespace
                 (void)w.launchProjectile(CombatSubject::of(owner), r);
             };
             for (int i = 0; i < 40; ++i)
-                bridge.update(&rules, 1.f / 60.f, sink, [](const void*) { return HavokPack::ClipProgress{}; }, &world);
+                bridge.update(
+                    &rules, 1.f / 60.f, sink, [](const void*) { return HavokPack::ClipProgress{}; }, &world);
             std::vector<double> xs;
             for (const ProjectileOp& op : sink.mProjectileOps)
                 xs.push_back(op.mPose.mX + op.mPose.mY * 3.0 + op.mPose.mZ * 7.0);

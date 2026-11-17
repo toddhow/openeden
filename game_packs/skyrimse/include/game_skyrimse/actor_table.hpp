@@ -119,7 +119,8 @@ namespace game_skyrimse
 
         /// Task 0194 (scenes): the handle of an actor of the table (invalid when unknown), a package that overrides its
         /// schedule (forwarded to the brain), and whether the brain has the actor standing or done with its package.
-        /// The placements of the actors of the table, in ascending order (task 0194: who can take part in an ambient scene).
+        /// The placements of the actors of the table, in ascending order (task 0194: who can take part in an ambient
+        /// scene).
         [[nodiscard]] std::vector<openeden::sdk::game::WorldId> actorReferences() const
         {
             std::vector<openeden::sdk::game::WorldId> out;
@@ -188,7 +189,11 @@ namespace game_skyrimse
         // FollowerRules
         [[nodiscard]] std::size_t followers(openeden::sdk::game::WorldId* out, std::size_t capacity) const override;
         [[nodiscard]] bool isFollower(openeden::sdk::game::WorldId reference) const override;
-        void onFollowerCarried(openeden::sdk::game::WorldId reference) override { ++mCarried; (void)reference; }
+        void onFollowerCarried(openeden::sdk::game::WorldId reference) override
+        {
+            ++mCarried;
+            (void)reference;
+        }
         [[nodiscard]] std::uint64_t carried() const { return mCarried; }
 
         [[nodiscard]] std::size_t size() const { return mRows.size(); }

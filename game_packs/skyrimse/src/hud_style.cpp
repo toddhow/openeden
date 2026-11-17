@@ -86,7 +86,8 @@ namespace game_skyrimse::hudstyle
         for (std::string& name : mNames)
             name.reserve(kMaxHudNameBytes);
         mBossName.reserve(kMaxHudNameBytes);
-        mVisitor = [this](const CombatSubject& subject, const SkyrimCombat::FighterView& view) { visit(subject, view); };
+        mVisitor
+            = [this](const CombatSubject& subject, const SkyrimCombat::FighterView& view) { visit(subject, view); };
     }
 
     StyleHud::Memo& StyleHud::memoOf(ActorHandle handle)
@@ -420,8 +421,8 @@ namespace game_skyrimse::hudstyle
     openeden::sdk::DeclareResult StyleBindings::declareTo(openeden::sdk::BindingsService& service)
     {
         using namespace openeden::sdk;
-        mImpl->mFunctions[0] = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read,
-            &mImpl->mActive, 0 };
+        mImpl->mFunctions[0]
+            = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read, &mImpl->mActive, 0 };
         mImpl->mFunctions[1] = FunctionDescriptor{ "player", {}, true, BindingType::Double, BindingAccess::Read,
             &mImpl->mPlayer, 0, {}, BindingShape::Array };
         mImpl->mFunctions[2] = FunctionDescriptor{ "boss", {}, true, BindingType::Double, BindingAccess::Read,

@@ -129,7 +129,8 @@ namespace game_skyrimse::crafting
         /// Task 0233: the weapons' poisons (their own chunk).
         [[nodiscard]] PoisonChunk& poisonChunk() { return mPoisonChunk; }
 
-        /// Task 0213: is this furniture a crafting bench? "yes", "no", or "pending" while the recipe table is being built.
+        /// Task 0213: is this furniture a crafting bench? "yes", "no", or "pending" while the recipe table is being
+        /// built.
         [[nodiscard]] std::string benchAnswer(FormId furniture) const;
         void openBench(std::uint64_t placement, FormId furniture, std::string name);
         void openKind(BenchKind kind);

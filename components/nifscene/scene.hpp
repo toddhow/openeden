@@ -238,7 +238,8 @@ namespace NifScene
     };
 
     /// What a NiControllerSequence does to one named node (a ControlledBlock with a NiTransformInterpolator).
-    /// Interpolation codes are the NIF's (1 linear, 2 quadratic/Bezier, 3 TCB (tangents already generated), 5 constant).
+    /// Interpolation codes are the NIF's (1 linear, 2 quadratic/Bezier, 3 TCB (tangents already generated), 5
+    /// constant).
     struct Track
     {
         std::string mNodeName;

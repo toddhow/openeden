@@ -1,6 +1,6 @@
 // Task 0218 (milestone M-S7): fast travel from the world map in a Skyrim SE session (game_packs/skyrimse travel.*): the
-// rules, the destination, the time, the service over the map's markers and the bindings `skyrimse.travel`; plus the XLKR
-// of a map marker. Generated plugins and hand-made indexes; no game data.
+// rules, the destination, the time, the service over the map's markers and the bindings `skyrimse.travel`; plus the
+// XLKR of a map marker. Generated plugins and hand-made indexes; no game data.
 #include <game_skyrimse/travel.hpp>
 
 #include <gtest/gtest.h>
@@ -429,8 +429,8 @@ namespace
         }
         std::string refusalOf(std::int32_t w, bool interior, const std::string& marker)
         {
-            return std::string(mBindings.call("refusal", { i32(w), flag(interior), str(marker), dbl(0), dbl(0) })
-                                   .value.text);
+            return std::string(
+                mBindings.call("refusal", { i32(w), flag(interior), str(marker), dbl(0), dbl(0) }).value.text);
         }
     };
 

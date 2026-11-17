@@ -58,9 +58,8 @@ namespace
 
     Bytes testPlugin(bool localized = false)
     {
-        const auto text = [&](const char* s, std::uint32_t id) {
-            return localized ? Bytes().u32(id) : Bytes().zstring(s);
-        };
+        const auto text
+            = [&](const char* s, std::uint32_t id) { return localized ? Bytes().u32(id) : Bytes().zstring(s); };
         Bytes records;
         records.append(screen(kSelf | 0x10, "TipA", text("Dragons are old.", 5)));
         records.append(screen(kSelf | 0x11, "TipB", text("Mind the bears.", 6), 0, true));

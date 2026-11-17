@@ -1,8 +1,9 @@
-// Task 0179 (milestone M-S5, stage S5-7): perks in the Skyrim pack's combat rules (game_skyrimse/combat.hpp), through the
-// contract with a fake data source and a recording writer, as the melee tests do. Every number is worked out by hand in a
-// comment from the default GMSTs: damage = WEAP damage x min(1.5, 1 + skill / 200) (x 2 for a power attack), after armour
-// x (1 - mitigation / 100); stamina = 20 + weight (x 2 for a power attack). The "Iron Sword" has damage 7, weight 9,
-// reach 1.0; the attacker's One-handed skill is 50 (x 1.25), the victim has 20 percent mitigation, 50 health, 80 stamina.
+// Task 0179 (milestone M-S5, stage S5-7): perks in the Skyrim pack's combat rules (game_skyrimse/combat.hpp), through
+// the contract with a fake data source and a recording writer, as the melee tests do. Every number is worked out by
+// hand in a comment from the default GMSTs: damage = WEAP damage x min(1.5, 1 + skill / 200) (x 2 for a power attack),
+// after armour x (1 - mitigation / 100); stamina = 20 + weight (x 2 for a power attack). The "Iron Sword" has damage 7,
+// weight 9, reach 1.0; the attacker's One-handed skill is 50 (x 1.25), the victim has 20 percent mitigation, 50 health,
+// 80 stamina.
 #include <game_skyrimse/combat.hpp>
 
 #include <gtest/gtest.h>
@@ -55,7 +56,8 @@ namespace
         return c;
     }
 
-    // An entry point effect that multiplies, adds or sets, optionally with the weapon (tab 1) required to carry a keyword.
+    // An entry point effect that multiplies, adds or sets, optionally with the weapon (tab 1) required to carry a
+    // keyword.
     PerkEffect fx(std::uint8_t ep, std::uint8_t function, float value, FormId weaponKeyword = 0)
     {
         PerkEffect e;
@@ -374,7 +376,12 @@ namespace
         spell.mHasData = true;
         spell.mType = SpellRecord::kTypeAbility;
         spell.mEffects = { { 0x800, 50.f, 0, 0, 0, {} } };
-        { MagicEffectRecord e; e.mHasData = true; e.mPrimaryValue = 39; mData.mPerks.mEffects[0x800] = e; }
+        {
+            MagicEffectRecord e;
+            e.mHasData = true;
+            e.mPrimaryValue = 39;
+            mData.mPerks.mEffects[0x800] = e;
+        }
         mData.mProfiles[kVictimBase].mPerks = { kAbilityPerk };
         start();
         swing(CombatSubject::of(mA), { hitOnVictim() });
@@ -422,7 +429,8 @@ namespace
         mCombat.setTestBlock("Victim");
         start();
         swing(CombatSubject::of(mA), { hitOnVictim() });
-        // Block skill 0: fraction 0.3, x 1.5 = 0.45; 7.0 after armour: taken 7 x 0.55 = 3.85; stamina 80 - 7 x 0.45 x 0.25.
+        // Block skill 0: fraction 0.3, x 1.5 = 0.45; 7.0 after armour: taken 7 x 0.55 = 3.85; stamina 80 - 7 x 0.45 x
+        // 0.25.
         EXPECT_NEAR(damage(), 3.85f, 1e-3f);
         SkyrimCombat::FighterView view;
         ASSERT_TRUE(mCombat.fighterView(CombatSubject::of(mB), view));

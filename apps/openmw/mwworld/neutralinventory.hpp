@@ -12,10 +12,10 @@
 
 // Opening a Skyrim container's window (task 0182, milestone M-S6): the pure part.
 //
-// Activating a container does not open a MyGUI window. The engine only tells the pack's Lua scripts that a container (or,
-// later, a corpse) was activated, with ids as hex text; the pack owns what is inside, the player script draws it. The
-// ids are text because a load-order id of a plugin from the eighth on does not fit a Lua integer-safe 32 bit value and a
-// script event carries numbers as doubles and strings only.
+// Activating a container does not open a MyGUI window. The engine only tells the pack's Lua scripts that a container
+// (or, later, a corpse) was activated, with ids as hex text; the pack owns what is inside, the player script draws it.
+// The ids are text because a load-order id of a plugin from the eighth on does not fit a Lua integer-safe 32 bit value
+// and a script event carries numbers as doubles and strings only.
 
 namespace MWWorld
 {
@@ -44,7 +44,8 @@ namespace MWWorld
         const std::function<bool(openeden::sdk::game::WorldId)>& inventory);
 
     /// Task 0208: a placed item the player activates is picked up (the pack's scripts do it), and a living actor a
-    /// sneaking player activates has its pockets picked. Both only with the setting on; the pack decides what is an item.
+    /// sneaking player activates has its pockets picked. Both only with the setting on; the pack decides what is an
+    /// item.
     inline constexpr std::string_view kNeutralPickupEvent = "openeden_skyrimse_item_activated";
     inline constexpr std::string_view kNeutralPickpocketEvent = "openeden_skyrimse_pickpocket_opened";
     [[nodiscard]] NeutralInventoryDecision decideNeutralPickup(
@@ -61,9 +62,9 @@ namespace MWWorld
     /// actors, doors and containers always, furniture, items, flora and trees with the neutral inventory on.
     [[nodiscard]] bool neutralKindHasToolTip(openeden::sdk::game::ObjectKind kind, bool inventorySettingOn);
 
-    /// Task 0224: a placed Activator the player activates (an ore vein: the pack's scripts decide from the base whether it
-    /// is a resource; nothing happens when none listens). Only with `[Game] neutral inventory`. A Furniture (the chopping
-    /// block) already sends the bench event, which the mining script also answers.
+    /// Task 0224: a placed Activator the player activates (an ore vein: the pack's scripts decide from the base whether
+    /// it is a resource; nothing happens when none listens). Only with `[Game] neutral inventory`. A Furniture (the
+    /// chopping block) already sends the bench event, which the mining script also answers.
     inline constexpr std::string_view kNeutralResourceEvent = "openeden_skyrimse_resource_activated";
     [[nodiscard]] NeutralInventoryDecision decideNeutralResource(
         openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn);
@@ -114,8 +115,8 @@ namespace MWWorld
         bool inventorySettingOn, bool rmluiOn, bool packLockpickingOn, bool locked);
     /// The fields of the lock event: placement and base (hex text), kind ("door" or "container"), level (decimal text,
     /// the raw XLOC level) and name, in that order.
-    [[nodiscard]] std::vector<NeutralInventoryEventField> neutralLockpickEventFields(std::uint64_t placement,
-        std::uint64_t base, std::string_view kind, std::int32_t level, std::string_view name);
+    [[nodiscard]] std::vector<NeutralInventoryEventField> neutralLockpickEventFields(
+        std::uint64_t placement, std::uint64_t base, std::string_view kind, std::int32_t level, std::string_view name);
     /// A lock is open when the session's state says so or the pack says the player picked it (asked only then).
     [[nodiscard]] bool neutralLockAlreadyOpen(bool sessionOpen,
         const std::function<bool(openeden::sdk::game::WorldId)>& packPicked, openeden::sdk::game::WorldId placement);

@@ -68,7 +68,8 @@ namespace
 
     TEST_F(UiCombatHud, thePlayerBarsAreTheirFractionsOfTheMaximum)
     {
-        ASSERT_TRUE(run("combat.isActive = true; combat.v = { 80, 100, 50, 100, 25, 100, 0, 0, 0, 0 }; hud:update(); ui.update()"));
+        ASSERT_TRUE(run(
+            "combat.isActive = true; combat.v = { 80, 100, 50, 100, 25, 100, 0, 0, 0, 0 }; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-fill-health", "width"), "80%");
         EXPECT_EQ(property("combat-fill-magicka", "width"), "50%");
         EXPECT_EQ(property("combat-fill-stamina", "width"), "25%");
@@ -76,15 +77,18 @@ namespace
 
     TEST_F(UiCombatHud, aFractionOutsideZeroToOneIsClamped)
     {
-        ASSERT_TRUE(run("combat.isActive = true; combat.v = { 150, 100, -5, 100, 25, 0, 0, 0, 0, 0 }; hud:update(); ui.update()"));
+        ASSERT_TRUE(run(
+            "combat.isActive = true; combat.v = { 150, 100, -5, 100, 25, 0, 0, 0, 0, 0 }; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-fill-health", "width"), "100%");
         EXPECT_EQ(property("combat-fill-magicka", "width"), "0%");
-        EXPECT_EQ(property("combat-fill-stamina", "width"), "0%") << "a zero maximum is an empty bar, not a division by zero";
+        EXPECT_EQ(property("combat-fill-stamina", "width"), "0%")
+            << "a zero maximum is an empty bar, not a division by zero";
     }
 
     TEST_F(UiCombatHud, aBarWithNoMaximumIsHidden)
     {
-        ASSERT_TRUE(run("combat.isActive = true; combat.v = { 0, 0, 100, 100, 60, 100, 0, 0, 0, 0 }; hud:update(); ui.update()"));
+        ASSERT_TRUE(run(
+            "combat.isActive = true; combat.v = { 0, 0, 100, 100, 60, 100, 0, 0, 0, 0 }; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-bar-health", "display"), "none");
         EXPECT_NE(property("combat-bar-stamina", "display"), "none");
     }
@@ -93,7 +97,9 @@ namespace
     {
         ASSERT_TRUE(run("combat.isActive = true; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-enemy-box", "display"), "none");
-        ASSERT_TRUE(run("combat.v = { 80, 100, 100, 100, 60, 100, 1, 67.5, 75, 0 }; combat.name = 'Hulda'; hud:update(); ui.update()"));
+        ASSERT_TRUE(
+            run("combat.v = { 80, 100, 100, 100, 60, 100, 1, 67.5, 75, 0 }; combat.name = 'Hulda'; hud:update(); "
+                "ui.update()"));
         EXPECT_NE(property("combat-enemy-box", "display"), "none");
         EXPECT_EQ(property("combat-fill-enemy", "width"), "90%");
         const auto* name = first("combat-enemy-name");
@@ -103,7 +109,9 @@ namespace
 
     TEST_F(UiCombatHud, theEnemyBarFallsAsHitsLand)
     {
-        ASSERT_TRUE(run("combat.isActive = true; combat.name = 'Hulda'; combat.v = { 80, 100, 100, 100, 60, 100, 1, 75, 75, 0 }; hud:update(); ui.update()"));
+        ASSERT_TRUE(
+            run("combat.isActive = true; combat.name = 'Hulda'; combat.v = { 80, 100, 100, 100, 60, 100, 1, 75, 75, 0 "
+                "}; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-fill-enemy", "width"), "100%");
         ASSERT_TRUE(run("combat.v = { 80, 100, 100, 100, 60, 100, 1, 37.5, 75, 0 }; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-fill-enemy", "width"), "50%");
@@ -113,7 +121,9 @@ namespace
 
     TEST_F(UiCombatHud, theEnemyBarGoesWhenThePackStopsShowingIt)
     {
-        ASSERT_TRUE(run("combat.isActive = true; combat.name = 'Hulda'; combat.v = { 80, 100, 100, 100, 60, 100, 1, 75, 75, 0 }; hud:update(); ui.update()"));
+        ASSERT_TRUE(
+            run("combat.isActive = true; combat.name = 'Hulda'; combat.v = { 80, 100, 100, 100, 60, 100, 1, 75, 75, 0 "
+                "}; hud:update(); ui.update()"));
         ASSERT_TRUE(run("combat.v = { 80, 100, 100, 100, 60, 100, 0, 75, 75, 0 }; hud:update(); ui.update()"));
         EXPECT_EQ(property("combat-enemy-box", "display"), "none");
     }
@@ -130,7 +140,9 @@ namespace
 
     TEST_F(UiCombatHud, aChangeSmallerThanAHalfPercentMakesNoProtocolCall)
     {
-        ASSERT_TRUE(run("combat.isActive = true; combat.v = { 80, 100, 100, 100, 60, 100, 0, 0, 0, 0 }; hud:update(); ui.update()"));
+        ASSERT_TRUE(
+            run("combat.isActive = true; combat.v = { 80, 100, 100, 100, 60, 100, 0, 0, 0, 0 }; hud:update(); "
+                "ui.update()"));
         const std::size_t calls = backend.callCount();
         ASSERT_TRUE(run("combat.v = { 80.1, 100, 100, 100, 60.1, 100, 0, 0, 0, 0 }; hud:update(); ui.update()"));
         EXPECT_EQ(backend.callCount(), calls);

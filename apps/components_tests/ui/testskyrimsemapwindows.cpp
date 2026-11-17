@@ -274,7 +274,8 @@ namespace
 
     TEST_F(SkyrimMapLua, aWorldPositionIsAColumnAndARowWithNorthUp)
     {
-        // cells -3..2 east, -2..1 north: the cell (0,0) starts at column 3; y 0 is a cell above the bottom of cell row 0
+        // cells -3..2 east, -2..1 north: the cell (0,0) starts at column 3; y 0 is a cell above the bottom of cell row
+        // 0
         ASSERT_TRUE(run("c, r = W.toMap(0, 0, -3, 1)"));
         EXPECT_NEAR(get<double>("c"), 3.0, 1e-9);
         EXPECT_NEAR(get<double>("r"), 2.0, 1e-9); // top edge of cell row 1 is row 0; the line y = 0 is 2 cells below it

@@ -3,8 +3,8 @@
 
 // Task 0257: a game pack's effects can change the picture (Skyrim's Night Eye). The pack's PlayerImageSpaceSource says
 // the multiply and add of each value; the core polls it every frame and hands the renderer a
-// Render::ImageSpace::Modifier (which `Render::ImageSpace::combine` lays over the weather's image space). With no active
-// modifier the renderer is told "inactive", which is what it holds without this feature.
+// Render::ImageSpace::Modifier (which `Render::ImageSpace::combine` lays over the weather's image space). With no
+// active modifier the renderer is told "inactive", which is what it holds without this feature.
 
 #include <memory>
 #include <string>

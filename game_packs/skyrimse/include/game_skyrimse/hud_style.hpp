@@ -4,10 +4,11 @@
 // The Skyrim-style combat HUD's numbers (task 0244, docs/tasks/0244-skyrim-hud-restyle.md; decision 0015 for the UI,
 // task 0180 for the HUD it restyles, task 0097 for the script bindings). Off unless the pack setting `hud style`.
 //
-// The layout is TrueHUD-like (our own art): the player's three bars at the bottom left, a boss bar at the top centre and
-// small bars over the heads of nearby engaged actors. This file is what the pack contributes: WHICH actors get a bar and
-// the numbers on it. The look, the damage trail and the projection of a head position onto the screen are done by the
-// Lua module files/data/openeden/hud/skyrimstyle.lua (the camera is the script's: `openmw.camera` already gives it).
+// The layout is TrueHUD-like (our own art): the player's three bars at the bottom left, a boss bar at the top centre
+// and small bars over the heads of nearby engaged actors. This file is what the pack contributes: WHICH actors get a
+// bar and the numbers on it. The look, the damage trail and the projection of a head position onto the screen are done
+// by the Lua module files/data/openeden/hud/skyrimstyle.lua (the camera is the script's: `openmw.camera` already gives
+// it).
 //
 // What is shown and for how long is ours (the data has no HUD rules; the boss rule is hudBossRule in hud.hpp): every
 // number below is a named constant. No engine, renderer, Qt or script-language type. Main thread (the bindings' Read

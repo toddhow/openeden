@@ -40,8 +40,8 @@ namespace game_skyrimse::Crowd
     /// the next `2 * duels` nearest: walking them nearest first, each unpaired one is paired with the nearest unpaired
     /// other (to it), so two actors that stand side by side fight each other. A non-finite candidate or player place
     /// is skipped / gives nothing; counts are cut to kMaxPicked. The candidates are reordered.
-    [[nodiscard]] Choice choose(std::vector<Candidate>& candidates, double px, double py, std::size_t hostile,
-        std::size_t duels);
+    [[nodiscard]] Choice choose(
+        std::vector<Candidate>& candidates, double px, double py, std::size_t hostile, std::size_t duels);
 }
 
 #endif

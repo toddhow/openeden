@@ -139,8 +139,8 @@ namespace
             { kTrackA, kTrackSilent, 0u, kTrackSilent, kTrackA, kTrackA }));
         tracks.append(must(kTrackMissing, "TrackMissing", kKindSingle, "Data\\Music\\Nowhere\\none.wav", 0.f));
         // Night only: GetCurrentTime < 6 (compare code 4).
-        tracks.append(must(kTrackNight, "TrackNight", kKindSingle,
-            "Data\\Music\\Explore\\MUS_Explore_Night_01.wav", 0.f, { ctda(4, 6.f, 18) }));
+        tracks.append(must(kTrackNight, "TrackNight", kKindSingle, "Data\\Music\\Explore\\MUS_Explore_Night_01.wav",
+            0.f, { ctda(4, 6.f, 18) }));
         bytes.append(group4(Content::fourCC("MUST"), 0, tracks));
 
         Bytes types;
@@ -171,8 +171,7 @@ namespace
 
         bytes.append(group4(Content::fourCC("DOBJ"), 0,
             record4("DOBJ", 0, 0x01000E00,
-                Bytes().append(sub4("DNAM",
-                    Bytes().fourCC("BTMS").u32(kTypeCombat).fourCC("DTMS").u32(kTypeTown))))));
+                Bytes().append(sub4("DNAM", Bytes().fourCC("BTMS").u32(kTypeCombat).fourCC("DTMS").u32(kTypeTown))))));
 
         Bytes interior = group4(Content::fourCC("CELL"), 0,
             group4(0, kGrupInteriorBlock,
@@ -206,7 +205,10 @@ namespace
         return index;
     }
 
-    FileProbe everything() { return {}; }
+    FileProbe everything()
+    {
+        return {};
+    }
 
     TEST(SkyrimMusicRecords, decodesTypesTracksAndLinks)
     {

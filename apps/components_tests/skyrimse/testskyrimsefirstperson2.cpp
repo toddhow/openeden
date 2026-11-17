@@ -56,8 +56,8 @@ namespace
                 std::string error;
                 const bool ok = makeFirstPersonAppearance(index, request, a, error);
                 EXPECT_TRUE(ok) << std::hex << race << ": " << error;
-                std::cout << "SKYRIMSE-FIRSTPERSON-RACE " << std::hex << race << std::dec << (female ? " female" : " male")
-                          << " parts " << a.parts.size();
+                std::cout << "SKYRIMSE-FIRSTPERSON-RACE " << std::hex << race << std::dec
+                          << (female ? " female" : " male") << " parts " << a.parts.size();
                 for (const auto& part : a.parts)
                     std::cout << " [" << part.modelPath << "]";
                 std::cout << "\n";

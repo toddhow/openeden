@@ -275,8 +275,8 @@ namespace
         const std::array<float, 3> v{ 0.f, 1.f, 0.f };
         std::array<float, 3> r{};
         for (int row = 0; row < 3; ++row)
-            r[row] = out.mRotation[row * 3] * v[0] + out.mRotation[row * 3 + 1] * v[1]
-                + out.mRotation[row * 3 + 2] * v[2];
+            r[row]
+                = out.mRotation[row * 3] * v[0] + out.mRotation[row * 3 + 1] * v[1] + out.mRotation[row * 3 + 2] * v[2];
         EXPECT_NEAR(r[0], 0.f, 1e-5);
         EXPECT_NEAR(r[1], 0.f, 1e-5);
         EXPECT_NEAR(r[2], 1.f, 1e-5);

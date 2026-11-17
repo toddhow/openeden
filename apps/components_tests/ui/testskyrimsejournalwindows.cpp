@@ -182,7 +182,8 @@ namespace
                 EXPECT_NE(node.mText.find("mountains."), std::string::npos);
                 EXPECT_GT(node.mText.size(), 100u);
             }
-            if (node.mClass.find("quest-line") != std::string::npos && node.mText.find("mountains. Earlier") != std::string::npos)
+            if (node.mClass.find("quest-line") != std::string::npos
+                && node.mText.find("mountains. Earlier") != std::string::npos)
                 ++wholeNodes;
         }
         EXPECT_EQ(entryNodes, 1u);

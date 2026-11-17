@@ -160,7 +160,8 @@ namespace
         }
     };
 
-    // ---- the record --------------------------------------------------------------------------------------------------
+    // ---- the record
+    // --------------------------------------------------------------------------------------------------
 
     TEST(SkyrimShoutMenuRecords, aWordKeepsItsTnamTranslation)
     {
@@ -188,8 +189,8 @@ namespace
         WordRecord w;
         std::string why;
         const std::string& bytes = woop.str();
-        ASSERT_TRUE(decodeWord(
-            { reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, record, context, w, why))
+        ASSERT_TRUE(
+            decodeWord({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, record, context, w, why))
             << why;
         EXPECT_TRUE(w.mName.mPresent);
         EXPECT_EQ(w.mName.mId, 0x10u);
@@ -198,7 +199,8 @@ namespace
         EXPECT_EQ(w.mTranslation.mId, 0x11u);
     }
 
-    // ---- the model ---------------------------------------------------------------------------------------------------
+    // ---- the model
+    // ---------------------------------------------------------------------------------------------------
 
     TEST_F(ShoutMenuTest, theMenuIsEmptyBeforeTheRecordsAreReadAndBeforeAnyWordIsLearned)
     {
@@ -284,7 +286,8 @@ namespace
         EXPECT_TRUE(menu[1].mEquipped);
     }
 
-    // ---- unlocking ---------------------------------------------------------------------------------------------------
+    // ---- unlocking
+    // ---------------------------------------------------------------------------------------------------
 
     TEST_F(ShoutMenuTest, anUnlockSpendsOneSoulOnTheNextWordInOrderAndTellsThePlayer)
     {
@@ -333,7 +336,8 @@ namespace
         EXPECT_EQ(mService->menuEquip("UnrelentingForceShout"), MenuResult::NoShout);
     }
 
-    // ---- equipping ---------------------------------------------------------------------------------------------------
+    // ---- equipping
+    // ---------------------------------------------------------------------------------------------------
 
     TEST_F(ShoutMenuTest, equippingNeedsAnUnlockedWordAndChangesTheShoutTheKeyUses)
     {
@@ -366,7 +370,8 @@ namespace
         EXPECT_TRUE(back.unlocked(kYol));
     }
 
-    // ---- the script functions ----------------------------------------------------------------------------------------
+    // ---- the script functions
+    // ----------------------------------------------------------------------------------------
 
     TEST_F(ShoutMenuTest, theScriptFunctionsReadTheMenuAndTheMutatingOnesTakeTheShoutsEditorId)
     {

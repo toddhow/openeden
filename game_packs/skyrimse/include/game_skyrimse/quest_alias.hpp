@@ -13,26 +13,31 @@
 //  - the conditions of the alias are evaluated with the candidate as the subject (run-on "subject");
 //  - a reference already filling another alias of the same quest is not taken again unless the alias allows reuse
 //    (flag 0x08);
-//  - candidates: when a condition is GetIsID the references of that base (in id order), else the actors (references whose
+//  - candidates: when a condition is GetIsID the references of that base (in id order), else the actors (references
+//  whose
 //    base is an NPC_, in id order) up to a cap; an alias with no usable candidate source stays empty and is counted;
 //  - an alias that fails stays empty; an optional alias (0x02) is not an error.
 //
-// Task 0226 (bounty quests): the data's location aliases that search by another alias (ALFA, 48 of them on the five masters)
-// ALL name a REFERENCE alias, never a location alias, and 46 carry a keyword (KNAM). Rules (RECALLED-VERIFY, each):
-//  - such an alias is the nearest location, going up from the reference's editor location (the location whose special or
-//    persistent reference list names it, else the location of its cell), that carries the keyword; when no ancestor does,
-//    the nearest location below it that does; with no keyword, the reference's location itself;
+// Task 0226 (bounty quests): the data's location aliases that search by another alias (ALFA, 48 of them on the five
+// masters) ALL name a REFERENCE alias, never a location alias, and 46 carry a keyword (KNAM). Rules (RECALLED-VERIFY,
+// each):
+//  - such an alias is the nearest location, going up from the reference's editor location (the location whose special
+//  or
+//    persistent reference list names it, else the location of its cell), that carries the keyword; when no ancestor
+//    does, the nearest location below it that does; with no keyword, the reference's location itself;
 //  - the keyword also filters the old child search (an ALFA naming a location alias; none in the data);
 //  - a find-matching location alias whose conditions call HasSameEditorLocAsRefAlias (fn_181) waits for that alias.
 //
 // Task 0211 (radiant quests) adds, all RECALLED-VERIFY and each a named rule:
-//  - a LOCATION alias (ALLS) keeps its location in AliasFill::mReference (the save format is unchanged: a location alias
-//    holds a form, not a placed reference). SpecificLocation (ALFL) is filled from the data; FromEvent takes the event's
-//    L1 or L2; FindMatching takes the closest location whose conditions pass (the conditions run on each candidate
-//    location, SkyrimConditionWorld::setSubjectLocation), "closest" meaning the grid square of the location's first
-//    listed cell against the player's place, a location with no cell last, ties to the lower form id; InLocationAlias
-//    (ALFA) takes a location inside the one another alias holds;
-//  - a reference alias InLocationAlias (ALFA + ALRT) takes a reference the alias's location lists: a special reference of
+//  - a LOCATION alias (ALLS) keeps its location in AliasFill::mReference (the save format is unchanged: a location
+//  alias
+//    holds a form, not a placed reference). SpecificLocation (ALFL) is filled from the data; FromEvent takes the
+//    event's L1 or L2; FindMatching takes the closest location whose conditions pass (the conditions run on each
+//    candidate location, SkyrimConditionWorld::setSubjectLocation), "closest" meaning the grid square of the location's
+//    first listed cell against the player's place, a location with no cell last, ties to the lower form id;
+//    InLocationAlias (ALFA) takes a location inside the one another alias holds;
+//  - a reference alias InLocationAlias (ALFA + ALRT) takes a reference the alias's location lists: a special reference
+//  of
 //    the location reference type (ALRT) when the alias names one, else any of the location's special, persistent and
 //    unique-NPC references; the conditions must pass and the reference must be eligible;
 //  - ExternalAlias (ALEQ + ALEA) takes what that alias of the other quest holds;
@@ -41,8 +46,10 @@
 //    without a known place they are tried in id order, as before;
 //  - CreatedObject and NearAlias are not answered (a script creates the object; a near alias needs a position
 //    rule): they never block a start and are counted;
-//  - `canStart` is the story manager's gate: every REQUIRED (not optional) alias of an answered kind that the data cannot
-//    fill (find-matching, from-event, in-location) must fill, else the quest does not start. A dry run: it changes nothing.
+//  - `canStart` is the story manager's gate: every REQUIRED (not optional) alias of an answered kind that the data
+//  cannot
+//    fill (find-matching, from-event, in-location) must fill, else the quest does not start. A dry run: it changes
+//    nothing.
 
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
@@ -84,7 +91,8 @@ namespace game_skyrimse
 
         /// Evaluates the alias's conditions with `reference` (of base `base`) as the subject. The caller owns the
         /// world, the plugin resolver of the quest and the quest context.
-        using Matcher = std::function<bool(const QuestRecord& quest, const QuestAlias& alias, FormId reference, FormId base)>;
+        using Matcher
+            = std::function<bool(const QuestRecord& quest, const QuestAlias& alias, FormId reference, FormId base)>;
 
         /// Where the player stands, as the pack knows it (task 0211). `mKnown` false: unknown.
         struct PlayerSite
@@ -93,7 +101,8 @@ namespace game_skyrimse
             bool mInterior = false;
             FormId mWorld = kNullFormId; ///< exterior: the worldspace
             FormId mCell = kNullFormId; ///< interior: the cell
-            FormId mLocation = kNullFormId; ///< interior: its location (the world position is taken from the nearest listed cell up its chain)
+            FormId mLocation = kNullFormId; ///< interior: its location (the world position is taken from the nearest
+                                            ///< listed cell up its chain)
             double mX = 0.0, mY = 0.0; ///< world position (units); an interior has none unless mWorld is set
         };
         /// What the pack knows about a cell of a placed reference.
@@ -120,8 +129,8 @@ namespace game_skyrimse
             /// function afterwards. HasSameEditorLocAsRefAlias (fn_181) reads it. Empty: nothing is told.
             std::function<void(const std::function<FormId(std::uint32_t alias)>&)> mSetAliasView;
         };
-        /// The size of the grid square of an exterior cell, in units (the position of a location is the centre of the first
-        /// cell it lists).
+        /// The size of the grid square of an exterior cell, in units (the position of a location is the centre of the
+        /// first cell it lists).
         static constexpr double kCellSize = 4096.0;
 
         QuestAliasFiller(const QuestIndex& quests, const PlacedRefIndex& refs, Matcher matcher, Options options);
@@ -143,16 +152,17 @@ namespace game_skyrimse
         /// Fills the event aliases from `event` (the ones `eventAliasesMatch` accepted). Returns how many were filled.
         std::size_t fillEventAliases(FormId quest, QuestState& state, const StoryEvent& event);
 
-        /// Task 0230: a conversation opens with this speaker. The running quests' find-matching REFERENCE aliases that are
-        /// still empty and whose conditions call GetIsEditorLocAlias (fn_567) are tried with the speaker as the only
-        /// candidate; one whose conditions pass takes it. Returns how many aliases were filled.
+        /// Task 0230: a conversation opens with this speaker. The running quests' find-matching REFERENCE aliases that
+        /// are still empty and whose conditions call GetIsEditorLocAlias (fn_567) are tried with the speaker as the
+        /// only candidate; one whose conditions pass takes it. Returns how many aliases were filled.
         std::size_t fillForSpeaker(QuestState& state, FormId reference, FormId base);
 
         /// Task 0211: the pack's view of the world; the filler works without it as before.
         void setEnvironment(Environment environment) { mEnvironment = std::move(environment); }
 
-        /// The story manager's gate: would every required alias of an answered kind fill for this quest now (with `event`'s
-        /// members for the from-event aliases; null: an event alias has nothing to fill from)? Changes nothing.
+        /// The story manager's gate: would every required alias of an answered kind fill for this quest now (with
+        /// `event`'s members for the from-event aliases; null: an event alias has nothing to fill from)? Changes
+        /// nothing.
         [[nodiscard]] bool canStart(FormId quest, const QuestState& state, const StoryEvent* event);
 
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -175,11 +185,12 @@ namespace game_skyrimse
         bool anchorOf(const PlayerSite& site, FormId& world, double& x, double& y) const;
         Result pickLocation(const QuestRecord& quest, const QuestAlias& alias, const QuestState& state,
             const FillMap& plan, FormId parent, bool dry, AliasFill& out);
-        /// Task 0226: a location alias found from a REFERENCE alias (ALFA names a reference alias): the location of that
-        /// reference, or its nearest ancestor (else descendant) that carries the alias's keyword (KNAM).
+        /// Task 0226: a location alias found from a REFERENCE alias (ALFA names a reference alias): the location of
+        /// that reference, or its nearest ancestor (else descendant) that carries the alias's keyword (KNAM).
         Result pickLocationOfReference(const QuestRecord& quest, const QuestAlias& alias, const QuestAlias& source,
             const QuestState& state, const FillMap& plan, bool dry, AliasFill& out);
-        bool eventFill(const QuestRecord& quest, const QuestAlias& alias, const StoryEvent& event, AliasFill& out) const;
+        bool eventFill(
+            const QuestRecord& quest, const QuestAlias& alias, const StoryEvent& event, AliasFill& out) const;
         Result pick(const QuestRecord& quest, const QuestAlias& alias, const QuestState& state, const FillMap& plan,
             const StoryEvent* event, bool matching, bool dry, AliasFill& out);
         void planQuest(const QuestRecord& quest, const QuestState& state, const StoryEvent* event, bool matching,

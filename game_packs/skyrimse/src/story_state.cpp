@@ -59,7 +59,8 @@ namespace game_skyrimse
         };
     }
 
-    // ---- LocationKeywordData -------------------------------------------------------------------------------------------
+    // ---- LocationKeywordData
+    // -------------------------------------------------------------------------------------------
 
     bool LocationKeywordData::set(FormId location, FormId keyword, float value)
     {
@@ -93,7 +94,8 @@ namespace game_skyrimse
         return out;
     }
 
-    // ---- the save body ---------------------------------------------------------------------------------------------------
+    // ---- the save body
+    // ---------------------------------------------------------------------------------------------------
     //
     // version 1 body: u64 event counter; u32 cycle node count, per node (ascending) u32 node, u32 quest count, u32
     // quests (ascending, no repeat); u32 ran count, u32 quests (ascending, no repeat); u32 keyword data count, per

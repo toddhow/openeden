@@ -126,7 +126,8 @@ namespace game_skyrimse
             return true;
         }
 
-        /// Task 0187: is the form a dialogue INFO (a form a TIF fragment script is attached to)? Its class is "TopicInfo".
+        /// Task 0187: is the form a dialogue INFO (a form a TIF fragment script is attached to)? Its class is
+        /// "TopicInfo".
         [[nodiscard]] virtual bool isTopicInfo(FormId form) const
         {
             (void)form;
@@ -154,8 +155,8 @@ namespace game_skyrimse
             return false;
         }
 
-        /// Task 0198: the reference a placement links to by `keyword` (0: the unkeyworded link); 0 when it has none or the
-        /// cell was never built (ObjectReference.GetLinkedRef).
+        /// Task 0198: the reference a placement links to by `keyword` (0: the unkeyworded link); 0 when it has none or
+        /// the cell was never built (ObjectReference.GetLinkedRef).
         [[nodiscard]] virtual FormId linkedRef(FormId reference, FormId keyword) const
         {
             (void)reference, (void)keyword;
@@ -169,8 +170,8 @@ namespace game_skyrimse
             return false;
         }
 
-        /// Task 0198: Game.GetFormFromFile: the load-order form id of the local id `local` in the plugin named `lowerFile`
-        /// (a load order id is 0 when the plugin is not loaded or the id is out of range).
+        /// Task 0198: Game.GetFormFromFile: the load-order form id of the local id `local` in the plugin named
+        /// `lowerFile` (a load order id is 0 when the plugin is not loaded or the id is out of range).
         [[nodiscard]] virtual FormId formFromFile(std::string_view lowerFile, std::uint32_t local) const
         {
             (void)lowerFile, (void)local;
@@ -240,9 +241,10 @@ namespace game_skyrimse
         FormId cell = 0; ///< the pack's id of the cell it went to
     };
 
-    /// Task 0198: what the world natives reach beyond the quest state (inventory, actor values, deaths, plugin lookups).
-    /// A reference is its form id as the host sees it: a placement id, or 0x14 for the player. Every function runs on the
-    /// main thread and every default means "cannot": the native then answers as it did before (the tolerant zero).
+    /// Task 0198: what the world natives reach beyond the quest state (inventory, actor values, deaths, plugin
+    /// lookups). A reference is its form id as the host sees it: a placement id, or 0x14 for the player. Every function
+    /// runs on the main thread and every default means "cannot": the native then answers as it did before (the tolerant
+    /// zero).
     class PapyrusWorldHooks
     {
     public:
@@ -284,7 +286,8 @@ namespace game_skyrimse
             (void)reference;
             return true;
         }
-        /// Task 0261: Cell.SetFactionOwner / SetActorOwner: the cell's owner (a faction or an NPC_ base) is now `owner`.
+        /// Task 0261: Cell.SetFactionOwner / SetActorOwner: the cell's owner (a faction or an NPC_ base) is now
+        /// `owner`.
         virtual bool setCellOwner(FormId cell, FormId owner)
         {
             (void)cell, (void)owner;
@@ -314,7 +317,8 @@ namespace game_skyrimse
             (void)from, (void)to, (void)item, (void)count;
             return false;
         }
-        /// Moves everything the owner holds to `target` (0: it is removed); returns the number of items, -1 when it cannot.
+        /// Moves everything the owner holds to `target` (0: it is removed); returns the number of items, -1 when it
+        /// cannot.
         virtual std::int64_t removeAllItems(FormId owner, FormId target)
         {
             (void)owner, (void)target;
@@ -322,7 +326,8 @@ namespace game_skyrimse
         }
         /// An actor value by lower-case name ("health", "magicka", "stamina", skills): its current and its maximum
         /// value. False when the pack has no number for it.
-        [[nodiscard]] virtual bool actorValue(FormId actor, std::string_view lowerName, double& current, double& maximum)
+        [[nodiscard]] virtual bool actorValue(
+            FormId actor, std::string_view lowerName, double& current, double& maximum)
         {
             (void)actor, (void)lowerName, (void)current, (void)maximum;
             return false;
@@ -529,15 +534,15 @@ namespace game_skyrimse
         /// Quest.SetStage, Start and Stop; the host does not own any of the three.
         void setQuests(const QuestIndex* index, QuestState* state, QuestVmadLookup vmads);
 
-        /// Task 0187: fills quest aliases when a quest starts and on demand (`ReferenceAlias.GetReference` of an unfilled
-        /// alias). Not owned; null: aliases are only what the quest state already holds.
+        /// Task 0187: fills quest aliases when a quest starts and on demand (`ReferenceAlias.GetReference` of an
+        /// unfilled alias). Not owned; null: aliases are only what the quest state already holds.
         void setAliasFiller(QuestAliasFiller* filler);
         /// Task 0187: the story manager. `Keyword.SendStoryEvent` and `raiseStoryEvent` call it and start the quests it
         /// returns (state, scripts, start up stage fragment, aliases).
         void setStoryEventSink(StoryEventSink sink);
-        /// Task 0261: does the log entry `entry` of `stage` of `quest` apply now? A stage's fragment (VMAD, "StageIndex")
-        /// is that log entry's: it runs only when the entry's conditions hold. Without it every fragment of the stage
-        /// runs, as before.
+        /// Task 0261: does the log entry `entry` of `stage` of `quest` apply now? A stage's fragment (VMAD,
+        /// "StageIndex") is that log entry's: it runs only when the entry's conditions hold. Without it every fragment
+        /// of the stage runs, as before.
         using StageEntryCheck = std::function<bool(FormId quest, std::uint32_t stage, std::int32_t entry)>;
         void setStageEntryCheck(StageEntryCheck check);
         /// Task 0268: a MoveTo near the player that the world cannot do in place (actors, objects of other cells) makes
@@ -564,7 +569,8 @@ namespace game_skyrimse
 
         /// Task 0198: the events the inventory and combat can raise. `from` and `to` are the owners' reference ids (0:
         /// none, as when a script added the item). Queued like any event; run by the next tick.
-        /// OnItemAdded goes to `to`'s scripts, OnItemRemoved to `from`'s, OnContainerChanged to scripts on the item form.
+        /// OnItemAdded goes to `to`'s scripts, OnItemRemoved to `from`'s, OnContainerChanged to scripts on the item
+        /// form.
         void onItemMoved(FormId from, FormId to, FormId item, std::int32_t count);
         /// OnHit goes to the victim's scripts (and alias scripts that hold it). `attacker` 0: unknown.
         void onActorHit(FormId victim, FormId attacker, bool blocked, bool bash);
@@ -584,7 +590,8 @@ namespace game_skyrimse
         /// Raises an event as a script's SendStoryEvent would; returns how many quests it started.
         std::size_t raiseStoryEvent(const StoryEvent& event);
         /// Task 0211 (a developer aid, `story test quest`): starts a quest as the story manager would after choosing it
-        /// (aliases filled, scripts attached, start-up stage run). False when the quest is unknown, running or completed.
+        /// (aliases filled, scripts attached, start-up stage run). False when the quest is unknown, running or
+        /// completed.
         bool startQuestForTest(FormId quest, std::int32_t stage = -1); ///< `stage` >= 0: also sets that stage
         /// Task 0269 (a developer aid, `houses test permission`): marks a stage done and current WITHOUT running its
         /// fragments or events, the way a quest the player finished earlier would stand. False for an unknown quest.
@@ -610,13 +617,14 @@ namespace game_skyrimse
 
         /// A cell's references finished loading: sends OnCellLoad and then OnLoad to the instances attached to them.
         void onCellLoaded(FormId cell, const std::vector<FormId>& references);
-        /// Task 0268: sends OnCellLoad to the alias scripts of a quest whose alias holds a reference. A quest that starts
-        /// after its cells loaded (the main quest's opening: the game starts in the cell, the quest a moment later) has
-        /// missed the event the vanilla game gives it; the caller says the cells are loaded. Returns how many were sent.
+        /// Task 0268: sends OnCellLoad to the alias scripts of a quest whose alias holds a reference. A quest that
+        /// starts after its cells loaded (the main quest's opening: the game starts in the cell, the quest a moment
+        /// later) has missed the event the vanilla game gives it; the caller says the cells are loaded. Returns how
+        /// many were sent.
         std::size_t replayAliasCellLoad(FormId quest);
 
-        /// Task 0256: a placed reference that is a trigger volume (a sphere primitive). False (counted) when it is not a
-        /// supported volume. The scripts on the reference get OnTriggerEnter and OnTriggerLeave with the player.
+        /// Task 0256: a placed reference that is a trigger volume (a sphere primitive). False (counted) when it is not
+        /// a supported volume. The scripts on the reference get OnTriggerEnter and OnTriggerLeave with the player.
         bool addTrigger(FormId reference, const TriggerVolume& volume);
         /// Task 0256: the player's place and look, once a frame before `updateTriggers`.
         void setPlayerView(const PapyrusPlayerView& view);
@@ -642,16 +650,16 @@ namespace game_skyrimse
         bool restoreState(const openeden::script::SaveBlob& blob);
 
         /// Task 0181: everything a save needs to resume the scripts (the pack's `papyrus` chunk): the runtime's state,
-        /// the host's ledger of instances (so that its own tables are rebuilt), script time, timers, enable and position
-        /// overrides, forced alias fills, objective flags, recorded spells, the quest state it changed, the sets of
-        /// attached quests and references, and the counters. Canonical: restoring and saving again gives the same
-        /// bytes. Empty before the game has started, inside a tick, and when the runtime cannot write its state.
+        /// the host's ledger of instances (so that its own tables are rebuilt), script time, timers, enable and
+        /// position overrides, forced alias fills, objective flags, recorded spells, the quest state it changed, the
+        /// sets of attached quests and references, and the counters. Canonical: restoring and saving again gives the
+        /// same bytes. Empty before the game has started, inside a tick, and when the runtime cannot write its state.
         [[nodiscard]] std::vector<std::uint8_t> saveState() const;
-        /// Replaces the host's state with a saved one. The scripts the state names are loaded first; the state is checked
-        /// whole (including every attach key, against the game data) before anything changes: a refusal changes nothing.
-        /// Needs setQuests. A host that restored counts as started (startGame does nothing afterwards). For every quest
-        /// with a stage above 0 the QuestChanged sink is told, so the package brain's own copy follows. Not inside a
-        /// tick.
+        /// Replaces the host's state with a saved one. The scripts the state names are loaded first; the state is
+        /// checked whole (including every attach key, against the game data) before anything changes: a refusal changes
+        /// nothing. Needs setQuests. A host that restored counts as started (startGame does nothing afterwards). For
+        /// every quest with a stage above 0 the QuestChanged sink is told, so the package brain's own copy follows. Not
+        /// inside a tick.
         PapyrusRestoreOutcome restoreSavedState(std::span<const std::uint8_t> bytes);
         /// startGame() ran, or a state was restored.
         [[nodiscard]] bool started() const;
@@ -794,8 +802,8 @@ namespace game_skyrimse
             }
         };
         /// callFunction with arguments (a function that takes the player, a stage ...). Same rules as callFunction.
-        bool callFunctionWith(FormId form, std::string_view script, std::string_view function,
-            std::span<const CallArgument> arguments);
+        bool callFunctionWith(
+            FormId form, std::string_view script, std::string_view function, std::span<const CallArgument> arguments);
         /// Queues an event (for example "OnUpdateGameTime", which nothing here raises by itself: the pack owns the game
         /// clock) for the instance of  script attached to  form. False when there is no such instance.
         bool sendEventTo(FormId form, std::string_view script, std::string_view event);

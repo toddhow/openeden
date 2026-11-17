@@ -122,7 +122,8 @@ namespace
                 mPlayer[item] += count;
                 return true;
             };
-            hooks.mItemName = [](FormId item) { return item == kCanisRoot ? std::string("Canis Root") : std::string(); };
+            hooks.mItemName
+                = [](FormId item) { return item == kCanisRoot ? std::string("Canis Root") : std::string(); };
             hooks.mHide = [this](FormId) {
                 mSteps.push_back("hide");
                 return mHideOk;

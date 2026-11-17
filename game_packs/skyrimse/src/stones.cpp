@@ -18,8 +18,8 @@ namespace game_skyrimse::stones
             return s;
         }
 
-        /// Does a ModSkillUse effect apply to the skill? Its tab conditions that test the skill being advanced (function
-        /// 681) are OR-ed; with none the effect applies to every skill.
+        /// Does a ModSkillUse effect apply to the skill? Its tab conditions that test the skill being advanced
+        /// (function 681) are OR-ed; with none the effect applies to every skill.
         bool effectCoversSkill(const PerkEffect& effect, std::size_t slot)
         {
             bool any = false;
@@ -295,9 +295,8 @@ namespace game_skyrimse::stones
             log("STONES cast " + std::to_string(spell) + " is instant: nothing is kept");
             return true;
         }
-        if (mTimed.size() >= kMaxTimedSpells && std::none_of(mTimed.begin(), mTimed.end(), [spell](const Timed& t) {
-                return t.mSpell == spell;
-            }))
+        if (mTimed.size() >= kMaxTimedSpells
+            && std::none_of(mTimed.begin(), mTimed.end(), [spell](const Timed& t) { return t.mSpell == spell; }))
             return false;
         const SpellRecord* record = library->spell(spell);
         const bool blessing = lowerText(record->mCommon.mEditorId).rfind(kBlessingPrefix, 0) == 0;
@@ -458,19 +457,19 @@ namespace game_skyrimse::stones
         StonesService* self = this;
         static const BindingType oneInt[] = { BindingType::Int32 };
         static const BindingType twoText[] = { BindingType::String, BindingType::String };
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, bool hasResult,
-                             BindingType result, Fn::Body body,
-                             openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = hasResult;
-            f.result = result;
-            f.access = access;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, bool hasResult, BindingType result,
+                  Fn::Body body, openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = hasResult;
+                  f.result = result;
+                  f.access = access;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
         add("active", {}, true, BindingType::Bool, [self](std::span<const BindingValue>) {
             BindingResult r;
             r.value = boolean(self->messageOpen());
@@ -499,13 +498,15 @@ namespace game_skyrimse::stones
             r.value = integer(static_cast<std::int32_t>(self->mRevision & 0x7FFFFFFF));
             return r;
         });
-        add("choose", oneInt, false, BindingType::Bool,
+        add(
+            "choose", oneInt, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 (void)self->choose(a[0].integer - 1);
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("activate", twoText, false, BindingType::Bool,
+        add(
+            "activate", twoText, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 std::uint64_t placement = 0, base = 0;
                 if (parseHex(a[0].text, placement) && parseHex(a[1].text, base))

@@ -32,7 +32,8 @@ namespace
     constexpr FormId kPerkArcane = kSelf | 0xC01;
     constexpr FormId kRecPerkForge = kSelf | 0x910; // forge: the sword, 1 ingot, needs HasPerk(kPerkSteel)
     constexpr FormId kRecGlobalForge = kSelf | 0x911; // forge: a global condition (not perk-only)
-    constexpr FormId kRecTemperEnch = kSelf | 0x912; // wheel: the enchanted sword; "not enchanted OR Arcane" (0x01 last)
+    constexpr FormId kRecTemperEnch
+        = kSelf | 0x912; // wheel: the enchanted sword; "not enchanted OR Arcane" (0x01 last)
     constexpr FormId kRecTemperPlain = kSelf | 0x913; // wheel: the plain sword with the same pair (0x00 last)
 
     survey::Ctda makeCtda(std::uint8_t type, float comparison, std::uint16_t function, std::uint32_t param1)
@@ -92,9 +93,10 @@ namespace
     {
         Bytes all = testPlugin();
         Bytes co;
-        co.append(cobjWith(kRecPerkForge, kSword, kKwForge, { { kIngot, 1 } }, { rawCtda(0x00, 1.f, 448, kPerkSteel) }));
-        co.append(cobjWith(
-            kRecGlobalForge, kArmor, kKwForge, { { kIngot, 1 } }, { rawCtda(0x00, 1.f, 74, kSelf | 0xD00) }));
+        co.append(
+            cobjWith(kRecPerkForge, kSword, kKwForge, { { kIngot, 1 } }, { rawCtda(0x00, 1.f, 448, kPerkSteel) }));
+        co.append(
+            cobjWith(kRecGlobalForge, kArmor, kKwForge, { { kIngot, 1 } }, { rawCtda(0x00, 1.f, 74, kSelf | 0xD00) }));
         co.append(cobjWith(kRecTemperEnch, kEnchSword, kKwWheel, { { kIngot, 1 } },
             { rawCtda(0x21, 1.f, 659, 0), rawCtda(0x01, 1.f, 448, kPerkArcane) }));
         co.append(cobjWith(kRecTemperPlain, kSword, kKwWheel, { { kIngot, 1 } },
@@ -161,10 +163,7 @@ namespace
             mService = std::make_unique<progression::ProgressionService>(std::move(hooks));
         }
         progression::PlayerProgression& p() { return *mService->progression(); }
-        void ready()
-        {
-            ASSERT_TRUE(mService->poll());
-        }
+        void ready() { ASSERT_TRUE(mService->poll()); }
         /// Buys kPerkSteel: a level up needs experience, then a perk point is spent.
         void buySteel()
         {

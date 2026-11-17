@@ -44,8 +44,9 @@ namespace game_skyrimse
     /// `script` is the script's name as the VMAD gives it ("TIF__000A1B2C").
     using ScriptNameProbe = std::function<std::vector<std::string>(const std::string& script)>;
 
-    /// Task 0187: a shown response whose INFO has script fragments. The sink runs them (the begin fragment, then the end
-    /// fragment: the pack does not know when a spoken line ends, so both run when the line is shown, in that order).
+    /// Task 0187: a shown response whose INFO has script fragments. The sink runs them (the begin fragment, then the
+    /// end fragment: the pack does not know when a spoken line ends, so both run when the line is shown, in that
+    /// order).
     struct InfoFragmentCall
     {
         FormId mInfo = kNullFormId;
@@ -110,8 +111,8 @@ namespace game_skyrimse
         /// Task 0194: the line a scene's dialogue action gives `speaker` from `topic` (a DIAL of category Scene): the
         /// topic's INFO by the usual selection, its text and voice, and its script fragments through the sink. Does not
         /// touch an open conversation (the speaker, voice type and say-once of it are kept). False when no INFO passes.
-        [[nodiscard]] bool sceneLine(FormId topic, const DialogueSpeaker& speaker, std::uint32_t pick,
-            openeden::sdk::game::DialogueTurn& out);
+        [[nodiscard]] bool sceneLine(
+            FormId topic, const DialogueSpeaker& speaker, std::uint32_t pick, openeden::sdk::game::DialogueTurn& out);
 
         /// Task 0231: the line `speaker` says unprompted for a DIAL subtype ("HELO", "ATCK" ...): the topics of that
         /// subtype by priority, the first INFO that passes (a Random one chosen by `pick`), its text, voice and script
@@ -122,21 +123,22 @@ namespace game_skyrimse
             openeden::sdk::game::DialogueTurn& out, bool speakerIsVictim = false);
 
         /// Task 0258: the guard's forced greeting. The topics of subtype `subtype` ("PFGT") by priority, the first INFO
-        /// that passes with a response text (and a voice file when voice is on); like barkLine it marks nothing said and
-        /// runs no fragment. False when none passes (with no crime source set none does: the lines need GetAlarmed).
+        /// that passes with a response text (and a voice file when voice is on); like barkLine it marks nothing said
+        /// and runs no fragment. False when none passes (with no crime source set none does: the lines need
+        /// GetAlarmed).
         [[nodiscard]] bool forcedGreetingAvailable(
             const DialogueSpeaker& speaker, std::string_view subtype, std::string* why = nullptr);
-        /// Task 0258: opens a conversation whose greeting is the forced one and whose choices are the greeting's link-to
-        /// topics (TCLT) that have an INFO passing now, each shown by its INFO's prompt else its topic's name. Choosing
-        /// one gives its response (its fragments run); a response with no link-to topics of its own ends the
+        /// Task 0258: opens a conversation whose greeting is the forced one and whose choices are the greeting's
+        /// link-to topics (TCLT) that have an INFO passing now, each shown by its INFO's prompt else its topic's name.
+        /// Choosing one gives its response (its fragments run); a response with no link-to topics of its own ends the
         /// conversation. False with `error` when no forced greeting passes. `begin` and `end` leave this mode.
         [[nodiscard]] bool beginForced(const DialogueSpeaker& speaker, std::string_view subtype,
             openeden::sdk::game::DialogueTurn& out, std::string& error);
         /// Task 0264: opens a conversation whose greeting is the first INFO of `topic` that passes now (a ForceGreet
         /// package's PDTO topic); like `beginForced` its choices are the greeting's link-to topics. False with `error`
         /// when no INFO of the topic passes.
-        [[nodiscard]] bool beginForcedTopic(const DialogueSpeaker& speaker, FormId topic,
-            openeden::sdk::game::DialogueTurn& out, std::string& error);
+        [[nodiscard]] bool beginForcedTopic(
+            const DialogueSpeaker& speaker, FormId topic, openeden::sdk::game::DialogueTurn& out, std::string& error);
         /// Task 0258: what the crime rules say to the conditions and the text tag <CrimeGold>. Without it: nothing.
         void setCrimeSource(CrimeConditionSource source)
         {
@@ -168,8 +170,14 @@ namespace game_skyrimse
         /// stand-in's.
         void setGoldSource(std::function<float()> source) { mWorld.setGoldSource(std::move(source)); }
         /// Task 0270: the player's worn items and item counts (see SkyrimConditionWorld).
-        void setPlayerWornSource(std::function<bool(std::uint32_t)> source) { mWorld.setPlayerWornSource(std::move(source)); }
-        void setPlayerItemSource(std::function<float(std::uint32_t)> source) { mWorld.setPlayerItemSource(std::move(source)); }
+        void setPlayerWornSource(std::function<bool(std::uint32_t)> source)
+        {
+            mWorld.setPlayerWornSource(std::move(source));
+        }
+        void setPlayerItemSource(std::function<float(std::uint32_t)> source)
+        {
+            mWorld.setPlayerItemSource(std::move(source));
+        }
 
         /// Locations (LCTN) and the quest scripts' initial values (task 0156); both must outlive the runtime. Without
         /// them fn_359, fn_562 and fn_629 stay unanswered.
@@ -225,8 +233,9 @@ namespace game_skyrimse
         [[nodiscard]] const DialogInfo& responderOf(const DialogInfo& info) const;
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
         /// Task 0258: the link-to topics (TCLT) of `from` that have an INFO passing now, as the turn's choices.
-        /// Task 0271: a link whose topic has no name and whose INFO has no prompt is not a choice: the speaker goes on with
-        /// that INFO at once (its text joins the turn, its fragments run) when nothing else is offered, to `depth` 4.
+        /// Task 0271: a link whose topic has no name and whose INFO has no prompt is not a choice: the speaker goes on
+        /// with that INFO at once (its text joins the turn, its fragments run) when nothing else is offered, to
+        /// `depth` 4.
         void offerLinks(const DialogInfo& from, openeden::sdk::game::DialogueTurn& out, int depth = 0);
         /// Task 0243 (barkLine's helpers; none changes a conversation). Has the INFO a response with text? No side
         /// effect. Has it a voice file for the speaker (always true with no probe)? The probe's counts are restored.

@@ -18,7 +18,8 @@
 // Version 1.1 (task 0228), the race's powers (RACE SPLO spells of type power or lesser power; once a game day each):
 //   power_count() -> int, power_name(i) -> string (the editor id), power_support(i) -> "works"|"status"|"none"
 //   power_ready(i, now) -> bool            `now` is the game time in seconds (core.getGameTime())
-//   use_power(i, now)    [Mutate]          casts the power through the magic runtime when it is ready, and starts its day
+//   use_power(i, now)    [Mutate]          casts the power through the magic runtime when it is ready, and starts its
+//   day
 //
 // The chunk (`character` version 1): done byte, then the choice's own blob (length and bytes). The saved choice is
 // checked when the actor records are read (a race that is not playable, a part that is not an option: refused, and the

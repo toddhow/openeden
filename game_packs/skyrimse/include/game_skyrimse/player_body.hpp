@@ -44,7 +44,8 @@ namespace game_skyrimse
         FormId mWeapon = kNullFormId;
         /// Task 0225 (character creation): head parts the player chose. Each entry is an HDPT type (2 eyes, 3 hair, 4
         /// facial hair, ...) and the part chosen for it, kNullFormId for "none". A type listed here REPLACES the race's
-        /// default head parts of that type (with the extra parts of the default hair or beard); the other defaults stay.
+        /// default head parts of that type (with the extra parts of the default hair or beard); the other defaults
+        /// stay.
         std::vector<std::pair<std::uint32_t, FormId>> mHeadChoice;
     };
 
@@ -64,9 +65,9 @@ namespace game_skyrimse
     /// The player's first-person arms (task 0245): the skeleton above and the parts made for the first-person view, the
     /// ARMA models MOD4 (male) and MOD5 (female): the race's skin addons that have one, the start clothes and the
     /// equipped armour that have one. A piece without a first-person model is not drawn and covers nothing (its skin
-    /// stays), a piece with one covers the skin addons that share a biped slot. No head parts. The held weapon and shield
-    /// are named as in makePlayerAppearance. False with `error` when the race is unknown, or when no first-person arm
-    /// model results at all. Deterministic.
+    /// stays), a piece with one covers the skin addons that share a biped slot. No head parts. The held weapon and
+    /// shield are named as in makePlayerAppearance. False with `error` when the race is unknown, or when no
+    /// first-person arm model results at all. Deterministic.
     [[nodiscard]] bool makeFirstPersonAppearance(const ActorIndex& index, const PlayerBodyRequest& request,
         openeden::sdk::game::ActorAppearance& out, std::string& error, const AppearanceLimits& limits = {});
 }

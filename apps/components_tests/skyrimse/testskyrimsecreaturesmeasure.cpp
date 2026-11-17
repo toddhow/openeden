@@ -1,6 +1,6 @@
 // Task 0216: measures the skin models of the creatures of docs/tasks/0216-skyrim-creatures-more.md (read only; prints
-// bounds with the prefix SKYRIMSE-CREATURE-BOUNDS). The capsule heights of the profiles in creatures.cpp come from these
-// lines. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// bounds with the prefix SKYRIMSE-CREATURE-BOUNDS). The capsule heights of the profiles in creatures.cpp come from
+// these lines. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/flatten.hpp>
@@ -27,9 +27,8 @@ namespace
 
     std::string lower(std::string s)
     {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-            return c == '\\' ? '/': static_cast<char>(std::tolower(c));
-        });
+        std::transform(s.begin(), s.end(), s.begin(),
+            [](unsigned char c) { return c == '\\' ? '/' : static_cast<char>(std::tolower(c)); });
         return s;
     }
 
@@ -75,18 +74,19 @@ namespace
                     limits.mSkinnedAtRest = true;
                     const NifScene::Flat::FlatModel model = NifScene::Flat::flatten(scene, limits);
                     std::cout << "SKYRIMSE-CREATURE-BOUNDS " << label << " shapes " << model.mShapes.size()
-                              << " skippedSkinned " << model.mReport.mSkippedSkinned << " min "
-                              << model.mBoundsMin[0] << " " << model.mBoundsMin[1] << " " << model.mBoundsMin[2]
-                              << " max " << model.mBoundsMax[0] << " " << model.mBoundsMax[1] << " "
-                              << model.mBoundsMax[2] << std::endl;
+                              << " skippedSkinned " << model.mReport.mSkippedSkinned << " min " << model.mBoundsMin[0]
+                              << " " << model.mBoundsMin[1] << " " << model.mBoundsMin[2] << " max "
+                              << model.mBoundsMax[0] << " " << model.mBoundsMax[1] << " " << model.mBoundsMax[2]
+                              << std::endl;
                 }
             }
         }
         EXPECT_FALSE(done.empty());
     }
 
-    // Where each creature kind stands in the Tamriel exterior near Whiterun (cell x 0..14, y -14..2): the NPC placements
-    // and the leveled-list placements, with the creatures a list can resolve to. Prints SKYRIMSE-CREATURE-PLACED lines.
+    // Where each creature kind stands in the Tamriel exterior near Whiterun (cell x 0..14, y -14..2): the NPC
+    // placements and the leveled-list placements, with the creatures a list can resolve to. Prints
+    // SKYRIMSE-CREATURE-PLACED lines.
     TEST(SkyrimCreaturesMeasure, whereTheCreaturesStand)
     {
         using namespace game_skyrimse;
@@ -168,13 +168,13 @@ namespace
                             || (printed[folders]++ >= 12 && index.npc(ref.mBase)->mCommon.mEditorId != "Stump"))
                             continue;
                         std::cout << "SKYRIMSE-CREATURE-PLACED npc:" << index.npc(ref.mBase)->mCommon.mEditorId
-                                  << " base " << ref.mBase << " ref " << ref.mCommon.mId << " cell " << gx << "," << gy << " at " << int(ref.mPosition.x) << ","
-                                  << int(ref.mPosition.y) << "," << int(ref.mPosition.z) << " kinds " << folders
-                                  << std::endl;
+                                  << " base " << ref.mBase << " ref " << ref.mCommon.mId << " cell " << gx << "," << gy
+                                  << " at " << int(ref.mPosition.x) << "," << int(ref.mPosition.y) << ","
+                                  << int(ref.mPosition.z) << " kinds " << folders << std::endl;
                     }
             }
-        std::cout << "SKYRIMSE-CREATURE-PLACED totals ACHR " << achr << " npc " << achrNpc << " leveled "
-                  << achrLeveled << " other " << achrOther << std::endl;
+        std::cout << "SKYRIMSE-CREATURE-PLACED totals ACHR " << achr << " npc " << achrNpc << " leveled " << achrLeveled
+                  << " other " << achrOther << std::endl;
         for (const auto& [k, v] : leveledBases)
             std::cout << "SKYRIMSE-CREATURE-PLACED leveled base " << k << " x" << v << std::endl;
     }

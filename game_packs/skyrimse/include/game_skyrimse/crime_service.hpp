@@ -94,8 +94,8 @@ namespace game_skyrimse::crime
         // ---- task 0258: the arrest conversation. What its conditions read, and what its fragments do.
         /// GetCrimeGold, CanPayCrimeGold and GetAlarmed of the guard of the offer (see CrimeConditionSource).
         [[nodiscard]] CrimeConditionSource conditionSource();
-        /// Faction.PlayerPayCrimeGold(removeStolen, goToJail): pays the offer's bounty (the faction must be the offer's).
-        /// Whether the stolen items go is the pack's rule (they always do); `removeStolen` is recorded only.
+        /// Faction.PlayerPayCrimeGold(removeStolen, goToJail): pays the offer's bounty (the faction must be the
+        /// offer's). Whether the stolen items go is the pack's rule (they always do); `removeStolen` is recorded only.
         bool payByScript(FormId faction, bool removeStolenItems);
         /// Faction.SendPlayerToJail: the offer's choice "jail".
         bool jailByScript(FormId faction);
@@ -103,7 +103,8 @@ namespace game_skyrimse::crime
         bool resistByScript();
         /// Faction.GetCrimeGold: the player's bounty in the faction.
         [[nodiscard]] std::int32_t crimeGoldOf(FormId faction) const;
-        /// The crime faction of the loaded actor placed as `reference` (0: none or not loaded); of an actor by its base.
+        /// The crime faction of the loaded actor placed as `reference` (0: none or not loaded); of an actor by its
+        /// base.
         [[nodiscard]] FormId crimeFactionOfReference(FormId reference);
         [[nodiscard]] FormId crimeFactionOfBase(FormId speakerBase);
 

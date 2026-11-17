@@ -75,7 +75,8 @@ namespace game_skyrimse::journal
             if (s.size() < prefix.size())
                 return false;
             for (std::size_t i = 0; i < prefix.size(); ++i)
-                if (std::tolower(static_cast<unsigned char>(s[i])) != std::tolower(static_cast<unsigned char>(prefix[i])))
+                if (std::tolower(static_cast<unsigned char>(s[i]))
+                    != std::tolower(static_cast<unsigned char>(prefix[i])))
                     return false;
             return true;
         }
@@ -124,7 +125,8 @@ namespace game_skyrimse::journal
             return {};
         }
 
-        std::string expandImpl(std::string_view text, const TagHooks& hooks, std::string_view unknown, bool rawAliasNames)
+        std::string expandImpl(
+            std::string_view text, const TagHooks& hooks, std::string_view unknown, bool rawAliasNames)
         {
             constexpr std::size_t kMaxTag = 64;
             std::string out;
@@ -164,7 +166,8 @@ namespace game_skyrimse::journal
                         filled = !shown.empty();
                     }
                 }
-                else if (equals != std::string_view::npos && startsWithNoCase(key, "Alias.Pronoun") && hooks.mAliasFemale)
+                else if (equals != std::string_view::npos && startsWithNoCase(key, "Alias.Pronoun")
+                    && hooks.mAliasFemale)
                 {
                     const std::string_view word = pronounFor(key.substr(13), hooks.mAliasFemale(arg));
                     shown = std::string(word);
@@ -240,8 +243,8 @@ namespace game_skyrimse::journal
                 result = text.mText;
             else if (in.mText)
             {
-                const StringTableKind order[] = { kind, StringTableKind::Strings, StringTableKind::DlStrings,
-                    StringTableKind::IlStrings };
+                const StringTableKind order[]
+                    = { kind, StringTableKind::Strings, StringTableKind::DlStrings, StringTableKind::IlStrings };
                 for (std::size_t i = 0; i < 4 && result.empty(); ++i)
                 {
                     bool seen = false;
@@ -252,8 +255,8 @@ namespace game_skyrimse::journal
                 }
             }
             if (in.mAliasName)
-                result = expandTags(
-                    result, [&in, quest](std::string_view alias) { return in.mAliasName(quest, alias); });
+                result
+                    = expandTags(result, [&in, quest](std::string_view alias) { return in.mAliasName(quest, alias); });
             else
                 result = expandTags(result);
             if (result.size() > kMaxTextBytes)
@@ -313,8 +316,7 @@ namespace game_skyrimse::journal
             ++out.mActive;
             QuestView view;
             view.mQuest = id;
-            view.mName
-                = resolveText(in, record->mCommon.mId, record->mName, record->mPlugin, StringTableKind::Strings);
+            view.mName = resolveText(in, record->mCommon.mId, record->mName, record->mPlugin, StringTableKind::Strings);
             if (view.mName.empty())
             {
                 ++out.mNoName;
@@ -338,8 +340,7 @@ namespace game_skyrimse::journal
                 std::string text;
                 for (const QuestLogEntry& e : s->mEntries)
                 {
-                    text = resolveText(
-                        in, record->mCommon.mId, e.mText, record->mPlugin, StringTableKind::DlStrings);
+                    text = resolveText(in, record->mCommon.mId, e.mText, record->mPlugin, StringTableKind::DlStrings);
                     if (!text.empty())
                         break;
                 }
@@ -369,8 +370,8 @@ namespace game_skyrimse::journal
                     const ObjectiveFlags flags = in.mObjective(id, o->mIndex);
                     if (!flags.mDisplayed)
                         continue;
-                    std::string text = resolveText(
-                        in, record->mCommon.mId, o->mText, record->mPlugin, StringTableKind::DlStrings);
+                    std::string text
+                        = resolveText(in, record->mCommon.mId, o->mText, record->mPlugin, StringTableKind::DlStrings);
                     if (text.empty())
                         continue;
                     view.mObjectives.push_back({ o->mIndex, std::move(text), flags.mCompleted });
@@ -422,8 +423,7 @@ namespace game_skyrimse::journal
                 bool hasText = false;
                 for (const QuestLogEntry& e : s->mEntries)
                     hasText = hasText
-                        || !resolveText(
-                               in, record->mCommon.mId, e.mText, record->mPlugin, StringTableKind::DlStrings)
+                        || !resolveText(in, record->mCommon.mId, e.mText, record->mPlugin, StringTableKind::DlStrings)
                                 .empty();
                 if (!hasText || s->failsQuest() || s->completesQuest() != wantCompleted)
                     continue;
@@ -541,9 +541,8 @@ namespace game_skyrimse::journal
                 mHooks.mLog("JOURNAL rebuilt: revision " + std::to_string(now) + ", "
                     + std::to_string(mSnapshot.mRunning.size()) + " running, "
                     + std::to_string(mSnapshot.mCompleted.size()) + " completed (of "
-                    + std::to_string(mSnapshot.mActive) + " active quests: "
-                    + std::to_string(mSnapshot.mNoName) + " with no name, "
-                    + std::to_string(mSnapshot.mNoText) + " with no log text or objective)");
+                    + std::to_string(mSnapshot.mActive) + " active quests: " + std::to_string(mSnapshot.mNoName)
+                    + " with no name, " + std::to_string(mSnapshot.mNoText) + " with no log text or objective)");
         }
         return mSnapshot;
     }
@@ -597,7 +596,8 @@ namespace game_skyrimse::journal
             r.value = integer(static_cast<std::int32_t>(self->revision() & 0x7FFFFFFF));
             return r;
         });
-        add("quests", noParams, BindingType::String,
+        add(
+            "quests", noParams, BindingType::String,
             [self, &m](std::span<const BindingValue> a) {
                 const Snapshot& s = self->snapshot();
                 const std::vector<QuestView>& list = a[0].boolean ? s.mCompleted : s.mRunning;
@@ -632,14 +632,16 @@ namespace game_skyrimse::journal
             r.value = text(q != nullptr ? std::string_view(statusName(q->mStatus)) : std::string_view());
             return r;
         });
-        add("log", idParam, BindingType::String,
+        add(
+            "log", idParam, BindingType::String,
             [found, textArray](std::span<const BindingValue> a) {
                 static const std::vector<std::string> none;
                 const QuestView* q = found(a[0]);
                 return textArray(q != nullptr ? q->mLog : none); // by reference: the elements point into it
             },
             BindingShape::Array);
-        add("objectives", idParam, BindingType::String,
+        add(
+            "objectives", idParam, BindingType::String,
             [found, &m](std::span<const BindingValue> a) {
                 const QuestView* q = found(a[0]);
                 m.mElements.clear();
@@ -653,7 +655,8 @@ namespace game_skyrimse::journal
                 return r;
             },
             BindingShape::Array);
-        add("objective_done", idParam, BindingType::Bool,
+        add(
+            "objective_done", idParam, BindingType::Bool,
             [found, &m](std::span<const BindingValue> a) {
                 const QuestView* q = found(a[0]);
                 m.mElements.clear();

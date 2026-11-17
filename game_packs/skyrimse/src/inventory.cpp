@@ -436,8 +436,8 @@ namespace game_skyrimse::inventory
 
     namespace
     {
-        void resolveInto(const ItemTable& table, FormId id, std::int64_t count, std::uint16_t level,
-            std::uint64_t& rng, std::uint32_t depth, std::vector<Stack>& out, ResolveReport& report)
+        void resolveInto(const ItemTable& table, FormId id, std::int64_t count, std::uint16_t level, std::uint64_t& rng,
+            std::uint32_t depth, std::vector<Stack>& out, ResolveReport& report)
         {
             if (count <= 0)
                 return;
@@ -696,7 +696,8 @@ namespace game_skyrimse::inventory
         std::map<std::uint64_t, std::map<FormId, std::int32_t>> owners;
         const auto readStacks = [&](std::map<FormId, std::int32_t>& out) {
             std::uint32_t n = 0;
-            if (!reader.readValue(n) || n > kMaxStacksPerOwner || static_cast<std::uint64_t>(n) * 8 > reader.remaining())
+            if (!reader.readValue(n) || n > kMaxStacksPerOwner
+                || static_cast<std::uint64_t>(n) * 8 > reader.remaining())
             {
                 error = "a stack list is damaged";
                 return false;
@@ -825,8 +826,8 @@ namespace game_skyrimse::inventory
             return EquipStatus::NotEquippable;
         if (count(kPlayerOwner, item) < 1)
             return EquipStatus::NotHeld;
-        const auto same = std::find_if(
-            mEquipped.begin(), mEquipped.end(), [&](const EquippedItem& e) { return e.mItem == item; });
+        const auto same
+            = std::find_if(mEquipped.begin(), mEquipped.end(), [&](const EquippedItem& e) { return e.mItem == item; });
         if (same != mEquipped.end() && same->mKind == info.mKind && same->mSlotMask == info.mSlotMask)
             return EquipStatus::Ok; // already so: nothing changes
         // what this replaces: the equipped weapon, or every armour whose slots overlap

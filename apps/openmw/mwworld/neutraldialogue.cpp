@@ -17,8 +17,8 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
 #include "../mwbase/extensionmanager.hpp"
+#include "../mwbase/luamanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "cellstore.hpp"
@@ -55,8 +55,7 @@ namespace MWWorld
                 fields.push_back({ f.mName, f.mText });
             Log(Debug::Info) << "NINV barter " << neutralHexId(*placement) << " base " << neutralHexId(base.mBase)
                              << " '" << name << "' opened";
-            MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
-                std::string(kNeutralBarterEvent), fields);
+            MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(kNeutralBarterEvent), fields);
             return true;
         }
         // Task 0219: training, renting a room and gifts open their own window; the pack marks the turn "open:<name>"
@@ -74,8 +73,7 @@ namespace MWWorld
                 fields.push_back({ f.mName, f.mText });
             Log(Debug::Info) << "NINV service " << service << " " << neutralHexId(*placement) << " base "
                              << neutralHexId(base.mBase) << " '" << name << "' opened";
-            MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
-                std::string(kNeutralServiceEvent), fields);
+            MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(kNeutralServiceEvent), fields);
             return true;
         }
     }

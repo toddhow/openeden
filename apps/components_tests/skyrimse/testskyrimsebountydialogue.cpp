@@ -1,8 +1,8 @@
-// Task 0230: the bounty is offered in dialogue. The MainTopic INFOs of BQ01 to BQ04 need the speaker to fill the Steward or
-// Innkeeper alias, whose conditions call GetIsEditorLocAlias (fn_567). Needs: the reference's own location (XLCN) read, the
-// unique-NPC lists (LCUN) as an editor-location source, fn_567 itself, the alias view around the evaluation of a
-// find-matching REFERENCE alias, and the lazy fill from a conversation. Generated records; no game data. Written first
-// against stubs of the new functions (the red counts are in the task log).
+// Task 0230: the bounty is offered in dialogue. The MainTopic INFOs of BQ01 to BQ04 need the speaker to fill the
+// Steward or Innkeeper alias, whose conditions call GetIsEditorLocAlias (fn_567). Needs: the reference's own location
+// (XLCN) read, the unique-NPC lists (LCUN) as an editor-location source, fn_567 itself, the alias view around the
+// evaluation of a find-matching REFERENCE alias, and the lazy fill from a conversation. Generated records; no game
+// data. Written first against stubs of the new functions (the red counts are in the task log).
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
 #include <game_skyrimse/location_conditions.hpp>
@@ -215,7 +215,8 @@ namespace
         EXPECT_EQ(index.uniqueNpcLocation(kNpc, kSpeakerRef), kInn);
         // two at the same depth: the lower form id
         LocationIndex tie;
-        tie.add(parseLocations(locationRecords(uniqueEntry(kNpc2, kOtherRef, kHold2) + uniqueEntry(kNpc2, kOtherRef, kHold))));
+        tie.add(parseLocations(
+            locationRecords(uniqueEntry(kNpc2, kOtherRef, kHold2) + uniqueEntry(kNpc2, kOtherRef, kHold))));
         EXPECT_EQ(tie.uniqueNpcLocation(kNpc2, kOtherRef), kHold);
     }
 
@@ -285,7 +286,8 @@ namespace
     TEST(SkyrimBountyDlgCond, theLocationOfTheReferenceBeatsTheUniqueNpcListWhichBeatsTheLists)
     {
         // XLCN (the inn) first: the list entry puts the same actor in the other hold
-        CondRig rig(locationRecords(Bytes(), uniqueEntry(kNpc, kSpeakerRef, kOther)), { entry(kSpeakerRef, kNpc, kInn) });
+        CondRig rig(
+            locationRecords(Bytes(), uniqueEntry(kNpc, kSpeakerRef, kOther)), { entry(kSpeakerRef, kNpc, kInn) });
         rig.speak(kNpc, kSpeakerRef);
         EXPECT_TRUE(rig.holds());
         rig.mHoldOf = [](std::uint32_t) { return kHold2; };
@@ -394,8 +396,8 @@ namespace
             mRefs.add(std::move(r));
             mRefs.finish();
             // the stand-in for the alias conditions: the speaker reference passes, and only while the Hold is known
-            mFiller = std::make_unique<QuestAliasFiller>(mQuests, mRefs,
-                [this](const QuestRecord&, const QuestAlias& a, FormId reference, FormId) {
+            mFiller = std::make_unique<QuestAliasFiller>(
+                mQuests, mRefs, [this](const QuestRecord&, const QuestAlias& a, FormId reference, FormId) {
                     mAsked.push_back({ a.mId, reference });
                     if (a.mId == 3) // the marker alias (the test that needs it): its own reference
                         return reference == kListedRef;
@@ -447,8 +449,8 @@ namespace
 
     TEST(SkyrimBountyDlgFill, aFindMatchingReferenceWaitsForTheAliasItsConditionNamesWhenThatOneWaitsToo)
     {
-        // the order of the quest is not a dependency order: the Steward (13) comes before the marker (3) that the Hold (4)
-        // is found from, so in the first round the Hold is not filled yet and the Steward must wait, not fail
+        // the order of the quest is not a dependency order: the Steward (13) comes before the marker (3) that the Hold
+        // (4) is found from, so in the first round the Hold is not filled yet and the Steward must wait, not fail
         const Bytes aliases = alias(true, 0, "Location", 0, sub4("ALFL", Bytes().u32(kInn)))
             + alias(true, 4, "Hold", 0x08, sub4("ALFA", Bytes().u32(3))) // reuse: the same location as alias 0
             + alias(false, 13, "Steward", 0, Bytes(), ctda(567, 4))

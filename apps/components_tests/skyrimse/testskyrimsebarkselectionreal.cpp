@@ -1,5 +1,5 @@
-// Task 0243: the pickpocket dialogue subtypes (PICN, PICC, PICT) of the five official masters, and how many INFOs of the
-// bark subtypes have no response. Prints counts and editor ids only (lines starting SKYRIMSE-SEL), never a response
+// Task 0243: the pickpocket dialogue subtypes (PICN, PICC, PICT) of the five official masters, and how many INFOs of
+// the bark subtypes have no response. Prints counts and editor ids only (lines starting SKYRIMSE-SEL), never a response
 // text. Skipped unless OPENEDEN_SKYRIMSE_DATA names the Data folder.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -48,8 +48,9 @@ namespace
             ASSERT_TRUE(parseQuestRecords(*plugin, order, QuestLimits(), qr));
             quests.add(std::move(qr), FormIdResolver(plugin->header(), n, order));
         }
-        // The NOTA INFOs that have a response, by the voice types their GetIsVoiceType (fn_426) conditions name (ANY of the
-        // OR-chained ones), and how many have no voice-type condition at all (said by every voice type) or a random roll.
+        // The NOTA INFOs that have a response, by the voice types their GetIsVoiceType (fn_426) conditions name (ANY of
+        // the OR-chained ones), and how many have no voice-type condition at all (said by every voice type) or a random
+        // roll.
         {
             std::map<std::string, std::uint32_t> byVoice;
             std::uint32_t withText = 0, noVoiceCondition = 0, withRandom = 0;
@@ -99,8 +100,7 @@ namespace
                 ++topics;
                 const QuestRecord* quest = quests.quest(topic->mQuest);
                 ++topicNames[topic->mCommon.mEditorId + " quest " + (quest != nullptr ? quest->mCommon.mEditorId : "?")
-                    + " cat " + std::to_string(topic->mCategory) + " prio "
-                    + std::to_string(topic->mPriority)];
+                    + " cat " + std::to_string(topic->mCategory) + " prio " + std::to_string(topic->mPriority)];
                 for (const DialogInfo* info : dialogue.infosOf(id))
                 {
                     ++infos;

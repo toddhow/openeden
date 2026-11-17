@@ -1,5 +1,5 @@
-// Task 0260 (vampirism): the pure rules (the two game clocks the scripts rely on, the sunlight test, the ability filter),
-// the service over a fake script port, and the save chunk. No game data.
+// Task 0260 (vampirism): the pure rules (the two game clocks the scripts rely on, the sunlight test, the ability
+// filter), the service over a fake script port, and the save chunk. No game data.
 #include <game_skyrimse/vampirism.hpp>
 
 #include <gtest/gtest.h>
@@ -19,7 +19,8 @@ namespace
 
     constexpr double kDay = 86400.0;
 
-    // ---- a fake library with the sun damage spell of the data (conditions copied from the CTDA records of Skyrim.esm) -------
+    // ---- a fake library with the sun damage spell of the data (conditions copied from the CTDA records of Skyrim.esm)
+    // -------
 
     survey::Ctda cond(std::uint16_t fn, std::uint8_t compare, float value, std::uint32_t p1 = 0)
     {
@@ -68,7 +69,8 @@ namespace
         return p;
     }
 
-    // ---- the two clocks ----------------------------------------------------------------------------------------------------
+    // ---- the two clocks
+    // ----------------------------------------------------------------------------------------------------
 
     TEST(SkyrimVampirismMachine, the_change_comes_three_game_days_after_the_infection_and_not_before)
     {
@@ -130,7 +132,8 @@ namespace
         EXPECT_EQ(m.step(5.0), Machine::Action::None);
     }
 
-    // ---- the sun -------------------------------------------------------------------------------------------------------------
+    // ---- the sun
+    // -------------------------------------------------------------------------------------------------------------
 
     TEST(SkyrimVampirismSun, the_hour_of_a_game_clock)
     {
@@ -166,8 +169,9 @@ namespace
         EXPECT_FALSE(sunlit(lib, kSunDamageSpells[0], 12 * 3600.0, unknown));
     }
 
-    // Dawnguard's version of the spell adds a test of a global of its own (GetGlobalValue == 0 on every effect): answered by the
-    // caller's lookup (the GLOB's stored value, or what a script set), else the list is unanswered and fails closed.
+    // Dawnguard's version of the spell adds a test of a global of its own (GetGlobalValue == 0 on every effect):
+    // answered by the caller's lookup (the GLOB's stored value, or what a script set), else the list is unanswered and
+    // fails closed.
     TEST(SkyrimVampirismSun, a_global_the_data_adds_is_answered_by_the_callers_lookup_and_unanswered_without_one)
     {
         SunLibrary lib;
@@ -219,7 +223,8 @@ namespace
         EXPECT_FALSE(isSunDamageSpell(0xED099));
     }
 
-    // ---- the service over a fake script port -------------------------------------------------------------------------------------
+    // ---- the service over a fake script port
+    // -------------------------------------------------------------------------------------
 
     class FakePort final : public ScriptPort
     {
@@ -454,7 +459,8 @@ namespace
         EXPECT_EQ(rig.service->stage(), 1);
     }
 
-    // ---- the chunk -------------------------------------------------------------------------------------------------------------
+    // ---- the chunk
+    // -------------------------------------------------------------------------------------------------------------
 
     class MemoryWriter final : public openeden::sdk::ChunkWriter
     {

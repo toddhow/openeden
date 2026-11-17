@@ -1,5 +1,5 @@
-// Task 0228: the text tags of Skyrim dialogue (`<Global=RoomCost>`, `<Alias=X>`, `<BaseName>`...), the pure expander and
-// its use by the conversation runtime on generated plugins. No game data.
+// Task 0228: the text tags of Skyrim dialogue (`<Global=RoomCost>`, `<Alias=X>`, `<BaseName>`...), the pure expander
+// and its use by the conversation runtime on generated plugins. No game data.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/journal.hpp>
@@ -61,8 +61,8 @@ namespace
 
     TEST(SkyrimTextTagsPure, aliasTagsUseTheResolverAndAnUnfilledAliasIsLeftOut)
     {
-        EXPECT_EQ(run("Find <Alias=Staff> and <Alias.ShortName=Staff>, not <Alias=Ghost>."),
-            "Find Ancano and Ancano, not .");
+        EXPECT_EQ(
+            run("Find <Alias=Staff> and <Alias.ShortName=Staff>, not <Alias=Ghost>."), "Find Ancano and Ancano, not .");
     }
 
     TEST(SkyrimTextTagsPure, pronounsFollowTheAliasSex)

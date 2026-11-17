@@ -604,8 +604,8 @@ namespace
         drawAndRelease(0.8333f); // about half of 1.667
         ASSERT_EQ(mWriter.mLaunches.size(), 1u);
         // The hold counts from the press to the release: the updates add up to 0.05 + 0.8333 rounded to 0.05 steps.
-        const float fraction = (mWriter.mLaunches[0].mRequest.speed / 6000.f - kMinDrawSpeedFraction)
-            / (1.f - kMinDrawSpeedFraction);
+        const float fraction
+            = (mWriter.mLaunches[0].mRequest.speed / 6000.f - kMinDrawSpeedFraction) / (1.f - kMinDrawSpeedFraction);
         EXPECT_GT(fraction, 0.4f);
         EXPECT_LT(fraction, 0.65f);
         result(mWriter.mLaunches[0], ProjectileFate::HitActor, mB);

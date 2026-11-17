@@ -1233,7 +1233,8 @@ namespace
 
     TEST(SkyrimRecordsItemCount, aCountIsRead)
     {
-        const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, sub4("XCNT", Bytes().u32(25)))), defaultOrder());
+        const Parsed p
+            = parse(roomWith(refrPlus(0x01000901, 0x0001234, sub4("XCNT", Bytes().u32(25)))), defaultOrder());
         ASSERT_TRUE(p.mOk) << p.mError.describe();
         const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
         ASSERT_NE(r, nullptr);

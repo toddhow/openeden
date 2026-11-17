@@ -399,8 +399,8 @@ namespace MWRender
                                  << " s";
                 mCastHoldSeen = state.castHold;
             }
-            const SkyrimFirstPerson::Stance stance = SkyrimFirstPerson::stanceFor(
-                drawState, mArmsClock < mWeaponUntil, mArmsClock < mSpellUntil);
+            const SkyrimFirstPerson::Stance stance
+                = SkyrimFirstPerson::stanceFor(drawState, mArmsClock < mWeaponUntil, mArmsClock < mSpellUntil);
             mArmsController->setIdle(
                 SkyrimFirstPerson::handsIdleClip(mArmsWeaponType, stance, state.bowDrawing, holdClip), holdSeconds);
             // The weapon is in the hand while drawn, and during the equip and unequip clips from or until the clip's
@@ -418,14 +418,14 @@ namespace MWRender
                 if (mGearPhase != SkyrimFirstPerson::GearPhase::None)
                     event = mArmsController->eventTime(mGearClip, SkyrimFirstPerson::gearEventName(mGearPhase));
             }
-            SkyrimHeldGear::setDrawn(mArms->keepAlive,
-                SkyrimFirstPerson::weaponShown(stance, mGearPhase, playing, elapsed, event));
+            SkyrimHeldGear::setDrawn(
+                mArms->keepAlive, SkyrimFirstPerson::weaponShown(stance, mGearPhase, playing, elapsed, event));
         }
 
         // The arms turn with the view about the rig's camera node, which stands at the eye.
         Anim::Transform& transform = *mArms->transform();
-        const vsg::vec3 root = SkyrimFirstPerson::rootTranslation(
-            vsg::vec3(playerTransform.translation), yaw, orient, mCameraRest);
+        const vsg::vec3 root
+            = SkyrimFirstPerson::rootTranslation(vsg::vec3(playerTransform.translation), yaw, orient, mCameraRest);
         transform.translation = root;
         // Developer aids (task 0245): the opposite turn, and a line a second with where the arms stand.
         static const bool conjugate = std::getenv("OPENEDEN_FIRSTPERSON_CONJ") != nullptr;
@@ -434,14 +434,13 @@ namespace MWRender
         if (trace && static_cast<int>(mArmsClock) != mTraceSecond)
         {
             mTraceSecond = static_cast<int>(mArmsClock);
-            const vsg::vec3 camera
-                = mArmsCameraPath.empty() ? vsg::vec3() : vsgUtil::computePosition(mArmsCameraPath);
+            const vsg::vec3 camera = mArmsCameraPath.empty() ? vsg::vec3() : vsgUtil::computePosition(mArmsCameraPath);
             const vsg::vec3 forward = orient * vsg::vec3(0.f, 1.f, 0.f);
             Log(Debug::Info) << "PLAYERBODY first person trace feet (" << playerTransform.translation.x << ", "
                              << playerTransform.translation.y << ", " << playerTransform.translation.z << ") yaw "
-                             << yaw << " forward (" << forward.x << ", " << forward.y << ", " << forward.z
-                             << ") root (" << root.x << ", " << root.y << ", " << root.z << ") camera ("
-                             << camera.x << ", " << camera.y << ", " << camera.z << ") clip "
+                             << yaw << " forward (" << forward.x << ", " << forward.y << ", " << forward.z << ") root ("
+                             << root.x << ", " << root.y << ", " << root.z << ") camera (" << camera.x << ", "
+                             << camera.y << ", " << camera.z << ") clip "
                              << (mArmsController ? mArmsController->current() : std::string());
         }
         mArms->update(dt);

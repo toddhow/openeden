@@ -1,7 +1,7 @@
 // Task 0237, milestone M-S6 (standing stones and shrines): the pure rules (skill experience from a stone's perk, what a
 // spell does to the player, the timed blessings, the message box state and the save chunk) on a fake perk library, and
-// the Papyrus natives the stones' scripts call (Actor.HasSpell and RemoveSpell, Spell.Cast, Message.Show with its answer
-// and replay) on generated scripts. No game data.
+// the Papyrus natives the stones' scripts call (Actor.HasSpell and RemoveSpell, Spell.Cast, Message.Show with its
+// answer and replay) on generated scripts. No game data.
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/stones.hpp>
@@ -48,7 +48,8 @@ namespace
     constexpr FormId kMessage = 0x016869;
     constexpr FormId kPlayer = 0x14;
 
-    // ---- a fake library -----------------------------------------------------------------------------------------------
+    // ---- a fake library
+    // -----------------------------------------------------------------------------------------------
 
     class FakeLibrary final : public PerkLibrary
     {
@@ -103,8 +104,8 @@ namespace
             mEffects[id] = m;
         }
 
-        void addSpell(FormId id, const std::string& editorId, std::vector<std::pair<FormId, std::uint32_t>> effects,
-            bool ability)
+        void addSpell(
+            FormId id, const std::string& editorId, std::vector<std::pair<FormId, std::uint32_t>> effects, bool ability)
         {
             SpellRecord s;
             s.mCommon.mId = id;
@@ -155,9 +156,8 @@ namespace
             hooks.mLibrary = [this] { return &lib; };
             hooks.mPersistent = [this] { return persistent; };
             hooks.mNow = [this] { return now; };
-            hooks.mApply = [this](std::span<const FormId> spells) {
-                applied.emplace_back(spells.begin(), spells.end());
-            };
+            hooks.mApply
+                = [this](std::span<const FormId> spells) { applied.emplace_back(spells.begin(), spells.end()); };
             hooks.mAnswer = [this](FormId message, std::int32_t button) {
                 answers.emplace_back(message, button);
                 return true;
@@ -172,7 +172,8 @@ namespace
         std::unique_ptr<stones::StonesService> service;
     };
 
-    // ---- skill experience --------------------------------------------------------------------------------------------
+    // ---- skill experience
+    // --------------------------------------------------------------------------------------------
 
     TEST(SkyrimStonesScale, the_warrior_stone_multiplies_its_five_skills_and_no_other)
     {
@@ -239,7 +240,8 @@ namespace
         EXPECT_DOUBLE_EQ(stones::durationOf(lib, 0x1), 0.0);
     }
 
-    // ---- the service ---------------------------------------------------------------------------------------------------
+    // ---- the service
+    // ---------------------------------------------------------------------------------------------------
 
     TEST(SkyrimStonesService, a_blessing_is_timed_and_ends_on_the_game_clock)
     {
@@ -322,7 +324,8 @@ namespace
         EXPECT_FALSE(rig.service->choose(0)); // nothing open any more
     }
 
-    // ---- the chunk ---------------------------------------------------------------------------------------------------------
+    // ---- the chunk
+    // ---------------------------------------------------------------------------------------------------------
 
     class MemoryWriter final : public openeden::sdk::ChunkWriter
     {
@@ -387,7 +390,8 @@ namespace
         EXPECT_TRUE(c.service->timedSpells().empty());
     }
 
-    // ---- the Papyrus natives -----------------------------------------------------------------------------------------------
+    // ---- the Papyrus natives
+    // -----------------------------------------------------------------------------------------------
 
     constexpr FormId kQuestA = 0x01000800;
     constexpr FormId kStoneRef = 0x01000A00;
@@ -577,9 +581,8 @@ namespace
             s.mProperties = { objProp("TheSpell", kSpellA), objProp("Blessing", kBlessing), objProp("Box", kMessageA),
                 objProp("Note", kNoteMessage) };
             EXPECT_EQ(mHost->attachReference(kStoneRef, kBaseA, false, { s }), 1u);
-            mHost->setMessageSink([this](FormId message, const PapyrusMessageInfo& info) {
-                asked.emplace_back(message, info.mText);
-            });
+            mHost->setMessageSink(
+                [this](FormId message, const PapyrusMessageInfo& info) { asked.emplace_back(message, info.mText); });
             tick();
         }
         ~HostRig()

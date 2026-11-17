@@ -1,8 +1,8 @@
 // Task 0246 (creatures, third slice): seven more rows of the profile table (draugr, falmer, troll, frostbite spider,
-// chaurus, hagraven, spriggan), the capsule radius of every row, and the appearance that carries it. Hand-built records;
-// no plugin bytes, no game data. The numbers are the ones of docs/tasks/0246-skyrim-creatures-third.md section 2: strides
-// and durations are the root-motion blocks of animationdata/boundanims/anims_<project>.txt, capsule heights and radii the
-// bounds of the skin models.
+// chaurus, hagraven, spriggan), the capsule radius of every row, and the appearance that carries it. Hand-built
+// records; no plugin bytes, no game data. The numbers are the ones of docs/tasks/0246-skyrim-creatures-third.md section
+// 2: strides and durations are the root-motion blocks of animationdata/boundanims/anims_<project>.txt, capsule heights
+// and radii the bounds of the skin models.
 #include <game_skyrimse/appearance.hpp>
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/creatures.hpp>
@@ -45,9 +45,9 @@ namespace
 
     // The numbers of the sidecars and the listing of Skyrim - Animations.bsa (see the task document).
     const ThirdRow kThird[] = {
-        { "draugr", "Actors\\Draugr\\Character Assets\\Skeleton.nif", "draugrproject", "mtidle", "mtforward", "mtfastforward",
-            76.9733f, 1.f, 180.921f, 0.533333f, 145.f, 18.f, "1hmattacka", "1hmattackpowerslash", "1hmrecoil",
-            "mtstaggermedium", "special_deathbackward" },
+        { "draugr", "Actors\\Draugr\\Character Assets\\Skeleton.nif", "draugrproject", "mtidle", "mtforward",
+            "mtfastforward", 76.9733f, 1.f, 180.921f, 0.533333f, 145.f, 18.f, "1hmattacka", "1hmattackpowerslash",
+            "1hmrecoil", "mtstaggermedium", "special_deathbackward" },
         { "falmer", "Actors\\Falmer\\Character Assets\\Skeleton.nif", "falmerproject", "mtidle", "mtwalkforward",
             "mtrunforward", 167.438f, 1.666667f, 191.458f, 0.533333f, 145.f, 21.f, "h2hattack1", "h2hattack2",
             "h2hrecoilright", "1hmstaggerbackmid", "1hmstaggerbackheavy" },
@@ -64,8 +64,8 @@ namespace
             "runforward", 90.9832f, 1.333333f, 89.1586f, 0.766667f, 128.f, 17.f, "attackr", "attackl", "recoilr",
             "staggersmall", "staggerlarge" },
         { "spriggan", "Actors\\Spriggan\\Character Assets\\skeleton.nif", "spriggan", "mt_idle", "walkforward",
-            "runforward", 95.7992f, 1.466667f, 263.173f, 0.733333f, 156.f, 16.f, "attackright1",
-            "powerattackforwardx2", "recoilr", "staggerback_small", "death" },
+            "runforward", 95.7992f, 1.466667f, 263.173f, 0.733333f, 156.f, 16.f, "attackright1", "powerattackforwardx2",
+            "recoilr", "staggerback_small", "death" },
     };
 
     // The radius of each of the ten earlier rows: half the smaller horizontal extent of the mid-body, at least 16.
@@ -74,9 +74,9 @@ namespace
         const char* mName;
         float mRadius;
     };
-    const EarlierRadius kEarlier[] = { { "wolf", 16.f }, { "dog", 16.f }, { "bear", 68.f }, { "skeever", 16.f },
-        { "horse", 32.f }, { "sabrecat", 32.f }, { "deer", 34.f }, { "goat", 16.f }, { "mammoth", 100.f },
-        { "giant", 32.f } };
+    const EarlierRadius kEarlier[]
+        = { { "wolf", 16.f }, { "dog", 16.f }, { "bear", 68.f }, { "skeever", 16.f }, { "horse", 32.f },
+              { "sabrecat", 32.f }, { "deer", 34.f }, { "goat", 16.f }, { "mammoth", 100.f }, { "giant", 32.f } };
 
     const CreatureProfile* rowOf(std::string_view name)
     {
@@ -206,8 +206,8 @@ namespace
                  "Actors\\WerewolfBeast\\Character Assets\\skeleton.nif",
                  "Actors\\FrostbiteSpiderX\\Character Assets\\skeleton.nif",
                  "Actors\\Character\\Character Assets\\skeleton.nif",
-                 "Actors\\Character\\Character Assets Female\\skeleton_female.nif", "mods\\actors\\troll\\character assets\\skeleton.nif",
-                 "" })
+                 "Actors\\Character\\Character Assets Female\\skeleton_female.nif",
+                 "mods\\actors\\troll\\character assets\\skeleton.nif", "" })
             EXPECT_EQ(creatureProfileFor(path), nullptr) << path;
     }
 

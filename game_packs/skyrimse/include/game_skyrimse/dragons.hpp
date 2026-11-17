@@ -1,18 +1,19 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_DRAGONS_H
 #define OPENEDEN_GAME_SKYRIMSE_DRAGONS_H
 
-// Task 0253 (dragons, first slice): the pure half. A dragon profile (the dragon's clips, speeds and collision size), the
-// flight machine (take off, circle the player at a height, land), the breath cone and the soul rule. No engine, renderer,
-// script-language or clock type: every function takes the seconds it is given. The combat half (breath, soul, the
-// intents the cell source writes as actor requests) is combat_dragon.cpp.
+// Task 0253 (dragons, first slice): the pure half. A dragon profile (the dragon's clips, speeds and collision size),
+// the flight machine (take off, circle the player at a height, land), the breath cone and the soul rule. No engine,
+// renderer, script-language or clock type: every function takes the seconds it is given. The combat half (breath, soul,
+// the intents the cell source writes as actor requests) is combat_dragon.cpp.
 //
 // Where each number comes from (the survey is docs/tasks/0253-skyrim-dragons.md section 1; `SkyrimDragonSurvey`):
 //   VERIFIED  clip file names (the listing of Skyrim - Animations.bsa, meshes/actors/dragon/animations), durations
 //             (the clips themselves), the sidecar events of the ground attacks (`HitFrame`) and the shout clips
-//             (`Voice_SpellFire_Event` at 0.3333 s), the root motion of the walk (512 units in 1.3333 s) and of the glide
-//             (2048 units in 1.3333 s), the vertical take-off (rise 2048 in 4 s) and vertical landing (fall 2048 in 3.3333
-//             s), the skeleton (84 bones, clips of 83 tracks).
-//   OURS      the cruise height, the circle's radius, the seconds on the ground and in the air, the landing distance, the
+//             (`Voice_SpellFire_Event` at 0.3333 s), the root motion of the walk (512 units in 1.3333 s) and of the
+//             glide (2048 units in 1.3333 s), the vertical take-off (rise 2048 in 4 s) and vertical landing (fall 2048
+//             in 3.3333 s), the skeleton (84 bones, clips of 83 tracks).
+//   OURS      the cruise height, the circle's radius, the seconds on the ground and in the air, the landing distance,
+//   the
 //             breath cone's half angle and reach, the mouth's place, the soul's delay and range, the capsule's radius.
 // Off unless the pack setting `dragons` is on (with `creatures` and the engine's `[Game] neutral actors`).
 
@@ -64,12 +65,13 @@ namespace game_skyrimse::dragons
     inline constexpr float kTakeoffSeconds = 4.f;
     inline constexpr float kApproachSeconds = 3.33333f;
     inline constexpr float kTouchdownSeconds = 1.33333f;
-    /// The walk's root motion (mtforwardground): 512 units in 1.33333 s. A dragon on the ground is walked straight at its
-    /// goal at this speed (no navmesh: the agent of its size finds no way), see SkyrimCellSource::update.
+    /// The walk's root motion (mtforwardground): 512 units in 1.33333 s. A dragon on the ground is walked straight at
+    /// its goal at this speed (no navmesh: the agent of its size finds no way), see SkyrimCellSource::update.
     inline constexpr float kGroundSpeed = 384.f;
     /// The glide's root motion: 2048 units in 1.33333 s.
     inline constexpr float kGlideSpeed = 1536.f;
-    /// The clip's own rise (take-off) and fall (landing approach), for the record; the flight scales to the cruise height.
+    /// The clip's own rise (take-off) and fall (landing approach), for the record; the flight scales to the cruise
+    /// height.
     inline constexpr float kTakeoffClipRise = 2048.f;
 
     struct FlightSettings
@@ -80,7 +82,8 @@ namespace game_skyrimse::dragons
         float mCruiseHeight = 900.f; ///< above the ground it took off from (ours; the clip's rise is 2048)
         float mCircleRadius = 1500.f; ///< round the player (ours; with the height the breath's 2000 reaches)
         float mLandDistance = 900.f; ///< the landing point's distance from the player (ours)
-        float mLandHover = 150.f; ///< the approach ends this high above the landing point, the touch-down brings it down
+        float mLandHover
+            = 150.f; ///< the approach ends this high above the landing point, the touch-down brings it down
         float mTurnRate = 2.f; ///< radians a second the heading may turn
     };
 
@@ -158,8 +161,8 @@ namespace game_skyrimse::dragons
     };
 
     /// Half angle of the breath cone, radians (ours: 25 degrees), and the breath's reach when the spell's projectile
-    /// names none (ours), game units. The mouth is this far ahead of the dragon's centre and this high above its feet on
-    /// the ground, and this far below its centre in the air (ours).
+    /// names none (ours), game units. The mouth is this far ahead of the dragon's centre and this high above its feet
+    /// on the ground, and this far below its centre in the air (ours).
     inline constexpr float kBreathHalfAngle = 0.4363f;
     inline constexpr float kBreathDefaultRange = 1600.f;
     inline constexpr float kBreathMouthForward = 450.f;
@@ -173,12 +176,12 @@ namespace game_skyrimse::dragons
     inline constexpr float kBreathDefaultSeconds = 2.4f;
     /// The least gap between two breaths of one dragon, whatever the shout's recovery says (ours).
     inline constexpr float kBreathMinGap = 6.f;
-    /// The breath's clip is this long (ground_exhalefirebreath and shout_flightexhaleflame, VERIFIED): the dragon is busy
-    /// until then.
+    /// The breath's clip is this long (ground_exhalefirebreath and shout_flightexhaleflame, VERIFIED): the dragon is
+    /// busy until then.
     inline constexpr float kBreathClipSeconds = 3.f;
 
-    /// The cone from `origin` at the target point: axis towards (tx, ty, tz). A zero-length or non-finite aim gives a cone
-    /// that contains nothing (range 0).
+    /// The cone from `origin` at the target point: axis towards (tx, ty, tz). A zero-length or non-finite aim gives a
+    /// cone that contains nothing (range 0).
     [[nodiscard]] Cone breathCone(
         double ox, double oy, double oz, double tx, double ty, double tz, float range, float halfAngle);
     /// True when the point is within the cone's range and half angle. Non-finite values are outside.
@@ -199,12 +202,13 @@ namespace game_skyrimse::dragons
     {
         bool mOn = false;
         FlightSettings mFlight;
-        /// A developer aid: when above 0 a dragon starts with this much health (cut to its maximum), so a run can kill it.
+        /// A developer aid: when above 0 a dragon starts with this much health (cut to its maximum), so a run can kill
+        /// it.
         float mTestHealth = 0.f;
         /// A developer aid: the breath's damage is multiplied by this (so a run lasts longer than three breaths).
         float mTestDamageScale = 1.f;
-        /// A developer aid: when above 0 every dragon is killed (health 0, the death reported) when the combat clock reaches
-        /// this many seconds, so a run can show the death and the soul without winning the fight.
+        /// A developer aid: when above 0 every dragon is killed (health 0, the death reported) when the combat clock
+        /// reaches this many seconds, so a run can show the death and the soul without winning the fight.
         float mTestKillAt = 0.f;
     };
 

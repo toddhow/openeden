@@ -39,7 +39,8 @@ namespace MWRender::SkyrimFirstPerson
 {
     /// The first-person skeleton's Havok file (VERIFIED: `meshes/actors/character/_1stperson/characterassets/
     /// skeletonfirst.hkx` in Skyrim - Animations.bsa) and the folder of its clips.
-    inline constexpr std::string_view kSkeletonHkx = "meshes/actors/character/_1stperson/characterassets/skeletonfirst.hkx";
+    inline constexpr std::string_view kSkeletonHkx
+        = "meshes/actors/character/_1stperson/characterassets/skeletonfirst.hkx";
     inline constexpr std::string_view kClipFolder = "meshes/actors/character/_1stperson/animations/";
     /// The rig's camera node, lower case as the engine keeps bone names (`Camera1st [Cam1]` in the skeleton model).
     inline constexpr std::string_view kCameraBone = "camera1st [cam1]";
@@ -51,7 +52,8 @@ namespace MWRender::SkyrimFirstPerson
     /// The longest clip name taken (the archive's longest first-person name is 35 characters).
     inline constexpr std::size_t kMaxClipName = 64;
 
-    /// `name` lower-cased when it is a plain clip name (letters, digits, `_`; 1 to kMaxClipName characters), else empty.
+    /// `name` lower-cased when it is a plain clip name (letters, digits, `_`; 1 to kMaxClipName characters), else
+    /// empty.
     [[nodiscard]] inline std::string armsClipName(std::string_view name)
     {
         if (name.empty() || name.size() > kMaxClipName)
@@ -113,8 +115,8 @@ namespace MWRender::SkyrimFirstPerson
     inline constexpr float kBlendSeconds = 0.15f;
 
     /// Task 0249. When an event of a first-person clip falls, in animation seconds into the clip (the sidecar's stored
-    /// time times the generator's playback speed): not known yet (the sidecar is still being read), the clip has no such
-    /// event, or at `seconds`.
+    /// time times the generator's playback speed): not known yet (the sidecar is still being read), the clip has no
+    /// such event, or at `seconds`.
     struct EventTime
     {
         enum class State : std::uint8_t
@@ -204,7 +206,8 @@ namespace MWRender::SkyrimFirstPerson
     /// The clip a change of the engine's draw state plays: raising the weapon hand or the spell hand when something
     /// is drawn (also when it changes from one to the other), lowering what was drawn when nothing is. Empty for no
     /// change.
-    [[nodiscard]] inline std::string_view drawTransitionClip(std::uint8_t weaponType, std::uint8_t from, std::uint8_t to)
+    [[nodiscard]] inline std::string_view drawTransitionClip(
+        std::uint8_t weaponType, std::uint8_t from, std::uint8_t to)
     {
         from = Detail::normaliseDraw(from);
         to = Detail::normaliseDraw(to);
@@ -452,8 +455,8 @@ namespace MWRender::SkyrimFirstPerson
         [[nodiscard]] bool playingOnce() const;
         /// Task 0249: true, with the seconds into it, while `clip` is the one-shot clip the last frame showed.
         [[nodiscard]] bool onceProgress(std::string_view clip, float& elapsed) const;
-        /// Task 0249: when the named event (the sidecar `animationdata/firstperson.txt`: weaponDraw, weaponSheathe, ...)
-        /// of the clip falls. The sidecar is read on a worker after the clip has decoded: Unknown until then.
+        /// Task 0249: when the named event (the sidecar `animationdata/firstperson.txt`: weaponDraw, weaponSheathe,
+        /// ...) of the clip falls. The sidecar is read on a worker after the clip has decoded: Unknown until then.
         [[nodiscard]] EventTime eventTime(std::string_view clip, std::string_view event) const;
         /// The clip written last (empty before the first), for the trace.
         [[nodiscard]] std::string current() const;

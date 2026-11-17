@@ -3,18 +3,19 @@
 
 // Vampirism, first slice (task 0260, milestone M-S7). Off unless `[extension.skyrimse] vampirism` (needs `papyrus`).
 //
-// What runs from the game's own data and scripts (the Papyrus host): `PlayerVampireQuestScript` (quest PlayerVampireQuest,
-// 0x0EAFD5): `VampireChange` (the turn: removes the other diseases, status 1, the stage 1 spells), `VampireProgression`
-// (the spells of stages 1 to 4), `VampireFeed` (back to stage 1) and `OnUpdateGameTime` (a stage up after 1, 2 and 3 game
-// days without feeding, checked every 12 game hours). The spells it gives with Actor.AddSpell (frost resistance, fire
-// weakness, the sun damage ability, the powers Vampire's Servant, Seduction and Embrace of Shadows) reach the combat and
-// the P key through the stones' list of active spells.
+// What runs from the game's own data and scripts (the Papyrus host): `PlayerVampireQuestScript` (quest
+// PlayerVampireQuest, 0x0EAFD5): `VampireChange` (the turn: removes the other diseases, status 1, the stage 1 spells),
+// `VampireProgression` (the spells of stages 1 to 4), `VampireFeed` (back to stage 1) and `OnUpdateGameTime` (a stage
+// up after 1, 2 and 3 game days without feeding, checked every 12 game hours). The spells it gives with Actor.AddSpell
+// (frost resistance, fire weakness, the sun damage ability, the powers Vampire's Servant, Seduction and Embrace of
+// Shadows) reach the combat and the P key through the stones' list of active spells.
 //
-// What this file adds (HAND-WRITTEN, because nothing in the data does it): the three timers the scripts rely on the game
-// engine for (the Sanguinare Vampiris effect script's "three game days later", the quest's RegisterForUpdateGameTime(12)
-// and the clock behind GameDaysPassed), the sunlight test for the sun damage abilities (the data's own conditions are
-// evaluated, only the clock and the place are ours), the vampire race's disease immunity (VampireVampirism, 0x0ED0A8: the
-// player keeps his own race here, so the ability is given by hand), and the save chunk with the timers.
+// What this file adds (HAND-WRITTEN, because nothing in the data does it): the three timers the scripts rely on the
+// game engine for (the Sanguinare Vampiris effect script's "three game days later", the quest's
+// RegisterForUpdateGameTime(12) and the clock behind GameDaysPassed), the sunlight test for the sun damage abilities
+// (the data's own conditions are evaluated, only the clock and the place are ours), the vampire race's disease immunity
+// (VampireVampirism, 0x0ED0A8: the player keeps his own race here, so the ability is given by hand), and the save chunk
+// with the timers.
 //
 // Standard library, the SDK bindings and save chunk types and the pack's own data headers only. Main thread.
 
@@ -42,8 +43,8 @@ namespace game_skyrimse::vampirism
     inline constexpr std::string_view kQuestScript = "PlayerVampireQuestScript";
     /// The race ability that gives a vampire disease resistance 100 (AbResistDisease, SPEL VampireVampirism).
     inline constexpr FormId kVampirismAbility = 0x0ED0A8;
-    /// The four sun damage abilities (VampireSunDamage01 to 04: type ability, per-effect conditions: not in an interior,
-    /// GameHour between 5 and 19, not in the Forgotten Vale's worldspace; VERIFIED by the CTDA records).
+    /// The four sun damage abilities (VampireSunDamage01 to 04: type ability, per-effect conditions: not in an
+    /// interior, GameHour between 5 and 19, not in the Forgotten Vale's worldspace; VERIFIED by the CTDA records).
     inline constexpr std::array<FormId, 4> kSunDamageSpells = { 0x0C1E8B, 0x0ED09A, 0x0ED09B, 0x0ED09C };
     /// The GLOB GameHour (0x38) the sun conditions read.
     inline constexpr FormId kGameHourGlobal = 0x38;
@@ -57,7 +58,8 @@ namespace game_skyrimse::vampirism
 
     [[nodiscard]] bool isSunDamageSpell(FormId spell);
 
-    // ---- the timers --------------------------------------------------------------------------------------------------
+    // ---- the timers
+    // --------------------------------------------------------------------------------------------------
 
     /// The two clocks the game's engine kept for the scripts. Pure; days are game days (game seconds / 86400).
     class Machine
@@ -92,7 +94,8 @@ namespace game_skyrimse::vampirism
         double mNextTick = -1.0;
     };
 
-    // ---- the sun -------------------------------------------------------------------------------------------------------
+    // ---- the sun
+    // -------------------------------------------------------------------------------------------------------
 
     /// The hour (0 to 24) of a game clock in seconds.
     [[nodiscard]] float hourOfClock(double gameSeconds);
@@ -101,14 +104,17 @@ namespace game_skyrimse::vampirism
     /// GameHour, IsInInterior and GetInWorldspace; the clock and the place are the caller's). A spell the library does
     /// not know, or with an unanswered condition, is "no sun". Pure but for the evaluator's own counters.
     /// `otherGlobals` answers every other GLOB a condition reads (Dawnguard's version of the spell adds a test of one
-    /// of its own globals: its stored value, or what a script set); without it such a list is unanswered and fails closed.
+    /// of its own globals: its stored value, or what a script set); without it such a list is unanswered and fails
+    /// closed.
     [[nodiscard]] bool sunlit(const PerkLibrary& library, FormId sunSpell, double gameSeconds,
         const effectconditions::Place& place, const effectconditions::Evaluator::GlobalLookup& otherGlobals = {});
 
-    /// `spells` with the sun damage spells left out unless `sun`, and, when `vampire`, the vampire race's ability added.
+    /// `spells` with the sun damage spells left out unless `sun`, and, when `vampire`, the vampire race's ability
+    /// added.
     [[nodiscard]] std::vector<FormId> filterAbilities(std::span<const FormId> spells, bool vampire, bool sun);
 
-    // ---- the service ---------------------------------------------------------------------------------------------------
+    // ---- the service
+    // ---------------------------------------------------------------------------------------------------
 
     /// How the service reaches the quest script (the pack implements it over PapyrusHost; tests use a fake).
     class ScriptPort

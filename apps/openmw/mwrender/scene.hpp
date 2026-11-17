@@ -98,11 +98,11 @@ namespace MWRender
             const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance) override;
         /// Task 0222: the drawn object of a neutral actor (nodes, pose and gait controllers, held gear), made but not
         /// placed or compiled; null when it cannot be drawn. `player` is the player's own body (see scene.cpp).
-        std::unique_ptr<MWAnim::ObjectAnimation> makeNeutralActorObject(const MWWorld::Ptr& ptr,
-            const openeden::sdk::game::ActorAppearance& appearance, bool player);
+        std::unique_ptr<MWAnim::ObjectAnimation> makeNeutralActorObject(
+            const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance, bool player);
         /// Task 0245: the player's first-person arms: the first-person skeleton and parts of `appearance`, the arms'
-        /// clip controller (a SkyrimFirstPerson::ArmsController, in keepAlive) and the held gear. Made but not placed or
-        /// compiled; null when it cannot be drawn.
+        /// clip controller (a SkyrimFirstPerson::ArmsController, in keepAlive) and the held gear. Made but not placed
+        /// or compiled; null when it cannot be drawn.
         std::unique_ptr<MWAnim::ObjectAnimation> makeFirstPersonArms(
             const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance);
         /// The gait speed and a combat clip of an object made by makeNeutralActorObject (what the Ptr versions do).
@@ -117,10 +117,10 @@ namespace MWRender
         /// Task 0255 (riding): the drawn neutral object of the placement with this id (empty when none is drawn). Walks
         /// every cell: call it when the id changes, not every frame.
         MWWorld::Ptr findNeutralObject(std::uint32_t placement);
-        /// Task 0255: the nodes from the root of a drawn neutral object's skeleton down to the bone `bone` (the object's
-        /// own transform left out), so that `vsgUtil::computePosition` of them is the bone's place in the object's frame.
-        /// Empty when the object or the bone is not there. The nodes live as long as the object: ask again when
-        /// `changeCounter()` has moved.
+        /// Task 0255: the nodes from the root of a drawn neutral object's skeleton down to the bone `bone` (the
+        /// object's own transform left out), so that `vsgUtil::computePosition` of them is the bone's place in the
+        /// object's frame. Empty when the object or the bone is not there. The nodes live as long as the object: ask
+        /// again when `changeCounter()` has moved.
         std::vector<const Anim::Transform*> neutralObjectBonePath(const MWWorld::Ptr& ptr, const std::string& bone);
         void setNeutralMouth(const MWWorld::Ptr& ptr, const std::array<float, 16>& visemes) override;
         void setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond) override;

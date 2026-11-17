@@ -68,8 +68,8 @@ namespace
             const HavokPack::AnimationProject project = HavokPack::readAnimationProject(sidecar);
             const HavokPack::MotionTable motion = HavokPack::readMotionTable(motionText);
 
-            for (const std::string_view clip : { p.mIdle, p.mWalk, p.mRun, p.mAttack, p.mPower, p.mRecoil, p.mStagger,
-                     p.mDeath })
+            for (const std::string_view clip :
+                { p.mIdle, p.mWalk, p.mRun, p.mAttack, p.mPower, p.mRecoil, p.mStagger, p.mDeath })
             {
                 const std::string bytes = read(animations + norm(std::string(clip)) + ".hkx");
                 EXPECT_FALSE(bytes.empty()) << "missing clip " << clip;
@@ -88,7 +88,8 @@ namespace
                 return clips.empty() ? 0.f : clips.front().mDuration;
             };
 
-            for (const auto& [clip, stride] : { std::pair{ p.mWalk, p.mWalkStride }, std::pair{ p.mRun, p.mRunStride } })
+            for (const auto& [clip, stride] :
+                { std::pair{ p.mWalk, p.mWalkStride }, std::pair{ p.mRun, p.mRunStride } })
             {
                 const float duration = durationOf(clip);
                 ASSERT_GT(duration, 0.f) << clip;
@@ -105,8 +106,9 @@ namespace
                 {
                     // The generator's name is not the file's: the stride was taken from a block of the same duration
                     // by hand (the table says which); report it, do not fail.
-                    std::cout << "SKYRIMSE-CREATURE-CLIPS " << p.mName << " " << clip << " NOT linked by name (duration "
-                              << duration << ", table stride " << stride << ")" << std::endl;
+                    std::cout << "SKYRIMSE-CREATURE-CLIPS " << p.mName << " " << clip
+                              << " NOT linked by name (duration " << duration << ", table stride " << stride << ")"
+                              << std::endl;
                 }
             }
 

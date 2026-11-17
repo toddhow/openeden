@@ -3799,8 +3799,8 @@ namespace MWRender
             static const bool forceArms = std::getenv("OPENEDEN_FIRSTPERSON_FORCE") != nullptr;
             mPlayerBody->updateFirstPerson(dt, mPlayer->getPtr(), *mPlayer->transform(), mCamera->getOrientation(),
                 mCamera->getYaw(), firstPerson || forceArms);
-            mCamera->setFirstPersonBodyPath(firstPerson ? mPlayerBody->cameraPath()
-                                                        : std::vector<vsg::ref_ptr<const Anim::Transform>>());
+            mCamera->setFirstPersonBodyPath(
+                firstPerson ? mPlayerBody->cameraPath() : std::vector<vsg::ref_ptr<const Anim::Transform>>());
         }
         setFirstPersonMode(mCamera->getMode() == Camera::Mode::FirstPerson);
 

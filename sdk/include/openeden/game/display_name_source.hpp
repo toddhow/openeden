@@ -29,10 +29,10 @@ namespace openeden::sdk::game
         /// or its name cannot be read; the core then uses the editor id.
         [[nodiscard]] virtual std::string displayNameOf(WorldId base) = 0;
 
-        /// Version 0.2 (task 0224, additive): the name for ONE placed object, when it differs from its base's (a depleted
-        /// ore vein, "Iron Ore Vein (depleted)"). Empty means "use displayNameOf(base)" (and, for an activator, that the
-        /// pack has nothing to say about it, so it shows no tooltip). Asked by the core each frame while the player looks
-        /// at the object, on the main thread: cheap lookups only.
+        /// Version 0.2 (task 0224, additive): the name for ONE placed object, when it differs from its base's (a
+        /// depleted ore vein, "Iron Ore Vein (depleted)"). Empty means "use displayNameOf(base)" (and, for an
+        /// activator, that the pack has nothing to say about it, so it shows no tooltip). Asked by the core each frame
+        /// while the player looks at the object, on the main thread: cheap lookups only.
         [[nodiscard]] virtual std::string placementNameOf(WorldId /*placement*/, WorldId /*base*/) { return {}; }
     };
 }

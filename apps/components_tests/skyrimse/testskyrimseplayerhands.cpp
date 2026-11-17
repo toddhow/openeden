@@ -72,8 +72,8 @@ namespace
             addEffect(kPeakEffect, MagicArchetype::PeakValueModifier, 39, 0x40001002);
             addSpell(kFirebolt, "Firebolt", 41, MagicCast::FireAndForget, MagicDelivery::Aimed,
                 { { kFireEffect, 25.f, 0 } });
-            addSpell(kHealing, "Healing", 12, MagicCast::Concentration, MagicDelivery::Self,
-                { { kHealEffect, 10.f, 1 } });
+            addSpell(
+                kHealing, "Healing", 12, MagicCast::Concentration, MagicDelivery::Self, { { kHealEffect, 10.f, 1 } });
             addSpell(kWard, "WardLesser", 34, MagicCast::Concentration, MagicDelivery::Self,
                 { { kAccumulateEffect, 40.f, 0 }, { kPeakEffect, 40.f, 0 } });
 

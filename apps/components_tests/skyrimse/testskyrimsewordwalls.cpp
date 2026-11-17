@@ -1,7 +1,7 @@
 // Task 0256 (Skyrim word walls): the trigger volumes (a sphere primitive, XPRM), the tracker that tells a script the
-// player went in or out, the view cone behind ObjectReference.HasLOS, the Papyrus natives a word wall's scripts call, the
-// merge of a base form's script properties into a reference's, and the message a learned word shows. Generated plugins
-// and scripts; no game data. Written first and run red against stubs (see the task's stage log).
+// player went in or out, the view cone behind ObjectReference.HasLOS, the Papyrus natives a word wall's scripts call,
+// the merge of a base form's script properties into a reference's, and the message a learned word shows. Generated
+// plugins and scripts; no game data. Written first and run red against stubs (see the task's stage log).
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/shouts.hpp>
@@ -278,8 +278,8 @@ namespace
         cellSubs.append(sub4("EDID", Bytes().zstring("Wall")));
         cellSubs.append(sub4("DATA", Bytes().u16(CellFlags::Interior)));
         Bytes sub = record4("CELL", 0, cellId, cellSubs);
-        sub.append(group4(
-            cellId, kGrupCellChildren, group4(cellId, kGrupTemporary, record4("REFR", 0, 0x01000900, refSubs))));
+        sub.append(
+            group4(cellId, kGrupCellChildren, group4(cellId, kGrupTemporary, record4("REFR", 0, 0x01000900, refSubs))));
         Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
         bytes.append(group4(Content::fourCC("CELL"), kGrupTop,
             group4(cellId % 10, kGrupInteriorBlock, group4((cellId / 10) % 10, kGrupInteriorSub, sub))));
@@ -340,7 +340,8 @@ namespace
         EXPECT_EQ(plugin.mOddSubrecords, 1u);
     }
 
-    // ---- a base form's script properties fill the reference's --------------------------------------------------------
+    // ---- a base form's script properties fill the reference's
+    // --------------------------------------------------------
 
     vmad::Property intProp(const std::string& name, std::int32_t value)
     {
@@ -442,9 +443,7 @@ namespace
             .param("akActionRef", "ObjectReference")
             .iadd(Id("enters"), Id("enters"), Int(1))
             .assign(Id("who"), Id("akActionRef"));
-        s.function("OnTriggerLeave")
-            .param("akActionRef", "ObjectReference")
-            .iadd(Id("leaves"), Id("leaves"), Int(1));
+        s.function("OnTriggerLeave").param("akActionRef", "ObjectReference").iadd(Id("leaves"), Id("leaves"), Int(1));
         s.function("Probe")
             .local("p", "Actor")
             .callStatic("Game", "GetPlayer", Id("p"))

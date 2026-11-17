@@ -105,8 +105,8 @@ namespace game_skyrimse::services
     {
         if (bed == kNullFormId || !std::isfinite(now) || !std::isfinite(hours) || hours <= 0.0)
             return false;
-        mRentals.erase(std::remove_if(mRentals.begin(), mRentals.end(),
-                           [now](const Rental& r) { return r.mExpires <= now; }),
+        mRentals.erase(
+            std::remove_if(mRentals.begin(), mRentals.end(), [now](const Rental& r) { return r.mExpires <= now; }),
             mRentals.end());
         const double expires = now + hours * 3600.0;
         const auto it = std::lower_bound(
@@ -528,22 +528,22 @@ namespace game_skyrimse::services
         ServicesService* self = this;
         static const BindingType hexOne[] = { BindingType::String };
         static const BindingType clockParam[] = { BindingType::Double };
-        static const BindingType openParams[] = { BindingType::String, BindingType::String, BindingType::String,
-            BindingType::String };
+        static const BindingType openParams[]
+            = { BindingType::String, BindingType::String, BindingType::String, BindingType::String };
 
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, bool hasResult,
-                             BindingType result, Fn::Body body,
-                             openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = hasResult;
-            f.result = result;
-            f.access = access;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, bool hasResult, BindingType result,
+                  Fn::Body body, openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = hasResult;
+                  f.result = result;
+                  f.access = access;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
         const auto str = [&m](std::string value) {
             m.mText = std::move(value);
             BindingResult r;
@@ -580,9 +580,8 @@ namespace game_skyrimse::services
             [self, str](std::span<const BindingValue>) { return str(self->mName); });
         add("revision", {}, true, BindingType::Int32,
             [self, num](std::span<const BindingValue>) { return num(self->revision()); });
-        add("gold", {}, true, BindingType::Int32, [self, num](std::span<const BindingValue>) {
-            return num(self->mHooks.mGold ? self->mHooks.mGold() : 0);
-        });
+        add("gold", {}, true, BindingType::Int32,
+            [self, num](std::span<const BindingValue>) { return num(self->mHooks.mGold ? self->mHooks.mGold() : 0); });
         add("skill_name", {}, true, BindingType::String, [self, str](std::span<const BindingValue>) {
             return str(self->mState == State::Training && self->mHooks.mSkillName
                     ? self->mHooks.mSkillName(self->mTrainer.mSlot)
@@ -629,7 +628,8 @@ namespace game_skyrimse::services
                 && self->mRentals.active(static_cast<FormId>(bed), self->mNow));
             return r;
         });
-        add("open", openParams, false, BindingType::Bool,
+        add(
+            "open", openParams, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 std::uint64_t placement = 0, base = 0;
                 if (!parseHex(a[1].text, placement) || !parseHex(a[2].text, base) || base > 0xFFFFFFFFull)
@@ -641,25 +641,29 @@ namespace game_skyrimse::services
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("train", {}, false, BindingType::Bool,
+        add(
+            "train", {}, false, BindingType::Bool,
             [self](std::span<const BindingValue>) {
                 (void)self->train();
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("rent", {}, false, BindingType::Bool,
+        add(
+            "rent", {}, false, BindingType::Bool,
             [self](std::span<const BindingValue>) {
                 (void)self->rent();
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("close", {}, false, BindingType::Bool,
+        add(
+            "close", {}, false, BindingType::Bool,
             [self](std::span<const BindingValue>) {
                 self->close();
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("set_clock", clockParam, false, BindingType::Bool,
+        add(
+            "set_clock", clockParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 self->setClock(a[0].number);
                 return BindingResult();

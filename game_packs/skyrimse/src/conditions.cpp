@@ -336,8 +336,8 @@ namespace game_skyrimse::conditions
         }
 
         // 358 IsPlayerMovingIntoNewSpace (task 0271): the pack is not told when the player walks through a load door or
-        // fast travels, and the packages that test it (a ForceGreet waits for the player to settle) want 0 once he stands
-        // in the place. Always 0.
+        // fast travels, and the packages that test it (a ForceGreet waits for the player to settle) want 0 once he
+        // stands in the place. Always 0.
         float isPlayerMovingIntoNewSpace(const survey::Ctda&, Subject, const ConditionWorld&)
         {
             return 0.f;

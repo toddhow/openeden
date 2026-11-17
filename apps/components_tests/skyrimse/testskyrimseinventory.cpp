@@ -57,8 +57,7 @@ namespace
         weap.append(sub4("DATA", Bytes().u32(25).f32(9.f).u16(7)));
         all.append(group4(Content::fourCC("WEAP"), 0, record4("WEAP", 0, kWeap, weap)));
         all.append(group4(Content::fourCC("BOOK"), 0,
-            record4("BOOK", 0, kBook,
-                sub4("DATA", Bytes().u8(0).u8(0).u16(0).u32(0).u32(40).f32(1.5f)))));
+            record4("BOOK", 0, kBook, sub4("DATA", Bytes().u8(0).u8(0).u16(0).u32(0).u32(40).f32(1.5f)))));
         all.append(group4(Content::fourCC("AMMO"), 0,
             record4("AMMO", 0, kAmmo, sub4("DATA", Bytes().u32(0x1234).u32(0).f32(8.f).u32(3)))));
         Bytes alch;
@@ -68,8 +67,7 @@ namespace
         all.append(group4(Content::fourCC("ARMO"), 0, record4("ARMO", 0, kArmo, valueWeight(125, 12.f))));
         all.append(group4(Content::fourCC("INGR"), 0, record4("INGR", 0, kIngr, valueWeight(2, 0.1f))));
         if (withBadSizes)
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, kOddMisc, sub4("DATA", Bytes().u32(5)))));
+            all.append(group4(Content::fourCC("MISC"), 0, record4("MISC", 0, kOddMisc, sub4("DATA", Bytes().u32(5)))));
         Bytes cont;
         cont.append(sub4("EDID", Bytes().zstring("Chest")));
         cont.append(sub4("CNTO", Bytes().u32(kMisc).u32(5)));
@@ -244,8 +242,8 @@ namespace
     TEST(SkyrimInventoryResolve, plainEntriesAreMergedSortedAndZeroCountsDropped)
     {
         const ItemTable t = table();
-        const std::vector<InventoryEntry> entries = { { kWeap, 1 }, { kMisc, 2 }, { kMisc, 3 }, { kAmmo, 0 },
-            { kArmo, -4 } };
+        const std::vector<InventoryEntry> entries
+            = { { kWeap, 1 }, { kMisc, 2 }, { kMisc, 3 }, { kAmmo, 0 }, { kArmo, -4 } };
         const std::vector<Stack> out = resolveContents(entries, t, 1, 1);
         ASSERT_EQ(out.size(), 2u);
         EXPECT_EQ(out[0], (Stack{ kMisc, 5 }));
@@ -255,7 +253,8 @@ namespace
     TEST(SkyrimInventoryResolve, aLeveledListPickIsTheSameForTheSameSeedAndVariesWithTheSeed)
     {
         ItemTable t = table();
-        t.addLeveledLists({ list(kLvli, 0, 0, { { 1, kMisc, 1 }, { 1, kWeap, 1 }, { 1, kArmo, 1 }, { 1, kBook, 1 } }) });
+        t.addLeveledLists(
+            { list(kLvli, 0, 0, { { 1, kMisc, 1 }, { 1, kWeap, 1 }, { 1, kArmo, 1 }, { 1, kBook, 1 } }) });
         const std::vector<InventoryEntry> entries = { { kLvli, 1 } };
         std::set<FormId> seen;
         for (std::uint64_t seed = 0; seed < 64; ++seed)
@@ -274,7 +273,8 @@ namespace
     TEST(SkyrimInventoryResolve, aUseAllListGivesEveryEntryAndTheLevelGateAppliesToIt)
     {
         ItemTable t = table();
-        t.addLeveledLists({ list(kLvliAll, LeveledFlags::UseAll, 0, { { 1, kMisc, 2 }, { 1, kWeap, 1 }, { 20, kArmo, 1 } }) });
+        t.addLeveledLists(
+            { list(kLvliAll, LeveledFlags::UseAll, 0, { { 1, kMisc, 2 }, { 1, kWeap, 1 }, { 20, kArmo, 1 } }) });
         const std::vector<Stack> out = resolveContents({ { kLvliAll, 3 } }, t, 5, 1);
         ASSERT_EQ(out.size(), 2u); // the level 20 entry is not eligible at level 1
         EXPECT_EQ(out[0], (Stack{ kMisc, 6 })); // the container count multiplies

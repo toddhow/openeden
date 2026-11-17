@@ -162,8 +162,8 @@ namespace MWPhysics::NeutralProjectile
         if (actorT >= 0.0 && (worldT < 0.0 || actorT <= worldT))
         {
             hitT = actorT;
-            outcome = actor->mTarget == openeden::sdk::game::SweepTarget::Player ? Outcome::HitPlayer
-                                                                                    : Outcome::HitActor;
+            outcome
+                = actor->mTarget == openeden::sdk::game::SweepTarget::Player ? Outcome::HitPlayer : Outcome::HitActor;
             if (outcome == Outcome::HitActor)
                 result.mActor = actor->mActor;
         }

@@ -20,7 +20,8 @@
 
 namespace openeden::extension
 {
-    /// One enable or disable a game pack asked for (WorldSourceService::setObjectEnabled), kept until the engine takes it.
+    /// One enable or disable a game pack asked for (WorldSourceService::setObjectEnabled), kept until the engine takes
+    /// it.
     struct ObjectEnableChange
     {
         std::string gameId;
@@ -171,7 +172,8 @@ namespace openeden::extension
         }
 
         /// Task 0181 (1.2): queues a change for the engine. The queue is bounded; a placement already in it is updated
-        /// in place (the last change wins and keeps its place), a new one when the queue is full is dropped and counted.
+        /// in place (the last change wins and keeps its place), a new one when the queue is full is dropped and
+        /// counted.
         [[nodiscard]] bool setObjectEnabled(openeden::sdk::game::WorldCellSource& source,
             openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, bool enabled) override;
 

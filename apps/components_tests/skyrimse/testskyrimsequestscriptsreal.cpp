@@ -1,6 +1,6 @@
-// Task 0187: the dialogue lines with script fragments that the actors of the Bannered Mare offer on the player's own Skyrim
-// SE masters, and the story manager's tree. Prints ids and counts only (lines starting SKYRIMSE-QS). Skipped when
-// OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0187: the dialogue lines with script fragments that the actors of the Bannered Mare offer on the player's own
+// Skyrim SE masters, and the story manager's tree. Prints ids and counts only (lines starting SKYRIMSE-QS). Skipped
+// when OPENEDEN_SKYRIMSE_DATA is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/neutral_world.hpp>
@@ -16,8 +16,8 @@
 #include <iostream>
 #include <map>
 #include <set>
-#include <thread>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -89,10 +89,11 @@ namespace
                 for (const InfoFragmentCall& c : calls)
                 {
                     ++linesWithFragments;
-                    std::cout << "SKYRIMSE-QS   " << o.baseEditorId << " button " << index - 1 << " topic " << hex8(topic.id) << " info "
-                              << hex8(c.mInfo) << " quest " << hex8(view.questOfInfo(c.mInfo)) << " script "
-                              << c.mVmad->mInfo.mBeginScript << c.mVmad->mInfo.mEndScript << " begin '"
-                              << c.mVmad->mInfo.mBeginFunction << "' end '" << c.mVmad->mInfo.mEndFunction << "'\n";
+                    std::cout << "SKYRIMSE-QS   " << o.baseEditorId << " button " << index - 1 << " topic "
+                              << hex8(topic.id) << " info " << hex8(c.mInfo) << " quest "
+                              << hex8(view.questOfInfo(c.mInfo)) << " script " << c.mVmad->mInfo.mBeginScript
+                              << c.mVmad->mInfo.mEndScript << " begin '" << c.mVmad->mInfo.mBeginFunction << "' end '"
+                              << c.mVmad->mInfo.mEndFunction << "'\n";
                 }
                 if (reply.endsConversation)
                     break;

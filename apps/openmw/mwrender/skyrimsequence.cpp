@@ -111,8 +111,7 @@ namespace MWRender::SkyrimSequence
         {
             // The model name of a placed object already starts with "meshes/".
             const VFS::Path::Normalized named = VFS::Path::toNormalized(path);
-            const VFS::Path::Normalized normalized
-                = key.rfind("meshes/", 0) == 0 || key.rfind("meshes\\", 0) == 0
+            const VFS::Path::Normalized normalized = key.rfind("meshes/", 0) == 0 || key.rfind("meshes\\", 0) == 0
                 ? named
                 : Misc::ResourceHelpers::correctMeshPath(named);
             Files::IStreamPtr stream = vfs.get(normalized);
@@ -174,7 +173,8 @@ namespace MWRender::SkyrimSequence
                 s = 1.f;
             transform->translation = vsg::vec3(m[12], m[13], m[14]);
             for (int column = 0; column < 3; ++column)
-                transform->rotation[column] = vsg::vec3(m[column * 4] / s, m[column * 4 + 1] / s, m[column * 4 + 2] / s);
+                transform->rotation[column]
+                    = vsg::vec3(m[column * 4] / s, m[column * 4 + 1] / s, m[column * 4 + 2] / s);
             transform->setScale(s);
         }
         mApplied.store(progress, std::memory_order_relaxed);

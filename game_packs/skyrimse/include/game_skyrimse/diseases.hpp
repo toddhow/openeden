@@ -6,14 +6,16 @@
 //
 // What the data says (the five masters; docs/tasks/0240-skyrim-diseases.md section 1):
 //  - VERIFIED  a disease is a SPEL whose SPIT +8 (type) is 1: 16 records (Ataxia, BoneBreakFever, BrainRot,
-//              SanguinareVampiris, Rattles, Rockjoint, Witbane, six trap copies, BlackHeartBlight, Droops), all constant
-//              effects (cast type 0) with duration 0, i.e. they last until cured.
-//  - VERIFIED  a race's attacks name their spell in RACE ATKD +8 (44 bytes each): the wolf, fox, skeever, chaurus, bear,
+//              SanguinareVampiris, Rattles, Rockjoint, Witbane, six trap copies, BlackHeartBlight, Droops), all
+//              constant effects (cast type 0) with duration 0, i.e. they last until cured.
+//  - VERIFIED  a race's attacks name their spell in RACE ATKD +8 (44 bytes each): the wolf, fox, skeever, chaurus,
+//  bear,
 //              sabre cat, hagraven, ash hopper ... name a disease. ATKD +4 is the AI's weight for choosing the attack
 //              (the NordRace's unarmed attacks carry 0.0 to 1.0 with no spell), NOT an infection chance.
 //  - VERIFIED  actor value 45 is the disease resistance (the MGEF AbResistDisease; Argonian and Wood Elf abilities 50,
 //              the werewolf, vampire and werebear abilities 100); archetype 3 is Cure Disease (CureDiseaseEffect on all
-//              the shrine spells, AlchCureDisease on the Cure Disease potion, garlic bread, the werewolf and vampire cures).
+//              the shrine spells, AlchCureDisease on the Cure Disease potion, garlic bread, the werewolf and vampire
+//              cures).
 //  - NOT IN THE DATA  the chance a landed blow infects: no GMST holds it. The chance below is ours (RECALLED-VERIFY).
 //
 // What a disease does in this runtime (modifiersOf): the maximum and regeneration of stamina and magicka, and a weapon
@@ -42,15 +44,16 @@ namespace game_skyrimse::diseases
 {
     /// MGEF DATA +64 archetype 3 (VERIFIED by the names of the three effects that have it).
     inline constexpr std::uint32_t kArchetypeCureDisease = 3;
-    /// Actor values (MGEF DATA +68 of the named effects: DisDamageStamina 26, DisDamageMagicka 25, DisDamageStaminaRegen
-    /// 29, DisDamageMagickaRegen 28, DisDamageHealthVampire 24, DLC2DisDamageCarryWeight 32, AbResistDisease 45).
+    /// Actor values (MGEF DATA +68 of the named effects: DisDamageStamina 26, DisDamageMagicka 25,
+    /// DisDamageStaminaRegen 29, DisDamageMagickaRegen 28, DisDamageHealthVampire 24, DLC2DisDamageCarryWeight 32,
+    /// AbResistDisease 45).
     inline constexpr std::int32_t kValueHealth = 24, kValueMagicka = 25, kValueStamina = 26, kValueMagickaRate = 28,
                                   kValueStaminaRate = 29, kValueCarryWeight = 32, kValueResistDisease = 45;
     inline constexpr std::int32_t kFirstSkillModifier = 96; ///< 96 + the skill slot (One-handed 96, Two-handed 97 ...)
     inline constexpr std::int32_t kSkillModifierCount = 18;
 
-    /// OURS (RECALLED-VERIFY, tunable): the chance that a landed, unblocked blow from a carrier infects a player with no
-    /// resistance, and the seed of the rolls.
+    /// OURS (RECALLED-VERIFY, tunable): the chance that a landed, unblocked blow from a carrier infects a player with
+    /// no resistance, and the seed of the rolls.
     inline constexpr float kDefaultChance = 0.10f;
     inline constexpr std::uint64_t kDefaultSeed = 0x0D15EA5E5ull;
 
@@ -126,8 +129,8 @@ namespace game_skyrimse::diseases
 
         /// A blow that landed on the player from a fighter whose attacks carry `attackSpells`.
         HitResult onHit(std::span<const FormId> attackSpells, std::uint32_t attacker);
-        /// Infects with a disease (a test aid and the shrine-free path); false when it is not a disease, is already held,
-        /// the list is full or the library is not ready. Raises the notification.
+        /// Infects with a disease (a test aid and the shrine-free path); false when it is not a disease, is already
+        /// held, the list is full or the library is not ready. Raises the notification.
         bool infect(FormId disease);
         /// Cures every disease; returns how many went. A notification each.
         std::size_t cure();

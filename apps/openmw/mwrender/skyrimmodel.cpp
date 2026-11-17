@@ -637,9 +637,10 @@ namespace MWRender::SkyrimModel
                      << " dbl=" << key.mDoubleSided << " blend=" << key.mBlend << " test=" << key.mTest
                      << " colors=" << key.mVertexColors << " verts=" << shape.mPositions.size()
                      << " tris=" << shape.mIndices.size() / 3 << " thr=" << key.mThreshold
-                     << " emis=" << key.mEmissive[0] << "," << key.mEmissive[1] << ","
-                     << key.mEmissive[2] << " fx=" << key.mEffect << ":" << key.mEffectColor[0] << ","
-                     << key.mEffectColor[1] << "," << key.mEffectColor[2] << "," << key.mEffectColor[3]
+                     << " emis=" << key.mEmissive[0] << "," << key.mEmissive[1] << "," << key.mEmissive[2]
+                     << " fx=" << key.mEffect << ":" << key.mEffectColor[0] << "," << key.mEffectColor[1] << ","
+                     << key.mEffectColor[2] << ","
+                     << key.mEffectColor[3]
                      // Task 0153 follow-up: what the file's vertex colours and normals hold (mean rgb, mean normal z).
                      << " vcol=" <<
                     [&shape] {

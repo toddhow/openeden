@@ -1,6 +1,7 @@
 // Task 0179 (milestone M-S5, stage S5-7): the perk model (game_skyrimse/perks.hpp) on generated data. No game data. The
-// entry point ids, function ids and tab roles are the data's (the stage log of task 0179); the evaluation rules (priority
-// order, fail closed) are RECALLED-VERIFY and these tests pin THIS implementation. Every number is derived by hand.
+// entry point ids, function ids and tab roles are the data's (the stage log of task 0179); the evaluation rules
+// (priority order, fail closed) are RECALLED-VERIFY and these tests pin THIS implementation. Every number is derived by
+// hand.
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/perks.hpp>
@@ -74,8 +75,9 @@ namespace
     }
 
     // An entry point effect as the PERK record stores it.
-    void addEntryEffect(Bytes& subs, std::uint8_t entry, std::uint8_t function, std::uint8_t tabs, std::uint8_t priority,
-        float value, const std::vector<std::pair<std::uint8_t, std::vector<Bytes>>>& tabConditions = {})
+    void addEntryEffect(Bytes& subs, std::uint8_t entry, std::uint8_t function, std::uint8_t tabs,
+        std::uint8_t priority, float value,
+        const std::vector<std::pair<std::uint8_t, std::vector<Bytes>>>& tabConditions = {})
     {
         subs.append(sub4("PRKE", Bytes().u8(2).u8(0).u8(priority)));
         subs.append(sub4("DATA", Bytes().u8(entry).u8(function).u8(tabs)));
@@ -667,7 +669,8 @@ namespace
         EXPECT_EQ(out[1], 0xA1u);
     }
 
-    // ---- the records the perks read the actors and items from ----------------------------------------------------------
+    // ---- the records the perks read the actors and items from
+    // ----------------------------------------------------------
 
     TEST(SkyrimPerkRecords, aWeaponKeepsItsKeywordsAndAnArmourToo)
     {
@@ -736,8 +739,19 @@ namespace
         spell.mHasData = true;
         spell.mType = SpellRecord::kTypeAbility;
         spell.mEffects = { { 0x800, 1.3f, 0, 0, 0, {} }, { 0x801, 5.f, 0, 0, 0, {} } };
-        { MagicEffectRecord e; e.mHasData = true; e.mPrimaryValue = 85; lib.mEffects[0x800] = e; }
-        { MagicEffectRecord e; e.mHasData = true; e.mArchetype = 4; e.mPrimaryValue = 39; lib.mEffects[0x801] = e; } // archetype 4 is not a value modifier
+        {
+            MagicEffectRecord e;
+            e.mHasData = true;
+            e.mPrimaryValue = 85;
+            lib.mEffects[0x800] = e;
+        }
+        {
+            MagicEffectRecord e;
+            e.mHasData = true;
+            e.mArchetype = 4;
+            e.mPrimaryValue = 39;
+            lib.mEffects[0x801] = e;
+        } // archetype 4 is not a value modifier
         std::vector<FormId> spells;
         collectPerkAbilities(lib, std::vector<FormId>{ kPerk1 }, spells);
         ASSERT_EQ(spells.size(), 1u);

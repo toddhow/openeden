@@ -106,7 +106,9 @@ namespace
                 out.mRunSpeed = kHorseRun;
                 return true;
             });
-            mRiding.setBrainControl([this](WorldId reference, bool stands) { mBrain.push_back({ reference, stands }); });
+            mRiding.setBrainControl([this](WorldId reference, bool stands) {
+                mBrain.push_back({ reference, stands });
+            });
             mRiding.setLog([this](const std::string& line) { mLog.push_back(line); });
             ActorInfo info;
             info.handle = horse();
@@ -346,10 +348,11 @@ namespace
         RidingState restored;
         restored.mHorse = 9;
         int calls = 0;
-        RidingChunk chunk([] { return RidingState(); }, [&](const RidingState& s) {
-            restored = s;
-            ++calls;
-        });
+        RidingChunk chunk([] { return RidingState(); },
+            [&](const RidingState& s) {
+                restored = s;
+                ++calls;
+            });
         {
             Memory shortChunk;
             shortChunk.mBytes = { 1, 0, 0, 0 };

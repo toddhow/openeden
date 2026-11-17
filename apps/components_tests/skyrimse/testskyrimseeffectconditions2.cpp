@@ -75,11 +75,11 @@ namespace
         }
     };
 
-    Verdict run(effectconditions::Evaluator& e, const std::vector<survey::Ctda>& list, Person* target,
-        Person* caster = nullptr)
+    Verdict run(
+        effectconditions::Evaluator& e, const std::vector<survey::Ctda>& list, Person* target, Person* caster = nullptr)
     {
-        return e.evaluate(list, target != nullptr ? target->get() : nullptr, caster != nullptr ? caster->get() : nullptr,
-            nullptr);
+        return e.evaluate(
+            list, target != nullptr ? target->get() : nullptr, caster != nullptr ? caster->get() : nullptr, nullptr);
     }
 
     effectconditions::Evaluator extended()
@@ -196,7 +196,8 @@ namespace
         EXPECT_EQ(run(e, { cond(719, kEq, 1.f, 0) }, &foe), Verdict::Pass);
         EXPECT_EQ(run(e, { cond(719, kEq, 1.f, 0) }, &friendly), Verdict::Fail);
         EXPECT_EQ(run(e, { cond(719, kNe, 0.f, 0) }, &foe), Verdict::Pass); // the Detect Life shape: hostile != 0
-        EXPECT_EQ(run(e, { cond(719, kEq, 1.f, 0x14) }, &foe), Verdict::Fail); // hostile to the caster, not to the player
+        EXPECT_EQ(
+            run(e, { cond(719, kEq, 1.f, 0x14) }, &foe), Verdict::Fail); // hostile to the caster, not to the player
         foe.get()->mHostileToPlayer = true;
         EXPECT_EQ(run(e, { cond(719, kEq, 1.f, 0x14) }, &foe), Verdict::Pass);
         // any other actor reference cannot be answered
@@ -258,9 +259,9 @@ namespace
     constexpr FormId kInteriorBurn = 0x1001, kWorldBurn = 0x1002, kChildSafe = 0x1003, kFoeBurn = 0x1004,
                      kArmourBurn = 0x1005, kGlobalBurn = 0x1006, kBoost = 0x1010, kSpend = 0x1011, kMultBoost = 0x1012,
                      kSlow = 0x1013, kHistskin = 0x1014, kBoostShort = 0x1015, kBoostCheap = 0x1016, kCry = 0x1020;
-    constexpr FormId kEffInterior = 0x2001, kEffWorld = 0x2002, kEffChild = 0x2003, kEffFoe = 0x2004, kEffArmour = 0x2005,
-                     kEffGlobal = 0x2006, kEffBoost = 0x2010, kEffSpend = 0x2011, kEffMult = 0x2012, kEffSlow = 0x2013,
-                     kEffHist = 0x2014, kEffCry = 0x2020, kEffStagger = 0x2021;
+    constexpr FormId kEffInterior = 0x2001, kEffWorld = 0x2002, kEffChild = 0x2003, kEffFoe = 0x2004,
+                     kEffArmour = 0x2005, kEffGlobal = 0x2006, kEffBoost = 0x2010, kEffSpend = 0x2011,
+                     kEffMult = 0x2012, kEffSlow = 0x2013, kEffHist = 0x2014, kEffCry = 0x2020, kEffStagger = 0x2021;
     constexpr FormId kProjectile = 0x3000;
 
     class RegenData final : public CombatData
@@ -304,7 +305,8 @@ namespace
             // the regeneration rate effects: Peak modifiers on actor values 27 to 29 and 155 to 157 (the shapes of
             // RaceHighElfFortifyMagickaRate, AlchFortifyHealRate and AlchDamageMagickaRate, VERIFIED)
             addEffect(kEffBoost, MagicArchetype::PeakValueModifier, RegenValue::MagickaRate, 0x200802);
-            addEffect(kEffSpend, MagicArchetype::PeakValueModifier, 83, 0x200802); // a modifier that changes nothing here
+            addEffect(
+                kEffSpend, MagicArchetype::PeakValueModifier, 83, 0x200802); // a modifier that changes nothing here
             addEffect(kEffMult, MagicArchetype::PeakValueModifier, RegenValue::MagickaRateMult, 0x200802);
             addEffect(kEffSlow, MagicArchetype::PeakValueModifier, RegenValue::MagickaRate, 0x400a07); // damage rate
             addEffect(kEffHist, MagicArchetype::PeakValueModifier, RegenValue::HealthRate, 0x201802);
@@ -741,9 +743,8 @@ namespace
         EXPECT_FLOAT_EQ(mCombat.regenRatePercent(CombatSubject::ofPlayer(), 0), 10.7f);
         mWriter.mDamage.clear();
         updates(8); // 2 s
-        const auto it = std::find_if(mWriter.mDamage.begin(), mWriter.mDamage.end(), [](const DamageReport& r) {
-            return r.amount == 0.f && r.victimIsPlayer && r.healthAfter > 50.f;
-        });
+        const auto it = std::find_if(mWriter.mDamage.begin(), mWriter.mDamage.end(),
+            [](const DamageReport& r) { return r.amount == 0.f && r.victimIsPlayer && r.healthAfter > 50.f; });
         ASSERT_NE(it, mWriter.mDamage.end());
         float total = 0.f;
         for (const DamageReport& r : mWriter.mDamage)
@@ -783,7 +784,8 @@ namespace
             first.end());
     }
 
-    // ---- race powers -------------------------------------------------------------------------------------------------
+    // ---- race powers
+    // -------------------------------------------------------------------------------------------------
 
     struct EffectCond2Powers : EffectCond2Combat
     {
@@ -900,8 +902,9 @@ namespace
             }
         }
         std::cout << "SKYRIMSE-EFFCOND2 spell effects " << effects << " with conditions " << effectsWith
-                  << " answerable before " << effectsBefore << " after " << effectsAfter << "; conditions " << conditions
-                  << " answered before " << before << " after " << after << "; still unanswered by function:";
+                  << " answerable before " << effectsBefore << " after " << effectsAfter << "; conditions "
+                  << conditions << " answered before " << before << " after " << after
+                  << "; still unanswered by function:";
         for (const auto& entry : stillUnanswered)
             std::cout << " fn" << entry.first << "=" << entry.second;
         std::cout << "\n";

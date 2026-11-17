@@ -9,10 +9,10 @@
 // Every expected value is derived by hand from the lists in the test.
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/combat_stats.hpp>
-#include <game_skyrimse/pack_core.hpp>
-#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
+#include <game_skyrimse/pack_core.hpp>
+#include <game_skyrimse/records.hpp>
 
 #include <gtest/gtest.h>
 
@@ -99,16 +99,16 @@ namespace
     Verdict run(effectconditions::Evaluator& e, const std::vector<survey::Ctda>& list, Person* target,
         Person* caster = nullptr, Person* player = nullptr)
     {
-        return e.evaluate(list, target != nullptr ? target->get() : nullptr, caster != nullptr ? caster->get() : nullptr,
-            player != nullptr ? player->get() : nullptr);
+        return e.evaluate(list, target != nullptr ? target->get() : nullptr,
+            caster != nullptr ? caster->get() : nullptr, player != nullptr ? player->get() : nullptr);
     }
 
     // ---- the evaluator ---------------------------------------------------------------------------------------------
 
     TEST(EffectCondEval, theAnsweredFunctionsAreTheListedOnesAndNoOther)
     {
-        for (const int fn : { 560, 448, 715, 72, 71, 69, 70, 80, 14, 277, 640, 597, 682, 699, 214, 289, 46, 77,
-                 244, 700, 724 })
+        for (const int fn :
+            { 560, 448, 715, 72, 71, 69, 70, 80, 14, 277, 640, 597, 682, 699, 214, 289, 46, 77, 244, 700, 724 })
         {
             EXPECT_TRUE(effectconditions::functionAnswered(static_cast<std::uint16_t>(fn))) << fn;
         }
@@ -211,8 +211,7 @@ namespace
     {
         // PerkImpactStaggerPushFFAimed (VERIFIED shape): dual cast AND the Impact perk, both on the caster
         effectconditions::Evaluator e;
-        const std::vector<survey::Ctda> list
-            = { cond(724, kEq, 1.f, 0, 0, 1), cond(448, kEq, 1.f, kPerkImpact, 0, 1) };
+        const std::vector<survey::Ctda> list = { cond(724, kEq, 1.f, 0, 0, 1), cond(448, kEq, 1.f, kPerkImpact, 0, 1) };
         Person target;
         Person caster;
         caster.mPerks = { kPerkImpact };
@@ -541,8 +540,8 @@ namespace
             // the SPEL's own condition on its effect: it only lands on a dragon
             mSpells[kSpellGated].mEffects[0].mConditionList = { cond(560, kEq, 1.f, kKwDragon) };
             mSpells[kSpellGated].mEffects[0].mConditions = 1;
-            for (const FormId id : { kParaEffect, kFearEffect, kPerkEffect, kGlobalEffect, kMismatchEffect, kPlainEffect,
-                     kGatedEffect })
+            for (const FormId id :
+                { kParaEffect, kFearEffect, kPerkEffect, kGlobalEffect, kMismatchEffect, kPlainEffect, kGatedEffect })
             {
                 mEffects[id].mProjectile = kProjectile;
             }
@@ -951,7 +950,8 @@ namespace
             first.end());
     }
 
-    // ---- the real masters (gated: OPENEDEN_SKYRIMSE_DATA) ------------------------------------------------------------
+    // ---- the real masters (gated: OPENEDEN_SKYRIMSE_DATA)
+    // ------------------------------------------------------------
 
     bool loadIndex(CombatIndex& index, std::string& skip)
     {
@@ -992,8 +992,8 @@ namespace
     }
 
     /// Both lists of a spell's effect `i`, evaluated for a target and a caster.
-    Verdict spellEffectVerdict(const CombatIndex& index, const SpellRecord& spell, std::size_t i, Person& target,
-        Person& caster)
+    Verdict spellEffectVerdict(
+        const CombatIndex& index, const SpellRecord& spell, std::size_t i, Person& target, Person& caster)
     {
         effectconditions::Evaluator e;
         const SpellEffect& se = spell.mEffects.at(i);
@@ -1041,7 +1041,8 @@ namespace
                 for (const std::vector<survey::Ctda>* list : { &se.mConditionList, &m->mConditionList })
                 {
                     for (const survey::Ctda& c : *list)
-                        all = all && effectconditions::functionAnswered(c.mFunction) && effectconditions::runOnAnswered(c);
+                        all = all && effectconditions::functionAnswered(c.mFunction)
+                            && effectconditions::runOnAnswered(c);
                 }
                 if (all)
                     ++answerable;
@@ -1067,7 +1068,8 @@ namespace
         ASSERT_NE(fear, nullptr);
         EXPECT_EQ(spellEffectVerdict(index, *fear, 0, nord, caster), Verdict::Pass);
         EXPECT_EQ(spellEffectVerdict(index, *fear, 0, draugr, caster), Verdict::Fail);
-        // Firebolt: its Stagger (needs a dual cast and the Impact perk) and Demoralize (needs the Intense Flames perk) are refused
+        // Firebolt: its Stagger (needs a dual cast and the Impact perk) and Demoralize (needs the Intense Flames perk)
+        // are refused
         const SpellRecord* firebolt = index.spellByEditorId("Firebolt");
         ASSERT_NE(firebolt, nullptr);
         ASSERT_EQ(firebolt->mEffects.size(), 3u);

@@ -99,7 +99,8 @@ namespace game_skyrimse
             return false;
         }
         // a resumed scene waits for its speakers as a started one does: nobody is loaded yet while a save is loading
-        if (resume == nullptr && std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
+        if (resume == nullptr
+            && std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
         {
             ++mStats.mRefused;
             ++mStats.mNotLoaded;
@@ -121,9 +122,8 @@ namespace game_skyrimse
             if (a.mType != SceneActionType::Dialogue || a.mTopic == kNullFormId)
                 continue;
             const FormId ref = mEnv.aliasReference(record->mQuest, a.mAlias);
-            const bool walks = std::any_of(record->mActions.begin(), record->mActions.end(), [&a](const SceneAction& o) {
-                return o.mType == SceneActionType::Package && o.mAlias == a.mAlias;
-            });
+            const bool walks = std::any_of(record->mActions.begin(), record->mActions.end(),
+                [&a](const SceneAction& o) { return o.mType == SceneActionType::Package && o.mAlias == a.mAlias; });
             if (ref != kNullFormId && !walks
                 && std::find(instance->mHeld.begin(), instance->mHeld.end(), ref) == instance->mHeld.end())
                 instance->mHeld.push_back(ref);
@@ -400,8 +400,8 @@ namespace game_skyrimse
 
     namespace
     {
-        void runPhaseFragments(SceneEnvironment& env, FormId scene, const SceneRecord& record, int phase, bool completion,
-            std::uint64_t& counter)
+        void runPhaseFragments(SceneEnvironment& env, FormId scene, const SceneRecord& record, int phase,
+            bool completion, std::uint64_t& counter)
         {
             if (!record.mVmad || !record.mVmad->mHasSceneFragments)
                 return;
@@ -508,8 +508,8 @@ namespace game_skyrimse
                                 else
                                 {
                                     SceneLine line;
-                                    bool resolved = st.mActor != kNullFormId
-                                        && mEnv.resolveLine(id, a.mTopic, st.mActor, line);
+                                    bool resolved
+                                        = st.mActor != kNullFormId && mEnv.resolveLine(id, a.mTopic, st.mActor, line);
                                     if (st.mActor != kNullFormId && !resolved)
                                     {
                                         st.mStage = ActionStage::Done;
@@ -518,8 +518,9 @@ namespace game_skyrimse
                                     }
                                     if (resolved && mEnv.speak(st.mActor, line))
                                     {
-                                        st.mDuration = std::max(mOptions.mMinLineSeconds,
-                                                           static_cast<float>(line.mText.size()) * mOptions.mSecondsPerCharacter)
+                                        st.mDuration
+                                            = std::max(mOptions.mMinLineSeconds,
+                                                  static_cast<float>(line.mText.size()) * mOptions.mSecondsPerCharacter)
                                             + mOptions.mLineGapSeconds;
                                         st.mElapsed = 0.f;
                                         ++mStats.mLines;
@@ -609,7 +610,8 @@ namespace game_skyrimse
                         actionsDone = false;
                 bool conditionsDone = true;
                 if (!phase.mCompletionConditions.empty())
-                    conditionsDone = phase.mConditionsOk && mEnv.evaluate(phase.mCompletionConditions, id, record.mQuest);
+                    conditionsDone
+                        = phase.mConditionsOk && mEnv.evaluate(phase.mCompletionConditions, id, record.mQuest);
                 bool complete = false;
                 switch (mOptions.mPhaseEnd)
                 {

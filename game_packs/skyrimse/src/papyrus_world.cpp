@@ -50,18 +50,18 @@ namespace game_skyrimse
         using openeden::sdk::BindingValue;
         Impl& m = *mImpl;
         static const BindingType numberParam[] = { BindingType::Int32 };
-        const auto add = [&m](std::string_view name, std::span<const BindingType> params, BindingType result,
-                             NoteFn::Body body) {
-            m.mHandlers.push_back(std::make_unique<NoteFn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = true;
-            f.result = result;
-            f.access = openeden::sdk::BindingAccess::Read;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&m](std::string_view name, std::span<const BindingType> params, BindingType result, NoteFn::Body body) {
+                  m.mHandlers.push_back(std::make_unique<NoteFn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = true;
+                  f.result = result;
+                  f.access = openeden::sdk::BindingAccess::Read;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
         add("notification_count", {}, BindingType::Int32, [&m](std::span<const BindingValue>) {
             BindingResult r;
             r.value.type = BindingType::Int32;
@@ -69,7 +69,8 @@ namespace game_skyrimse
             return r;
         });
         add("notification", numberParam, BindingType::String, [&m](std::span<const BindingValue> a) {
-            m.mScratch = m.mHost.notificationAt(a.empty() || a[0].integer < 0 ? 0 : static_cast<std::uint64_t>(a[0].integer));
+            m.mScratch
+                = m.mHost.notificationAt(a.empty() || a[0].integer < 0 ? 0 : static_cast<std::uint64_t>(a[0].integer));
             BindingResult r;
             r.value.type = BindingType::String;
             r.value.text = m.mScratch;
@@ -188,7 +189,8 @@ namespace game_skyrimse
             mEnv.notification(text);
     }
 
-    // ---- ScriptCombatBridge ------------------------------------------------------------------------------------------
+    // ---- ScriptCombatBridge
+    // ------------------------------------------------------------------------------------------
 
     bool ScriptCombatBridge::queueKill(FormId actor)
     {

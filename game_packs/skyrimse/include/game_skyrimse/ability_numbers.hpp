@@ -6,13 +6,12 @@
 //   24 / 25 / 26   health, magicka and stamina MAXIMUM (a Fortify effect),
 //   32             carry weight,
 //   40 to 45       the resistances (poison, fire, shock, frost, magic, disease); a negative sum is a weakness,
-//   27 to 29       the three regeneration RATES (added to the rate), 155 to 157 the three "Mult" values (percent of it),
-//   83             the chance to absorb a hostile spell (kept as a number only: no absorption rule is built).
+//   27 to 29       the three regeneration RATES (added to the rate), 155 to 157 the three "Mult" values (percent of
+//   it), 83             the chance to absorb a hostile spell (kept as a number only: no absorption rule is built).
 // VERIFIED on the five masters (tools/skyrimse_stones_survey/stones.py): the Atronach stone is Peak 83 +50,
-// ValueModifier 156 -50 (Detrimental flag) and Peak 25 +50; the Lady stone Peak 155 +25 and 157 +25; the Steed Peak 32 +100; the Lord
-// ValueModifier 39 +50 and 44 +25; the Apprentice Peak 156 +100 and a second ability ValueModifier 44 100
-// (Detrimental);
-// the nine blessings are Peak 24, 25, 26 or 156 with a duration of 28,800 s (8 hours).
+// ValueModifier 156 -50 (Detrimental flag) and Peak 25 +50; the Lady stone Peak 155 +25 and 157 +25; the Steed Peak 32
+// +100; the Lord ValueModifier 39 +50 and 44 +25; the Apprentice Peak 156 +100 and a second ability ValueModifier 44
+// 100 (Detrimental); the nine blessings are Peak 24, 25, 26 or 156 with a duration of 28,800 s (8 hours).
 //
 // Which effects count (OURS): every effect of an ABILITY spell (cast type constant) whose magic effect is a
 // ValueModifier

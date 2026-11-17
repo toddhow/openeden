@@ -148,7 +148,8 @@ namespace
         EXPECT_EQ(mService->model().count(kPlayerOwner, kCureAndHeal), 1);
     }
 
-    // ---- a shrine spell ---------------------------------------------------------------------------------------------------
+    // ---- a shrine spell
+    // ---------------------------------------------------------------------------------------------------
 
     class ShrineLibrary final : public PerkLibrary
     {

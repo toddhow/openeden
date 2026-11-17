@@ -402,8 +402,8 @@ namespace game_skyrimse
     openeden::sdk::DeclareResult RidingBindings::declareTo(openeden::sdk::BindingsService& service)
     {
         using namespace openeden::sdk;
-        mImpl->mFunctions[0] = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read,
-            &mImpl->mActive, 0 };
+        mImpl->mFunctions[0]
+            = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read, &mImpl->mActive, 0 };
         mImpl->mFunctions[1] = FunctionDescriptor{ "camera_scale", {}, true, BindingType::Double, BindingAccess::Read,
             &mImpl->mScale, 0 };
         NamespaceDescriptor ns;
@@ -414,8 +414,8 @@ namespace game_skyrimse
         return service.declareNamespace(ns);
     }
 
-    void Riding::dismount(
-        openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player, const std::string& why)
+    void Riding::dismount(openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player,
+        const std::string& why)
     {
         Point from = mLastHorse;
         double x = 0.0, y = 0.0, z = 0.0;
@@ -571,7 +571,8 @@ namespace game_skyrimse
             return;
         }
 
-        mHeading = nextRiderHeading(std::isfinite(controls.heading) ? controls.heading : mHeading, controls.turn, seconds);
+        mHeading
+            = nextRiderHeading(std::isfinite(controls.heading) ? controls.heading : mHeading, controls.turn, seconds);
         mGait = gaitFor(controls);
         const Velocity v = velocityFor(mGait, mHeading, mHorseInfo.mWalkSpeed, mHorseInfo.mRunSpeed);
         (void)writer.setMovement(mHorse, v.mX, v.mY);

@@ -130,10 +130,13 @@ namespace
                 return true;
             };
             hooks.mItemName = [](FormId item) {
-                return item == kIronOre ? std::string("Iron Ore") : item == kFirewood ? std::string("Firewood") : std::string();
+                return item == kIronOre ? std::string("Iron Ore")
+                    : item == kFirewood ? std::string("Firewood")
+                                        : std::string();
             };
             hooks.mMessage = [this](FormId message) {
-                return mMessagesReadable && message == kFailMsg ? std::string("Need a pickaxe, friend.") : std::string();
+                return mMessagesReadable && message == kFailMsg ? std::string("Need a pickaxe, friend.")
+                                                                : std::string();
             };
             hooks.mLog = [this](const std::string& line) { mLog.push_back(line); };
             mService = std::make_unique<MiningService>(std::move(hooks));

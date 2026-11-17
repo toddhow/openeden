@@ -59,8 +59,7 @@ namespace game_skyrimse
         CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, float recovery)
     {
         if (!caster.mSubject.player || caster.mDead || !ready(caster) || isBusyCasting(caster.mSubject)
-            || mCasts.size() >= kMaxCasts || spell.mEffects.empty()
-            || spell.mCastType == MagicCast::Concentration)
+            || mCasts.size() >= kMaxCasts || spell.mEffects.empty() || spell.mCastType == MagicCast::Concentration)
             return false;
         const std::uint8_t column = spell.mDelivery == MagicDelivery::Self ? kMagicSelf : kMagicAimed;
         const std::string_view clip = mMagicSlots.clipFor(ClipSlot::Cast, column);

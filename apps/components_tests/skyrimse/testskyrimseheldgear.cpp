@@ -195,8 +195,7 @@ TEST(SkyrimOutfitUseAll, a_use_all_list_in_an_outfit_gives_every_entry_the_level
 TEST(SkyrimOutfitUseAll, an_entry_above_the_level_is_left_out)
 {
     World w;
-    w.mLists.push_back(
-        list(kList, LeveledFlags::UseAll, { { 1, kCuirass, 1 }, { kAppearanceLevel + 1, kBoots, 1 } }));
+    w.mLists.push_back(list(kList, LeveledFlags::UseAll, { { 1, kCuirass, 1 }, { kAppearanceLevel + 1, kBoots, 1 } }));
     w.outfit({ kList });
     const auto worn = w.index().wornModels(kOutfit, kRace, Sex::Male, kAppearanceLevel, 1);
     ASSERT_EQ(worn.size(), 1u);

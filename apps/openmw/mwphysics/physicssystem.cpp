@@ -1,5 +1,5 @@
-#include <openeden/game/scene_speech.hpp>
 #include "physicssystem.hpp"
+#include <openeden/game/scene_speech.hpp>
 
 #include <algorithm>
 #include <array>
@@ -63,6 +63,7 @@
 #include "actor.hpp"
 #include "joltlayers.hpp"
 
+#include "../mwmechanics/corpserest.hpp"
 #include "heightfield.hpp"
 #include "movementsolver.hpp"
 #include "mtphysics.hpp"
@@ -73,7 +74,6 @@
 #include "object.hpp"
 #include "projectile.hpp"
 #include "ragdollhost.hpp"
-#include "../mwmechanics/corpserest.hpp"
 #include "skyrimshape.hpp"
 #include "water.hpp"
 
@@ -1674,7 +1674,8 @@ namespace MWPhysics
         entry->mRequest = {};
         const float coreSpeed
             = goal.speed == openeden::sdk::game::ActorSpeed::Run ? NeutralPath::kRunSpeed : NeutralPath::kWalkSpeed;
-        const float ownSpeed = goal.speed == openeden::sdk::game::ActorSpeed::Run ? entry->mRunSpeed : entry->mWalkSpeed;
+        const float ownSpeed
+            = goal.speed == openeden::sdk::game::ActorSpeed::Run ? entry->mRunSpeed : entry->mWalkSpeed;
         const float speed = ownSpeed > 0.f ? ownSpeed : coreSpeed; // task 0212: a creature's own speeds
         const vsg::vec3 target(static_cast<float>(goal.x), static_cast<float>(goal.y), static_cast<float>(goal.z));
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
@@ -1763,8 +1764,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool PhysicsSystem::NeutralRequestApplier::placeCorpse(
-        const void* key, double x, double y, double z, float heading)
+    bool PhysicsSystem::NeutralRequestApplier::placeCorpse(const void* key, double x, double y, double z, float heading)
     {
         NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
         if (entry == nullptr)

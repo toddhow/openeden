@@ -68,8 +68,8 @@ namespace game_skyrimse
     inline constexpr float kFollowRepathSeconds = 1.5f;
 
     /// Task 0196 (followers): a follower of the PLAYER looks again where the player is this often; it keeps within
-    /// kFollowDistance (the stage S6f value) of the player and runs when the player is farther than kFollowerRunDistance.
-    /// Estimates.
+    /// kFollowDistance (the stage S6f value) of the player and runs when the player is farther than
+    /// kFollowerRunDistance. Estimates.
     inline constexpr float kFollowerRepathSeconds = 0.75f;
     /// After a leg towards the player failed (no path, blocked) a follower waits this long before it asks again.
     inline constexpr float kFollowerRetrySeconds = 3.f;
@@ -295,9 +295,9 @@ namespace game_skyrimse
         /// talks; a seated one stays seated; afterwards the actor takes up its package again (a sleeper looks for a
         /// bed).
         void onConversation(openeden::sdk::game::WorldId reference, bool begins);
-        /// Task 0264: the combat AI engages the actor: a seated actor gets up (the quick exit clip) at the next update even
-        /// when it is a sitter; it is told with the same `onConversation(reference, true)` that follows. No effect on an
-        /// actor that is not seated.
+        /// Task 0264: the combat AI engages the actor: a seated actor gets up (the quick exit clip) at the next update
+        /// even when it is a sitter; it is told with the same `onConversation(reference, true)` that follows. No effect
+        /// on an actor that is not seated.
         void forceStand(openeden::sdk::game::WorldId reference);
         /// Stage S6g: the player activated the actor and the conversation has not begun (the world still runs). A
         /// sleeper starts getting up with the quick exit clip; the actor then holds still like a talking one. True
@@ -330,9 +330,9 @@ namespace game_skyrimse
         /// schedule back. Takes effect at the next update. False for an actor the brain does not know.
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package);
 
-        /// Task 0271: told when an actor's chosen package is a ForceGreet one (`reference` is the placement, `topic` the
-        /// DIAL it says): at once, then again every kGreetAskEvaluations evaluations while the package stays chosen.
-        /// The hook only records the wish; opening the conversation is the world's business. Main thread.
+        /// Task 0271: told when an actor's chosen package is a ForceGreet one (`reference` is the placement, `topic`
+        /// the DIAL it says): at once, then again every kGreetAskEvaluations evaluations while the package stays
+        /// chosen. The hook only records the wish; opening the conversation is the world's business. Main thread.
         using ForceGreetHook = std::function<void(openeden::sdk::game::WorldId reference, FormId base, FormId topic)>;
         void setForceGreetHook(ForceGreetHook hook) { mGreetHook = std::move(hook); }
 

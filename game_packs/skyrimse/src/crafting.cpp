@@ -231,8 +231,7 @@ namespace game_skyrimse::crafting
                         survey::Ctda c;
                         if (r.mConditionList.size() < 32 && survey::decodeCtda(sub.mData, c))
                         {
-                            if ((c.mFunction == 448 || c.mFunction == 74 || c.mFunction == 58
-                                    || c.mFunction == 59)
+                            if ((c.mFunction == 448 || c.mFunction == 74 || c.mFunction == 58 || c.mFunction == 59)
                                 && c.mParam1 != 0)
                                 c.mParam1 = resolved(c.mParam1);
                             r.mConditionList.push_back(std::move(c));
@@ -336,7 +335,7 @@ namespace game_skyrimse::crafting
                         ++mOut.mOddSubrecords;
                     else
                         for (std::size_t i = 0; i + 4 <= sub.mData.size() && f.mKeywords.size() < kMaxFurnitureKeywords;
-                            i += 4)
+                             i += 4)
                             f.mKeywords.push_back(resolved(le32(sub.mData.data() + i)));
                 });
                 if (ok && !f.mKeywords.empty())
@@ -613,7 +612,8 @@ namespace game_skyrimse::crafting
 
     namespace
     {
-        constexpr std::uint16_t kFnGetItemCount = 47; // RECALLED-VERIFY name; the data's use on tanning recipes is certain
+        constexpr std::uint16_t kFnGetItemCount
+            = 47; // RECALLED-VERIFY name; the data's use on tanning recipes is certain
         constexpr std::uint8_t kCtdaOr = 0x01, kCtdaUseGlobal = 0x04; // CTDA type flags
     }
 
@@ -680,8 +680,8 @@ namespace game_skyrimse::crafting
         PerkConditionWorld world;
         world.setQuery(&query);
         world.setCurrentRole(PerkRole::Owner);
-        static constexpr std::array<conditions::ExtraFunction, 1> kExtra = { { { kFnTemperingItemIsEnchanted,
-            &temperingItemEnchanted } } };
+        static constexpr std::array<conditions::ExtraFunction, 1> kExtra
+            = { { { kFnTemperingItemIsEnchanted, &temperingItemEnchanted } } };
         conditions::Evaluator evaluator;
         evaluator.setExtraFunctions(kExtra);
         tItemEnchanted = itemEnchanted;

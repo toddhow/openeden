@@ -122,7 +122,9 @@ namespace
                 out.mRunSpeed = kHorseRun;
                 return true;
             });
-            mRiding.setBrainControl([this](WorldId reference, bool stands) { mBrain.push_back({ reference, stands }); });
+            mRiding.setBrainControl([this](WorldId reference, bool stands) {
+                mBrain.push_back({ reference, stands });
+            });
             mRiding.setLog([this](const std::string& line) { mLog.push_back(line); });
             mRiding.onActorAdded(horseInfo("LvlHorse"));
         }

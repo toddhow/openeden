@@ -1,5 +1,5 @@
-// Task 0224: the ACTI activate text (RNAM) and the MESG text (DESC) decoded into ModelRecord. Generated plugins; no game
-// data. Written before the fields existed (the file did not compile: the red run).
+// Task 0224: the ACTI activate text (RNAM) and the MESG text (DESC) decoded into ModelRecord. Generated plugins; no
+// game data. Written before the fields existed (the file did not compile: the red run).
 #include <game_skyrimse/records.hpp>
 
 #include <gtest/gtest.h>

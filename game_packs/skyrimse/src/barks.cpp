@@ -144,8 +144,7 @@ namespace game_skyrimse::barks
 
     std::uint64_t BarkSystem::mix(std::uint64_t reference, std::uint32_t counter, Kind kind) const
     {
-        return splitmix(
-            mSettings.mSeed ^ splitmix(reference) ^ (static_cast<std::uint64_t>(counter) << 8)
+        return splitmix(mSettings.mSeed ^ splitmix(reference) ^ (static_cast<std::uint64_t>(counter) << 8)
             ^ static_cast<std::uint64_t>(kind));
     }
 
@@ -191,8 +190,8 @@ namespace game_skyrimse::barks
                     continue;
                 ++mStats.mNoLine;
                 if (tracing)
-                    mHooks.mTrace("BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference)
-                        + " no line passes");
+                    mHooks.mTrace(
+                        "BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference) + " no line passes");
                 return false;
             }
             if (!line.mVoice.empty())
@@ -208,12 +207,12 @@ namespace game_skyrimse::barks
         {
             ++mStats.mRefused;
             if (tracing)
-                mHooks.mTrace("BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference)
-                    + " refused by the core");
+                mHooks.mTrace(
+                    "BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference) + " refused by the core");
             return false;
         }
-        const float length = std::max(
-            mSettings.mMinSpeech, static_cast<float>(line.mText.size()) * mSettings.mSecondsPerChar);
+        const float length
+            = std::max(mSettings.mMinSpeech, static_cast<float>(line.mText.size()) * mSettings.mSecondsPerChar);
         const float until = mClock + length + mSettings.mVoicePadding;
         state.mSpeakingUntil = until;
         ++mStats.mSpoken[static_cast<std::size_t>(kind)];
@@ -268,8 +267,8 @@ namespace game_skyrimse::barks
             return it != mSorted.end() && (*it)->mReference == reference ? *it : nullptr;
         };
         auto canShout = [&](const Actor* actor, State& state, bool interrupt) {
-            return actor != nullptr && horizontal(*actor, px, py) <= mSettings.mHearDistance
-                && mClock >= mCombatFree && (interrupt || mClock >= state.mSpeakingUntil);
+            return actor != nullptr && horizontal(*actor, px, py) <= mSettings.mHearDistance && mClock >= mCombatFree
+                && (interrupt || mClock >= state.mSpeakingUntil);
         };
 
         auto nextAttack = [this](std::uint64_t r, State& st) {
@@ -352,7 +351,7 @@ namespace game_skyrimse::barks
                 else if (canShout(actor, state, false))
                     // Task 0243: a cry that finds no line (or is refused) waits mNoLineGap, not the next update
                     engaged.mNextTaunt = trySpeak(Kind::Taunt, reference, state) ? nextTaunt(reference, state)
-                                                                                  : mClock + mSettings.mNoLineGap;
+                                                                                 : mClock + mSettings.mNoLineGap;
             }
             if (mClock >= engaged.mNextAttack)
             {
@@ -360,7 +359,7 @@ namespace game_skyrimse::barks
                     engaged.mNextAttack = nextAttack(reference, state);
                 else if (canShout(actor, state, false))
                     engaged.mNextAttack = trySpeak(Kind::Attack, reference, state) ? nextAttack(reference, state)
-                                                                                    : mClock + mSettings.mNoLineGap;
+                                                                                   : mClock + mSettings.mNoLineGap;
             }
         }
 

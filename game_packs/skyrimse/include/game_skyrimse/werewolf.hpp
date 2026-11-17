@@ -1,20 +1,22 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_WEREWOLF_H
 #define OPENEDEN_GAME_SKYRIMSE_WEREWOLF_H
 
-// Task 0259 (the werewolf beast form, first slice): the pure half. The beast clock (how long the form lasts, the warning,
-// what feeding adds), the profile the player's werewolf body is drawn and fights with, and the small rules around them.
-// No engine, renderer, script-language or clock type: every function takes the seconds it is given.
+// Task 0259 (the werewolf beast form, first slice): the pure half. The beast clock (how long the form lasts, the
+// warning, what feeding adds), the profile the player's werewolf body is drawn and fights with, and the small rules
+// around them. No engine, renderer, script-language or clock type: every function takes the seconds it is given.
 //
 // Where each number comes from (the survey is docs/tasks/0259-skyrim-werewolf.md section 1):
 //   VERIFIED  the quest PlayerWerewolfQuest's script PlayerWerewolfChangeScript (decompiled from Skyrim - Misc.bsa) and
-//             its VMAD properties: StandardDurationSeconds 150, DurationWarningTimeSeconds 15, FeedExtensionTimeSeconds 30
-//             (half of it for any victim, the other half only for a person); the race WerewolfBeastRace 0xCDD84 and its
-//             skin NakedWerewolfBeast 0xCDD86 -> NakedTorsoWerewolfBeast 0xCDD87 (one model for both sexes); the power
-//             WerewolfChange 0x92C48 whose only effect WerewolfChangeEffect 0x92C45 has archetype 36 (MGEF DATA +64);
-//             the abilities AbWerewolf 0xA1A3E and PlayerWerewolfLvlNN; the feed spell WerewolfFeed 0xEC357 (magnitude 50).
+//             its VMAD properties: StandardDurationSeconds 150, DurationWarningTimeSeconds 15, FeedExtensionTimeSeconds
+//             30 (half of it for any victim, the other half only for a person); the race WerewolfBeastRace 0xCDD84 and
+//             its skin NakedWerewolfBeast 0xCDD86 -> NakedTorsoWerewolfBeast 0xCDD87 (one model for both sexes); the
+//             power WerewolfChange 0x92C48 whose only effect WerewolfChangeEffect 0x92C45 has archetype 36 (MGEF DATA
+//             +64); the abilities AbWerewolf 0xA1A3E and PlayerWerewolfLvlNN; the feed spell WerewolfFeed 0xEC357
+//             (magnitude 50).
 //   OURS      the cap on the clock, treating the clock as pack seconds (the script counts game days through the time
 //             scale), the instant health of a feed, the capsule size.
-// Off unless the pack setting `werewolf` is on (with `creatures`, `player body` and the engine's `[Game] neutral actors`).
+// Off unless the pack setting `werewolf` is on (with `creatures`, `player body` and the engine's `[Game] neutral
+// actors`).
 
 #include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/records.hpp>
@@ -46,9 +48,9 @@ namespace game_skyrimse::werewolf
     inline constexpr FormId kBaseAbility = 0xA1A3E; ///< SPEL AbWerewolf (health, stamina, disease resistance, ...)
     inline constexpr std::uint32_t kArchetypeWerewolf = 36; ///< MGEF DATA +64 of WerewolfChangeEffect
 
-    /// The ability PlayerWerewolfLvlNN (PlayerWerewolfChangeScript.StartTracking) for a player level: 10, 15, 20, 25, 30,
-    /// 35, 40, 45 and "50 and over" give 0x10C6E8, 0x10F186, 0x10C6E9, 0x10F187, 0x10C6EA, 0x10F188, 0x10F189, 0x10F18A,
-    /// 0x10C6EB. Level 0 counts as 1.
+    /// The ability PlayerWerewolfLvlNN (PlayerWerewolfChangeScript.StartTracking) for a player level: 10, 15, 20, 25,
+    /// 30, 35, 40, 45 and "50 and over" give 0x10C6E8, 0x10F186, 0x10C6E9, 0x10F187, 0x10C6EA, 0x10F188, 0x10F189,
+    /// 0x10F18A, 0x10C6EB. Level 0 counts as 1.
     [[nodiscard]] FormId levelAbility(std::uint32_t playerLevel);
 
     // ---- the clock --------------------------------------------------------------------------------------------------

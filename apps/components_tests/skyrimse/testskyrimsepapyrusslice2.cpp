@@ -33,8 +33,8 @@ namespace
     using PexAsm::Flt;
     using PexAsm::Id;
     using PexAsm::Int;
-    using PexAsm::Str;
     using PexAsm::ScriptBuilder;
+    using PexAsm::Str;
 
     constexpr FormId kQuestA = 0x01000800;
     constexpr FormId kRefA = 0x01000A00;
@@ -308,8 +308,8 @@ namespace
         s.autoProperty("Target", "ObjectReference");
         s.function("Go")
             .local("n", "None")
-            .callMethod("MoveTo", Id("self"), Id("n"),
-                { Id("::Target_var"), Flt(10.0f), Flt(0.0f), Flt(5.0f), Bool(true) })
+            .callMethod(
+                "MoveTo", Id("self"), Id("n"), { Id("::Target_var"), Flt(10.0f), Flt(0.0f), Flt(5.0f), Bool(true) })
             .local("x", "Float")
             .callMethod("GetPositionX", Id("self"), Id("x"))
             .assign(Id("posX"), Id("x"))
@@ -402,16 +402,16 @@ namespace
         return v;
     }
 
-    // ---- the natives -------------------------------------------------------------------------------------------------
+    // ---- the natives
+    // -------------------------------------------------------------------------------------------------
 
     TEST(SkyrimPapyrusSlice2, MoveTo_records_the_position_and_GetPosition_reads_it_back)
     {
         Rig rig;
         rig.mData.add(moverScript());
         rig.quests({ questRecord(kQuestA, QuestFlags::StartGameEnabled, stage(10, 0)) });
-        ASSERT_EQ(rig.mHost->attachReference(
-                      kRefA, kBaseA, false, { script("Mover", { objProp("Target", kRefB) }) }),
-            1u);
+        ASSERT_EQ(
+            rig.mHost->attachReference(kRefA, kBaseA, false, { script("Mover", { objProp("Target", kRefB) }) }), 1u);
         rig.tick();
         EXPECT_FALSE(rig.mHost->positionOverride(kRefA).has_value());
         ASSERT_TRUE(rig.mHost->callFunction(kRefA, "Mover", "Go"));
@@ -444,16 +444,16 @@ namespace
         rig.mData.add(keywordScript());
         rig.mData.mKeywords[kRefA] = { kKeywordA };
         rig.quests({ questRecord(kQuestA, QuestFlags::StartGameEnabled, stage(10, 0)) });
-        rig.mHost->attachReference(kRefA, kBaseA, false,
-            { script("KwScript", { objProp("KwA", kKeywordA), objProp("KwB", kKeywordB) }) });
+        rig.mHost->attachReference(
+            kRefA, kBaseA, false, { script("KwScript", { objProp("KwA", kKeywordA), objProp("KwB", kKeywordB) }) });
         rig.tick();
         ASSERT_TRUE(rig.mHost->callFunction(kRefA, "KwScript", "Check"));
         EXPECT_EQ(rig.number(kRefA, "KwScript", "hasA"), 1.0);
         EXPECT_EQ(rig.number(kRefA, "KwScript", "hasB"), 0.0);
     }
 
-    // Slice 2b (toddhow's approval, 2026-11-15): SetCurrentStageID is an alias of SetStage. It replaces the slice 2 test
-    // SetCurrentStageID_sets_the_stage_without_the_fragment_or_the_done_mark, which pinned "stage only".
+    // Slice 2b (toddhow's approval, 2026-11-15): SetCurrentStageID is an alias of SetStage. It replaces the slice 2
+    // test SetCurrentStageID_sets_the_stage_without_the_fragment_or_the_done_mark, which pinned "stage only".
     TEST(SkyrimPapyrusSlice2, SetCurrentStageID_marks_the_stage_done_runs_the_fragment_and_raises_OnStageSet)
     {
         Rig rig;
@@ -524,10 +524,11 @@ namespace
         EXPECT_EQ(all[0].first, kRefA);
     }
 
-    // ---- the save state -----------------------------------------------------------------------------------------------
+    // ---- the save state
+    // -----------------------------------------------------------------------------------------------
 
-    // A quest with a repeating timer, a wait, a stage set, an alias forced to a reference, an objective and a counter, and
-    // a reference script that has been disabled, moved and given a spell: every kind of state the host keeps.
+    // A quest with a repeating timer, a wait, a stage set, an alias forced to a reference, an objective and a counter,
+    // and a reference script that has been disabled, moved and given a spell: every kind of state the host keeps.
     ScriptBuilder worldScript()
     {
         ScriptBuilder s("WorldScript");
@@ -568,7 +569,8 @@ namespace
         s.function("Mutate")
             .local("n", "None")
             .callMethod("Disable", Id("self"), Id("n"), { Bool(false) })
-            .callMethod("MoveTo", Id("self"), Id("n"), { Id("::Target_var"), Flt(1.0f), Flt(2.0f), Flt(3.0f), Bool(true) })
+            .callMethod(
+                "MoveTo", Id("self"), Id("n"), { Id("::Target_var"), Flt(1.0f), Flt(2.0f), Flt(3.0f), Bool(true) })
             .local("b", "Bool")
             .callMethod("AddSpell", Id("self"), Id("b"), { Id("::TheSpell_var"), Bool(true) });
         return s;
@@ -587,8 +589,8 @@ namespace
 
     void attachRef(Rig& rig)
     {
-        rig.mHost->attachReference(kRefB, kBaseA, true,
-            { script("RefWorld", { objProp("Target", kRefA), objProp("TheSpell", kSpellA) }) });
+        rig.mHost->attachReference(
+            kRefB, kBaseA, true, { script("RefWorld", { objProp("Target", kRefA), objProp("TheSpell", kSpellA) }) });
     }
 
     // Runs the start, attaches the reference, ticks and mutates; the state the later tests save.
@@ -833,10 +835,11 @@ namespace
         EXPECT_FALSE(b.mHost->restoreSavedState(bytes).mOk);
     }
 
-    // ---- the demo script for the in-game check (tools/neutral_session_check/papyrusdemo.sh) ----------------------------
-    // Not a test of anything: with OPENEDEN_PAPYRUS_DEMO_DIR set it writes scripts/oedemotick.pex there (a generated
-    // script, no game asset). It counts updates every 2 script seconds, prints "<Label><n>" with Debug.Trace and, when n
-    // reaches the property Limit, disables its reference and stops its timer.
+    // ---- the demo script for the in-game check (tools/neutral_session_check/papyrusdemo.sh)
+    // ---------------------------- Not a test of anything: with OPENEDEN_PAPYRUS_DEMO_DIR set it writes
+    // scripts/oedemotick.pex there (a generated script, no game asset). It counts updates every 2 script seconds,
+    // prints "<Label><n>" with Debug.Trace and, when n reaches the property Limit, disables its reference and stops its
+    // timer.
     TEST(SkyrimPapyrusDemo, writes_the_demo_script_when_asked)
     {
         const char* const dir = std::getenv("OPENEDEN_PAPYRUS_DEMO_DIR");
@@ -847,9 +850,7 @@ namespace
         s.var("n", "Int");
         s.autoProperty("Limit", "Int");
         s.autoProperty("Label", "String");
-        s.function("OnInit")
-            .local("nn", "None")
-            .callMethod("RegisterForUpdate", Id("self"), Id("nn"), { Flt(2.0f) });
+        s.function("OnInit").local("nn", "None").callMethod("RegisterForUpdate", Id("self"), Id("nn"), { Flt(2.0f) });
         s.function("OnUpdate")
             .local("nn", "None")
             .local("s", "String")
@@ -871,10 +872,11 @@ namespace
         ASSERT_TRUE(out.good());
     }
 
-    // ---- slice 2b (toddhow, 2026-11-15): after a load the cells raise OnCellLoad and OnLoad again, as in the game ------
-    // The suppression of slice 2 lived in the pack's driver; these tests pin what the host must guarantee when the events
-    // come back: a restored script is not attached twice, OnInit does not run again, OnLoad and OnCellLoad do, and two
-    // loads of one save behave alike. (Written together with the driver change; the red evidence is the in-game demo.)
+    // ---- slice 2b (toddhow, 2026-11-15): after a load the cells raise OnCellLoad and OnLoad again, as in the game
+    // ------ The suppression of slice 2 lived in the pack's driver; these tests pin what the host must guarantee when
+    // the events come back: a restored script is not attached twice, OnInit does not run again, OnLoad and OnCellLoad
+    // do, and two loads of one save behave alike. (Written together with the driver change; the red evidence is the
+    // in-game demo.)
 
     ScriptBuilder initLoadScript()
     {
@@ -895,7 +897,8 @@ namespace
         rig.quests({ questRecord(kQuestA, QuestFlags::StartGameEnabled, stage(10, 0)) });
     }
 
-    TEST(SkyrimPapyrusSlice2b, a_cell_loaded_after_a_restore_raises_OnCellLoad_and_OnLoad_but_not_OnInit_or_a_second_attach)
+    TEST(SkyrimPapyrusSlice2b,
+        a_cell_loaded_after_a_restore_raises_OnCellLoad_and_OnLoad_but_not_OnInit_or_a_second_attach)
     {
         Rig a;
         setUpInitLoad(a);
@@ -959,8 +962,8 @@ namespace
         EXPECT_EQ(logs[0], logs[1]);
     }
 
-    // The demo script with load events for tools/neutral_session_check/papyrusdemo.sh (slice 2b): as the slice 2 script, and
-    // it prints "<Label>init" from OnInit and "<Label>load n=<n>" from OnLoad. Written only when asked.
+    // The demo script with load events for tools/neutral_session_check/papyrusdemo.sh (slice 2b): as the slice 2
+    // script, and it prints "<Label>init" from OnInit and "<Label>load n=<n>" from OnLoad. Written only when asked.
     TEST(SkyrimPapyrusDemo2b, writes_the_demo_script_with_load_events_when_asked)
     {
         const char* const dir = std::getenv("OPENEDEN_PAPYRUS_DEMO_DIR_2B");
@@ -1043,9 +1046,9 @@ namespace
 
     // The demo script for the quest journal's in-game check (task 0185, tools/journal_check): OEDemoTick keeps the
     // properties the demo plugin fills (Limit, Label) and on OnInit displays objective OBJ of the quest QUEST and
-    // completes objective OBJ2 (Game.GetForm, then Quest.SetObjectiveDisplayed and SetObjectiveCompleted). Written only when
-    // OPENEDEN_PAPYRUS_DEMO_DIR_OBJ is set; the quest (a load-order form id, decimal) and the two indices come from
-    // OPENEDEN_DEMO_QUEST, OPENEDEN_DEMO_OBJ and OPENEDEN_DEMO_OBJ2.
+    // completes objective OBJ2 (Game.GetForm, then Quest.SetObjectiveDisplayed and SetObjectiveCompleted). Written only
+    // when OPENEDEN_PAPYRUS_DEMO_DIR_OBJ is set; the quest (a load-order form id, decimal) and the two indices come
+    // from OPENEDEN_DEMO_QUEST, OPENEDEN_DEMO_OBJ and OPENEDEN_DEMO_OBJ2.
     TEST(SkyrimPapyrusDemoObjectives, writes_the_demo_script_when_asked)
     {
         const char* const dir = std::getenv("OPENEDEN_PAPYRUS_DEMO_DIR_OBJ");

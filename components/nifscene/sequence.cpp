@@ -103,8 +103,8 @@ namespace NifScene::Sequences
                 return true;
             }
             if (interpolation == 2 || interpolation == 3)
-                out = hermite(a.mValue, b.mValue, usable(a.mOutTan) ? a.mOutTan : 0.f,
-                    usable(b.mInTan) ? b.mInTan : 0.f, t);
+                out = hermite(
+                    a.mValue, b.mValue, usable(a.mOutTan) ? a.mOutTan : 0.f, usable(b.mInTan) ? b.mInTan : 0.f, t);
             else
                 out = a.mValue + (b.mValue - a.mValue) * t;
             return true;
@@ -224,8 +224,8 @@ namespace NifScene::Sequences
     Mat4 inverseAffine(const Mat4& m)
     {
         // The upper 3x3 is s * R: its inverse is the transpose over s squared.
-        const double s2 = static_cast<double>(m[0]) * m[0] + static_cast<double>(m[1]) * m[1]
-            + static_cast<double>(m[2]) * m[2];
+        const double s2
+            = static_cast<double>(m[0]) * m[0] + static_cast<double>(m[1]) * m[1] + static_cast<double>(m[2]) * m[2];
         if (s2 <= 1e-20)
             return identity();
         const float inverseScale2 = static_cast<float>(1.0 / s2);

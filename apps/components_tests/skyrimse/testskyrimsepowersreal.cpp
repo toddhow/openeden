@@ -61,8 +61,9 @@ namespace
                 for (const SpellEffect& e : spell->mEffects)
                 {
                     const MagicEffectRecord* fx = view.effectById(e.mEffect);
-                    archetypes += (fx != nullptr ? std::to_string(fx->mArchetype) + "/" + std::to_string(fx->mPrimaryValue)
-                                                 : std::string("?"))
+                    archetypes
+                        += (fx != nullptr ? std::to_string(fx->mArchetype) + "/" + std::to_string(fx->mPrimaryValue)
+                                          : std::string("?"))
                         + (e.mConditions != 0 ? "c " : " ");
                 }
                 const char* support = power.mSupport == SkyrimCombat::PowerSupport::Works

@@ -1,8 +1,8 @@
 // Task 0198 (milestone M-S6): the world natives of the Papyrus host (inventory, actor values, deaths, plugin lookup,
 // notifications), the events combat and the inventory raise (OnItemAdded, OnItemRemoved, OnContainerChanged, OnHit,
-// OnDying, OnDeath), the hooks over the pack's inventory model, and the combat bridge. Generated scripts, a fake game and
-// a real InventoryModel; no game data. Written AFTER the code (the first run of the task's design was built in one go);
-// the red evidence is by mutation (see the task's stage log), not against stubs.
+// OnDying, OnDeath), the hooks over the pack's inventory model, and the combat bridge. Generated scripts, a fake game
+// and a real InventoryModel; no game data. Written AFTER the code (the first run of the task's design was built in one
+// go); the red evidence is by mutation (see the task's stage log), not against stubs.
 #include <game_skyrimse/inventory.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
@@ -119,7 +119,8 @@ namespace
             std::int32_t& have = mItems[{ owner, item }];
             const std::int32_t take = std::min(have, count);
             have -= take;
-            mLog.push_back("remove " + std::to_string(owner) + " " + std::to_string(item) + " " + std::to_string(count));
+            mLog.push_back(
+                "remove " + std::to_string(owner) + " " + std::to_string(item) + " " + std::to_string(count));
             return take;
         }
         std::int32_t itemCount(FormId owner, FormId item) override { return mItems[{ owner, item }]; }
@@ -178,11 +179,7 @@ namespace
         data.add(form);
         ScriptBuilder ref("ObjectReference");
         ref.parent("Form");
-        ref.function("AddItem")
-            .native()
-            .param("akItemToAdd", "Form")
-            .param("aiCount", "Int")
-            .param("abSilent", "Bool");
+        ref.function("AddItem").native().param("akItemToAdd", "Form").param("aiCount", "Int").param("abSilent", "Bool");
         ref.function("RemoveItem")
             .native()
             .param("akItemToRemove", "Form")
@@ -210,7 +207,11 @@ namespace
         actor.function("Banish").native();
         data.add(actor);
         ScriptBuilder game("Game");
-        game.function("GetFormFromFile", "Form").global().native().param("aiFormID", "Int").param("asFilename", "String");
+        game.function("GetFormFromFile", "Form")
+            .global()
+            .native()
+            .param("aiFormID", "Int")
+            .param("asFilename", "String");
         data.add(game);
         ScriptBuilder debug("Debug");
         debug.function("Notification").global().native().param("asNotificationText", "String");
@@ -242,19 +243,24 @@ namespace
         s.var("dying", "Int");
         s.var("deaths", "Int");
         s.var("killer", "Actor");
-        s.function("Add").local("n", "None").callMethod("AddItem", Id("self"), Id("n"), { Id("::Item_var"), Int(3), Bool(false) });
+        s.function("Add")
+            .local("n", "None")
+            .callMethod("AddItem", Id("self"), Id("n"), { Id("::Item_var"), Int(3), Bool(false) });
         s.function("Remove")
             .local("n", "None")
             .callMethod("RemoveItem", Id("self"), Id("n"), { Id("::Item_var"), Int(2), Bool(false), Nil() });
         s.function("RemoveTo")
             .local("n", "None")
-            .callMethod("RemoveItem", Id("self"), Id("n"), { Id("::Item_var"), Int(2), Bool(false), Id("::Other_var") });
+            .callMethod(
+                "RemoveItem", Id("self"), Id("n"), { Id("::Item_var"), Int(2), Bool(false), Id("::Other_var") });
         s.function("Count")
             .local("v", "Int")
             .callMethod("GetItemCount", Id("self"), Id("v"), { Id("::Item_var") })
             .assign(Id("count"), Id("v"));
         s.function("All").local("n", "None").callMethod("RemoveAllItems", Id("self"), Id("n"), { Id("::Other_var") });
-        s.function("Filter").local("n", "None").callMethod("AddInventoryEventFilter", Id("self"), Id("n"), { Id("::Item_var") });
+        s.function("Filter")
+            .local("n", "None")
+            .callMethod("AddInventoryEventFilter", Id("self"), Id("n"), { Id("::Item_var") });
         s.function("ReadHealth")
             .local("v", "Float")
             .callMethod("GetActorValue", Id("self"), Id("v"), { Str("Health") })
@@ -267,7 +273,9 @@ namespace
             .local("v", "Float")
             .callMethod("GetActorValue", Id("self"), Id("v"), { Str("Stamina") })
             .assign(Id("av"), Id("v"));
-        s.function("Damage").local("n", "None").callMethod("DamageActorValue", Id("self"), Id("n"), { Str("Health"), Flt(30.0f) });
+        s.function("Damage")
+            .local("n", "None")
+            .callMethod("DamageActorValue", Id("self"), Id("n"), { Str("Health"), Flt(30.0f) });
         s.function("DamageStamina")
             .local("n", "None")
             .callMethod("DamageActorValue", Id("self"), Id("n"), { Str("Stamina"), Flt(30.0f) });
@@ -376,9 +384,7 @@ namespace
             mData.mPositions[kActor] = { 0.0, 0.0, 0.0 };
             mData.mPositions[kOther] = { 3.0, 4.0, 12.0 };
             mHost = std::make_unique<PapyrusHost>(mData);
-            mHost->setLog([this](bool error, const std::string& line) {
-                (error ? mErrors : mLogs).push_back(line);
-            });
+            mHost->setLog([this](bool error, const std::string& line) { (error ? mErrors : mLogs).push_back(line); });
             mHost->setWorldHooks(&mHooks);
             Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
             Bytes quest;
@@ -407,7 +413,11 @@ namespace
             ASSERT_EQ(mHost->attachReference(ref, kBase, actor, { std::move(script) }), 1u);
             tick();
         }
-        void tick(int n = 3) { for (int i = 0; i < n; ++i) mHost->tick(0.1f); }
+        void tick(int n = 3)
+        {
+            for (int i = 0; i < n; ++i)
+                mHost->tick(0.1f);
+        }
         bool call(FormId ref, const char* function)
         {
             const bool ok = mHost->callFunction(ref, "Probe", function);
@@ -454,7 +464,8 @@ namespace
         EXPECT_TRUE(rig.mErrors.empty());
     }
 
-    // ---- actor values ------------------------------------------------------------------------------------------------
+    // ---- actor values
+    // ------------------------------------------------------------------------------------------------
 
     TEST(SkyrimPapyrusNatives2, health_is_read_from_the_pack_and_damage_goes_to_the_pack)
     {
@@ -581,7 +592,8 @@ namespace
         EXPECT_EQ(rig.mHost->notificationAt(42), "Hello there");
     }
 
-    // ---- events ------------------------------------------------------------------------------------------------------
+    // ---- events
+    // ------------------------------------------------------------------------------------------------------
 
     TEST(SkyrimPapyrusNatives2, item_events_go_to_the_owner_that_gained_and_the_one_that_lost)
     {
@@ -669,7 +681,8 @@ namespace
         EXPECT_EQ(rig.number(kActor, "dead"), 1.0);
     }
 
-    // ---- save state --------------------------------------------------------------------------------------------------
+    // ---- save state
+    // --------------------------------------------------------------------------------------------------
 
     TEST(SkyrimPapyrusNatives2, actor_value_changes_deaths_and_filters_survive_a_save)
     {
@@ -712,7 +725,8 @@ namespace
         EXPECT_EQ(ranking[1].second, 1u);
     }
 
-    // ---- the hooks over a real inventory model -----------------------------------------------------------------------
+    // ---- the hooks over a real inventory model
+    // -----------------------------------------------------------------------
 
     struct ModelRig
     {
@@ -847,7 +861,8 @@ namespace
         {
             mBridge.setSinks(
                 [this](FormId v, FormId a, bool b, bool bash) {
-                    mHits.push_back(std::to_string(v) + ":" + std::to_string(a) + (b ? ":b" : ":-") + (bash ? "b" : "-"));
+                    mHits.push_back(
+                        std::to_string(v) + ":" + std::to_string(a) + (b ? ":b" : ":-") + (bash ? "b" : "-"));
                 },
                 [this](FormId v, FormId k) { mDeaths.push_back(std::to_string(v) + ":" + std::to_string(k)); },
                 [this](FormId actor, openeden::sdk::game::CombatRequestWriter& w) {
@@ -949,10 +964,10 @@ namespace
 }
 
 // ---- the demo script for the in-game check (tools/neutral_session_check/papyrusdemo.sh, DEMO_DIR) -------------------
-// Not a test: with OPENEDEN_PAPYRUS_DEMO_DIR_198 set it writes scripts/oedemotick.pex there, a generated script (no game
-// asset) that the demo plugin attaches to its activators. Four script seconds after it starts it gives the player 50
-// gold, takes 20 away, damages the player's stamina, reads his health and says what it saw with Debug.Trace and, once, with
-// Debug.Notification.
+// Not a test: with OPENEDEN_PAPYRUS_DEMO_DIR_198 set it writes scripts/oedemotick.pex there, a generated script (no
+// game asset) that the demo plugin attaches to its activators. Four script seconds after it starts it gives the player
+// 50 gold, takes 20 away, damages the player's stamina, reads his health and says what it saw with Debug.Trace and,
+// once, with Debug.Notification.
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -969,7 +984,9 @@ namespace
         s.var("done", "Bool");
         s.autoProperty("Limit", "Int");
         s.autoProperty("Label", "String");
-        s.function("OnInit").local("nn", "None").callMethod("RegisterForSingleUpdate", Id("self"), Id("nn"), { Flt(4.0f) });
+        s.function("OnInit")
+            .local("nn", "None")
+            .callMethod("RegisterForSingleUpdate", Id("self"), Id("nn"), { Flt(4.0f) });
         auto& f = s.function("OnUpdate");
         f.local("nn", "None").local("p", "Actor").local("gold", "Form").local("n", "Int").local("v", "Float");
         f.local("s", "String").local("m", "String").local("d", "Bool").local("run", "Bool");

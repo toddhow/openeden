@@ -211,7 +211,8 @@ namespace
 
     TEST_F(UiHudStyle, theTopBarShowsTheNameLevelAndHealth)
     {
-        ASSERT_TRUE(run("style.isActive = true; style.bossName = 'Alduin'; style.b = { 1, 750, 1000, 50, 1, 0 }; frame()"));
+        ASSERT_TRUE(
+            run("style.isActive = true; style.bossName = 'Alduin'; style.b = { 1, 750, 1000, 50, 1, 0 }; frame()"));
         EXPECT_TRUE(shown("style-boss-box"));
         EXPECT_EQ(first("style-boss-name")->mText, "Alduin");
         EXPECT_EQ(first("style-boss-level")->mText, "Lv 50");
@@ -230,7 +231,8 @@ namespace
 
     TEST_F(UiHudStyle, theTopBarFallsAsHitsLandAndGoesWhenThePackStopsShowingIt)
     {
-        ASSERT_TRUE(run("style.isActive = true; style.bossName = 'Hulda'; style.b = { 1, 100, 100, 4, 0, 0 }; frame()"));
+        ASSERT_TRUE(
+            run("style.isActive = true; style.bossName = 'Hulda'; style.b = { 1, 100, 100, 4, 0, 0 }; frame()"));
         const double width = get<double>("mod.BOSS_WIDTH");
         EXPECT_DOUBLE_EQ(pixels(property("style-fill-boss", "width")), width);
         ASSERT_TRUE(run("style.b = { 1, 25, 100, 4, 0, 0 }; clock = 0.1; frame()"));
@@ -293,7 +295,9 @@ namespace
         )"));
         EXPECT_FALSE(shown("style-actor-box-1"));
         EXPECT_TRUE(shown("style-actor-box-2"));
-        ASSERT_TRUE(run("local c = bar(12, 100, 100, 100, 100); c.name = 'New'; setBars({ c, bar(11, 700, 200, 90, 100) }); frame()"));
+        ASSERT_TRUE(
+            run("local c = bar(12, 100, 100, 100, 100); c.name = 'New'; setBars({ c, bar(11, 700, 200, 90, 100) }); "
+                "frame()"));
         EXPECT_EQ(first("style-actor-name-1")->mText, "New");
     }
 
@@ -320,7 +324,9 @@ namespace
 
     TEST_F(UiHudStyle, anAllyIsDrawnInAnotherColour)
     {
-        ASSERT_TRUE(run("style.isActive = true; setBars({ bar(10, 300, 200, 60, 100, 0, true), bar(11, 700, 200, 60, 100) }); frame()"));
+        ASSERT_TRUE(
+            run("style.isActive = true; setBars({ bar(10, 300, 200, 60, 100, 0, true), bar(11, 700, 200, 60, 100) }); "
+                "frame()"));
         const std::string ally = property("style-actor-fill-1", "background-color");
         const std::string foe = property("style-actor-fill-2", "background-color");
         EXPECT_NE(ally, foe);
@@ -329,7 +335,9 @@ namespace
 
     TEST_F(UiHudStyle, aStillFrameMakesNoProtocolCall)
     {
-        ASSERT_TRUE(run("style.isActive = true; setBars({ bar(10, 640, 360, 60, 100, 1) }); style.bossName = 'X'; style.b = { 1, 5, 10, 3, 0, 0 }; frame()"));
+        ASSERT_TRUE(
+            run("style.isActive = true; setBars({ bar(10, 640, 360, 60, 100, 1) }); style.bossName = 'X'; style.b = { "
+                "1, 5, 10, 3, 0, 0 }; frame()"));
         const std::size_t calls = backend.callCount();
         ASSERT_TRUE(run("clock = 0.016; frame(); clock = 0.032; frame()"));
         EXPECT_EQ(backend.callCount(), calls);

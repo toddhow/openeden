@@ -120,8 +120,8 @@ namespace
         }
     };
 
-    DamageReport hit(bool attackerIsPlayer, ActorHandle attacker, bool victimIsPlayer, ActorHandle victim,
-        float amount, float healthAfter, float healthMax)
+    DamageReport hit(bool attackerIsPlayer, ActorHandle attacker, bool victimIsPlayer, ActorHandle victim, float amount,
+        float healthAfter, float healthMax)
     {
         DamageReport report;
         report.attackerIsPlayer = attackerIsPlayer;

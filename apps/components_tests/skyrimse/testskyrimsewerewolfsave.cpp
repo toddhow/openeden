@@ -1,5 +1,6 @@
 // Task 0265 (the werewolf beast form survives a save and a load): the pure half, the encoding and the chunk handler
-// (game_skyrimse/werewolf.hpp). Byte layout by hand: u8 granted, u8 active, f32 seconds, u32 count, count x u64 = 10 + 8n.
+// (game_skyrimse/werewolf.hpp). Byte layout by hand: u8 granted, u8 active, f32 seconds, u32 count, count x u64 = 10 +
+// 8n.
 #include <game_skyrimse/werewolf.hpp>
 
 #include <gtest/gtest.h>
@@ -219,10 +220,11 @@ namespace
     {
         int calls = 0;
         BeastSaved got;
-        auto chunk = makeBeastChunk([] { return BeastSaved(); }, [&](const BeastSaved& s) {
-            ++calls;
-            got = s;
-        });
+        auto chunk = makeBeastChunk([] { return BeastSaved(); },
+            [&](const BeastSaved& s) {
+                ++calls;
+                got = s;
+            });
         ASSERT_NE(chunk, nullptr);
         BeastMemoryReader good(encodeBeastSaved(activeForm(20.f, { 8 })));
         ASSERT_TRUE(chunk->read(good, 1));

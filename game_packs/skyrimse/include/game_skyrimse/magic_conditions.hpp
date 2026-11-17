@@ -26,13 +26,14 @@
 // once.
 //
 // Task 0238 adds six more, for an evaluator that was told it may (`setExtended`, which the combat does) and, for three
-// of them, given the source they read: 74 GetGlobalValue (a globals source, `setGlobalLookup`; a global the source does not
-// know leaves the list unanswered), 300 IsInInterior and 310 GetInWorldspace (the place, `setPlace`: the effect's target
-// stands where the player does, because only the loaded cells have actors), 365 IsChild (the race's Child flag, RACE DATA
-// +32 bit 2, VERIFIED: every *RaceChild race has it and no adult race does), 719 IsHostileToActor (the participant's
-// hostility to the caster or to the player, from the combat's relation rules; a parameter other than none or the player
-// reference is unanswered) and 722 WornApparelHasKeywordCount (the number of worn pieces that carry the keyword). Not
-// answered: 629 GetVMQuestVariable (a quest script's variable; needs the Papyrus host), the quest functions.
+// of them, given the source they read: 74 GetGlobalValue (a globals source, `setGlobalLookup`; a global the source does
+// not know leaves the list unanswered), 300 IsInInterior and 310 GetInWorldspace (the place, `setPlace`: the effect's
+// target stands where the player does, because only the loaded cells have actors), 365 IsChild (the race's Child flag,
+// RACE DATA +32 bit 2, VERIFIED: every *RaceChild race has it and no adult race does), 719 IsHostileToActor (the
+// participant's hostility to the caster or to the player, from the combat's relation rules; a parameter other than none
+// or the player reference is unanswered) and 722 WornApparelHasKeywordCount (the number of worn pieces that carry the
+// keyword). Not answered: 629 GetVMQuestVariable (a quest script's variable; needs the Papyrus host), the quest
+// functions.
 
 #include <game_skyrimse/perks.hpp>
 
@@ -64,8 +65,8 @@ namespace game_skyrimse::effectconditions
         float mMagickaFraction = 1.f;
         float mStaminaFraction = 1.f;
         std::span<const FormId> mActiveEffects{}; ///< the MGEFs running on it now
-        // Task 0238 (all default to "no"): the race has the Child flag; the actor is an enemy of the caster of the effect
-        // and of the player (the combat's relation rules).
+        // Task 0238 (all default to "no"): the race has the Child flag; the actor is an enemy of the caster of the
+        // effect and of the player (the combat's relation rules).
         bool mChild = false;
         bool mCommanded = false; ///< task 0248: a Command Animal effect holds it (fn 700)
         bool mHostileToCaster = false;
@@ -121,8 +122,8 @@ namespace game_skyrimse::effectconditions
         /// The seed of GetRandomPercent for the next evaluations (the numbers follow splitmix64 from it).
         void setSeed(std::uint64_t seed) { mSeed = seed; }
 
-        /// `target` is the actor the effect lands on (Subject), `caster` its caster (run-on 1), `player` the player (run-on
-        /// 2 with reference 0x14); any may be null, and a condition that needs a missing one is Unanswered.
+        /// `target` is the actor the effect lands on (Subject), `caster` its caster (run-on 1), `player` the player
+        /// (run-on 2 with reference 0x14); any may be null, and a condition that needs a missing one is Unanswered.
         [[nodiscard]] Verdict evaluate(std::span<const survey::Ctda> list, const Participant* target,
             const Participant* caster, const Participant* player);
 

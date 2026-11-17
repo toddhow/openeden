@@ -420,7 +420,8 @@ namespace game_skyrimse::progression
             r.value = text(m.mText);
             return r;
         });
-        add("perks", i1, true, kStr, BindingAccess::Read,
+        add(
+            "perks", i1, true, kStr, BindingAccess::Read,
             [self, &m](std::span<const BindingValue> a) {
                 m.mStrings.clear();
                 if (self->progression() != nullptr && a[0].integer >= 0)
@@ -496,8 +497,9 @@ namespace game_skyrimse::progression
                 const std::string_view name = a[0].text;
                 if (name != "health" && name != "magicka" && name != "stamina")
                     return ok();
-                (void)self->chooseLevelUp(
-                    name == "magicka" ? Vital::Magicka : name == "stamina" ? Vital::Stamina : Vital::Health);
+                (void)self->chooseLevelUp(name == "magicka" ? Vital::Magicka
+                        : name == "stamina"                 ? Vital::Stamina
+                                                            : Vital::Health);
                 return ok();
             });
         add("buy_perk", s1, false, BindingType::Bool, BindingAccess::Mutate,

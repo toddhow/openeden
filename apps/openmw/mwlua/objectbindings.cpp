@@ -540,12 +540,11 @@ namespace MWLua
                             "TeleportFromContainerAction");
                     }
                     else if (ptr == MWBase::Environment::get().getWorld()->getPlayerPtr())
-                        context.mLuaManager->addTeleportPlayerAction(
-                            [cell, pos, rot, placeOnGround] {
-                                // A neutral session's followers go along (fast travel, task 0218); none otherwise.
-                                (void)MWWorld::carryNeutralFollowersWithPlayer(*cell, toPos(pos, rot));
-                                teleportPlayer(cell, pos, rot, placeOnGround);
-                            });
+                        context.mLuaManager->addTeleportPlayerAction([cell, pos, rot, placeOnGround] {
+                            // A neutral session's followers go along (fast travel, task 0218); none otherwise.
+                            (void)MWWorld::carryNeutralFollowersWithPlayer(*cell, toPos(pos, rot));
+                            teleportPlayer(cell, pos, rot, placeOnGround);
+                        });
                     else
                     {
                         ptr.getCellRef().setCount(0);

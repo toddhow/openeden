@@ -72,7 +72,8 @@ namespace
                         if (const ActorNpc* n = index.npc(ref.mBase))
                         {
                             const RaceRecord* r = index.race(n->mRace);
-                            if (r == nullptr || r->skeleton(Sex::Male).find("Character Assets\\skeleton.nif") != std::string::npos)
+                            if (r == nullptr
+                                || r->skeleton(Sex::Male).find("Character Assets\\skeleton.nif") != std::string::npos)
                                 continue;
                             label = "npc:" + n->mCommon.mEditorId + " (" + r->mCommon.mEditorId + ")";
                         }
@@ -82,11 +83,11 @@ namespace
                             continue;
                         ++all[label];
                         const int gx = cell.mGrid->x, gy = cell.mGrid->y;
-                        
-                            if (gx >= 0 && gx <= 12 && gy >= -12 && gy <= 2)
-                                ++near[label + " cell " + std::to_string(gx) + "," + std::to_string(gy) + " at "
-                                    + std::to_string(int(ref.mPosition.x)) + "," + std::to_string(int(ref.mPosition.y))
-                                    + " world " + std::to_string(cell.mWorld)];
+
+                        if (gx >= 0 && gx <= 12 && gy >= -12 && gy <= 2)
+                            ++near[label + " cell " + std::to_string(gx) + "," + std::to_string(gy) + " at "
+                                + std::to_string(int(ref.mPosition.x)) + "," + std::to_string(int(ref.mPosition.y))
+                                + " world " + std::to_string(cell.mWorld)];
                     }
             }
             for (const auto& [k, v] : near)
@@ -113,17 +114,17 @@ namespace
                 continue;
             ++creatureRaces;
             creatureNpcs += npcs.size();
-            std::cout << "SKYRIMSE-CREATURES race " << r->mCommon.mEditorId << " npcs " << npcs.size() << " skel "
-                      << sk << " | " << r->skeleton(Sex::Female) << " height " << r->mHeight[0] << " hp "
-                      << r->mStartHealth << " sta " << r->mStartStamina << "\n";
+            std::cout << "SKYRIMSE-CREATURES race " << r->mCommon.mEditorId << " npcs " << npcs.size() << " skel " << sk
+                      << " | " << r->skeleton(Sex::Female) << " height " << r->mHeight[0] << " hp " << r->mStartHealth
+                      << " sta " << r->mStartStamina << "\n";
             for (const RaceModel& b : r->mBehaviourGraphs)
                 std::cout << "SKYRIMSE-CREATURES   graph " << int(b.mSex) << " " << b.mPath << "\n";
             if (const ArmorExtra* skin = index.armor(r->mSkin))
             {
                 for (FormId a : skin->mArmatures)
                     if (const ArmatureRecord* ar = index.armature(a))
-                        std::cout << "SKYRIMSE-CREATURES   skin-addon " << ar->mCommon.mEditorId << " mask "
-                                  << std::hex << ar->mSlotMask << std::dec << " model " << ar->mMaleModel << " | "
+                        std::cout << "SKYRIMSE-CREATURES   skin-addon " << ar->mCommon.mEditorId << " mask " << std::hex
+                                  << ar->mSlotMask << std::dec << " model " << ar->mMaleModel << " | "
                                   << ar->mFemaleModel << "\n";
             }
             else
@@ -136,12 +137,12 @@ namespace
                 if (index.npc(id)->mCommon.mEditorId == wanted)
                 {
                     const ActorNpc* n = index.npc(id);
-                    std::cout << "SKYRIMSE-CREATURES npc " << wanted << " id " << std::hex << id << std::dec
-                              << " race " << std::hex << n->mRace << std::dec << " flags " << std::hex << n->mFlags
-                              << std::dec << " style " << std::hex << n->mCombatStyle << std::dec << " level "
-                              << n->mLevel << " tmpl " << std::hex << n->mTemplate << std::dec << " tflags "
-                              << n->mTemplateFlags << " skin " << std::hex << n->mSkin << std::dec << " outfit "
-                              << std::hex << n->mDefaultOutfit << std::dec << " ai " << (n->mAi ? 1 : 0) << "\n";
+                    std::cout << "SKYRIMSE-CREATURES npc " << wanted << " id " << std::hex << id << std::dec << " race "
+                              << std::hex << n->mRace << std::dec << " flags " << std::hex << n->mFlags << std::dec
+                              << " style " << std::hex << n->mCombatStyle << std::dec << " level " << n->mLevel
+                              << " tmpl " << std::hex << n->mTemplate << std::dec << " tflags " << n->mTemplateFlags
+                              << " skin " << std::hex << n->mSkin << std::dec << " outfit " << std::hex
+                              << n->mDefaultOutfit << std::dec << " ai " << (n->mAi ? 1 : 0) << "\n";
                 }
     }
 }

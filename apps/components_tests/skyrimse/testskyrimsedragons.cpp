@@ -362,7 +362,8 @@ namespace
         }
     }
 
-    // ---- the breath cone ---------------------------------------------------------------------------------------------
+    // ---- the breath cone
+    // ---------------------------------------------------------------------------------------------
 
     TEST(SkyrimDragonBreath, aPointOnTheAxisWithinRangeIsInsideAndOneBeyondIsNot)
     {

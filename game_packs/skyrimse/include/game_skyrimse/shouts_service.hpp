@@ -87,13 +87,13 @@ namespace game_skyrimse::shouts
         bool teachWord(FormId word);
         bool unlockWord(FormId word);
         [[nodiscard]] bool isWordUnlocked(FormId word) const;
-        /// Task 0256: unlocks a LEARNED word, named by its editor id ("WordFus"), by spending one dragon soul (the shout
-        /// menu does not exist yet; the script namespace's `unlock_word` calls this). False, and nothing spent, when the
-        /// word is unknown, not learned, already unlocked or there is no soul.
+        /// Task 0256: unlocks a LEARNED word, named by its editor id ("WordFus"), by spending one dragon soul (the
+        /// shout menu does not exist yet; the script namespace's `unlock_word` calls this). False, and nothing spent,
+        /// when the word is unknown, not learned, already unlocked or there is no soul.
         bool unlockWithSoul(std::string_view wordEditorId);
 
-        /// Task 0266 (the shout menu): the shouts with a learned word, by form id, with their words' state. Empty before
-        /// the records are read.
+        /// Task 0266 (the shout menu): the shouts with a learned word, by form id, with their words' state. Empty
+        /// before the records are read.
         [[nodiscard]] std::vector<MenuShout> menu() const;
         /// Spends a dragon soul on the shout's next word (the first one after its unlocked run) when it is learned. The
         /// result is announced to the player as a message.

@@ -1,9 +1,9 @@
 // Task 0242: spell delivery. A target actor spell (Heal Other, Calm) goes to the actor in the caster's sights; a target
 // location spell (the runes) flies as a projectile, is placed where it lands and goes off when an enemy comes within
-// the projectile's trigger proximity; an effect with an area, or one whose projectile names an explosion, reaches everyone
-// within that radius of where the shot ended. Behind `combat spell delivery` (off by default). Main thread only, in
-// combatUpdate; nothing here reads a clock but the combat clock and nothing allocates per frame beyond the trace lines.
-// See docs/tasks/0242-skyrim-spell-delivery.md.
+// the projectile's trigger proximity; an effect with an area, or one whose projectile names an explosion, reaches
+// everyone within that radius of where the shot ended. Behind `combat spell delivery` (off by default). Main thread
+// only, in combatUpdate; nothing here reads a clock but the combat clock and nothing allocates per frame beyond the
+// trace lines. See docs/tasks/0242-skyrim-spell-delivery.md.
 #include "game_skyrimse/combat.hpp"
 
 #include <algorithm>
@@ -63,7 +63,7 @@ namespace game_skyrimse
             return 0.f;
         const ExplosionRecord* explosion = mData->explosionById(projectile->mExplosion);
         return explosion != nullptr && explosion->mHasData && std::isfinite(explosion->mRadius) ? explosion->mRadius
-                                                                                              : 0.f;
+                                                                                                : 0.f;
     }
 
     bool SkyrimCombat::hasAreaEffect(const SpellRecord& spell) const
@@ -198,9 +198,8 @@ namespace game_skyrimse
         trace("COMBAT explosion " + spellName(spell) + " reached " + std::to_string(reached));
     }
 
-    void SkyrimCombat::placeRune(
-        CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, double x, double y, double z,
-        std::uint32_t token)
+    void SkyrimCombat::placeRune(CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, double x,
+        double y, double z, std::uint32_t token)
     {
         const std::string name = spellName(spell);
         if (mRunes.size() >= kMaxRunes)
@@ -220,9 +219,9 @@ namespace game_skyrimse
         for (const SpellEffect& effect : spell.mEffects)
         {
             const MagicEffectRecord* record = mData->effectById(effect.mEffect);
-            const ProjectileRecord* projectile
-                = record != nullptr && record->mProjectile != kNullFormId ? mData->projectileById(record->mProjectile)
-                                                                          : nullptr;
+            const ProjectileRecord* projectile = record != nullptr && record->mProjectile != kNullFormId
+                ? mData->projectileById(record->mProjectile)
+                : nullptr;
             if (projectile != nullptr && projectile->mProximity > 0.f)
             {
                 rune.mTrigger = projectile->mProximity;

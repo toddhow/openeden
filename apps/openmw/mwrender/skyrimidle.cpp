@@ -133,8 +133,8 @@ namespace MWRender::SkyrimIdle
                     throw HavokPack::Error("'" + path + "' holds no spline clip");
                 out = std::make_shared<const HavokPack::BoundClip>(
                     HavokPack::Paired::bindSide(std::move(clips.front()), side));
-                Log(Debug::Info) << "Skyrim paired clip '" << path << "' decoded: "
-                                 << out->mClip.mNumTransformTracks << " tracks, " << out->mClip.mDuration << " s";
+                Log(Debug::Info) << "Skyrim paired clip '" << path << "' decoded: " << out->mClip.mNumTransformTracks
+                                 << " tracks, " << out->mClip.mDuration << " s";
             }
             catch (const std::exception& e)
             {

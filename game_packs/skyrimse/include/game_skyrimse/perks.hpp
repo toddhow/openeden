@@ -40,18 +40,17 @@ namespace game_skyrimse
     /// Entry point ids (BGSEntryPoint order; the NUMBERS are the data's, the names RECALLED-VERIFY).
     namespace PerkEntry
     {
-        inline constexpr std::uint8_t CalculateWeaponDamage = 0, CalculateMyCriticalHitChance = 1,
-                                      CalculateMyCriticalHitDamage = 2, ModBuyPrices = 8, Activate = 14,
-                                      ModSneakAttackMult = 18, ModBowZoom = 20, ModRecoverArrowChance = 21,
-                                      ModBashingDamage = 26, ModPowerAttackStamina = 27, ModPowerAttackDamage = 28,
-                                      ModSpellMagnitude = 29, ModSpellDuration = 30, ModArmorWeight = 32,
-                                      ModIncomingStagger = 33, ModTargetStagger = 34, ModAttackDamage = 35,
-                                      ModIncomingDamage = 36, ModTargetDamageResistance = 37, ModSpellCost = 38,
-                                      ModPercentBlocked = 39, ModShieldDeflectArrowChance = 40, SetSweepAttack = 50,
-                                      ApplyCombatHitSpell = 51, ApplyBashingSpell = 52, ModPickpocketChance = 56,
-                                      ModDetectionSneakSkill = 57, ModLockpickSweetSpot = 59, ModSellPrices = 60,
-                                      ModAlchemyEffectiveness = 66, FilterActivation = 74, ModTemperingHealth = 76,
-                                      ModEnchantmentPower = 77, ModArmorRating = 85, ModSpellRange_TargetLoc = 88;
+        inline constexpr std::uint8_t CalculateWeaponDamage
+            = 0,
+            CalculateMyCriticalHitChance = 1, CalculateMyCriticalHitDamage = 2, ModBuyPrices = 8, Activate = 14,
+            ModSneakAttackMult = 18, ModBowZoom = 20, ModRecoverArrowChance = 21, ModBashingDamage = 26,
+            ModPowerAttackStamina = 27, ModPowerAttackDamage = 28, ModSpellMagnitude = 29, ModSpellDuration = 30,
+            ModArmorWeight = 32, ModIncomingStagger = 33, ModTargetStagger = 34, ModAttackDamage = 35,
+            ModIncomingDamage = 36, ModTargetDamageResistance = 37, ModSpellCost = 38, ModPercentBlocked = 39,
+            ModShieldDeflectArrowChance = 40, SetSweepAttack = 50, ApplyCombatHitSpell = 51, ApplyBashingSpell = 52,
+            ModPickpocketChance = 56, ModDetectionSneakSkill = 57, ModLockpickSweetSpot = 59, ModSellPrices = 60,
+            ModAlchemyEffectiveness = 66, FilterActivation = 74, ModTemperingHealth = 76, ModEnchantmentPower = 77,
+            ModArmorRating = 85, ModSpellRange_TargetLoc = 88;
         /// Ids above this do not exist (the data has 0 to 91).
         inline constexpr std::uint8_t kLast = 91;
     }
@@ -127,7 +126,8 @@ namespace game_skyrimse
         std::uint32_t mArea = 0;
         std::uint32_t mDuration = 0;
         /// Task 0186: CTDA subrecords after this effect's EFIT (a perk, a race or a state gates the effect). Since
-        /// task 0236 the magic runtime evaluates them (magic_conditions.hpp); the test setting applies the effect anyway.
+        /// task 0236 the magic runtime evaluates them (magic_conditions.hpp); the test setting applies the effect
+        /// anyway.
         std::uint32_t mConditions = 0;
         /// Task 0236: the decoded CTDAs (parameters resolved to the load order); `mConditions` counts every CTDA, so
         /// the list is shorter than the count when one was damaged or beyond the cap, and then the effect cannot be
@@ -170,7 +170,8 @@ namespace game_skyrimse
         std::int32_t mAssociatedSkill = -1;
         /// Task 0250: DATA +8, the associated form (an NPC_ or a leveled NPC list for Summon Creature, resolved; 0 when
         /// none). VERIFIED by the data (`SkyrimSummonsReal`): every Summon Creature effect names one. Task 0248 reads
-        /// the same field as a cloak's damage spell (VERIFIED: PowerDarkElfFireCloakFFSelf names PowerDarkELfFlameCloakDmg).
+        /// the same field as a cloak's damage spell (VERIFIED: PowerDarkElfFireCloakFFSelf names
+        /// PowerDarkELfFlameCloakDmg).
         FormId mAssociatedItem = kNullFormId;
         // Task 0186: +4 base cost, +16 resist actor value, +60 secondary weight, +72 projectile, +80 casting type, +84
         // delivery, +88 secondary actor value.
@@ -185,16 +186,16 @@ namespace game_skyrimse
         std::uint32_t mCastType = 0;
         std::uint32_t mDelivery = 0;
         std::int32_t mSecondaryValue = -1;
-        /// Task 0237: DATA +136, the perk the effect applies while it is active (0 when none). VERIFIED on Skyrim.esm: the
-        /// Warrior, Mage, Thief and Lover stones' effects name doomWarriorPerk and the others, which hold the ModSkillUse
-        /// entry points.
+        /// Task 0237: DATA +136, the perk the effect applies while it is active (0 when none). VERIFIED on Skyrim.esm:
+        /// the Warrior, Mage, Thief and Lover stones' effects name doomWarriorPerk and the others, which hold the
+        /// ModSkillUse entry points.
         FormId mPerkToApply = kNullFormId;
         bool mHasScript = false; ///< the record carries a VMAD (its effect is a script, Firebolt's damage among them)
         /// CTDA subrecords of the record: a perk or a state gates the effect (the Stagger and Demoralize effects of
         /// Firebolt are perk effects with conditions). The magic runtime evaluates them (task 0236).
         std::uint32_t mConditions = 0;
-        /// Task 0236: the decoded CTDAs of the record (see SpellEffect::mConditionList) and its keywords (KWDA, resolved:
-        /// HasMagicEffectKeyword asks them of a running effect).
+        /// Task 0236: the decoded CTDAs of the record (see SpellEffect::mConditionList) and its keywords (KWDA,
+        /// resolved: HasMagicEffectKeyword asks them of a running effect).
         std::vector<survey::Ctda> mConditionList;
         std::vector<FormId> mKeywords;
         /// ValueModifier is 0 (VERIFIED: PerkQuickShot); PeakValueModifier is 34 (RECALLED-VERIFY, CommonLibSSE-NG).
@@ -378,8 +379,8 @@ namespace game_skyrimse
 
     /// The sum of the magnitudes of the value-modifying effects of the ability spells on actor value `actorValue`;
     /// `found` is true when at least one effect modified it. A spell that is not an ability counts for nothing.
-    [[nodiscard]] float abilityModifier(const PerkLibrary& library, std::span<const FormId> spells,
-        std::int32_t actorValue, bool& found);
+    [[nodiscard]] float abilityModifier(
+        const PerkLibrary& library, std::span<const FormId> spells, std::int32_t actorValue, bool& found);
 }
 
 #endif

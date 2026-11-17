@@ -207,9 +207,8 @@ namespace MWPhysics
         /// is an Object, not an Actor: nothing about it needs CreatureStats. `raise` lifts the feet that many units
         /// above the placement first (a developer aid that shows the fall). Main thread only. Does nothing when the
         /// object already has a body or the shape cannot be made.
-        void addNeutralActor(
-            const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f, float walkSpeed = 0.f, float runSpeed = 0.f,
-            float radius = 0.f);
+        void addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f, float walkSpeed = 0.f,
+            float runSpeed = 0.f, float radius = 0.f);
 
         /// Task 0135: one frame of the neutral actors: those not yet on the floor are stood on it
         /// (NeutralActor::stepFall, a ray cast down per actor), those that are grounded and have a movement request are
@@ -270,9 +269,9 @@ namespace MWPhysics
         /// updateNeutralActors. Without a call (or with the setting off) every actor is High: stepped every frame.
         void setNeutralFocus(const vsg::vec3& position);
 
-        /// Task 0211: where the player stands (an interior cell or a grid square of a worldspace) for the game pack's story
-        /// manager. The pack hears of it through openeden::sdk::game::PlayerPlaceSink on its rules, only when the place
-        /// changed (PlayerPlaceFilter). Main thread; call once a frame, before updateNeutralActors.
+        /// Task 0211: where the player stands (an interior cell or a grid square of a worldspace) for the game pack's
+        /// story manager. The pack hears of it through openeden::sdk::game::PlayerPlaceSink on its rules, only when the
+        /// place changed (PlayerPlaceFilter). Main thread; call once a frame, before updateNeutralActors.
         void notifyNeutralPlayerPlace(const openeden::sdk::game::PlayerPlace& place);
 
         /// Task 0154: counters of the last frames for the trace and the cost measurement.
@@ -500,8 +499,8 @@ namespace MWPhysics
         bool groundBelow(const vsg::vec3& from, float maxDrop, float& groundZ) const;
         /// Removes the actor's ragdoll if it has one. Called when the actor leaves the physics system.
         void stopActorRagdoll(const MWWorld::Ptr& ptr);
-        /// Task 0263. True once for a neutral actor the pack put back as a saved corpse (ActorRequestWriter::placeCorpse),
-        /// then false until it is put back again. Main thread.
+        /// Task 0263. True once for a neutral actor the pack put back as a saved corpse
+        /// (ActorRequestWriter::placeCorpse), then false until it is put back again. Main thread.
         bool takeRestoredCorpse(const MWWorld::Ptr& ptr);
         /// The rig bone each ragdoll body follows; empty until the first ragdoll was built.
         std::span<const std::string> actorRagdollBones() const;
@@ -547,7 +546,8 @@ namespace MWPhysics
         const HeightField* getHeightField(int x, int y) const;
 
         bool toggleCollisionMode();
-        /// Task 0251 (riding): sets the player's collision mode (off: no collision, no gravity, as after `tcl`) and reports it.
+        /// Task 0251 (riding): sets the player's collision mode (off: no collision, no gravity, as after `tcl`) and
+        /// reports it.
         void setPlayerCollisionMode(bool on);
         [[nodiscard]] bool playerCollisionMode() const;
 
@@ -809,7 +809,8 @@ namespace MWPhysics
                 openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override;
             void collectCandidates(std::vector<NeutralSweep::Candidate>& out) override;
             bool lineBlocked(double x0, double y0, double z0, double x1, double y1, double z1) override;
-            bool rayWorld(const NeutralProjectile::Vec& p0, const NeutralProjectile::Vec& p1, double& fraction) override;
+            bool rayWorld(
+                const NeutralProjectile::Vec& p0, const NeutralProjectile::Vec& p1, double& fraction) override;
             std::shared_ptr<const HavokPack::ClipMeta> playerClipMeta(std::string_view clip, bool perSex) override;
             void applyPlayerDamage(const openeden::sdk::game::DamageReport& report) override;
             void actorDied(const void* key, openeden::sdk::game::ActorHandle actor) override;

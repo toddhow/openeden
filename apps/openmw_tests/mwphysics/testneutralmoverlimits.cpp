@@ -137,8 +137,8 @@ namespace
 
     TEST(NeutralMoverLimits, a_height_that_is_not_a_number_or_not_positive_keeps_the_humanoid_limits)
     {
-        for (const float height : { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
-                 0.f, -5.f })
+        for (const float height :
+            { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(), 0.f, -5.f })
         {
             const Limits limits = limitsForHeight(height);
             EXPECT_FLOAT_EQ(limits.mStepUp, kStepUp);

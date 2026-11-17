@@ -1,12 +1,12 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_SCENE_RUNNER_H
 #define OPENEDEN_GAME_SKYRIMSE_SCENE_RUNNER_H
 
-// The quest scene runner (task 0194, milestone M-S6). Plays SCEN records: phases in order; in each phase the actions that
-// start there (a dialogue line spoken by an actor of the quest, a package an actor follows, a timer); a phase ends when
-// its actions and its completion conditions say so; fragments run at the scene's begin, end and each phase's start and
-// completion. Pure: everything the runner touches (aliases, conditions, lines, speech, packages, fragments) is behind
-// `SceneEnvironment`, so a test drives it with a fake. Main thread only. Deterministic: no clock (time is the sum of the
-// `dt` given to `update`), no randomness, every container is ordered.
+// The quest scene runner (task 0194, milestone M-S6). Plays SCEN records: phases in order; in each phase the actions
+// that start there (a dialogue line spoken by an actor of the quest, a package an actor follows, a timer); a phase ends
+// when its actions and its completion conditions say so; fragments run at the scene's begin, end and each phase's start
+// and completion. Pure: everything the runner touches (aliases, conditions, lines, speech, packages, fragments) is
+// behind `SceneEnvironment`, so a test drives it with a fake. Main thread only. Deterministic: no clock (time is the
+// sum of the `dt` given to `update`), no randomness, every container is ordered.
 //
 // The rules below are RECALLED-VERIFY (the Creation Kit wiki could not be consulted; xEdit names the records, the data
 // shows the shapes). Each is a named option:
@@ -78,8 +78,8 @@ namespace game_skyrimse
     };
 
     /// Task 0211: what a save keeps of a scene that is playing: the phase, whether that phase was entered (its start
-    /// fragment ran), and the stage of each action (0 waiting, 1 running, 2 done). Elapsed times are not kept: a line or
-    /// timer that was running starts again after a load.
+    /// fragment ran), and the stage of each action (0 waiting, 1 running, 2 done). Elapsed times are not kept: a line
+    /// or timer that was running starts again after a load.
     struct SceneSaveEntry
     {
         FormId mScene = kNullFormId;
@@ -91,15 +91,17 @@ namespace game_skyrimse
     struct SceneRestoreResult
     {
         std::size_t mResumed = 0;
-        std::size_t mDropped = 0; ///< the scene or its quest is gone, or the quest is not running, or the actions differ
+        std::size_t mDropped
+            = 0; ///< the scene or its quest is gone, or the quest is not running, or the actions differ
     };
 
-    /// The bytes of a scene save (version 1, little endian): u32 count, per scene u32 id, i32 phase, u8 entered (0 or 1),
-    /// u32 action count and one byte per action. No scene is NOT special: it is the 4 bytes of a zero count.
+    /// The bytes of a scene save (version 1, little endian): u32 count, per scene u32 id, i32 phase, u8 entered (0 or
+    /// 1), u32 action count and one byte per action. No scene is NOT special: it is the 4 bytes of a zero count.
     [[nodiscard]] std::vector<std::uint8_t> encodeSceneState(const std::vector<SceneSaveEntry>& entries);
     /// Reads the bytes; false with a located message for anything damaged (caps: 64 scenes, 4096 actions each, every
     /// stage byte 0 to 2, a phase from 0 to 4096, no trailing bytes, no scene twice). `out` is cleared first.
-    [[nodiscard]] bool decodeSceneState(std::span<const std::uint8_t> bytes, std::vector<SceneSaveEntry>& out, std::string& error);
+    [[nodiscard]] bool decodeSceneState(
+        std::span<const std::uint8_t> bytes, std::vector<SceneSaveEntry>& out, std::string& error);
 
     enum class PhaseEndRule : std::uint8_t
     {
@@ -120,9 +122,9 @@ namespace game_skyrimse
             float mParkSeconds = 120.f;
             float mPackageSeconds = 60.f;
             float mRetrySeconds = 1.f;
-            /// Task 0268: a scene that begins on quest start and found none of its actors loaded waits and asks again every
-            /// `mRetrySeconds` while its quest runs (the opening of the main quest moves its actors after the quest
-            /// started). Off by default: other quests' scenes are dropped as before.
+            /// Task 0268: a scene that begins on quest start and found none of its actors loaded waits and asks again
+            /// every `mRetrySeconds` while its quest runs (the opening of the main quest moves its actors after the
+            /// quest started). Off by default: other quests' scenes are dropped as before.
             bool mRetryQuestStart = false;
             std::uint32_t mMaxPlaying = 64;
         };
@@ -169,12 +171,12 @@ namespace game_skyrimse
 
         /// Task 0211: the playing scenes, ordered by scene id.
         [[nodiscard]] std::vector<SceneSaveEntry> saveState() const;
-        /// Resumes saved scenes: each is started (its conditions are not asked, the begin fragment does not run again) and
-        /// put back at its phase; actions that were done stay done, a phase's start fragment does not run again. The
-        /// quests must have been restored first. Entries that cannot be resumed are dropped and counted.
+        /// Resumes saved scenes: each is started (its conditions are not asked, the begin fragment does not run again)
+        /// and put back at its phase; actions that were done stay done, a phase's start fragment does not run again.
+        /// The quests must have been restored first. Entries that cannot be resumed are dropped and counted.
         SceneRestoreResult restoreState(const std::vector<SceneSaveEntry>& entries);
-        /// A load replaces the world: ends every playing scene without its end fragment and releases the actors it holds.
-        /// Returns how many were playing.
+        /// A load replaces the world: ends every playing scene without its end fragment and releases the actors it
+        /// holds. Returns how many were playing.
         std::size_t stopAll();
 
         /// fn_550 IsSceneActionComplete.

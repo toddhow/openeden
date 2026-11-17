@@ -1,13 +1,14 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_CHARACTER_H
 #define OPENEDEN_GAME_SKYRIMSE_CHARACTER_H
 
-// Task 0225: a first character creation for a Skyrim SE session. Pure: no engine, UI or script type, no clock, no random
-// numbers, nothing throws. This file is the model of the choices (the playable races, the head parts a race and sex
-// offer, the working choice with its rules); `character_service.*` is the service that keeps the choice, saves it and
-// declares the script namespace.
+// Task 0225: a first character creation for a Skyrim SE session. Pure: no engine, UI or script type, no clock, no
+// random numbers, nothing throws. This file is the model of the choices (the playable races, the head parts a race and
+// sex offer, the working choice with its rules); `character_service.*` is the service that keeps the choice, saves it
+// and declares the script namespace.
 //
 // SETTLED BY THE DATA (the five masters, a Python walker; aggregates in docs/tasks/0225-skyrim-character-creation.md):
-//  * RACE DATA offset 32 is a flags word whose bit 0 is "playable": it is set on exactly 10 of the 161 RACE records, the
+//  * RACE DATA offset 32 is a flags word whose bit 0 is "playable": it is set on exactly 10 of the 161 RACE records,
+//  the
 //    ten player races (VERIFIED: the Nord, Imperial, Breton, Redguard, Dark Elf, High Elf, Wood Elf, Orc, Khajiit and
 //    Argonian forms 0x13740 to 0x13749).
 //  * RACE DATA bytes 0 to 13 are seven (actor value, boost) pairs; the actor value 255 ends the list. VERIFIED against
@@ -15,9 +16,9 @@
 //    Elf: Archery 10, Sneak, Lockpicking, Pickpocket, Light Armor, Alchemy 5).
 //  * RACE SPLO are the race's abilities and powers (Nord: Resist Frost 0xAA020 and a power 0xE40C3).
 //  * HDPT DATA flags: bit 0 playable, bit 1 male, bit 2 female, bit 3 "extra part" (a part another part brings along);
-//    HDPT PNAM is the type (2 eyes, 3 hair, 4 facial hair, 6 brows ...); HDPT RNAM is an FLST of the races it is valid for
-//    (9 of 766 have none). For the Nord man that gives 22 eyes, 29 hairs and 46 beards, for the Nord woman 20 eyes and 26
-//    hairs and no beard.
+//    HDPT PNAM is the type (2 eyes, 3 hair, 4 facial hair, 6 brows ...); HDPT RNAM is an FLST of the races it is valid
+//    for (9 of 766 have none). For the Nord man that gives 22 eyes, 29 hairs and 46 beards, for the Nord woman 20 eyes
+//    and 26 hairs and no beard.
 // What is OURS (the data has no rule): the three parts the menu offers (hair, facial hair, eyes), "None" for hair and
 // facial hair, that a change of race or sex goes back to that race's defaults, the order of the lists (editor id) and
 // the default name.

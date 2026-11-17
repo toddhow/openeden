@@ -8,9 +8,9 @@
 #include <openeden/version.hpp>
 
 // Lines that a game's quest scenes make its actors say (task 0194, milestone M-S6 "scenes and more story events").
-// The rules (which scene plays, which line, when) stay in the pack; only the actor, the subtitle text and the voice files
-// cross. The core asks for the lines once a frame, plays each voice file through the sound system from the actor's head
-// (one after the other) and shows the text as a subtitle.
+// The rules (which scene plays, which line, when) stay in the pack; only the actor, the subtitle text and the voice
+// files cross. The core asks for the lines once a frame, plays each voice file through the sound system from the
+// actor's head (one after the other) and shows the text as a subtitle.
 //
 // ABI choice: like DialogueSource, a NEW interface found by dynamic_cast on the game's registered ActorRules, so the
 // frozen ActorRules / ActorRequestWriter (actor_rules.hpp) are untouched. A pack that does not implement it simply has
@@ -40,9 +40,9 @@ namespace openeden::sdk::game
     public:
         virtual ~SceneSpeechSource() = default;
 
-        /// Takes the oldest line the pack wants said (true and `out` filled), or false when there is none. Called by the
-        /// core once or more per frame, after ActorRules::update. A line for an actor the core does not know (any more)
-        /// is dropped and counted by the core.
+        /// Takes the oldest line the pack wants said (true and `out` filled), or false when there is none. Called by
+        /// the core once or more per frame, after ActorRules::update. A line for an actor the core does not know (any
+        /// more) is dropped and counted by the core.
         [[nodiscard]] virtual bool takeSpeech(SceneSpeech& out) = 0;
     };
 }

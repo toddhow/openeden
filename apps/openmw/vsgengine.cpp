@@ -62,8 +62,8 @@
 #include <components/render/defaultsampler.hpp>
 
 #include "boot.hpp"
-#include "mwgui/sessionpolicy.hpp"
 #include "extensionhost.hpp"
+#include "mwgui/sessionpolicy.hpp"
 
 namespace
 {

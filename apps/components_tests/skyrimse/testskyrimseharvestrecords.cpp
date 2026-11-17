@@ -36,7 +36,8 @@ namespace
         return bytes;
     }
 
-    Bytes plant(const char (&type)[5], bool pfig, std::uint32_t ingredient, bool pfpc, bool rnam, const std::string& verb)
+    Bytes plant(
+        const char (&type)[5], bool pfig, std::uint32_t ingredient, bool pfpc, bool rnam, const std::string& verb)
     {
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring("Plant")));

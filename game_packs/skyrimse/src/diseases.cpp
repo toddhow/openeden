@@ -117,8 +117,8 @@ namespace game_skyrimse::diseases
     std::string displayName(std::string_view editorId)
     {
         std::string_view rest = editorId;
-        for (const std::string_view prefix : { std::string_view("TrapDisease"), std::string_view("DLC2Disease"),
-                 std::string_view("Disease") })
+        for (const std::string_view prefix :
+            { std::string_view("TrapDisease"), std::string_view("DLC2Disease"), std::string_view("Disease") })
             if (startsWith(rest, prefix) && rest.size() > prefix.size())
             {
                 rest.remove_prefix(prefix.size());
@@ -129,7 +129,8 @@ namespace game_skyrimse::diseases
         {
             const char c = rest[i];
             const bool upper = c >= 'A' && c <= 'Z';
-            const bool prevLower = i > 0 && ((rest[i - 1] >= 'a' && rest[i - 1] <= 'z') || (rest[i - 1] >= '0' && rest[i - 1] <= '9'));
+            const bool prevLower
+                = i > 0 && ((rest[i - 1] >= 'a' && rest[i - 1] <= 'z') || (rest[i - 1] >= '0' && rest[i - 1] <= '9'));
             if (upper && prevLower)
                 out.push_back(' ');
             out.push_back(c);
@@ -157,34 +158,35 @@ namespace game_skyrimse::diseases
         PlayerValueModifiers modifiersImpl(const PerkLibrary& library, std::span<const FormId> diseaseSpells,
             std::vector<std::string>* ignored, bool extended)
         {
-        PlayerValueModifiers out;
-        for (const FormId id : diseaseSpells)
-        {
-            const SpellRecord* spell = library.spell(id);
-            if (spell == nullptr || !spell->isDisease())
-                continue;
-            for (const SpellEffect& effect : spell->mEffects)
+            PlayerValueModifiers out;
+            for (const FormId id : diseaseSpells)
             {
-                const MagicEffectRecord* magic = library.magicEffect(effect.mEffect);
-                const std::string where = displayName(spell->mCommon.mEditorId);
-                if (magic == nullptr || !magic->mHasData
-                    || !(magic->mArchetype == MagicArchetype::ValueModifier || magic->mArchetype == MagicArchetype::Dual
-                        || magic->mArchetype == MagicArchetype::PeakValueModifier))
-                {
-                    if (ignored != nullptr)
-                        ignored->push_back(where + ": an effect of another archetype");
+                const SpellRecord* spell = library.spell(id);
+                if (spell == nullptr || !spell->isDisease())
                     continue;
+                for (const SpellEffect& effect : spell->mEffects)
+                {
+                    const MagicEffectRecord* magic = library.magicEffect(effect.mEffect);
+                    const std::string where = displayName(spell->mCommon.mEditorId);
+                    if (magic == nullptr || !magic->mHasData
+                        || !(magic->mArchetype == MagicArchetype::ValueModifier
+                            || magic->mArchetype == MagicArchetype::Dual
+                            || magic->mArchetype == MagicArchetype::PeakValueModifier))
+                    {
+                        if (ignored != nullptr)
+                            ignored->push_back(where + ": an effect of another archetype");
+                        continue;
+                    }
+                    const float amount = signedMagnitude(effect.mMagnitude, magic->mFlags);
+                    bool all = addTo(out, magic->mPrimaryValue, amount, extended);
+                    if (magic->mArchetype == MagicArchetype::Dual && magic->mSecondaryValue >= 0)
+                        all = addTo(out, magic->mSecondaryValue, amount * magic->mSecondaryWeight, extended) && all;
+                    if (!all && ignored != nullptr)
+                        ignored->push_back(where + ": actor value " + std::to_string(magic->mPrimaryValue)
+                            + " is carried and changes nothing");
                 }
-                const float amount = signedMagnitude(effect.mMagnitude, magic->mFlags);
-                bool all = addTo(out, magic->mPrimaryValue, amount, extended);
-                if (magic->mArchetype == MagicArchetype::Dual && magic->mSecondaryValue >= 0)
-                    all = addTo(out, magic->mSecondaryValue, amount * magic->mSecondaryWeight, extended) && all;
-                if (!all && ignored != nullptr)
-                    ignored->push_back(where + ": actor value " + std::to_string(magic->mPrimaryValue)
-                        + " is carried and changes nothing");
             }
-        }
-        return out;
+            return out;
         }
     }
 
@@ -248,7 +250,8 @@ namespace game_skyrimse::diseases
         return kNullFormId;
     }
 
-    // ---- the chunk ---------------------------------------------------------------------------------------------------------
+    // ---- the chunk
+    // ---------------------------------------------------------------------------------------------------------
 
     namespace
     {
@@ -273,7 +276,8 @@ namespace game_skyrimse::diseases
             {
                 std::uint32_t count = 0;
                 if (version != 1 || !reader.readValue(count) || count > kMaxDiseases
-                    || reader.remaining() != static_cast<std::size_t>(count) * sizeof(std::uint32_t) + sizeof(std::uint64_t))
+                    || reader.remaining()
+                        != static_cast<std::size_t>(count) * sizeof(std::uint32_t) + sizeof(std::uint64_t))
                     return false;
                 std::vector<FormId> list;
                 for (std::uint32_t i = 0; i < count; ++i)
@@ -295,7 +299,8 @@ namespace game_skyrimse::diseases
         };
     }
 
-    // ---- the service -------------------------------------------------------------------------------------------------------
+    // ---- the service
+    // -------------------------------------------------------------------------------------------------------
 
     DiseaseService::DiseaseService(Hooks hooks, Settings settings)
         : mImpl(std::make_unique<Impl>())
@@ -406,8 +411,8 @@ namespace game_skyrimse::diseases
         const float resist = resistanceOf(*library, spells);
         if (resist >= 100.f)
         {
-            log("DISEASE blow of " + std::to_string(attacker) + " carrying " + nameOf(disease)
-                + ": immune (resistance " + std::to_string(resist) + ")");
+            log("DISEASE blow of " + std::to_string(attacker) + " carrying " + nameOf(disease) + ": immune (resistance "
+                + std::to_string(resist) + ")");
             return HitResult::Immune;
         }
         const float chance = infectionChance(mSettings.mChance, resist);
@@ -451,18 +456,18 @@ namespace game_skyrimse::diseases
         Impl& m = *mImpl;
         DiseaseService* self = this;
         static const BindingType oneInt[] = { BindingType::Int32 };
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, BindingType result,
-                             Fn::Body body) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = true;
-            f.result = result;
-            f.access = openeden::sdk::BindingAccess::Read;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, BindingType result, Fn::Body body) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = true;
+                  f.result = result;
+                  f.access = openeden::sdk::BindingAccess::Read;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
         add("count", {}, BindingType::Int32, [self](std::span<const BindingValue>) {
             BindingResult r;
             r.value = integer(static_cast<std::int32_t>(self->mInfected.size()));
@@ -489,8 +494,8 @@ namespace game_skyrimse::diseases
         });
         add("notification", oneInt, BindingType::String, [self](std::span<const BindingValue> a) {
             BindingResult r;
-            self->mImpl->mScratch = a[0].integer >= 1 ? self->notificationAt(static_cast<std::uint64_t>(a[0].integer))
-                                                       : std::string();
+            self->mImpl->mScratch
+                = a[0].integer >= 1 ? self->notificationAt(static_cast<std::uint64_t>(a[0].integer)) : std::string();
             r.value = text(self->mImpl->mScratch);
             return r;
         });

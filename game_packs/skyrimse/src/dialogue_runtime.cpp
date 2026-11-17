@@ -52,7 +52,8 @@ namespace game_skyrimse
         if (mTagSources.mAliasName)
             hooks.mAlias = [this, quest](std::string_view alias) { return mTagSources.mAliasName(quest, alias); };
         if (mTagSources.mAliasFemale)
-            hooks.mAliasFemale = [this, quest](std::string_view alias) { return mTagSources.mAliasFemale(quest, alias); };
+            hooks.mAliasFemale
+                = [this, quest](std::string_view alias) { return mTagSources.mAliasFemale(quest, alias); };
         hooks.mGlobal = [this](std::string_view name) -> std::optional<float> {
             const GlobalValue* global = mDialogue.globalByEditorId(name);
             if (global == nullptr)
@@ -162,7 +163,8 @@ namespace game_skyrimse
         out.voice.clear();
         const DialogInfo& responder = responderOf(info); // task 0261: responses may be shared
         const DialogTopic* ownTopic = mDialogue.topic(info.mTopic);
-        const FormId topicQuest = ownTopic != nullptr && ownTopic->mQuest != kNullFormId ? ownTopic->mQuest : info.mQuest;
+        const FormId topicQuest
+            = ownTopic != nullptr && ownTopic->mQuest != kNullFormId ? ownTopic->mQuest : info.mQuest;
         if (mVoiceProbe)
             nameVoice(info, out);
         for (const DialogResponse& response : responder.mResponses)
@@ -523,8 +525,8 @@ namespace game_skyrimse
         }
         fillTurn(*s.mInfo, out);
         mChoices = s.mInfo->mLinksTo; // task 0261: the next menu is what this response links to (offerTopics)
-        // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its own
-        // ends the talk, as the game closes a forced dialogue when nothing is left to choose
+        // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its
+        // own ends the talk, as the game closes a forced dialogue when nothing is left to choose
         if (mLinkMode && !out.endsConversation && !s.mInfo->mLinksTo.empty())
         {
             offerLinks(*s.mInfo, out);
@@ -547,7 +549,8 @@ namespace game_skyrimse
         return true;
     }
 
-    // ---- task 0258: the guard's forced greeting and its link-to choices ----------------------------------------------
+    // ---- task 0258: the guard's forced greeting and its link-to choices
+    // ----------------------------------------------
 
     bool DialogueRuntime::forcedGreetingAvailable(
         const DialogueSpeaker& speaker, std::string_view subtype, std::string* why)
@@ -598,8 +601,8 @@ namespace game_skyrimse
         return true;
     }
 
-    bool DialogueRuntime::beginForcedTopic(const DialogueSpeaker& speaker, FormId topic,
-        openeden::sdk::game::DialogueTurn& out, std::string& error)
+    bool DialogueRuntime::beginForcedTopic(
+        const DialogueSpeaker& speaker, FormId topic, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {
         out = {};
         mOpen = false;

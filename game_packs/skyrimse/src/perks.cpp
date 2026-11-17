@@ -72,8 +72,8 @@ namespace game_skyrimse
 
         /// Decodes one CTDA of a spell effect or a magic effect into `list` (parameter resolved to the load order);
         /// the caller counts it either way, so a damaged one leaves the list shorter than the count.
-        void pushEffectCondition(const Fields& fields, std::uint32_t type, std::span<const std::byte> data,
-            std::vector<survey::Ctda>& list)
+        void pushEffectCondition(
+            const Fields& fields, std::uint32_t type, std::span<const std::byte> data, std::vector<survey::Ctda>& list)
         {
             survey::Ctda c;
             if (!survey::decodeCtda(data, c))
@@ -774,8 +774,7 @@ namespace game_skyrimse
             const PerkEffect& e = *picks[i].mEffect;
             ++outcome.mConsidered;
             const bool floatFunction = e.mFunction == PerkFunction::Set || e.mFunction == PerkFunction::Add
-                || e.mFunction == PerkFunction::Multiply
-                || e.mFunction == PerkFunction::MultiplyOnePlusActorValueMult;
+                || e.mFunction == PerkFunction::Multiply || e.mFunction == PerkFunction::MultiplyOnePlusActorValueMult;
             if (!floatFunction || !e.mHasParam)
             {
                 ++outcome.mUnsupported;

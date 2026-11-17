@@ -1,6 +1,6 @@
 // Task 0240 (diseases, M-S7): the pure rules (names, what a disease changes, resistance, the infection chance and its
-// roll) and the service (a blow from a carrier infects by a seeded roll, resistance, cures, notifications, the save chunk)
-// on a fake record library that holds the effects of the real records (numbers from the five masters, task 0240
+// roll) and the service (a blow from a carrier infects by a seeded roll, resistance, cures, notifications, the save
+// chunk) on a fake record library that holds the effects of the real records (numbers from the five masters, task 0240
 // section 1). No game data.
 #include <game_skyrimse/diseases.hpp>
 
@@ -52,8 +52,8 @@ namespace
             m.mFlags = bad ? (MagicFlag::Recover | MagicFlag::Detrimental) : 0;
             mEffects[id] = m;
         }
-        void spell(FormId id, const std::string& editorId, std::uint32_t type,
-            std::vector<std::pair<FormId, float>> effects)
+        void spell(
+            FormId id, const std::string& editorId, std::uint32_t type, std::vector<std::pair<FormId, float>> effects)
         {
             SpellRecord s;
             s.mCommon.mId = id;
@@ -105,7 +105,8 @@ namespace
         return l;
     }
 
-    // ---- the rules ------------------------------------------------------------------------------------------------------
+    // ---- the rules
+    // ------------------------------------------------------------------------------------------------------
 
     TEST(SkyrimDiseasesRules, names_are_the_editor_id_without_prefixes_split_at_capitals)
     {
@@ -224,7 +225,8 @@ namespace
         EXPECT_FALSE(diseases::isCureDiseaseEffect(l, 0x123456));
     }
 
-    // ---- the service ------------------------------------------------------------------------------------------------------
+    // ---- the service
+    // ------------------------------------------------------------------------------------------------------
 
     struct DiseaseRig
     {
@@ -407,7 +409,8 @@ namespace
         EXPECT_TRUE(rig.service->notificationAt(41).empty());
     }
 
-    // ---- the chunk ----------------------------------------------------------------------------------------------------------
+    // ---- the chunk
+    // ----------------------------------------------------------------------------------------------------------
 
     class DiseaseMemoryWriter final : public openeden::sdk::ChunkWriter
     {

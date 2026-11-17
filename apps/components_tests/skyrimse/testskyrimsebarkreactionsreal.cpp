@@ -110,8 +110,8 @@ namespace
                 }
             }
             std::cout << "SKYRIMSE-REACT subtype " << subtype << " topics " << topics << " infos " << infos
-                      << " flag4-say-once " << sayOnce << " with-voice-type-condition " << voiceCond
-                      << " no-responses " << emptyText << " with-script " << hasScript << "\n";
+                      << " flag4-say-once " << sayOnce << " with-voice-type-condition " << voiceCond << " no-responses "
+                      << emptyText << " with-script " << hasScript << "\n";
         }
         for (const auto& [key, n] : byRunOn)
             std::cout << "SKYRIMSE-REACT " << key << " infos " << n << "\n";

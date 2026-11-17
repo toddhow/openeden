@@ -212,8 +212,8 @@ namespace
                               << slabYHi - slabYLo << std::endl;
                     std::cout << "SKYRIMSE-CREATURE3-BOUNDS " << label << " shapes " << model.mShapes.size() << " x "
                               << lo[0] << " " << hi[0] << " ext " << hi[0] - lo[0] << " y " << lo[1] << " " << hi[1]
-                              << " ext " << hi[1] - lo[1] << " z " << lo[2] << " " << hi[2] << " ext "
-                              << hi[2] - lo[2] << std::endl;
+                              << " ext " << hi[1] - lo[1] << " z " << lo[2] << " " << hi[2] << " ext " << hi[2] - lo[2]
+                              << std::endl;
                 }
             }
         }
@@ -274,10 +274,11 @@ namespace
                                 kind = f;
                         if (kind.empty() || printed[kind]++ >= 40)
                             continue;
-                        std::cout << "SKYRIMSE-CREATURE3-PLACED " << kind << " npc:" << index.npc(ref.mBase)->mCommon.mEditorId
-                                  << " base " << ref.mBase << " cell " << (cell.interior() ? cell.mCommon.mEditorId : "exterior")
-                                  << " world " << cell.mWorld << " at " << int(ref.mPosition.x) << "," << int(ref.mPosition.y)
-                                  << "," << int(ref.mPosition.z) << " skeleton " << sk << std::endl;
+                        std::cout << "SKYRIMSE-CREATURE3-PLACED " << kind
+                                  << " npc:" << index.npc(ref.mBase)->mCommon.mEditorId << " base " << ref.mBase
+                                  << " cell " << (cell.interior() ? cell.mCommon.mEditorId : "exterior") << " world "
+                                  << cell.mWorld << " at " << int(ref.mPosition.x) << "," << int(ref.mPosition.y) << ","
+                                  << int(ref.mPosition.z) << " skeleton " << sk << std::endl;
                     }
     }
 }

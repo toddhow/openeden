@@ -1,6 +1,7 @@
-// Task 0260 (vampirism): what the Papyrus host gained for the game's own PlayerVampireQuestScript: a call with arguments (the
-// player and a stage), an event sent to one script (OnUpdateGameTime), a GLOB value the pack sets (GameDaysPassed), a
-// variable the pack sets, and the two control natives the quest's game-time update asks. Generated scripts, no game data.
+// Task 0260 (vampirism): what the Papyrus host gained for the game's own PlayerVampireQuestScript: a call with
+// arguments (the player and a stage), an event sent to one script (OnUpdateGameTime), a GLOB value the pack sets
+// (GameDaysPassed), a variable the pack sets, and the two control natives the quest's game-time update asks. Generated
+// scripts, no game data.
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/vmad.hpp>
@@ -108,7 +109,8 @@ namespace
         data.add(game);
     }
 
-    // The shape of PlayerVampireQuestScript's functions: Progression(Actor, Int), a game-time event, a read of the days global.
+    // The shape of PlayerVampireQuestScript's functions: Progression(Actor, Int), a game-time event, a read of the days
+    // global.
     ScriptBuilder vampScript()
     {
         ScriptBuilder s("TestVamp");
@@ -208,8 +210,8 @@ namespace
     TEST(SkyrimVampirismHost, a_call_with_the_player_and_a_stage_reaches_the_function)
     {
         VampHostRig rig;
-        const PapyrusHost::CallArgument args[] = { PapyrusHost::CallArgument::form(kPlayerRef),
-            PapyrusHost::CallArgument::integer(3) };
+        const PapyrusHost::CallArgument args[]
+            = { PapyrusHost::CallArgument::form(kPlayerRef), PapyrusHost::CallArgument::integer(3) };
         ASSERT_TRUE(rig.mHost->callFunctionWith(kVampRef, "TestVamp", "Progression", args));
         EXPECT_EQ(rig.number("actorId"), 20.0);
         EXPECT_EQ(rig.number("lastStage"), 3.0);

@@ -1,10 +1,10 @@
 // Task 0261 (milestone M-S7): buying a house (Breezehome, first slice). The pack's side, over generated plugins and
-// scripts, no game data: the house ledger and its save chunk (who owns a cell after Cell.SetFactionOwner), the rules that
-// read it (trespass, theft, beds), the dialogue changes the steward's offer needs (a shared info's responses, topics that
-// are only choices of a branch, the choice menu after a response with TCLT links, a script's live quest variable) and the
-// Papyrus side (Cell.SetFactionOwner, a stage fragment gated by its log entry's conditions, a script variable read from
-// outside). Written FIRST: against the parent commit none of it compiles (the new API), and against stubs the suites
-// failed as the task's stage log counts.
+// scripts, no game data: the house ledger and its save chunk (who owns a cell after Cell.SetFactionOwner), the rules
+// that read it (trespass, theft, beds), the dialogue changes the steward's offer needs (a shared info's responses,
+// topics that are only choices of a branch, the choice menu after a response with TCLT links, a script's live quest
+// variable) and the Papyrus side (Cell.SetFactionOwner, a stage fragment gated by its log entry's conditions, a script
+// variable read from outside). Written FIRST: against the parent commit none of it compiles (the new API), and against
+// stubs the suites failed as the task's stage log counts.
 #include <game_skyrimse/actor_mechanics.hpp>
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/dialogue.hpp>
@@ -400,7 +400,8 @@ namespace
                 << e2.mMessage;
             mActors.add(mActorRecords);
             mIndex.add(mDialogue, FormIdResolver(mPlugin->header(), "test.esp", order()));
-            mRuntime = std::make_unique<DialogueRuntime>(mActors, mIndex, mQuests, QuestState::initial(mQuests),
+            mRuntime = std::make_unique<DialogueRuntime>(
+                mActors, mIndex, mQuests, QuestState::initial(mQuests),
                 [](const LString& text, std::uint32_t, StringTableKind) { return text.mText; },
                 DialogueRuntimeLimits());
         }
@@ -695,7 +696,9 @@ namespace
             .local("n", "None")
             .callMethod("SetFactionOwner", Id("::House_var"), Id("n"), { Id("::Owner_var") })
             .callStatic("Game", "IncrementStat", Id("n"), { PexAsm::Str("Houses Owned"), Int(1) });
-        s.function("BuyFromNone").local("n", "None").callMethod("SetFactionOwner", Nil(), Id("n"), { Id("::Owner_var") });
+        s.function("BuyFromNone")
+            .local("n", "None")
+            .callMethod("SetFactionOwner", Nil(), Id("n"), { Id("::Owner_var") });
         return s;
     }
 
@@ -756,9 +759,8 @@ namespace
             mVmad.mScripts = { qs };
             mVmad.mFragments.push_back({ 10, 0, "QF_Houses", "Fragment_0" });
             mVmad.mFragments.push_back({ 10, 1, "QF_Houses", "Fragment_1" });
-            mHost->setQuests(&mIndex, &mState, [this](FormId questId) -> const vmad::Vmad* {
-                return questId == kQuestA ? &mVmad : nullptr;
-            });
+            mHost->setQuests(&mIndex, &mState,
+                [this](FormId questId) -> const vmad::Vmad* { return questId == kQuestA ? &mVmad : nullptr; });
             mHost->startGame();
         }
         ~Rig()

@@ -264,7 +264,7 @@ namespace game_skyrimse::crafting
                         mBuilt = std::move(table);
                         mReadMillis = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::steady_clock::now() - started)
-                                .count());
+                                                                     .count());
                         mWorker.store(2, std::memory_order_release);
                     });
                 }
@@ -597,8 +597,8 @@ namespace game_skyrimse::crafting
         const bool poison = effectInfo(effects.front().mEffect).mHostile;
         const std::string name
             = std::string(poison ? "Poison of " : "Potion of ") + effectName(effects.front().mEffect);
-        const std::int32_t value
-            = potionValue(effects, [this](FormId effect) { return effectInfo(effect).mBaseCost; }, mSettings);
+        const std::int32_t value = potionValue(
+            effects, [this](FormId effect) { return effectInfo(effect).mBaseCost; }, mSettings);
         const FormId potion = mState.addPotion(name, value, mSettings.mPotionWeight, poison, effects);
         if (potion == kNullFormId)
             return done(Status::BadArgument, "brew");
@@ -692,7 +692,7 @@ namespace game_skyrimse::crafting
         }
         const CoatStatus coated = mCoatings.apply(weapon, std::move(poison));
         log("CRAFT poison " + itemName(item) + " on " + itemName(weapon) + ": "
-            + (coated == CoatStatus::Ok                  ? "applied"
+            + (coated == CoatStatus::Ok                     ? "applied"
                     : coated == CoatStatus::AlreadyPoisoned ? "already poisoned"
                                                             : "refused"));
         if (coated == CoatStatus::Ok)

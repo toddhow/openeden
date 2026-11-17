@@ -27,8 +27,8 @@ namespace game_skyrimse
         template <class T>
         void putSorted(std::vector<T>& list, const T& record)
         {
-            const auto at = std::lower_bound(list.begin(), list.end(), record.mCommon.mId,
-                [](const T& r, FormId id) { return r.mCommon.mId < id; });
+            const auto at = std::lower_bound(
+                list.begin(), list.end(), record.mCommon.mId, [](const T& r, FormId id) { return r.mCommon.mId < id; });
             if (at != list.end() && at->mCommon.mId == record.mCommon.mId)
                 *at = record;
             else

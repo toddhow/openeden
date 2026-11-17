@@ -537,8 +537,8 @@ namespace
         EXPECT_EQ(v.mWarnings, 1u);
     }
 
-    // An archer of a crowd shoots at the player; an arrow that ends in a friend standing in the way hurts nobody (it hit
-    // a friend in 35 percent of the arrows of a 24 archer crowd in the game, before this rule).
+    // An archer of a crowd shoots at the player; an arrow that ends in a friend standing in the way hurts nobody (it
+    // hit a friend in 35 percent of the arrows of a 24 archer crowd in the game, before this rule).
     struct ArrowEnd
     {
         std::size_t mDamageToFriend = 0;

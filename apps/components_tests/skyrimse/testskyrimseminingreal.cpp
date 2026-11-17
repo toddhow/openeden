@@ -122,8 +122,8 @@ namespace
                         {
                             const double dx = ref.mPosition.x - 25000.0;
                             const double dy = ref.mPosition.y - (-8000.0);
-                            near.push_back({ std::sqrt(dx * dx + dy * dy), ref.mCommon.mId, ref.mBase,
-                                names[ref.mBase], isOre, ref.mPosition.x, ref.mPosition.y, ref.mPosition.z });
+                            near.push_back({ std::sqrt(dx * dx + dy * dy), ref.mCommon.mId, ref.mBase, names[ref.mBase],
+                                isOre, ref.mPosition.x, ref.mPosition.y, ref.mPosition.z });
                         }
                     }
         std::cout << "SKYRIMSE-MINING placements ore " << placedOre << " wood " << placedWood << " in Tamriel "

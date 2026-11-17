@@ -405,10 +405,10 @@ namespace
     {
         EXPECT_EQ(mBindings.mName, "skyrimse.services");
         EXPECT_EQ(mBindings.mVersion.major, 1);
-        for (const char* name : { "state", "reason", "name", "revision", "gold", "skill_name", "skill_level",
-                 "max_level", "cost", "trains_left", "can_train", "rent_cost", "rent_hours", "rent_state",
-                 "rent_hours_left", "owner", "last_result", "results", "rented", "open", "train", "rent", "close",
-                 "set_clock" })
+        for (const char* name :
+            { "state", "reason", "name", "revision", "gold", "skill_name", "skill_level", "max_level", "cost",
+                "trains_left", "can_train", "rent_cost", "rent_hours", "rent_state", "rent_hours_left", "owner",
+                "last_result", "results", "rented", "open", "train", "rent", "close", "set_clock" })
             EXPECT_TRUE(mBindings.mFunctions.count(name)) << name;
         for (const char* name : { "open", "train", "rent", "close", "set_clock" })
             EXPECT_EQ(mBindings.mFunctions[name].access, openeden::sdk::BindingAccess::Mutate) << name;

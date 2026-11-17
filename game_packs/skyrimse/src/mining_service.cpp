@@ -265,15 +265,14 @@ namespace game_skyrimse::mining
             r.value = integer(static_cast<std::int32_t>(self->revision() & 0x7FFFFFFF));
             return r;
         });
-        add("activate", s2, false, BindingType::Bool, BindingAccess::Mutate,
-            [self](std::span<const BindingValue> a) {
-                std::uint64_t placement = 0, base = 0;
-                if (!inventory::parseId(a[0].text, placement) || !inventory::parseId(a[1].text, base)
-                    || placement > 0xFFFFFFFFull || base > 0xFFFFFFFFull)
-                    return fail(BindingStatus::BadArgument, "not an id");
-                (void)self->activate(static_cast<FormId>(placement), static_cast<FormId>(base));
-                return ok();
-            });
+        add("activate", s2, false, BindingType::Bool, BindingAccess::Mutate, [self](std::span<const BindingValue> a) {
+            std::uint64_t placement = 0, base = 0;
+            if (!inventory::parseId(a[0].text, placement) || !inventory::parseId(a[1].text, base)
+                || placement > 0xFFFFFFFFull || base > 0xFFFFFFFFull)
+                return fail(BindingStatus::BadArgument, "not an id");
+            (void)self->activate(static_cast<FormId>(placement), static_cast<FormId>(base));
+            return ok();
+        });
         add("set_clock", clockParams, false, BindingType::Bool, BindingAccess::Mutate,
             [self](std::span<const BindingValue> a) {
                 (void)self->setClock(a[0].number);

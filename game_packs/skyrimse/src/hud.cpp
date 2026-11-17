@@ -353,12 +353,12 @@ namespace game_skyrimse
     openeden::sdk::DeclareResult CombatHudBindings::declareTo(openeden::sdk::BindingsService& service)
     {
         using namespace openeden::sdk;
-        mImpl->mFunctions[0] = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read,
-            &mImpl->mActive, 0 };
+        mImpl->mFunctions[0]
+            = FunctionDescriptor{ "active", {}, true, BindingType::Bool, BindingAccess::Read, &mImpl->mActive, 0 };
         mImpl->mFunctions[1] = FunctionDescriptor{ "hud", {}, true, BindingType::Double, BindingAccess::Read,
             &mImpl->mHudHandler, 0, {}, BindingShape::Array };
-        mImpl->mFunctions[2] = FunctionDescriptor{ "enemy_name", {}, true, BindingType::String, BindingAccess::Read,
-            &mImpl->mName, 0 };
+        mImpl->mFunctions[2]
+            = FunctionDescriptor{ "enemy_name", {}, true, BindingType::String, BindingAccess::Read, &mImpl->mName, 0 };
         NamespaceDescriptor ns;
         ns.name = kHudNamespace;
         ns.version = Version{ 1, 0 };

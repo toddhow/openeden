@@ -328,8 +328,8 @@ namespace
     {
         EXPECT_EQ(mBindings.mName, "skyrimse.rest");
         EXPECT_EQ(mBindings.mVersion.major, 1);
-        for (const char* name : { "ready", "max_hours", "can_rest", "bed_state", "rested", "rested_hours_left", "rest",
-                 "set_clock" })
+        for (const char* name :
+            { "ready", "max_hours", "can_rest", "bed_state", "rested", "rested_hours_left", "rest", "set_clock" })
             EXPECT_TRUE(mBindings.mFunctions.count(name)) << name;
         EXPECT_EQ(mBindings.mFunctions["rest"].access, openeden::sdk::BindingAccess::Mutate);
         EXPECT_EQ(mBindings.mFunctions["set_clock"].access, openeden::sdk::BindingAccess::Mutate);

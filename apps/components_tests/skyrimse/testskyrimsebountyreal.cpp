@@ -1,6 +1,6 @@
-// Task 0226: do the bounty quests (BQ01 to BQ04) start on the player's own Skyrim SE masters when he arrives in Whiterun,
-// and what fills their Hold, BountyLocation and Bounty? Prints aggregates and official editor ids only (lines starting
-// SKYRIMSE-BQREAL). Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0226: do the bounty quests (BQ01 to BQ04) start on the player's own Skyrim SE masters when he arrives in
+// Whiterun, and what fills their Hold, BountyLocation and Bounty? Prints aggregates and official editor ids only (lines
+// starting SKYRIMSE-BQREAL). Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/neutral_world.hpp>
@@ -56,7 +56,8 @@ namespace
             if (access.mLocations->location(id)->mCommon.mEditorId == "WhiterunLocation")
                 whiterun = id;
         ASSERT_NE(whiterun, kNullFormId);
-        std::cout << "SKYRIMSE-BQREAL Mare " << std::hex << mareLocation << " Whiterun " << whiterun << std::dec << "\n";
+        std::cout << "SKYRIMSE-BQREAL Mare " << std::hex << mareLocation << " Whiterun " << whiterun << std::dec
+                  << "\n";
 
         QuestAliasFiller::PlayerSite site;
         site.mKnown = true;
@@ -96,8 +97,9 @@ namespace
             for (const QuestAlias& a : q->mAliases)
             {
                 const AliasFill f = access.mState->aliasFill(id, a.mId);
-                std::cout << "SKYRIMSE-BQREAL   " << name << "." << a.mName << " = " << std::hex << f.mReference << std::dec
-                          << " '" << (access.mAliasName ? access.mAliasName(id, a.mName) : std::string()) << "'";
+                std::cout << "SKYRIMSE-BQREAL   " << name << "." << a.mName << " = " << std::hex << f.mReference
+                          << std::dec << " '" << (access.mAliasName ? access.mAliasName(id, a.mName) : std::string())
+                          << "'";
                 if (a.mIsLocation && f.mReference != kNullFormId)
                     std::cout << " " << access.mLocations->location(f.mReference)->mCommon.mEditorId;
                 std::cout << "\n";
@@ -107,7 +109,8 @@ namespace
                 for (const QuestAlias& a : q->mAliases)
                     if (a.mName == aliasName)
                     {
-                        EXPECT_NE(access.mState->aliasFill(id, a.mId).mReference, kNullFormId) << name << "." << aliasName;
+                        EXPECT_NE(access.mState->aliasFill(id, a.mId).mReference, kNullFormId)
+                            << name << "." << aliasName;
                     }
         }
         EXPECT_GT(bounties, 0u);

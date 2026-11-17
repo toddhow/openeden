@@ -428,8 +428,8 @@ namespace
 
     TEST(SkyrimBookRecords, aSpellTomeResolvesItsSpellThroughTheLoadOrder)
     {
-        const BookRecords r = parse(plugin({
-            bookRecord(kSelf | 0x101, "SpellTomeA", BookFlags::TeachesSpell, 0x0010F7EE, 50, 1.f, "Tome A", "x"),
+        const BookRecords r = parse(plugin({ bookRecord(kSelf | 0x101, "SpellTomeA", BookFlags::TeachesSpell,
+                                                 0x0010F7EE, 50, 1.f, "Tome A", "x"),
             bookRecord(kSelf | 0x102, "SpellTomeB", BookFlags::TeachesSpell, kSelf | 0x300, 50, 1.f, "Tome B", "y") }));
         ASSERT_EQ(r.mBooks.size(), 2u);
         EXPECT_EQ(r.mBooks[0].kind(), BookKind::Spell);
@@ -439,8 +439,8 @@ namespace
 
     TEST(SkyrimBookRecords, bothFlagsMakeASkillBookAndAreCounted)
     {
-        const BookRecords r = parse(plugin({ bookRecord(kSelf | 0x103, "Both",
-            BookFlags::TeachesSkill | BookFlags::TeachesSpell, 7, 1, 1.f, "Both", "z") }));
+        const BookRecords r = parse(plugin({ bookRecord(
+            kSelf | 0x103, "Both", BookFlags::TeachesSkill | BookFlags::TeachesSpell, 7, 1, 1.f, "Both", "z") }));
         ASSERT_EQ(r.mBooks.size(), 1u);
         EXPECT_EQ(r.mBooks[0].kind(), BookKind::Skill);
         EXPECT_EQ(r.mBothFlags, 1u);
@@ -448,8 +448,7 @@ namespace
 
     TEST(SkyrimBookRecords, aPlainBookAndACannotBeTakenBook)
     {
-        const BookRecords r = parse(plugin({
-            bookRecord(kSelf | 0x104, "Plain", 0, 0, 5, 1.f, "Plain", "p"),
+        const BookRecords r = parse(plugin({ bookRecord(kSelf | 0x104, "Plain", 0, 0, 5, 1.f, "Plain", "p"),
             bookRecord(kSelf | 0x105, "Fixed", BookFlags::CannotBeTaken, 0, 0, 0.f, "Fixed", "q") }));
         ASSERT_EQ(r.mBooks.size(), 2u);
         EXPECT_EQ(r.mBooks[0].kind(), BookKind::Plain);
@@ -459,8 +458,8 @@ namespace
 
     TEST(SkyrimBookRecords, aDataOfAnotherSizeIsOddAndTheRecordIsNotDecoded)
     {
-        const BookRecords r = parse(plugin({ bookRecord(kSelf | 0x106, "Odd", BookFlags::TeachesSkill, 8, 1, 1.f,
-            "Odd", "o", 12) }));
+        const BookRecords r
+            = parse(plugin({ bookRecord(kSelf | 0x106, "Odd", BookFlags::TeachesSkill, 8, 1, 1.f, "Odd", "o", 12) }));
         ASSERT_EQ(r.mBooks.size(), 1u);
         EXPECT_FALSE(r.mBooks[0].mDecoded);
         EXPECT_EQ(r.mBooks[0].kind(), BookKind::Plain); // never guessed at
@@ -497,8 +496,8 @@ namespace
     {
         Bytes tes3 = tes3Header(1.3f, 0, "A", "B", 0, {});
         Content::Error error;
-        const auto p = Content::Plugin::open(
-            std::make_unique<std::istringstream>(tes3.str(), std::ios::binary), "m.esp", error);
+        const auto p
+            = Content::Plugin::open(std::make_unique<std::istringstream>(tes3.str(), std::ios::binary), "m.esp", error);
         ASSERT_NE(p, nullptr);
         BookRecords out;
         EXPECT_FALSE(parseBookRecords(*p, order(), BookLimits(), out));
@@ -609,7 +608,10 @@ namespace
     TEST(SkyrimBookText, windows1252IsConvertedToUtf8)
     {
         EXPECT_EQ(renderBookText("caf\xE9"), Pages{ "caf\xC3\xA9" });
-        EXPECT_EQ(renderBookText("\x93q\x94"), Pages{ "\xE2\x80\x9C" "q" "\xE2\x80\x9D" });
+        EXPECT_EQ(renderBookText("\x93q\x94"),
+            Pages{ "\xE2\x80\x9C"
+                   "q"
+                   "\xE2\x80\x9D" });
         EXPECT_EQ(renderBookText("\x85"), Pages{ "\xE2\x80\xA6" }); // ellipsis
     }
 

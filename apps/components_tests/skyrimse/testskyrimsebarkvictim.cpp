@@ -1,6 +1,6 @@
-// Task 0243: who the victim of a crime is, for the bark of a witness: BarkSystem::speakerIsVictim while a line is chosen,
-// and CrimeSystem::witnessVictim while the witness hook runs. Fakes only; no game data. Written against stubs first and
-// run red (see the stage log of the task).
+// Task 0243: who the victim of a crime is, for the bark of a witness: BarkSystem::speakerIsVictim while a line is
+// chosen, and CrimeSystem::witnessVictim while the witness hook runs. Fakes only; no game data. Written against stubs
+// first and run red (see the stage log of the task).
 #include <game_skyrimse/barks.hpp>
 #include <game_skyrimse/crime.hpp>
 

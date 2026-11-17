@@ -211,7 +211,6 @@ namespace MWWorld
         bool mNeutralStubWriteAllowed = false;
 
     public:
-
         void addOMWScripts(std::filesystem::path filePath) { mLuaContent.push_back(std::move(filePath)); }
         ESM::LuaScriptsCfg getLuaScriptsCfg() const;
 

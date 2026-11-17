@@ -78,7 +78,10 @@ namespace
 
     TEST_F(MenuReplacementTest, controlCharactersOtherThanNewlineAreDropped)
     {
-        MR::setLoadingTip(std::string("a\x01" "b\nc\x1f" "d"));
+        MR::setLoadingTip(
+            std::string("a\x01"
+                        "b\nc\x1f"
+                        "d"));
         EXPECT_EQ(MR::loadingTip(), "ab\ncd");
     }
 

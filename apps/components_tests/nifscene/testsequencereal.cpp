@@ -84,8 +84,10 @@ namespace
         std::uint64_t openWithTranslation = 0, openWithRotation = 0, openWithScale = 0;
         std::map<std::string, std::uint64_t> sequenceNames, interpolatorTypes, folders, interpolation;
         std::map<std::string, std::uint64_t> cycle;
-        std::uint64_t maxTracks = 0, eulerAxis[3] = {}, quatTracks = 0, doorNamed = 0, containerNamed = 0, otherNamed = 0;
-        std::map<std::string, std::uint64_t> motion; // 'door'/'container'/'other' + a bucket of the largest turn or slide
+        std::uint64_t maxTracks = 0, eulerAxis[3] = {}, quatTracks = 0, doorNamed = 0, containerNamed = 0,
+                      otherNamed = 0;
+        std::map<std::string, std::uint64_t>
+            motion; // 'door'/'container'/'other' + a bucket of the largest turn or slide
         std::map<std::string, std::vector<std::string>> bigContainers;
         double longest = 0.0, shortest = 1e9;
         // Models with Open that have a track whose node is not found in the scene.
@@ -196,18 +198,28 @@ namespace
                                 for (std::uint32_t node : NifScene::Sequences::animatedNodes(scene, sequence))
                                 {
                                     const auto d = NifScene::Sequences::delta(scene, sequence, node, sequence.mStop);
-                                    const double s = std::sqrt(double(d[0]) * d[0] + double(d[1]) * d[1] + double(d[2]) * d[2]);
-                                    const double cosine = s > 1e-9 ? std::clamp((double(d[0]) + d[5] + d[10]) / s - 1.0, -2.0, 2.0) / 2.0 : 1.0;
-                                    maxTurn = std::max(maxTurn, std::acos(std::clamp(cosine, -1.0, 1.0)) * 180.0 / 3.14159265358979);
-                                    maxSlide = std::max(maxSlide, std::sqrt(double(d[12]) * d[12] + double(d[13]) * d[13] + double(d[14]) * d[14]));
+                                    const double s
+                                        = std::sqrt(double(d[0]) * d[0] + double(d[1]) * d[1] + double(d[2]) * d[2]);
+                                    const double cosine = s > 1e-9
+                                        ? std::clamp((double(d[0]) + d[5] + d[10]) / s - 1.0, -2.0, 2.0) / 2.0
+                                        : 1.0;
+                                    maxTurn = std::max(
+                                        maxTurn, std::acos(std::clamp(cosine, -1.0, 1.0)) * 180.0 / 3.14159265358979);
+                                    maxSlide = std::max(maxSlide,
+                                        std::sqrt(
+                                            double(d[12]) * d[12] + double(d[13]) * d[13] + double(d[14]) * d[14]));
                                 }
                             }
                             const char* kind = (has("door") || has("gate")) ? "door" : "other";
-                            const std::string bucket = maxTurn < 10 ? "turn under 10" : maxTurn < 45 ? "turn 10 to 45" : maxTurn < 120 ? "turn 45 to 120" : "turn over 120";
+                            const std::string bucket = maxTurn < 10 ? "turn under 10"
+                                : maxTurn < 45                      ? "turn 10 to 45"
+                                : maxTurn < 120                     ? "turn 45 to 120"
+                                                                    : "turn over 120";
                             ++motion[std::string(kind) + " " + bucket];
                             if (std::string(kind) != "door" && maxTurn >= 45)
                                 bigContainers[bucket].push_back(name);
-                            ++motion[std::string(kind) + (maxSlide >= 5.0 ? " slides 5 or more units" : " slides under 5 units")];
+                            ++motion[std::string(kind)
+                                + (maxSlide >= 5.0 ? " slides 5 or more units" : " slides under 5 units")];
                             ++withOpen;
                             ++folders[folderOf(name)];
                         }
@@ -293,8 +305,8 @@ namespace
                     auto stream = archive.getFile(&entry);
                     std::string bytes((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
                     Files::IStreamPtr input(new std::istringstream(std::move(bytes), std::ios::binary));
-                    const NifScene::Scene scene
-                        = NifScene::readScene(std::move(input), VFS::Path::Normalized("dump.nif"), NifScene::SceneOptions{});
+                    const NifScene::Scene scene = NifScene::readScene(
+                        std::move(input), VFS::Path::Normalized("dump.nif"), NifScene::SceneOptions{});
                     const std::size_t open = NifScene::Sequences::find(scene, "Open");
                     line("model " + name + " nodes " + std::to_string(scene.mNodes.size()) + " sequences "
                         + std::to_string(scene.mSequences.size()) + " open index " + std::to_string(open));
@@ -309,13 +321,15 @@ namespace
                         + " freq " + std::to_string(sequence.mFrequency));
                     for (const NifScene::Track& track : sequence.mTracks)
                     {
-                        std::string text = "track '" + track.mNodeName + "' t" + std::to_string(track.mTranslations.size())
-                            + " q" + std::to_string(track.mRotations.size()) + " ex" + std::to_string(track.mEuler[0].size())
-                            + " ey" + std::to_string(track.mEuler[1].size()) + " ez" + std::to_string(track.mEuler[2].size())
-                            + " s" + std::to_string(track.mScales.size());
+                        std::string text = "track '" + track.mNodeName + "' t"
+                            + std::to_string(track.mTranslations.size()) + " q"
+                            + std::to_string(track.mRotations.size()) + " ex" + std::to_string(track.mEuler[0].size())
+                            + " ey" + std::to_string(track.mEuler[1].size()) + " ez"
+                            + std::to_string(track.mEuler[2].size()) + " s" + std::to_string(track.mScales.size());
                         for (int axis = 0; axis < 3; ++axis)
                         {
-                            text += " e" + std::string(1, "xyz"[axis]) + "[interp " + std::to_string(track.mEulerInterpolation[axis]) + ":";
+                            text += " e" + std::string(1, "xyz"[axis]) + "[interp "
+                                + std::to_string(track.mEulerInterpolation[axis]) + ":";
                             for (const NifScene::KeyFloat& key : track.mEuler[axis])
                                 text += " " + std::to_string(key.mTime) + "=" + std::to_string(key.mValue) + "(in "
                                     + std::to_string(key.mInTan) + " out " + std::to_string(key.mOutTan) + ")";

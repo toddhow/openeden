@@ -1,6 +1,6 @@
 // Task 0241: the numbers of the standing stones' abilities and the shrine blessings (maximum vitals, carry weight,
-// resistances and weaknesses, regeneration rates), the stones' powers, Actor.AddPerk in the save, and the blessing clock.
-// Groups (every expected number is derived by hand from the lists below; the shapes are the data's, VERIFIED by
+// resistances and weaknesses, regeneration rates), the stones' powers, Actor.AddPerk in the save, and the blessing
+// clock. Groups (every expected number is derived by hand from the lists below; the shapes are the data's, VERIFIED by
 // tools/skyrimse_stones_survey/stones.py):
 //  - StoneNumbersPure: sumAbilityNumbers and the resistance and weakness rules on a fake library;
 //  - StoneNumbersCombat: the combat runtime (maximums, current values, the engine's health report, rates, hits,
@@ -43,7 +43,8 @@ namespace
     using PexAsm::Id;
     using PexAsm::ScriptBuilder;
 
-    // ---- the records: the shapes of the real stones and blessings ----------------------------------------------------
+    // ---- the records: the shapes of the real stones and blessings
+    // ----------------------------------------------------
 
     constexpr FormId kAtronach = 0x5001, kLady = 0x5002, kSteed = 0x5003, kLord = 0x5004, kApprentice = 0x5005,
                      kApprenticeNeg = 0x5006, kRates = 0x5007, kNanSpell = 0x5008, kHugeSpell = 0x5009;
@@ -159,16 +160,19 @@ namespace
             { { kEffAbsorb, 50.f, 0 }, { kEffMagickaRateDown, 50.f, 0 }, { kEffFortifyMagicka, 50.f, 0 } });
         lib.spell(kLady, "doomLadyAbility", kAbility, 0, { { kEffHealthRate, 25.f, 0 }, { kEffStaminaRate, 25.f, 0 } });
         lib.spell(kSteed, "doomSteedAbility", kAbility, 0, { { kEffCarry, 100.f, 0 } });
-        lib.spell(kLord, "doomLordAbility", kAbility, 0, { { kEffDamageResist, 50.f, 0 }, { kEffMagicResist, 25.f, 0 } });
+        lib.spell(
+            kLord, "doomLordAbility", kAbility, 0, { { kEffDamageResist, 50.f, 0 }, { kEffMagicResist, 25.f, 0 } });
         lib.spell(kApprentice, "doomApprenticeAbility", kAbility, 0, { { kEffMagickaRateUp, 100.f, 0 } });
         lib.spell(kApprenticeNeg, "doomApprenticeNegativeAbility", kAbility, 0, { { kEffWeakMagic, 100.f, 0 } });
         lib.spell(kRates, "RateAbility", kAbility, 0, { { kEffRateH, 10.f, 0 }, { kEffRateM, 25.f, 0 } });
         lib.spell(kNanSpell, "NanAbility", kAbility, 0, { { kEffCarry, std::numeric_limits<float>::quiet_NaN(), 0 } });
         lib.spell(kHugeSpell, "HugeAbility", kAbility, 0, { { kEffCarry, 1.0e9f, 0 }, { kEffCarry, 1.0e9f, 0 } });
         // the blessings: fire and forget, 28,800 s, a Fortify (Peak) and a cure
-        lib.spell(kBlessMagicka, "AltarJulianosSpell", 0, MagicCast::FireAndForget, { { kEffFortifyMagicka, 25.f, 28800 } });
+        lib.spell(
+            kBlessMagicka, "AltarJulianosSpell", 0, MagicCast::FireAndForget, { { kEffFortifyMagicka, 25.f, 28800 } });
         lib.spell(kBlessHealth, "AltarArkaySpell", 0, MagicCast::FireAndForget, { { kEffFortifyHealth, 25.f, 28800 } });
-        lib.spell(kBlessStamina, "AltarKynarethSpell", 0, MagicCast::FireAndForget, { { kEffFortifyStamina, 25.f, 28800 } });
+        lib.spell(
+            kBlessStamina, "AltarKynarethSpell", 0, MagicCast::FireAndForget, { { kEffFortifyStamina, 25.f, 28800 } });
         lib.spell(kBlessRate, "AltarAkatoshSpell", 0, MagicCast::FireAndForget, { { kEffMagickaRateUp, 10.f, 28800 } });
         lib.spell(kBlessSkill, "AltarZenitharSpell", 0, MagicCast::FireAndForget, { { kEffSkill, 10.f, 28800 } });
         // what must NOT count: a known instant spell, a hostile Peak with a duration, a ValueModifier with a duration
@@ -326,7 +330,8 @@ namespace
         NumData()
             : mLib(makeLibrary())
         {
-            mLib.spell(kFireburn, "Fireburn", 0, MagicCast::FireAndForget, { { kEffFire, 40.f, 0 } }, MagicDelivery::Aimed);
+            mLib.spell(
+                kFireburn, "Fireburn", 0, MagicCast::FireAndForget, { { kEffFire, 40.f, 0 } }, MagicDelivery::Aimed);
             mLib.mSpells[kFireburn].mCost = 5;
             mLib.mEffects[kEffFire].mProjectile = kProjectile;
             mLib.spell(kShadow, "doomShadowAbility", 2, MagicCast::FireAndForget, { { kEffInvis, 0.f, 60 } });
@@ -1005,7 +1010,8 @@ namespace
     {
         PerkRig a;
         ASSERT_TRUE(a.mHost->callFunction(kRefA, "PerkGiver", "Give"));
-        EXPECT_EQ(a.mHost->perksOf(kPlayerRef), (std::vector<FormId>{ kPerkA, kPerkB })) << "the same perk twice is one";
+        EXPECT_EQ(a.mHost->perksOf(kPlayerRef), (std::vector<FormId>{ kPerkA, kPerkB }))
+            << "the same perk twice is one";
         const std::uint64_t revision = a.mHost->perkRevision();
         EXPECT_GT(revision, 0u);
         const std::vector<std::uint8_t> bytes = a.mHost->saveState();
@@ -1058,9 +1064,8 @@ namespace
             hooks.mLibrary = [this]() -> const PerkLibrary* { return &mLib; };
             hooks.mPersistent = [] { return std::vector<FormId>(); };
             hooks.mNow = [this] { return mNow; };
-            hooks.mApply = [this](std::span<const FormId> spells) {
-                mApplied.emplace_back(spells.begin(), spells.end());
-            };
+            hooks.mApply
+                = [this](std::span<const FormId> spells) { mApplied.emplace_back(spells.begin(), spells.end()); };
             mService = std::make_unique<stones::StonesService>(std::move(hooks));
         }
     };

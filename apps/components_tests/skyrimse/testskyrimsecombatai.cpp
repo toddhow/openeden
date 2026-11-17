@@ -747,8 +747,8 @@ namespace
                 v.mDistance = 100.f + static_cast<float>((i * 37) % 400);
                 v.mStaminaFraction = 1.f - static_cast<float>(i % 10) * 0.1f;
                 const AiOutput out = aiThink(s, v, profile);
-                trace.push_back(static_cast<int>(out.mMove) * 100 + static_cast<int>(out.mAction) * 10
-                    + static_cast<int>(s.mMode));
+                trace.push_back(
+                    static_cast<int>(out.mMove) * 100 + static_cast<int>(out.mAction) * 10 + static_cast<int>(s.mMode));
             }
             return trace;
         };
@@ -1641,10 +1641,9 @@ namespace
         const double micros2
             = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start2).count();
         std::cout << "COMBATAI-COST engaged " << kEngaged << " watchers " << kWatchers << " updates " << kUpdates
-                  << " us-per-update-with-engaged-and-watchers " << micros / kUpdates
-                  << " us-per-engaged-actor-update " << (micros / kUpdates - micros2 / kUpdates) / kEngaged
-                  << " us-per-update-watchers-only " << micros2 / kUpdates << " us-per-watcher-update "
-                  << micros2 / kUpdates / kWatchers << "\n";
+                  << " us-per-update-with-engaged-and-watchers " << micros / kUpdates << " us-per-engaged-actor-update "
+                  << (micros / kUpdates - micros2 / kUpdates) / kEngaged << " us-per-update-watchers-only "
+                  << micros2 / kUpdates << " us-per-watcher-update " << micros2 / kUpdates / kWatchers << "\n";
         EXPECT_LT(micros / kUpdates, 5000.0); // far below a frame
     }
 

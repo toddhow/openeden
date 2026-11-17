@@ -75,7 +75,8 @@ namespace MWRender::SkyrimClipMeta
         // Task 0246: the falmer's hand-to-hand attack files are played by `H2H_Attack<n>_Clip`.
         if (lower == "h2hattack1" || lower == "h2hattack2")
             out.push_back("H2H_Attack" + lower.substr(9) + "_Clip");
-        // Task 0253: the dragon's generators are named `CLIP_<...>` (the sidecar of dragonproject), not like their files.
+        // Task 0253: the dragon's generators are named `CLIP_<...>` (the sidecar of dragonproject), not like their
+        // files.
         struct DragonAlias
         {
             const char* mStem;
@@ -148,27 +149,29 @@ namespace MWRender::SkyrimClipMeta
         return loadAsync(vfs, female, std::string(), std::move(clipStem), std::move(clip));
     }
 
-    MetaFuture loadAsync(const VFS::Manager& vfs, bool female, const std::string& creatureProject,
-        std::string clipStem, SkyrimIdle::ClipFuture clip)
+    MetaFuture loadAsync(const VFS::Manager& vfs, bool female, const std::string& creatureProject, std::string clipStem,
+        SkyrimIdle::ClipFuture clip)
     {
-        return std::async(std::launch::async, [&vfs, female, creatureProject, stem = std::move(clipStem), clip = std::move(clip)] {
-            std::shared_ptr<const HavokPack::ClipMeta> result;
-            try
-            {
-                const auto decoded = clip.get();
-                if (!decoded)
-                    return result;
-                const auto project = projectFor(vfs, female, creatureProject);
-                if (!project->mFailure.empty())
-                    Log(Debug::Warning) << "Skyrim combat clip " << stem
-                                        << ": no sidecar events: " << project->mFailure;
-                result = makeClipMeta(project->mProject, project->mMotion, stem, decoded->mClip.mDuration);
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Warning) << "Skyrim combat clip " << stem << ": " << e.what();
-            }
-            return result;
-        }).share();
+        return std::async(std::launch::async,
+            [&vfs, female, creatureProject, stem = std::move(clipStem), clip = std::move(clip)] {
+                std::shared_ptr<const HavokPack::ClipMeta> result;
+                try
+                {
+                    const auto decoded = clip.get();
+                    if (!decoded)
+                        return result;
+                    const auto project = projectFor(vfs, female, creatureProject);
+                    if (!project->mFailure.empty())
+                        Log(Debug::Warning)
+                            << "Skyrim combat clip " << stem << ": no sidecar events: " << project->mFailure;
+                    result = makeClipMeta(project->mProject, project->mMotion, stem, decoded->mClip.mDuration);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Skyrim combat clip " << stem << ": " << e.what();
+                }
+                return result;
+            })
+            .share();
     }
 }

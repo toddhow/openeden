@@ -186,7 +186,9 @@ namespace
         const std::int32_t v = potionValue({ { 10, 20.f, 0, 0 } }, cost10, s);
         EXPECT_NEAR(v, 270, 2); // 10 x (20 x 10 / 10) ^ 1.1
         EXPECT_EQ(potionValue({}, cost10, s), 0);
-        EXPECT_EQ(potionValue({ { 10, 5.f, 0, 0 } }, [](FormId) { return 0.f; }, s), 1);
+        EXPECT_EQ(potionValue(
+                      { { 10, 5.f, 0, 0 } }, [](FormId) { return 0.f; }, s),
+            1);
         CraftingSettings capped;
         capped.mMaxValue = 50;
         EXPECT_EQ(potionValue({ { 10, 20.f, 0, 0 } }, cost10, capped), 50);

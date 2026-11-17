@@ -414,8 +414,7 @@ namespace game_skyrimse::character
     void Creator::rebuildOptions()
     {
         for (const Part part : kParts)
-            mOptions[static_cast<std::size_t>(part)]
-                = partOptions(mIndex, mText, mChoice.mRace, mChoice.mFemale, part);
+            mOptions[static_cast<std::size_t>(part)] = partOptions(mIndex, mText, mChoice.mRace, mChoice.mFemale, part);
     }
 
     std::size_t Creator::partIndex(Part part) const

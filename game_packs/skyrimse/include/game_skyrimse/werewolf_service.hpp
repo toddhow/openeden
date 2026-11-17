@@ -1,14 +1,15 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_WEREWOLF_SERVICE_H
 #define OPENEDEN_GAME_SKYRIMSE_WEREWOLF_SERVICE_H
 
-// Task 0259 (werewolf): what the scripts see of the beast form, the namespace "skyrimse.werewolf" (version 1.0). The pack
-// owns the form; this holds the numbers the scripts read and the one call they make.
+// Task 0259 (werewolf): what the scripts see of the beast form, the namespace "skyrimse.werewolf" (version 1.0). The
+// pack owns the form; this holds the numbers the scripts read and the one call they make.
 //
 // Namespace skyrimse.werewolf 1.0:
 //   active() -> int            1 while the player is a werewolf
 //   seconds_left() -> int      whole seconds left on the form (0 when not one)
 //   notification_count() -> int, notification(n) -> string   what the form announced (numbered from 1)
-//   feed(placement, base) [Mutate]   the player fed on the corpse of an actor (ids as 8 hex digits, a placement 1 to 16)
+//   feed(placement, base) [Mutate]   the player fed on the corpse of an actor (ids as 8 hex digits, a placement 1 to
+//   16)
 //
 // Threads: main thread.
 

@@ -101,7 +101,10 @@ namespace game_skyrimse
         [[nodiscard]] std::string_view nameOf(openeden::sdk::game::ActorHandle handle) const;
         [[nodiscard]] bool isBoss(openeden::sdk::game::ActorHandle handle) const;
         /// The actor the enemy bar shows (an invalid handle when none).
-        [[nodiscard]] openeden::sdk::game::ActorHandle target() const { return mSnapshot.mEnemyShown ? mTarget : openeden::sdk::game::ActorHandle{}; }
+        [[nodiscard]] openeden::sdk::game::ActorHandle target() const
+        {
+            return mSnapshot.mEnemyShown ? mTarget : openeden::sdk::game::ActorHandle{};
+        }
 
     private:
         struct Entry

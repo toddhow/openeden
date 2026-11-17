@@ -79,9 +79,9 @@ namespace game_skyrimse
             /// Task 0237: a factor per skill slot (the standing stones' ModSkillUse), on top of the gain multiplier.
             void setSkillUseScale(std::function<float(std::size_t slot)> scale) { mSkillScale = std::move(scale); }
 
-            /// Task 0203 (the one hook of the skill books): raises a skill by exactly one level (the experience it takes,
-            /// through the same rules as a use). False before ready, for a bad slot, a skill with no use numbers or one
-            /// at the top.
+            /// Task 0203 (the one hook of the skill books): raises a skill by exactly one level (the experience it
+            /// takes, through the same rules as a use). False before ready, for a bad slot, a skill with no use numbers
+            /// or one at the top.
             bool raiseSkill(std::size_t slot);
 
             /// The value of an actor value for the Papyrus host and conditions: a skill at 6 to 23 (its level). False
@@ -91,7 +91,8 @@ namespace game_skyrimse
             /// Task 0248: points and percent modifiers a blessing or a disease gives the skills (read side only: the
             /// progression, its save and `actorValue` keep the base value). `effectiveActorValue` is the skill with
             /// them, for speech, barter, sneaking, pickpocketing and lock picking.
-            void setSkillModifiers(const std::array<float, kSkillCount>& points, const std::array<float, kSkillCount>& power);
+            void setSkillModifiers(
+                const std::array<float, kSkillCount>& points, const std::array<float, kSkillCount>& power);
             [[nodiscard]] bool effectiveActorValue(std::uint32_t index, float& out) const;
 
             bool chooseLevelUp(Vital vital);

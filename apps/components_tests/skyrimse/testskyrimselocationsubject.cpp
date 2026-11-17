@@ -1,6 +1,6 @@
-// Task 0211: the conditions of a location alias run on each candidate LOCATION (SkyrimConditionWorld::setSubjectLocation):
-// LocationHasKeyword (562), LocationHasRefType (563) and GetIsEditorLocation (565). Generated records; no game data. Written
-// first and run red against stubs.
+// Task 0211: the conditions of a location alias run on each candidate LOCATION
+// (SkyrimConditionWorld::setSubjectLocation): LocationHasKeyword (562), LocationHasRefType (563) and
+// GetIsEditorLocation (565). Generated records; no game data. Written first and run red against stubs.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
 #include <game_skyrimse/location_conditions.hpp>
@@ -96,8 +96,8 @@ namespace
 
         Fixture()
         {
-            Bytes recs = lctn(kTown, 0, { kKeywordA },
-                Bytes().u32(kRefType).u32(kSelf | 0x800).u32(0x3C).u16(0).u16(0));
+            Bytes recs
+                = lctn(kTown, 0, { kKeywordA }, Bytes().u32(kRefType).u32(kSelf | 0x800).u32(0x3C).u16(0).u16(0));
             recs.append(lctn(kInn, kTown, { kKeywordB }));
             recs.append(lctn(kOther, 0, {}));
             mIndex.add(parseLocations(recs));
@@ -105,10 +105,7 @@ namespace
             mEvaluator.setExtraFunctions(locationExtraFunctions());
         }
 
-        bool holds(const survey::Ctda& c)
-        {
-            return mEvaluator.evaluate(std::span<const survey::Ctda>(&c, 1), mWorld);
-        }
+        bool holds(const survey::Ctda& c) { return mEvaluator.evaluate(std::span<const survey::Ctda>(&c, 1), mWorld); }
     };
 
     TEST(LocationSubject, locationHasKeywordAsksTheCandidateLocationNotTheSpeaker)

@@ -1,14 +1,16 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_MAP_H
 #define OPENEDEN_GAME_SKYRIMSE_MAP_H
 
-// The compass and the world map of a Skyrim SE session (task 0201, milestone M-S7). Off unless [extension.skyrimse] map.
+// The compass and the world map of a Skyrim SE session (task 0201, milestone M-S7). Off unless [extension.skyrimse]
+// map.
 //
 // This file is the pack's side: the map markers of the data, the discovered state, the quest targets of the displayed
 // objectives, and the script package `core.skyrimse.map` that the Lua compass and world map windows read. The windows
 // themselves are Lua on the RmlUi library (files/data/openeden/skyrimse/compass.lua, worldmap.lua).
 //
 // Layouts (settled by the data, docs/tasks/0201-skyrim-map-and-compass.md section 3):
-//  - A map marker is a REFR (base 0x10, the MapMarker static) whose subrecords include the empty XMRK, then FNAM (1 byte
+//  - A map marker is a REFR (base 0x10, the MapMarker static) whose subrecords include the empty XMRK, then FNAM (1
+//  byte
 //    of flags), FULL (a string id in a localised plugin) and TNAM (2 bytes: the marker type, then a byte that is 0 in
 //    all 397 markers of the five masters). DATA is the usual 24 byte position and rotation. 362 of the 397 sit in a
 //    worldspace's persistent cell, 35 in interiors (their world is none: they are not exterior markers).
@@ -26,9 +28,9 @@
 // No engine, renderer or script-language type.
 
 #include <game_skyrimse/journal.hpp>
+#include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
-#include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/records.hpp>
 
 #include <components/contentsource/plugin.hpp>
@@ -114,10 +116,10 @@ namespace game_skyrimse::map
         /// its parent's.
         std::function<FormId(FormId world)> mParentOf;
         /// One land row of the world map: pixels (r, g, b packed as 0xRRGGBB) of the cells minX..minX+width-1 at row y,
-        /// -1 for a cell with no land. `bounds` is filled by the first call (cell grid minimum and size). Empty when the
-        /// terrain is not reachable.
-        std::function<bool(FormId world, std::int32_t& minX, std::int32_t& minY, std::int32_t& width,
-            std::int32_t& height)>
+        /// -1 for a cell with no land. `bounds` is filled by the first call (cell grid minimum and size). Empty when
+        /// the terrain is not reachable.
+        std::function<bool(
+            FormId world, std::int32_t& minX, std::int32_t& minY, std::int32_t& width, std::int32_t& height)>
             mLandBounds;
         std::function<bool(FormId world, std::int32_t y, std::vector<std::int32_t>& pixels)> mLandRow;
     };

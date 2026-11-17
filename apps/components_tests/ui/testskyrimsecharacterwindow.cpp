@@ -1,5 +1,5 @@
-// Task 0225: the Skyrim SE character creation window (files/data/openeden/skyrimse/character_window.lua) over the headless
-// UI backend and a fake `core.skyrimse.character` package written in Lua.
+// Task 0225: the Skyrim SE character creation window (files/data/openeden/skyrimse/character_window.lua) over the
+// headless UI backend and a fake `core.skyrimse.character` package written in Lua.
 #include "uiluafixture.hpp"
 
 #include <string>

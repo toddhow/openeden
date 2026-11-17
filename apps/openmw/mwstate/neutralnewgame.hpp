@@ -92,8 +92,8 @@ namespace MWState
 
         bool run(float) override
         {
-            // Task 0268: a game with an opening of its own (Skyrim's cart at Helgen, `main quest start`) says where a new
-            // game starts, and that wins over `--start`
+            // Task 0268: a game with an opening of its own (Skyrim's cart at Helgen, `main quest start`) says where a
+            // new game starts, and that wins over `--start`
             if (NeutralWorld::NeutralWorldStore* const store
                 = MWBase::Environment::get().getExtensionManager()->neutralWorldStore())
                 for (const std::string& gameId : store->gameIds())

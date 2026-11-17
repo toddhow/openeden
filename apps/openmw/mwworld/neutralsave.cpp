@@ -36,7 +36,8 @@ namespace MWWorld
         std::string createdProblem(const NeutralSavedObject& o, std::uint32_t nextIndex)
         {
             if ((o.mFlags & NeutralSaveCreated) == 0)
-                return o.mCreated.has_value() ? "an object that was not created carries a base description"
+                return o.mCreated.has_value()
+                    ? "an object that was not created carries a base description"
                     : (o.mPlacement >= kCreatedBase ? "a placement of the pack is in the range of created ones" : "");
             if (!o.mCreated.has_value())
                 return "a created object has no base description";
@@ -133,8 +134,8 @@ namespace MWWorld
             {
                 if (left() < 2)
                     return fail("the save ends early");
-                v = static_cast<std::uint16_t>(static_cast<std::uint8_t>(mBytes[mPos])
-                    | static_cast<std::uint8_t>(mBytes[mPos + 1]) << 8);
+                v = static_cast<std::uint16_t>(
+                    static_cast<std::uint8_t>(mBytes[mPos]) | static_cast<std::uint8_t>(mBytes[mPos + 1]) << 8);
                 mPos += 2;
                 return true;
             }
@@ -234,7 +235,8 @@ namespace MWWorld
             std::size_t mPos = 0;
         };
 
-        void writeEntries(Writer& w, const std::vector<std::pair<std::string, std::uint32_t>>& entries, const char* what)
+        void writeEntries(
+            Writer& w, const std::vector<std::pair<std::string, std::uint32_t>>& entries, const char* what)
         {
             w.count(entries.size(), kNeutralSaveMaxEntries, what);
             for (const auto& [game, id] : entries)
@@ -599,8 +601,8 @@ namespace MWWorld
         bool moved = false;
         for (int i = 0; i < 3; ++i)
         {
-            moved = moved || now.mPosition.pos[i] != original.mPos.pos[i]
-                || now.mPosition.rot[i] != original.mPos.rot[i];
+            moved
+                = moved || now.mPosition.pos[i] != original.mPos.pos[i] || now.mPosition.rot[i] != original.mPos.rot[i];
             saved.mPos[i] = now.mPosition.pos[i];
             saved.mRot[i] = now.mPosition.rot[i];
         }

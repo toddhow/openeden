@@ -206,8 +206,8 @@ namespace
         dials.append(topic(kTopicForce, "DGCrimeForcegreetTopic", "What's the problem?", "PFGT", { noText, halt }));
         InfoSpec pay = info(0x22, "Smart move. Now come along.");
         pay.mConditions = ctda(kCanPayCrimeGold, 0, 1.0f);
-        dials.append(topic(kTopicPay, "DGCrimePayFine", "You caught me. I'll pay off my bounty. (<CrimeGold> gold)", "CUST",
-            { pay }));
+        dials.append(topic(
+            kTopicPay, "DGCrimePayFine", "You caught me. I'll pay off my bounty. (<CrimeGold> gold)", "CUST", { pay }));
         InfoSpec jail = info(0x23, "Come along, then.");
         jail.mPrompt = "I submit. Take me to jail.";
         dials.append(topic(kTopicJail, "DGCrimeGoToJail", "ignored full name", "CUST", { jail }));
@@ -223,7 +223,8 @@ namespace
         dials.append(topic(kTopicRumors, "Rumors", "Rumors", "CUST", { info(0x28, "Dragons, they say.") }));
         Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
         bytes.append(group4(Content::fourCC("DIAL"), kGrupTop, dials));
-        bytes.append(group4(Content::fourCC("NPC_"), kGrupTop, guardNpc(guardClass ? kClassGuard : kClassCitizen, inGuardFaction)));
+        bytes.append(group4(
+            Content::fourCC("NPC_"), kGrupTop, guardNpc(guardClass ? kClassGuard : kClassCitizen, inGuardFaction)));
         Bytes factions;
         {
             Bytes f;
@@ -260,8 +261,7 @@ namespace
                 << e2.mMessage;
             mActors.add(mActorRecords);
             mIndex.add(mDialogue, FormIdResolver(mPlugin->header(), "test.esp", order()));
-            mRuntime = std::make_unique<DialogueRuntime>(
-                mActors, mIndex, mQuests, QuestState::initial(mQuests),
+            mRuntime = std::make_unique<DialogueRuntime>(mActors, mIndex, mQuests, QuestState::initial(mQuests),
                 [](const LString& text, std::uint32_t, StringTableKind) { return text.mText; });
         }
 
@@ -388,8 +388,8 @@ namespace
         std::string error;
         ASSERT_TRUE(talk.mRuntime->beginForced(Talk::speaker(), "PFGT", turn, error)) << error;
         EXPECT_EQ(names(turn),
-            (std::vector<std::string>{ "Please, I was framed!", "I submit. Take me to jail.",
-                "I'd rather die than go to prison!" }));
+            (std::vector<std::string>{
+                "Please, I was framed!", "I submit. Take me to jail.", "I'd rather die than go to prison!" }));
     }
 
     TEST(SkyrimGuardDialogueRuntime, aChosenLinkGivesItsResponseAndEndsTheConversationWhenItLinksNowhere)
@@ -478,7 +478,8 @@ namespace
         EXPECT_FALSE(reply.topics.empty());
     }
 
-    // ---- the crime system's choice of offer -----------------------------------------------------------------------------
+    // ---- the crime system's choice of offer
+    // -----------------------------------------------------------------------------
 
     constexpr FormId kHold = kSelf | 0x100;
 
@@ -698,7 +699,8 @@ namespace
         EXPECT_EQ(crime::offerModeName(crime::OfferMode::Dialogue), "dialogue");
     }
 
-    // ---- the service -------------------------------------------------------------------------------------------------
+    // ---- the service
+    // -------------------------------------------------------------------------------------------------
 
     class StubBindings final : public openeden::sdk::BindingsService
     {
@@ -972,8 +974,14 @@ namespace
             mData.add(actor);
             ScriptBuilder faction("Faction");
             faction.parent("Form");
-            faction.function("PlayerPayCrimeGold").native().param("abRemoveStolenItems", "Bool").param("abGoToJail", "Bool");
-            faction.function("SendPlayerToJail").native().param("abRemoveInventory", "Bool").param("abRealJail", "Bool");
+            faction.function("PlayerPayCrimeGold")
+                .native()
+                .param("abRemoveStolenItems", "Bool")
+                .param("abGoToJail", "Bool");
+            faction.function("SendPlayerToJail")
+                .native()
+                .param("abRemoveInventory", "Bool")
+                .param("abRealJail", "Bool");
             faction.function("GetCrimeGold", "Int").native();
             mData.add(faction);
             ScriptBuilder probe("Probe");

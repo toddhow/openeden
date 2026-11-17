@@ -90,8 +90,8 @@ namespace game_skyrimse::crime
         const float mult = values.mStealMultiplier;
         if (itemValue <= 0 || count <= 0 || !std::isfinite(mult) || mult <= 0.f)
             return 0;
-        const double total = std::ceil(static_cast<double>(itemValue) * static_cast<double>(count)
-            * static_cast<double>(mult));
+        const double total
+            = std::ceil(static_cast<double>(itemValue) * static_cast<double>(count) * static_cast<double>(mult));
         if (!(total < static_cast<double>(kMaxBounty)))
             return kMaxBounty;
         return std::max<std::int32_t>(1, static_cast<std::int32_t>(total));
@@ -149,9 +149,8 @@ namespace game_skyrimse::crime
         const auto it = mStolen.find(item);
         if (it == mStolen.end() && mStolen.size() >= kMaxLedgerEntries)
             return false;
-        const std::int64_t sum
-            = std::min<std::int64_t>(static_cast<std::int64_t>(it == mStolen.end() ? 0 : it->second) + count,
-                kMaxStolenCount);
+        const std::int64_t sum = std::min<std::int64_t>(
+            static_cast<std::int64_t>(it == mStolen.end() ? 0 : it->second) + count, kMaxStolenCount);
         mStolen[item] = static_cast<std::int32_t>(sum);
         ++mRevision;
         return true;
@@ -518,8 +517,8 @@ namespace game_skyrimse::crime
             if (gold <= 0)
                 continue;
             (void)mLedger.addBounty(faction, gold);
-            note(std::string(kindName(crime.mKind)) + " witnessed by " + who + " faction " + hex(faction)
-                + " bounty +" + std::to_string(gold) + " total " + std::to_string(mLedger.bounty(faction)));
+            note(std::string(kindName(crime.mKind)) + " witnessed by " + who + " faction " + hex(faction) + " bounty +"
+                + std::to_string(gold) + " total " + std::to_string(mLedger.bounty(faction)));
             ++mRevision;
         }
         if (mWitnessHook)
@@ -698,8 +697,7 @@ namespace game_skyrimse::crime
                 mGuardName = guard.mName;
                 mState = State::Approach;
                 mLastGoalAt = -1.0e9f;
-                note("guard " + guard.mName + " comes for faction " + hex(faction) + " bounty "
-                    + std::to_string(gold));
+                note("guard " + guard.mName + " comes for faction " + hex(faction) + " bounty " + std::to_string(gold));
                 break;
             }
             if (mState != State::Approach)
@@ -750,8 +748,8 @@ namespace game_skyrimse::crime
                 finishOffer(mSettings.mOfferCooldown);
                 return;
             }
-            const bool moved = std::hypot(player.x - mGoalX, player.y - mGoalY)
-                >= static_cast<double>(mSettings.mRetargetDistance);
+            const bool moved
+                = std::hypot(player.x - mGoalX, player.y - mGoalY) >= static_cast<double>(mSettings.mRetargetDistance);
             if (mLastGoalAt < -1.0e8f || (moved && mClock - mLastGoalAt >= mSettings.mRetargetPeriod))
             {
                 mWorld.guardGoTo(mGuard, player.x, player.y, player.z,
@@ -817,8 +815,9 @@ namespace game_skyrimse::crime
         if (mState != State::Offer || mGuard.reference != reference || mOfferMode != OfferMode::Dialogue)
             return; // a choice was made (the offer is over) or it is another actor's talk
         // The conversation pauses the game, and the choice is made by the response's script fragment, which runs in the
-        // first frame the game runs again (the Papyrus host ticks in the simulation phase, before this system's update).
-        // So the offer only falls back to the window at the next update, if the fragment made no choice by then.
+        // first frame the game runs again (the Papyrus host ticks in the simulation phase, before this system's
+        // update). So the offer only falls back to the window at the next update, if the fragment made no choice by
+        // then.
         mDialogueEnded = true;
         note("arrest conversation closed with " + mGuardName);
     }

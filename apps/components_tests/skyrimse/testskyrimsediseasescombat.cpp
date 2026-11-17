@@ -1,7 +1,8 @@
-// Task 0240 (diseases), the combat half: a landed blow of a carrier on the player tells the hook, what a disease changes
-// in the player's numbers is applied to his profile and taken off again, and a weapon skill's damage percent scales his
-// blows. The fixture follows testskyrimsepoison.cpp (a fake data source and a recording writer). Numbers by hand: the
-// player's sword hits the victim for 7 x 1.075 x (1 - 20 percent) = 6.02; with a -25 percent skill modifier 4.515.
+// Task 0240 (diseases), the combat half: a landed blow of a carrier on the player tells the hook, what a disease
+// changes in the player's numbers is applied to his profile and taken off again, and a weapon skill's damage percent
+// scales his blows. The fixture follows testskyrimsepoison.cpp (a fake data source and a recording writer). Numbers by
+// hand: the player's sword hits the victim for 7 x 1.075 x (1 - 20 percent) = 6.02; with a -25 percent skill
+// modifier 4.515.
 #include <game_skyrimse/combat.hpp>
 
 #include "../contentsource/pluginbuilder.hpp"
@@ -321,12 +322,14 @@ namespace
         EXPECT_TRUE(mCombat.playerSpells().empty()); // before his profile
         mCombat.combatUpdate(0.016f, mWriter);
         EXPECT_EQ(mCombat.playerSpells(), (std::vector<FormId>{ kPlayerSpell }));
-        mCombat.setPlayerExtraAbilities({ 0x888 }); // with no perk library the extras are not worked in: the list is his
+        mCombat.setPlayerExtraAbilities(
+            { 0x888 }); // with no perk library the extras are not worked in: the list is his
         const std::vector<FormId> spells = mCombat.playerSpells();
         EXPECT_NE(std::find(spells.begin(), spells.end(), kPlayerSpell), spells.end());
     }
 
-    // ---- RACE ATKD: the spells a race attacks carry ---------------------------------------------------------------------
+    // ---- RACE ATKD: the spells a race attacks carry
+    // ---------------------------------------------------------------------
 
     struct RaceDecodeFixture
     {
@@ -340,7 +343,8 @@ namespace
         std::unique_ptr<Content::Plugin> mPlugin = [] {
             Content::Error error;
             return Content::Plugin::open(
-                std::make_unique<std::istringstream>(ContentTests::tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44).str(),
+                std::make_unique<std::istringstream>(
+                    ContentTests::tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44).str(),
                     std::ios::binary),
                 "test.esp", error);
         }();
@@ -366,7 +370,7 @@ namespace
         subs.append(ContentTests::sub4("EDID", ContentTests::Bytes().zstring("WolfRace")));
         subs.append(ContentTests::sub4("ATKD", attack(0.75f, 0x000B8782))); // the disease
         subs.append(ContentTests::sub4("ATKD", attack(0.f, 0x000B8782))); // again: kept once
-        subs.append(ContentTests::sub4("ATKD", attack(1.f, 0)));  // no spell
+        subs.append(ContentTests::sub4("ATKD", attack(1.f, 0))); // no spell
         subs.append(ContentTests::sub4("ATKD", attack(1.f, 0x01000123))); // a spell of the test plugin
         subs.append(ContentTests::sub4("ATKD", attack(1.f, 0x000B8999, 40))); // a damaged entry
         const std::string bytes = subs.str();
@@ -375,8 +379,8 @@ namespace
         record.mFormId = 0x01000B00;
         RaceCombatRecord race;
         std::string why;
-        ASSERT_TRUE(decodeRaceCombat({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, record,
-            f.context(), race, why))
+        ASSERT_TRUE(decodeRaceCombat(
+            { reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, record, f.context(), race, why))
             << why;
         EXPECT_EQ(race.mAttackSpells, (std::vector<FormId>{ 0x000B8782, 0x01000123 }));
     }
@@ -391,8 +395,8 @@ namespace
         record.mType = Content::fourCC("RACE");
         RaceCombatRecord race;
         std::string why;
-        ASSERT_TRUE(decodeRaceCombat({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, record,
-            f.context(), race, why))
+        ASSERT_TRUE(decodeRaceCombat(
+            { reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, record, f.context(), race, why))
             << why;
         EXPECT_TRUE(race.mAttackSpells.empty());
     }

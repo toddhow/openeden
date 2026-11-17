@@ -7,7 +7,8 @@ namespace game_skyrimse
     namespace
     {
         // 563 LocationHasRefType(location reference type): the candidate location lists a special reference of the type
-        float locationHasRefType(const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
+        float locationHasRefType(
+            const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
         {
             const LocationSubjectSource* source = dynamic_cast<const LocationSubjectSource*>(&world);
             if (source == nullptr || subject == 0)
@@ -19,7 +20,8 @@ namespace game_skyrimse
         }
 
         // 565 GetIsEditorLocation(location): the candidate is that location or inside it
-        float getIsEditorLocation(const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
+        float getIsEditorLocation(
+            const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
         {
             const LocationSubjectSource* source = dynamic_cast<const LocationSubjectSource*>(&world);
             if (source == nullptr || subject == 0)
@@ -54,8 +56,8 @@ namespace game_skyrimse
         }
 
         // 567 GetIsEditorLocAlias(alias): the editor location of the subject is the location the alias holds or lies
-        // inside it (task 0230). Data: 416 uses, all `== 1`, run on the subject, in quest aliases (414) and packages (2);
-        // the Jarl, Steward and Innkeeper aliases of the bounty quests pair it with a faction test and the Hold or
+        // inside it (task 0230). Data: 416 uses, all `== 1`, run on the subject, in quest aliases (414) and packages
+        // (2); the Jarl, Steward and Innkeeper aliases of the bounty quests pair it with a faction test and the Hold or
         // Location alias, and the actors' own XLCN is the city, not the hold, so "inside" is what the data needs. The
         // meaning is RECALLED-VERIFY (the Creation Kit wiki is unreachable; xEdit names the function and its alias).
         float getIsEditorLocAlias(
@@ -74,15 +76,15 @@ namespace game_skyrimse
 
     const std::vector<conditions::ExtraFunction>& locationExtraFunctions()
     {
-        static const std::vector<conditions::ExtraFunction> table = { { 563, &locationHasRefType },
-            { 565, &getIsEditorLocation } };
+        static const std::vector<conditions::ExtraFunction> table
+            = { { 563, &locationHasRefType }, { 565, &getIsEditorLocation } };
         return table;
     }
 
     const std::vector<conditions::ExtraFunction>& aliasLocationExtraFunctions()
     {
-        static const std::vector<conditions::ExtraFunction> table = { { 181, &hasSameEditorLocAsRefAlias },
-            { 567, &getIsEditorLocAlias } };
+        static const std::vector<conditions::ExtraFunction> table
+            = { { 181, &hasSameEditorLocAsRefAlias }, { 567, &getIsEditorLocAlias } };
         return table;
     }
 

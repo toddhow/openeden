@@ -142,9 +142,8 @@ namespace
         std::cout << "SKYRIMSE-MAGIC spells " << spells << " with SPIT " << withData << " effects " << effects
                   << " no MGEF " << unresolved << " gated by conditions " << gated << " cast constant/ff/conc "
                   << cast[0] << "/" << cast[1] << "/" << cast[2] << " delivery self/touch/aimed/actor/location "
-                  << delivery[0] << "/" << delivery[1] << "/" << delivery[2] << "/" << delivery[3] << "/"
-                  << delivery[4] << " spells whose effects are all of the supported archetypes "
-                  << spellsFullySupported << "\n";
+                  << delivery[0] << "/" << delivery[1] << "/" << delivery[2] << "/" << delivery[3] << "/" << delivery[4]
+                  << " spells whose effects are all of the supported archetypes " << spellsFullySupported << "\n";
         std::cout << "SKYRIMSE-MAGIC archetype uses";
         for (int i = 0; i < 64; ++i)
             if (byArchetype[i] != 0)

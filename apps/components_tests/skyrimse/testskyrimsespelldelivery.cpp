@@ -173,8 +173,8 @@ namespace
             m.mProjectile = projectile;
             mEffects[id] = m;
         }
-        void addSpell(FormId id, const char* name, std::uint32_t cost, std::uint32_t delivery,
-            const std::vector<E>& effects)
+        void addSpell(
+            FormId id, const char* name, std::uint32_t cost, std::uint32_t delivery, const std::vector<E>& effects)
         {
             SpellRecord s;
             s.mCommon.mId = id;

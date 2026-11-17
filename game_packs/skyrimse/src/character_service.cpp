@@ -70,7 +70,10 @@ namespace game_skyrimse::character
             CharacterService& mService;
         };
 
-        BindingResult okResult() { return BindingResult(); }
+        BindingResult okResult()
+        {
+            return BindingResult();
+        }
 
         BindingResult boolResult(bool v)
         {
@@ -117,7 +120,8 @@ namespace game_skyrimse::character
 
     void CharacterService::writePowerChunk(openeden::sdk::ChunkWriter& writer)
     {
-        const std::uint32_t used = static_cast<std::uint32_t>(std::min<std::size_t>(mPowerUsed.size(), kMaxPowerRecords));
+        const std::uint32_t used
+            = static_cast<std::uint32_t>(std::min<std::size_t>(mPowerUsed.size(), kMaxPowerRecords));
         writer.writeValue(used);
         for (std::uint32_t i = 0; i < used; ++i)
         {
@@ -475,9 +479,8 @@ namespace game_skyrimse::character
         add("race_index", {}, true, BindingType::Int32, kRead, [self](std::span<const BindingValue>) {
             return intResult(self->poll() ? static_cast<std::int64_t>(self->mCreator->raceIndex()) : 0);
         });
-        add("female", {}, true, BindingType::Bool, kRead, [self](std::span<const BindingValue>) {
-            return boolResult(self->poll() && self->current().mFemale);
-        });
+        add("female", {}, true, BindingType::Bool, kRead,
+            [self](std::span<const BindingValue>) { return boolResult(self->poll() && self->current().mFemale); });
         add("name", {}, true, BindingType::String, kRead, [self, textResult](std::span<const BindingValue>) {
             return textResult(self->poll() ? self->current().mName : std::string());
         });
@@ -529,7 +532,8 @@ namespace game_skyrimse::character
                 }
             });
         add("power_ready", intIntParams, true, BindingType::Bool, kRead, [self](std::span<const BindingValue> a) {
-            return boolResult(a[0].integer >= 0 && self->powerReady(static_cast<std::size_t>(a[0].integer), a[1].integer));
+            return boolResult(
+                a[0].integer >= 0 && self->powerReady(static_cast<std::size_t>(a[0].integer), a[1].integer));
         });
         add("choose_race", intParam, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue> a) {
             if (a[0].integer >= 0)

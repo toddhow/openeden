@@ -10,8 +10,8 @@ namespace game_skyrimse::effectconditions
         using conditions::Subject;
 
         /// The functions the world answers (see the header). Sorted, so the lookup is a binary search.
-        constexpr std::array<std::uint16_t, 21> kAnswered = { 14, 46, 69, 70, 71, 72, 77, 80, 214, 244, 277, 289, 448,
-            560, 597, 640, 682, 699, 700, 715, 724 };
+        constexpr std::array<std::uint16_t, 21> kAnswered
+            = { 14, 46, 69, 70, 71, 72, 77, 80, 214, 244, 277, 289, 448, 560, 597, 640, 682, 699, 700, 715, 724 };
 
         /// Task 0238: what an extended evaluator adds (sorted).
         constexpr std::array<std::uint16_t, 6> kExtendedOnly = { 74, 300, 310, 365, 719, 722 };
@@ -136,7 +136,10 @@ namespace game_skyrimse::effectconditions
             {
                 return valueOf(of(subject), index);
             }
-            float actorValue(Subject subject, std::uint32_t index) const override { return valueOf(of(subject), index); }
+            float actorValue(Subject subject, std::uint32_t index) const override
+            {
+                return valueOf(of(subject), index);
+            }
             float actorValuePercent(Subject subject, std::uint32_t index) const override
             {
                 const Participant* p = of(subject);
@@ -235,9 +238,9 @@ namespace game_skyrimse::effectconditions
             return 0.f;
         }
 
-        // 719 IsHostileToActor(actor): the subject is an enemy of the actor: none (parameter 0) is the effect's caster, the
-        // player's reference the player (xEdit: the parameter is an actor reference; the data's two shapes are those,
-        // RECALLED-VERIFY that "none" means the caster).
+        // 719 IsHostileToActor(actor): the subject is an enemy of the actor: none (parameter 0) is the effect's caster,
+        // the player's reference the player (xEdit: the parameter is an actor reference; the data's two shapes are
+        // those, RECALLED-VERIFY that "none" means the caster).
         float isHostileToActorFn(const survey::Ctda& c, Subject subject, const conditions::ConditionWorld& world)
         {
             const Participant* p = participantOf(world, subject);
@@ -248,15 +251,15 @@ namespace game_skyrimse::effectconditions
             return p->mHostileToCaster ? 1.f : 0.f;
         }
 
-        // 722 WornApparelHasKeywordCount(keyword): the number of worn pieces with the keyword (the keywords of each worn
-        // piece are listed once, one list per piece, so the count is the number of times the keyword appears).
+        // 722 WornApparelHasKeywordCount(keyword): the number of worn pieces with the keyword (the keywords of each
+        // worn piece are listed once, one list per piece, so the count is the number of times the keyword appears).
         float wornKeywordCountFn(const survey::Ctda& c, Subject subject, const conditions::ConditionWorld& world)
         {
             const Participant* p = participantOf(world, subject);
             if (p == nullptr || p->mPerk.mWornKeywords == nullptr || c.mParam1 == 0)
                 return 0.f;
-            return static_cast<float>(std::count(p->mPerk.mWornKeywords->begin(), p->mPerk.mWornKeywords->end(),
-                static_cast<FormId>(c.mParam1)));
+            return static_cast<float>(std::count(
+                p->mPerk.mWornKeywords->begin(), p->mPerk.mWornKeywords->end(), static_cast<FormId>(c.mParam1)));
         }
 
         constexpr std::array<conditions::ExtraFunction, 4> kExtra = { {
@@ -267,8 +270,8 @@ namespace game_skyrimse::effectconditions
         } };
 
         /// 0 target, 1 caster, 2 player: the participant a condition's run-on needs.
-        const Participant* neededFor(const survey::Ctda& c, const Participant* target, const Participant* caster,
-            const Participant* player)
+        const Participant* neededFor(
+            const survey::Ctda& c, const Participant* target, const Participant* caster, const Participant* player)
         {
             if (c.mRunOn == 0)
                 return target;
@@ -322,8 +325,8 @@ namespace game_skyrimse::effectconditions
         mEvaluator.setExtraFunctions(kExtra);
     }
 
-    Verdict Evaluator::evaluate(std::span<const survey::Ctda> list, const Participant* target, const Participant* caster,
-        const Participant* player)
+    Verdict Evaluator::evaluate(std::span<const survey::Ctda> list, const Participant* target,
+        const Participant* caster, const Participant* player)
     {
         if (list.empty())
             return Verdict::Pass;
@@ -362,7 +365,8 @@ namespace game_skyrimse::effectconditions
                         unanswered = true;
                         if (mLog && mUnansweredFunctions.insert(c.mFunction).second)
                             mLog("effect conditions: " + survey::functionName(c.mFunction)
-                                + " compares with a global the world does not know, the effects that use it do nothing");
+                                + " compares with a global the world does not know, the effects that use it do "
+                                  "nothing");
                     }
                 }
         if (unanswered)

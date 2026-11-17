@@ -161,8 +161,8 @@ namespace game_skyrimse
             mHours = hours;
             mClockValid = valid;
         }
-        /// After the combat update (the core's own writer): every dead fighter gets an entry; a body that may still move
-        /// is read again. `seconds` is the update's length.
+        /// After the combat update (the core's own writer): every dead fighter gets an entry; a body that may still
+        /// move is read again. `seconds` is the update's length.
         void noteDeaths(float seconds, openeden::sdk::game::CombatRequestWriter& writer, SkyrimCombat& combat);
         /// In the actor update: an actor of the ledger that appeared is put back or respawns.
         void placeCorpses(openeden::sdk::game::ActorRequestWriter& writer, SkyrimCombat& combat);

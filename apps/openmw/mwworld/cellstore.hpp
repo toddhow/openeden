@@ -224,8 +224,8 @@ namespace MWWorld
         /// order, so a binary search); null for an unknown id or a cell that is not neutral.
         const openeden::sdk::game::WorldObject* neutralObject(openeden::sdk::game::WorldId placement) const;
 
-        /// Task 0177 (neutral saves): visits the cell's neutral references (a loaded cell; nothing otherwise). The const
-        /// form does not mark the cell as having state; the second form is for restoring a save.
+        /// Task 0177 (neutral saves): visits the cell's neutral references (a loaded cell; nothing otherwise). The
+        /// const form does not mark the cell as having state; the second form is for restoring a save.
         void forEachNeutralRef(const std::function<void(const LiveCellRef<NeutralBase>&)>& visitor) const;
         void forEachNeutralRefMutable(const std::function<void(LiveCellRef<NeutralBase>&)>& visitor);
 

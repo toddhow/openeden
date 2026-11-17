@@ -676,8 +676,8 @@ namespace
         mCombat.combatUpdate(0.1f, mWriter);
         ASSERT_FALSE(mWriter.mTimingClips.empty());
         EXPECT_EQ(mWriter.mTimingClips.front(), "2HM_AttackRight");
-        EXPECT_EQ(std::count(mWriter.mTimingClips.begin(), mWriter.mTimingClips.end(), std::string("1HM_AttackRight")),
-            0);
+        EXPECT_EQ(
+            std::count(mWriter.mTimingClips.begin(), mWriter.mTimingClips.end(), std::string("1HM_AttackRight")), 0);
     }
 
     TEST_F(CombatGear, thePlayerKeepsTheOneHandedTimingWhileTheSettingIsOff)

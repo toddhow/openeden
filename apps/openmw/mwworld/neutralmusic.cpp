@@ -108,9 +108,8 @@ namespace MWWorld
         mIndex = 0;
         mSink.log("Neutral music: track " + mPlan.trackName + " (" + std::to_string(mPlan.items.size())
             + " items, fade out " + number(mPlan.fadeOutSeconds) + " s"
-            + (mPlan.finaleFile.empty() ? "" : ", finale " + mPlan.finaleFile)
-            + ", pick " + std::to_string(context.pick) + ", hour "
-            + std::to_string(static_cast<int>(std::floor(gameHour))) + ")");
+            + (mPlan.finaleFile.empty() ? "" : ", finale " + mPlan.finaleFile) + ", pick "
+            + std::to_string(context.pick) + ", hour " + std::to_string(static_cast<int>(std::floor(gameHour))) + ")");
         beginItem(transitionFade);
     }
 

@@ -99,7 +99,8 @@ namespace
         lib.effect(kEffZenithar, "FortifySpeechcraftFFSelf", kPeak, 107, 0x200902);
         lib.effect(kEffTalos, "FortifyShoutTimerFFSelf", kPeak, 86, 0x200902);
         lib.effect(kEffMara, "FortifyRestorationFFSelf", kPeak, 112, 0x200902);
-        lib.effect(kEffFire, "FireDamage", MagicArchetype::ValueModifier, 24, MagicFlag::Hostile | MagicFlag::Detrimental);
+        lib.effect(
+            kEffFire, "FireDamage", MagicArchetype::ValueModifier, 24, MagicFlag::Hostile | MagicFlag::Detrimental);
         lib.mEffects[kEffFire].mResistValue = 41;
         lib.mEffects[kEffFire].mProjectile = kProjectile;
         lib.effect(kEffCloakDamage, "FireDamageConcAimedCloak", MagicArchetype::ValueModifier, 24,

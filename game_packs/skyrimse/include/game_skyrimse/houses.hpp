@@ -1,10 +1,10 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_HOUSES_H
 #define OPENEDEN_GAME_SKYRIMSE_HOUSES_H
 
-// Task 0261: bought houses. The game's own scripts do the buying (HousePurchaseScript.PurchaseHouse: gold out, the key and
-// the decorating guide in, Cell.SetFactionOwner(PlayerFaction)); this file holds what the pack keeps of it: who owns a
-// cell now. A cell's owner is the owner of every reference in it that has none of its own (the cell's XOWN in the
-// plugins is not inherited by the pack's theft and bed rules, only an owner a script SET is; see effectiveOwner).
+// Task 0261: bought houses. The game's own scripts do the buying (HousePurchaseScript.PurchaseHouse: gold out, the key
+// and the decorating guide in, Cell.SetFactionOwner(PlayerFaction)); this file holds what the pack keeps of it: who
+// owns a cell now. A cell's owner is the owner of every reference in it that has none of its own (the cell's XOWN in
+// the plugins is not inherited by the pack's theft and bed rules, only an owner a script SET is; see effectiveOwner).
 //
 //   Ledger         cell form id -> the owner a script gave it (a FACT or an NPC_ form id)
 //   HousesChunk    the save chunk `houses` v1: the ledger, strictly ascending, capped
@@ -30,28 +30,31 @@ namespace game_skyrimse::houses
     inline constexpr std::size_t kMaxHouseEntries = 256;
     inline constexpr std::string_view kChunkName = "houses";
     inline constexpr std::string_view kHousesKey = "houses"; ///< [extension.skyrimse] houses (needs papyrus)
-    /// Test aid: the Whiterun jarls like the player (relationship rank 2: Friend), the condition of the steward's offer.
+    /// Test aid: the Whiterun jarls like the player (relationship rank 2: Friend), the condition of the steward's
+    /// offer.
     inline constexpr std::string_view kHousesTestPermissionKey = "houses test permission";
-    /// HousePurchase (QUST 0x0A7B33, Skyrim.esm): the quest of the steward's offers; it is not start-game-enabled and no
-    /// script starts it, so the pack starts it when `houses` is on.
+    /// HousePurchase (QUST 0x0A7B33, Skyrim.esm): the quest of the steward's offers; it is not start-game-enabled and
+    /// no script starts it, so the pack starts it when `houses` is on.
     inline constexpr FormId kHousePurchaseQuest = 0x000A7B33;
-    /// JobStewardFaction (FACT 0x50922): the 13 stewards of the five masters are listed in it at rank -1 and the offer tests
-    /// GetInFaction == 1.
+    /// JobStewardFaction (FACT 0x50922): the 13 stewards of the five masters are listed in it at rank -1 and the offer
+    /// tests GetInFaction == 1.
     inline constexpr FormId kJobStewardFaction = 0x00050922;
-    /// PlayerBedOwnership (FACT 0x0F2073): the owner of eight bed placements in the five masters (Breezehome's among them),
-    /// and one of the four factions of the Player NPC_ (0x7: 0x9E0C9, 0xF2073, 0xDB1, 0x8F3E8): the player's own beds.
+    /// PlayerBedOwnership (FACT 0x0F2073): the owner of eight bed placements in the five masters (Breezehome's among
+    /// them), and one of the four factions of the Player NPC_ (0x7: 0x9E0C9, 0xF2073, 0xDB1, 0x8F3E8): the player's own
+    /// beds.
     inline constexpr FormId kPlayerBedOwnershipFaction = 0x000F2073;
     /// The Whiterun jarl and the Whiterun jarl of the Sons of Skyrim (the HousePurchase aliases 10 and 14).
     inline constexpr FormId kWhiterunJarlBase = 0x00013BBD;
     inline constexpr FormId kWhiterunSonsJarlBase = 0x00013BB5;
 
-    /// Task 0269 (STUB until the tests have run red): the jarls the test aid befriends, the MS11 quest and its marked stage.
+    /// Task 0269 (STUB until the tests have run red): the jarls the test aid befriends, the MS11 quest and its marked
+    /// stage.
     [[nodiscard]] std::vector<FormId> testPermissionJarlBases();
     inline constexpr FormId kMs11Quest = 0x0001F7A3;
 
-    /// Task 0269: the five hold dialogue quests (DialogueWhiterun 0x270A4, DialogueRiften 0x368D8, DialogueWindhelm 0x3502E,
-    /// DialogueMarkarth 0x17F05, DialogueSolitude 0x2E1AD): their steward alias puts the steward into JobStewardFaction
-    /// while the quest runs (ALFC), and Falk Firebeard (Solitude) has the faction no other way.
+    /// Task 0269: the five hold dialogue quests (DialogueWhiterun 0x270A4, DialogueRiften 0x368D8, DialogueWindhelm
+    /// 0x3502E, DialogueMarkarth 0x17F05, DialogueSolitude 0x2E1AD): their steward alias puts the steward into
+    /// JobStewardFaction while the quest runs (ALFC), and Falk Firebeard (Solitude) has the faction no other way.
     [[nodiscard]] std::vector<FormId> holdDialogueQuests();
 
     struct AliasFactionGrant
@@ -70,8 +73,8 @@ namespace game_skyrimse::houses
         /// Records that `cell` is now owned by `owner`. False for a null id, or when the ledger is full.
         bool setCellOwner(FormId cell, FormId owner);
         [[nodiscard]] std::optional<FormId> cellOwner(FormId cell) const;
-        /// The owner of a placement standing in `cell`: `own` (its XOWN, null for none) when set, else the ledger's. The
-        /// player's own bed faction (kPlayerBedOwnershipFaction) is the player's faction.
+        /// The owner of a placement standing in `cell`: `own` (its XOWN, null for none) when set, else the ledger's.
+        /// The player's own bed faction (kPlayerBedOwnershipFaction) is the player's faction.
         [[nodiscard]] FormId effectiveOwner(FormId own, FormId cell) const;
         /// A cell's access data with the ledger's owner in place of the plugin's.
         void applyToAccess(FormId cell, crime::CellAccess& access) const;

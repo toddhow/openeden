@@ -145,8 +145,8 @@ namespace game_skyrimse
                             for (std::size_t i = 0; i + 4 <= sub.mData.size(); i += 4)
                                 loc.mKeywords.push_back(resolved(le32(sub.mData.data() + i)));
                             break;
-                        // task 0211: the lists of exterior cells, special and persistent references and unique NPCs; the
-                        // location (L*), actor (A*) and reference (R*) families are merged (see the header)
+                        // task 0211: the lists of exterior cells, special and persistent references and unique NPCs;
+                        // the location (L*), actor (A*) and reference (R*) families are merged (see the header)
                         case Content::fourCC("LCEC"):
                         case Content::fourCC("ACEC"):
                         case Content::fourCC("RCEC"):
@@ -162,7 +162,8 @@ namespace game_skyrimse
                             LocationCells cells;
                             cells.mWorld = resolved(le32(sub.mData.data()));
                             for (std::size_t i = 4; i + 4 <= size; i += 4)
-                                cells.mGrids.push_back({ le16s(sub.mData.data() + i), le16s(sub.mData.data() + i + 2) });
+                                cells.mGrids.push_back(
+                                    { le16s(sub.mData.data() + i), le16s(sub.mData.data() + i + 2) });
                             loc.mCells.push_back(std::move(cells));
                             break;
                         }
@@ -348,7 +349,8 @@ namespace game_skyrimse
             for (const LocationCells& c : l.mCells)
                 for (const LocationGrid& g : c.mGrids)
                 {
-                    const auto key = std::make_tuple(c.mWorld, static_cast<std::int32_t>(g.mX), static_cast<std::int32_t>(g.mY));
+                    const auto key
+                        = std::make_tuple(c.mWorld, static_cast<std::int32_t>(g.mX), static_cast<std::int32_t>(g.mY));
                     const auto it = best.find(key);
                     if (it == best.end() || total < it->second.first)
                         best[key] = { total, id };

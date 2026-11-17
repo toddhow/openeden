@@ -51,8 +51,8 @@ namespace
 
     TEST(NeutralPlayerHealth, aReportWithNoMaximumLeavesTheMaximumAlone)
     {
-        for (const float none : { 0.f, -5.f, std::numeric_limits<float>::quiet_NaN(),
-                 std::numeric_limits<float>::infinity() })
+        for (const float none :
+            { 0.f, -5.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
         {
             const auto w = neutralPlayerHealthWrite(100.f, 0.f, 100.f, 150.f, none);
             EXPECT_FLOAT_EQ(w.mBase, 100.f);

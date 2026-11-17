@@ -75,11 +75,12 @@ namespace game_skyrimse::vmad
         std::string mFunction;
     };
 
-    /// Task 0187: the fragment section of an INFO's VMAD (a dialogue line's scripts). Layout, VERIFIED on Skyrim.esm (5,540
-    /// INFO VMAD subrecords all end exactly, 283 with no fragment section at all): after the script list, u8 (always 2),
-    /// u8 flags (bit 0 a fragment at the line's beginning, bit 1 one at its end; no other bit occurs), wstring file name
-    /// ("TIF__" and eight hex digits), then for each set bit in bit order u8 (unknown), wstring script, wstring function.
-    /// Names are xEdit's (wbVMADFragmentedINFO), RECALLED-VERIFY.
+    /// Task 0187: the fragment section of an INFO's VMAD (a dialogue line's scripts). Layout, VERIFIED on Skyrim.esm
+    /// (5,540 INFO VMAD subrecords all end exactly, 283 with no fragment section at all): after the script list, u8
+    /// (always 2), u8 flags (bit 0 a fragment at the line's beginning, bit 1 one at its end; no other bit occurs),
+    /// wstring file name
+    /// ("TIF__" and eight hex digits), then for each set bit in bit order u8 (unknown), wstring script, wstring
+    /// function. Names are xEdit's (wbVMADFragmentedINFO), RECALLED-VERIFY.
     struct InfoFragments
     {
         std::uint8_t mFlags = 0;
@@ -92,12 +93,13 @@ namespace game_skyrimse::vmad
         [[nodiscard]] bool hasEnd() const { return (mFlags & 2) != 0 && !mEndFunction.empty(); }
     };
 
-    /// Task 0194: the fragment section of a SCEN's VMAD. Layout, VERIFIED on the five masters (717 scene VMAD subrecords
-    /// all end exactly): after the script list u8 (always 2), u8 flags (bit 0 a fragment when the scene begins, bit 1 one
-    /// when it ends), wstring file name ("SF_" and the scene's id), then for each set bit in bit order u8 (unknown),
-    /// wstring script, wstring function; then u16 phase fragment count and per phase fragment u8 flags (1 when the phase
-    /// starts, 2 when it completes, 0 occurs 7 times), u8 phase index, i16 (unknown), u8 (unknown), u8 (unknown), wstring
-    /// script, wstring function. Names are xEdit's (wbScriptFragmentsScen), RECALLED-VERIFY.
+    /// Task 0194: the fragment section of a SCEN's VMAD. Layout, VERIFIED on the five masters (717 scene VMAD
+    /// subrecords all end exactly): after the script list u8 (always 2), u8 flags (bit 0 a fragment when the scene
+    /// begins, bit 1 one when it ends), wstring file name ("SF_" and the scene's id), then for each set bit in bit
+    /// order u8 (unknown), wstring script, wstring function; then u16 phase fragment count and per phase fragment u8
+    /// flags (1 when the phase starts, 2 when it completes, 0 occurs 7 times), u8 phase index, i16 (unknown), u8
+    /// (unknown), u8 (unknown), wstring script, wstring function. Names are xEdit's (wbScriptFragmentsScen),
+    /// RECALLED-VERIFY.
     struct PhaseFragment
     {
         std::uint8_t mFlags = 0;
@@ -163,8 +165,8 @@ namespace game_skyrimse::vmad
     /// whole subrecord must be used; a trailing byte is an error.
     [[nodiscard]] ParseResult parse(std::span<const std::byte> bytes, bool withFragments, const Limits& limits = {});
 
-    /// Task 0187: the VMAD of an INFO record: the scripts, then the optional fragment section (`mInfo`). Same strictness
-    /// as `parse`: the whole subrecord must be used.
+    /// Task 0187: the VMAD of an INFO record: the scripts, then the optional fragment section (`mInfo`). Same
+    /// strictness as `parse`: the whole subrecord must be used.
     [[nodiscard]] ParseResult parseInfo(std::span<const std::byte> bytes, const Limits& limits = {});
 
     /// Task 0194: the VMAD of a SCEN record: the scripts, then the optional fragment section (`mScene`). The whole

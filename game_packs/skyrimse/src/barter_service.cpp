@@ -181,10 +181,9 @@ namespace game_skyrimse::barter
         mState = State::Ready;
         log("BARTER open " + mName + " (npc " + inventory::formatId(mNpcBase) + ", placement "
             + inventory::formatId(mPlacement) + "): chest " + inventory::formatId(mOwner) + ", "
-            + std::to_string(mInventory.model().stacks(mOwner).size()) + " stacks, gold "
-            + std::to_string(vendorGold()) + ", speech " + std::to_string(speech()) + ", list of "
-            + std::to_string(mVendor.mKeywords.size()) + " keywords"
-            + (mVendor.mListIsExclusion ? " (exclusion)" : ""));
+            + std::to_string(mInventory.model().stacks(mOwner).size()) + " stacks, gold " + std::to_string(vendorGold())
+            + ", speech " + std::to_string(speech()) + ", list of " + std::to_string(mVendor.mKeywords.size())
+            + " keywords" + (mVendor.mListIsExclusion ? " (exclusion)" : ""));
         return true;
     }
 
@@ -244,8 +243,8 @@ namespace game_skyrimse::barter
         log("BARTER buy " + inventory::formatId(item) + " x" + std::to_string(count) + ": "
             + std::string(tradeStatusName(r.mStatus)) + ", unit " + std::to_string(r.mUnitPrice) + ", gold "
             + std::to_string(r.mTotal) + ", player gold "
-            + std::to_string(mInventory.model().count(inventory::kPlayerOwner, inventory::kGoldItem))
-            + ", vendor gold " + std::to_string(vendorGold()));
+            + std::to_string(mInventory.model().count(inventory::kPlayerOwner, inventory::kGoldItem)) + ", vendor gold "
+            + std::to_string(vendorGold()));
         if (r.mStatus == TradeStatus::Ok && mHooks.mTraded)
             mHooks.mTraded(static_cast<float>(r.mTotal)); // task 0200: a trade trains Speech
         return r.mStatus;
@@ -285,8 +284,8 @@ namespace game_skyrimse::barter
         log("BARTER sell " + inventory::formatId(item) + " x" + std::to_string(count) + ": "
             + std::string(tradeStatusName(r.mStatus)) + ", unit " + std::to_string(r.mUnitPrice) + ", gold "
             + std::to_string(r.mTotal) + ", player gold "
-            + std::to_string(mInventory.model().count(inventory::kPlayerOwner, inventory::kGoldItem))
-            + ", vendor gold " + std::to_string(vendorGold()));
+            + std::to_string(mInventory.model().count(inventory::kPlayerOwner, inventory::kGoldItem)) + ", vendor gold "
+            + std::to_string(vendorGold()));
         return r.mStatus;
     }
 
@@ -327,9 +326,8 @@ namespace game_skyrimse::barter
                     return r;
                 });
         };
-        const auto clampInt = [](std::int64_t v) {
-            return static_cast<std::int32_t>(std::clamp<std::int64_t>(v, 0, 0x7FFFFFFF));
-        };
+        const auto clampInt
+            = [](std::int64_t v) { return static_cast<std::int32_t>(std::clamp<std::int64_t>(v, 0, 0x7FFFFFFF)); };
 
         stringFn("state", [](const BarterService& s) { return std::string(stateName(s.state())); });
         stringFn("reason", [](const BarterService& s) { return s.reason(); });

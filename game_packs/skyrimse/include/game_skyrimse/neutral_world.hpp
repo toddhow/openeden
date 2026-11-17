@@ -13,41 +13,41 @@
 
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/combat.hpp>
-#include <game_skyrimse/deaths.hpp>
 #include <game_skyrimse/crime.hpp>
+#include <game_skyrimse/deaths.hpp>
 #include <game_skyrimse/hud.hpp>
 #include <game_skyrimse/hud_style.hpp>
-#include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/riding.hpp>
+#include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
-#include <openeden/game/player_body.hpp>
-#include <openeden/game/player_identity.hpp>
-#include <openeden/game/player_image_space.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
-#include <openeden/game/follower_rules.hpp>
 #include <openeden/game/display_name_source.hpp>
-#include <openeden/game/new_game_start.hpp>
+#include <openeden/game/follower_rules.hpp>
 #include <openeden/game/grass_source.hpp>
 #include <openeden/game/music_source.hpp>
+#include <openeden/game/new_game_start.hpp>
+#include <openeden/game/player_body.hpp>
+#include <openeden/game/player_identity.hpp>
+#include <openeden/game/player_image_space.hpp>
 #include <openeden/game/player_item_source.hpp>
 #include <openeden/game/player_place.hpp>
 #include <openeden/game/scene_speech.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
-#include <openeden/game/world_view.hpp>
 #include <openeden/game/world_source_service.hpp>
+#include <openeden/game/world_view.hpp>
 #include <openeden/game/world_water.hpp>
 
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <set>
@@ -221,8 +221,9 @@ namespace game_skyrimse
                 out.mRunSpeed = appearance.runSpeed;
                 return true;
             });
-            mRiding.setBrainControl(
-                [this](openeden::sdk::game::WorldId reference, bool stands) { mActors.onConversation(reference, stands); });
+            mRiding.setBrainControl([this](openeden::sdk::game::WorldId reference, bool stands) {
+                mActors.onConversation(reference, stands);
+            });
             // Task 0180: the combat HUD reads the pack's fighters through the combat rules.
             mHud.setFighterLookup([this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
                 return mCombat.fighterView(subject, out);
@@ -254,8 +255,7 @@ namespace game_skyrimse
         /// Task 0150: forwards to the view's DisplayNameSource.
         std::string displayNameOf(openeden::sdk::game::WorldId base) override;
         /// Task 0224: the pack's name for one placement (a depleted ore vein); empty without a lookup.
-        std::string placementNameOf(
-            openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base) override
+        std::string placementNameOf(openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base) override
         {
             return mPlacementName ? mPlacementName(placement, base) : std::string();
         }
@@ -397,8 +397,8 @@ namespace game_skyrimse
                     (void)writer.goTo(move.mActor, { move.mX, move.mY, move.mZ, move.mSpeed });
                 else if (move.mKind == Kind::Fly)
                 {
-                    // Task 0253: a dragon in the air is on a pose that the pack moves (the furniture machinery: no fall,
-                    // no walk, a looped clip). A new loop is a new useFurniture; every other step only moves it.
+                    // Task 0253: a dragon in the air is on a pose that the pack moves (the furniture machinery: no
+                    // fall, no walk, a looped clip). A new loop is a new useFurniture; every other step only moves it.
                     openeden::sdk::game::FurnitureUse use;
                     use.x = move.mX;
                     use.y = move.mY;
@@ -430,7 +430,10 @@ namespace game_skyrimse
             return mRiding.canMount(handle);
         }
         void onMountRequested(openeden::sdk::game::ActorHandle handle) override { mRiding.onMountRequested(handle); }
-        void dismountNow(openeden::sdk::game::RidingWriter& player) override { mRiding.dismountNow(player); } // task 0255
+        void dismountNow(openeden::sdk::game::RidingWriter& player) override
+        {
+            mRiding.dismountNow(player);
+        } // task 0255
         [[nodiscard]] openeden::sdk::game::ActorHandle mountedHorse() const override { return mRiding.mountedHorse(); }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Task 0231 (barks): null (the default) is off. The system must outlive the cell source's use of it; the cell
@@ -445,7 +448,10 @@ namespace game_skyrimse
         {
             return mActors.isFollower(reference);
         }
-        void onFollowerCarried(openeden::sdk::game::WorldId reference) override { mActors.onFollowerCarried(reference); }
+        void onFollowerCarried(openeden::sdk::game::WorldId reference) override
+        {
+            mActors.onFollowerCarried(reference);
+        }
         [[nodiscard]] openeden::sdk::game::WorldId homeCell(openeden::sdk::game::WorldId reference) const override
         {
             return mActors.homeCell(reference);
@@ -453,8 +459,14 @@ namespace game_skyrimse
         /// Task 0194 (scenes): the pack's scene runner reaches the actors through these. `sceneSpeak` queues a line for
         /// the core (SceneSpeechSource::takeSpeech) and is false for an actor the core has not told the pack about or
         /// when 64 lines wait; `sceneHold` makes an actor stand still for its lines (the brain's conversation state).
-        [[nodiscard]] std::vector<openeden::sdk::game::WorldId> sceneActors() const { return mActors.actorReferences(); }
-        [[nodiscard]] bool sceneActorLoaded(openeden::sdk::game::WorldId reference) const { return mActors.has(reference); }
+        [[nodiscard]] std::vector<openeden::sdk::game::WorldId> sceneActors() const
+        {
+            return mActors.actorReferences();
+        }
+        [[nodiscard]] bool sceneActorLoaded(openeden::sdk::game::WorldId reference) const
+        {
+            return mActors.has(reference);
+        }
         bool sceneSpeak(openeden::sdk::game::WorldId reference, std::string text, std::vector<std::string> voice)
         {
             const openeden::sdk::game::ActorHandle handle = mActors.handleOf(reference);
@@ -555,7 +567,8 @@ namespace game_skyrimse
         void setStanceSink(StanceSink sink) { mStanceSink = std::move(sink); }
         /// Task 0256: the player's state once a combat update (position and look, for the Papyrus trigger volumes).
         void setPlayerStateSink(StanceSink sink) { mPlayerStateSink = std::move(sink); }
-        /// Task 0198: where the Papyrus host hears of damage and deaths and queues Actor.Kill (inactive until sinks are set).
+        /// Task 0198: where the Papyrus host hears of damage and deaths and queues Actor.Kill (inactive until sinks are
+        /// set).
         [[nodiscard]] ScriptCombatBridge& scriptBridge() { return mScriptBridge; }
         /// Task 0180: what the combat HUD shows (the script package `core.skyrimse.combat` reads it).
         [[nodiscard]] CombatHud& hud() { return mHud; }
@@ -567,8 +580,8 @@ namespace game_skyrimse
             mCellBuilt = std::move(cellBuilt);
             mActivated = std::move(activated);
         }
-        /// Task 0253 (a developer aid): in every cell built, each placed actor whose base editor id is `replace` (any case)
-        /// gets the base of the NPC_ `place` instead (a dragon where a wolf stood). Both empty: nothing changes.
+        /// Task 0253 (a developer aid): in every cell built, each placed actor whose base editor id is `replace` (any
+        /// case) gets the base of the NPC_ `place` instead (a dragon where a wolf stood). Both empty: nothing changes.
         void setTestDragon(std::string place, std::string replace)
         {
             mTestDragonPlace = std::move(place);
@@ -601,9 +614,9 @@ namespace game_skyrimse
         /// line and leaves the sleeper asleep. Empty (the default): conversations are prepared as before.
         void setFeedHook(std::function<bool(openeden::sdk::game::WorldId)> hook) { mFeedHook = std::move(hook); }
         [[nodiscard]] static openeden::sdk::game::DialogueTurn feedTurn();
-        /// Task 0181: what a script made of a placement's enabled state (nullopt when it never touched it). A cell built
-        /// afterwards comes out with it (WorldObject::initiallyDisabled), so Enable and Disable reach cells that were not
-        /// loaded when the script ran. Main thread.
+        /// Task 0181: what a script made of a placement's enabled state (nullopt when it never touched it). A cell
+        /// built afterwards comes out with it (WorldObject::initiallyDisabled), so Enable and Disable reach cells that
+        /// were not loaded when the script ran. Main thread.
         void setEnableOverrideLookup(std::function<std::optional<bool>(openeden::sdk::game::WorldId)> lookup)
         {
             mEnableOverride = std::move(lookup);
@@ -646,8 +659,8 @@ namespace game_skyrimse
         }
         bool musicEnabled() override { return mMusicOn; }
         bool musicReady() override;
-        bool musicType(const openeden::sdk::game::MusicContext& context,
-            openeden::sdk::game::MusicTypeDescription& out) override;
+        bool musicType(
+            const openeden::sdk::game::MusicContext& context, openeden::sdk::game::MusicTypeDescription& out) override;
         bool musicPlan(openeden::sdk::game::WorldId typeId, const openeden::sdk::game::MusicContext& context,
             openeden::sdk::game::MusicPlan& out) override;
 
@@ -685,7 +698,8 @@ namespace game_skyrimse
         openeden::sdk::game::PlayerPlace mPlayerPlace; ///< task 0238: the last place the core told
         bool mHavePlayerPlace = false;
         std::function<bool(openeden::sdk::game::WorldId)> mFeedHook; ///< task 0260
-        openeden::sdk::game::WorldId mFeeding = openeden::sdk::game::kNoWorldId; ///< task 0260: the sleeper being fed on
+        openeden::sdk::game::WorldId mFeeding
+            = openeden::sdk::game::kNoWorldId; ///< task 0260: the sleeper being fed on
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         std::string mTestDragonPlace; ///< task 0253
         std::string mTestDragonReplace;

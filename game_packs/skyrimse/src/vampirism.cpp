@@ -18,7 +18,8 @@ namespace game_skyrimse::vampirism
         return std::find(kSunDamageSpells.begin(), kSunDamageSpells.end(), spell) != kSunDamageSpells.end();
     }
 
-    // ---- Machine -----------------------------------------------------------------------------------------------------
+    // ---- Machine
+    // -----------------------------------------------------------------------------------------------------
 
     void Machine::observeInfection(bool infected, double days)
     {
@@ -73,7 +74,8 @@ namespace game_skyrimse::vampirism
         mNextTick = std::isfinite(nextTick) ? nextTick : -1.0;
     }
 
-    // ---- the sun -----------------------------------------------------------------------------------------------------
+    // ---- the sun
+    // -----------------------------------------------------------------------------------------------------
 
     float hourOfClock(double gameSeconds)
     {
@@ -130,7 +132,8 @@ namespace game_skyrimse::vampirism
         return out;
     }
 
-    // ---- the chunk ---------------------------------------------------------------------------------------------------
+    // ---- the chunk
+    // ---------------------------------------------------------------------------------------------------
 
     namespace
     {
@@ -173,7 +176,8 @@ namespace game_skyrimse::vampirism
         std::unique_ptr<VampirismChunk> mChunk;
     };
 
-    // ---- the service -------------------------------------------------------------------------------------------------
+    // ---- the service
+    // -------------------------------------------------------------------------------------------------
 
     VampirismService::VampirismService(ScriptPort& port, Hooks hooks)
         : mImpl(std::make_unique<Impl>())

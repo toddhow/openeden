@@ -7,8 +7,8 @@
 // Task 0241: the numbers a held ability or a timed shrine blessing gives the player (ability_numbers.hpp): the three
 // maximums, the regeneration rates (combat_regen.cpp reads the sums), the resistances and weaknesses (resistOf and
 // weaknessOf read them), the carry weight (the pack gives it to the inventory), and an Invisibility effect. Player
-// only: an NPC's abilities keep the old rules. Nothing here allocates per frame: applyAbilityNumbers runs when a spell list
-// changes, flushAbilityVitals sends at most one report when a Fortify Health starts or ends.
+// only: an NPC's abilities keep the old rules. Nothing here allocates per frame: applyAbilityNumbers runs when a spell
+// list changes, flushAbilityVitals sends at most one report when a Fortify Health starts or ends.
 namespace game_skyrimse
 {
     namespace
@@ -108,8 +108,8 @@ namespace game_skyrimse
     }
 
     // The Fortify share of the three maximums (and, task 0248, a disease's health maximum): a gain also raises the
-    // current value by the same amount (the game's modifier is added to both), a loss lowers it; health is the engine's,
-    // so its change is reported later.
+    // current value by the same amount (the game's modifier is added to both), a loss lowers it; health is the
+    // engine's, so its change is reported later.
     void SkyrimCombat::applyVitalShare(Fighter& fighter)
     {
         if (!fighter.mSubject.player || !fighter.mHasProfile)
@@ -147,8 +147,8 @@ namespace game_skyrimse
             const int delta = wanted - mAppliedSkillPoints[s];
             if (delta == 0)
                 continue;
-            fighter.mProfile.mSkills[s] = static_cast<std::uint8_t>(
-                std::clamp(static_cast<int>(fighter.mProfile.mSkills[s]) + delta, 0, 255));
+            fighter.mProfile.mSkills[s]
+                = static_cast<std::uint8_t>(std::clamp(static_cast<int>(fighter.mProfile.mSkills[s]) + delta, 0, 255));
             mAppliedSkillPoints[s] = wanted;
         }
     }

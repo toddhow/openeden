@@ -79,12 +79,12 @@ namespace
             mEffects[kAccumulate].mHitEffectArt = kWardArt;
             addEffect(kPeakNoArt, MagicArchetype::PeakValueModifier, 39, 0x40001002);
 
-            addSpell(kFlames, "Flames", 6, MagicCast::Concentration, MagicDelivery::Aimed,
-                { { kFlameEffect, 8.f, 1, 0 } });
+            addSpell(
+                kFlames, "Flames", 6, MagicCast::Concentration, MagicDelivery::Aimed, { { kFlameEffect, 8.f, 1, 0 } });
             addSpell(kFrost, "FrostLike", 6, MagicCast::Concentration, MagicDelivery::Aimed,
                 { { kFrostEffect, 10.f, 1, 0 } });
-            addSpell(kTouch, "Touchy", 20, MagicCast::FireAndForget, MagicDelivery::Touch,
-                { { kTouchEffect, 20.f, 0, 0 } });
+            addSpell(
+                kTouch, "Touchy", 20, MagicCast::FireAndForget, MagicDelivery::Touch, { { kTouchEffect, 20.f, 0, 0 } });
             addSpell(kWard, "WardLesser", 34, MagicCast::Concentration, MagicDelivery::Self,
                 { { kAccumulate, 40.f, 0, 0 }, { kPeak, 40.f, 0, 0 } });
             addSpell(kWardNoArt, "WardNoArt", 34, MagicCast::Concentration, MagicDelivery::Self,

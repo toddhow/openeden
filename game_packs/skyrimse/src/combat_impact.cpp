@@ -276,8 +276,7 @@ namespace game_skyrimse
 
     // ---- rules -----------------------------------------------------------------------------------------------------
 
-    bool resolveSoundSet(
-        const SoundLibrary& library, FormId sound, const SoundFileProbe& exists, ResolvedSoundSet& out)
+    bool resolveSoundSet(const SoundLibrary& library, FormId sound, const SoundFileProbe& exists, ResolvedSoundSet& out)
     {
         out = ResolvedSoundSet();
         const SoundDescriptorRecord* record = validSoundForm(sound) ? library.sound(sound) : nullptr;
@@ -310,21 +309,19 @@ namespace game_skyrimse
         return true;
     }
 
-    FormId targetMaterial(
-        const SoundLibrary& library, FormId bodyMaterial, int bodyArmourType, bool armourMaterials)
+    FormId targetMaterial(const SoundLibrary& library, FormId bodyMaterial, int bodyArmourType, bool armourMaterials)
     {
         if (armourMaterials && (bodyArmourType == 0 || bodyArmourType == 1))
         {
-            const FormId armour = library.materialByEditorId(bodyArmourType == 0 ? kArmourMaterialLight
-                                                                                 : kArmourMaterialHeavy);
+            const FormId armour
+                = library.materialByEditorId(bodyArmourType == 0 ? kArmourMaterialLight : kArmourMaterialHeavy);
             if (armour != kNullFormId)
                 return armour;
         }
         return bodyMaterial;
     }
 
-    ImpactSounds impactSoundFor(
-        const SoundLibrary& library, FormId impactSet, FormId material, bool includeSecond)
+    ImpactSounds impactSoundFor(const SoundLibrary& library, FormId impactSet, FormId material, bool includeSecond)
     {
         ImpactSounds out;
         out.mImpact = library.impactFor(impactSet, material);

@@ -32,7 +32,8 @@ namespace MWRender::SkyrimFirstPerson
             std::vector<HavokPack::Transform> mScratchFrom; ///< when the clip is the one a fade comes from
             std::unordered_map<const Anim::Transform*, std::size_t> mTrackOf; ///< bone -> track, for the fade
             bool mResolved = false; ///< the future was read (mClip may be null: the clip failed)
-            // Task 0249: the clip's events (the sidecar animationdata/firstperson.txt), read on a worker only when asked.
+            // Task 0249: the clip's events (the sidecar animationdata/firstperson.txt), read on a worker only when
+            // asked.
             SkyrimIdle::ClipFuture mClipFuture; ///< a copy of the decode future, for the meta's worker
             SkyrimClipMeta::MetaFuture mMeta;
             std::shared_ptr<const HavokPack::ClipMeta> mMetaValue;
@@ -243,8 +244,7 @@ namespace MWRender::SkyrimFirstPerson
                 const auto track = from->mTrackOf.find(slot.mTargets[i].get());
                 if (track != from->mTrackOf.end())
                 {
-                    SkyrimIdle::apply(
-                        blendTransform(from->mScratchFrom[track->second], slot.mScratch[i], frame.blend),
+                    SkyrimIdle::apply(blendTransform(from->mScratchFrom[track->second], slot.mScratch[i], frame.blend),
                         *slot.mTargets[i]);
                     continue;
                 }

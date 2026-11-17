@@ -120,8 +120,8 @@ namespace game_skyrimse::menus
                                 const char* begin = reinterpret_cast<const char*>(sub.mData.data());
                                 const void* nul
                                     = sub.mData.empty() ? nullptr : std::memchr(begin, '\0', sub.mData.size());
-                                screen.mCommon.mEditorId.assign(begin,
-                                    nul != nullptr ? static_cast<const char*>(nul) : begin + sub.mData.size());
+                                screen.mCommon.mEditorId.assign(
+                                    begin, nul != nullptr ? static_cast<const char*>(nul) : begin + sub.mData.size());
                                 break;
                             }
                             case Content::fourCC("DESC"):
@@ -425,8 +425,8 @@ namespace game_skyrimse::menus
         };
         in.mPasses = [this, &index, &failed](const LoadingScreen& s) {
             // a screen with no conditions always passes; without an evaluator only those can be chosen
-            const bool passes = s.mConditions.empty()
-                || (mAccess.mEvaluate && mAccess.mEvaluate(s.mConditions, index.resolverOf(s)));
+            const bool passes
+                = s.mConditions.empty() || (mAccess.mEvaluate && mAccess.mEvaluate(s.mConditions, index.resolverOf(s)));
             if (!passes)
                 ++failed;
             return passes;
@@ -449,18 +449,18 @@ namespace game_skyrimse::menus
         Impl& m = *mImpl;
         MenusService* self = this;
         static const BindingType seedParam[] = { BindingType::Int32 };
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, BindingType result,
-                             Fn::Body body) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = true;
-            f.result = result;
-            f.access = openeden::sdk::BindingAccess::Read;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, BindingType result, Fn::Body body) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = true;
+                  f.result = result;
+                  f.access = openeden::sdk::BindingAccess::Read;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
         add("ready", {}, BindingType::Bool, [self](std::span<const BindingValue>) {
             BindingResult r;
             r.value.type = BindingType::Bool;

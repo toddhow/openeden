@@ -23,7 +23,8 @@ namespace MWGui
     /// Everything else stays: the minimap, cell name, active effects, sneak indicator and drowning bar have no
     /// replacement. (The crosshair was kept while the combat HUD's own drew nothing: RmlUi's rgba() alpha is 0 to 255.)
     ///
-    /// Task 0244: with the pack setting `hud style` (`hudStyle`) the sneak icon goes too when the pack's sneak eye is on
+    /// Task 0244: with the pack setting `hud style` (`hudStyle`) the sneak icon goes too when the pack's sneak eye is
+    /// on
     /// (`sneakEye`), and the minimap when its compass is (`compass`). Without `hudStyle` the answer is what it was.
     ReplacedHudParts replacedHudParts(bool playerInNeutralCell, bool neutralCombat, bool rmlui, bool hudStyle = false,
         bool sneakEye = false, bool compass = false);

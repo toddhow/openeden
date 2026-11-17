@@ -1,6 +1,6 @@
-// Task 0211: a scene that is playing at a save resumes at its phase after a load. The bytes of the save (a round trip, every
-// truncation, hostile counts) and the runner's saveState and restoreState behind a fake environment. Generated records; no
-// game data. Written first and run red against stubs.
+// Task 0211: a scene that is playing at a save resumes at its phase after a load. The bytes of the save (a round trip,
+// every truncation, hostile counts) and the runner's saveState and restoreState behind a fake environment. Generated
+// records; no game data. Written first and run red against stubs.
 #include <game_skyrimse/scene.hpp>
 #include <game_skyrimse/scene_runner.hpp>
 
@@ -38,7 +38,10 @@ namespace
         return o;
     }
 
-    Bytes empty(const char (&type)[5]) { return sub4(type, Bytes()); }
+    Bytes empty(const char (&type)[5])
+    {
+        return sub4(type, Bytes());
+    }
 
     Bytes phase()
     {
@@ -61,7 +64,8 @@ namespace
         return b;
     }
 
-    Bytes actionHead(std::uint16_t type, std::uint32_t alias, std::uint32_t index, std::uint32_t start, std::uint32_t end)
+    Bytes actionHead(
+        std::uint16_t type, std::uint32_t alias, std::uint32_t index, std::uint32_t start, std::uint32_t end)
     {
         Bytes b;
         b.append(sub4("ANAM", Bytes().u16(type)));
@@ -174,7 +178,10 @@ namespace
         std::vector<std::string> mLog;
     };
 
-    SceneLine line(const std::string& text) { return SceneLine{ text, { "a/" + text + ".fuz" } }; }
+    SceneLine line(const std::string& text)
+    {
+        return SceneLine{ text, { "a/" + text + ".fuz" } };
+    }
 
     // three phases, one line in each, the speakers alternate
     Parsed threeLines()
@@ -273,8 +280,9 @@ namespace
         EXPECT_FALSE(decodeSceneState(
             encodeSceneState({ SceneSaveEntry{ kScene, 0, false, std::vector<std::uint8_t>(4097, 0) } }), back, error));
         // the same scene twice
-        EXPECT_FALSE(decodeSceneState(encodeSceneState({ SceneSaveEntry{ kScene, 0, false, {} }, SceneSaveEntry{ kScene, 1, false, {} } }),
-            back, error));
+        EXPECT_FALSE(decodeSceneState(
+            encodeSceneState({ SceneSaveEntry{ kScene, 0, false, {} }, SceneSaveEntry{ kScene, 1, false, {} } }), back,
+            error));
         // a count that claims more than the bytes hold (4 GiB of actions)
         const std::vector<std::uint8_t> claim = { 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF };
         EXPECT_FALSE(decodeSceneState(claim, back, error));
@@ -407,8 +415,10 @@ namespace
         {
             FakeEnv env;
             SceneRunner runner(p.mIndex, env);
-            EXPECT_EQ(runner.restoreState({ SceneSaveEntry{ kScene, 0, false, { 0, 0 } } }).mDropped, 1u); // 2 for 3 actions
-            EXPECT_EQ(runner.restoreState({ SceneSaveEntry{ kScene, 9, false, { 0, 0, 0 } } }).mDropped, 1u); // phase 9 of 3
+            EXPECT_EQ(
+                runner.restoreState({ SceneSaveEntry{ kScene, 0, false, { 0, 0 } } }).mDropped, 1u); // 2 for 3 actions
+            EXPECT_EQ(
+                runner.restoreState({ SceneSaveEntry{ kScene, 9, false, { 0, 0, 0 } } }).mDropped, 1u); // phase 9 of 3
             EXPECT_FALSE(runner.isPlaying(kScene));
         }
     }

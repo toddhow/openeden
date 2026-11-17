@@ -1,5 +1,6 @@
 // Task 0199: the crafting records of the installed Skyrim.esm (gated by OPENEDEN_SKYRIMSE_DATA, which names the Data
-// folder). Prints aggregates only. The numbers are those of an independent Python walker (task 0199 section 1); a COBJ with no CNAM (7) is not a recipe.
+// folder). Prints aggregates only. The numbers are those of an independent Python walker (task 0199 section 1); a COBJ
+// with no CNAM (7) is not a recipe.
 #include <game_skyrimse/crafting.hpp>
 
 #include <gtest/gtest.h>

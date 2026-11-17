@@ -36,12 +36,12 @@
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/crime_conditions.hpp>
 #include <game_skyrimse/follower_state.hpp>
+#include <game_skyrimse/location_conditions.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
-#include <game_skyrimse/speech.hpp>
 #include <game_skyrimse/scene.hpp>
-#include <game_skyrimse/location_conditions.hpp>
+#include <game_skyrimse/speech.hpp>
 #include <game_skyrimse/story.hpp>
 #include <game_skyrimse/vmad.hpp>
 
@@ -50,8 +50,8 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <memory>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <span>
@@ -229,8 +229,9 @@ namespace game_skyrimse
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
         /// Task 0261: any INFO by id (the topic is found through a map of all of them); null when unknown or deleted.
         [[nodiscard]] const DialogInfo* findInfo(FormId id) const;
-        /// Task 0261: false for a topic that sits in a branch (BNAM) whose starting topic is another one: such a topic is
-        /// only reached through the TCLT choices of an INFO, never from the list of topics. True for every other topic.
+        /// Task 0261: false for a topic that sits in a branch (BNAM) whose starting topic is another one: such a topic
+        /// is only reached through the TCLT choices of an INFO, never from the list of topics. True for every other
+        /// topic.
         [[nodiscard]] bool isBranchStart(FormId topic) const;
 
         /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
@@ -354,8 +355,8 @@ namespace game_skyrimse
         /// Task 0228: the speaker's level (the bribe cost is a gold sum per level); 0 when unknown.
         [[nodiscard]] std::uint16_t speakerLevel() const;
         void setCurrentWeather(FormId weather) { mWeather = weather; }
-        /// Task 0258: the crime rules' answers for GetCrimeGold (fn_459), CanPayCrimeGold (fn_497) and GetAlarmed (fn_61)
-        /// of the speaker. Not owned; null (the default): the fresh-game answers, as before.
+        /// Task 0258: the crime rules' answers for GetCrimeGold (fn_459), CanPayCrimeGold (fn_497) and GetAlarmed
+        /// (fn_61) of the speaker. Not owned; null (the default): the fresh-game answers, as before.
         void setCrimeSource(const CrimeConditionSource* source) { mCrimeSource = source; }
         /// Task 0243: the actor (its base record) that is the victim of the crime being remarked on: IsActorAVictim
         /// (fn_314) is true for the subject with this base. Told by a bark about a caught pickpocket or an assault, for
@@ -402,11 +403,12 @@ namespace game_skyrimse
         void setLocations(const LocationIndex* locations) { mLocations = locations; }
         /// The quest scripts' values before any script ran (fn_629). Null: unanswered.
         void setQuestVariables(const QuestVariables* variables) { mQuestVariables = variables; }
-        /// Task 0261: factions whose members listed with rank -1 (stored byte 255) ARE members for GetInFaction. The data
-        /// lists all 13 stewards in JobStewardFaction that way and the steward's lines test GetInFaction == 1, while the
-        /// hirelings' CurrentFollowerFaction at -1 is a placeholder (task 0239); the rule is per faction.
+        /// Task 0261: factions whose members listed with rank -1 (stored byte 255) ARE members for GetInFaction. The
+        /// data lists all 13 stewards in JobStewardFaction that way and the steward's lines test GetInFaction == 1,
+        /// while the hirelings' CurrentFollowerFaction at -1 is a placeholder (task 0239); the rule is per faction.
         void setRankMinusOneMembers(std::set<FormId> factions) { mRankMinusOneMembers = std::move(factions); }
-        /// Task 0261: a script's LIVE value of a quest variable (nullopt: none, the initial value is read). Main thread.
+        /// Task 0261: a script's LIVE value of a quest variable (nullopt: none, the initial value is read). Main
+        /// thread.
         using LiveQuestVariable = std::function<std::optional<float>(FormId quest, const std::string& name)>;
         void setLiveQuestVariable(LiveQuestVariable source) { mLiveQuestVariable = std::move(source); }
         /// Task 0217: what scripts stored on locations (Location.SetKeywordData); with it fn_606 and fn_651 read it,
@@ -434,8 +436,8 @@ namespace game_skyrimse
         using CurrentPackageLookup = std::function<std::optional<FormId>(FormId reference)>;
         void setCurrentPackageLookup(CurrentPackageLookup lookup) { mCurrentPackage = std::move(lookup); }
         /// Task 0189: whether the speaker's base is a merchant (a vendor faction with a chest). GetOffersServicesNow is
-        /// then true for it whatever its current package says: the innkeepers' packages (WhiterunInnkeeperPackage, flags
-        /// 0x2000) do not carry the "offers services" bit the other traders' do, yet their barter line must show.
+        /// then true for it whatever its current package says: the innkeepers' packages (WhiterunInnkeeperPackage,
+        /// flags 0x2000) do not carry the "offers services" bit the other traders' do, yet their barter line must show.
         /// RECALLED-VERIFY. Null function (the default): the package flags decide alone.
         using VendorServicesLookup = std::function<bool(FormId speakerBase)>;
         void setVendorServicesLookup(VendorServicesLookup lookup) { mVendorServices = std::move(lookup); }
@@ -448,8 +450,8 @@ namespace game_skyrimse
 
         /// Task 0187: the story event the conditions of a story node are evaluated against (fn_576 GetEventData).
         void setStoryEvent(const StoryEvent* event) { mStoryEvent = event; }
-        /// Task 0211: evaluate for a candidate LOCATION (a location alias that finds a match): the conditions that run "on
-        /// subject" ask about this location. kNullFormId (the default) restores the speaker as the subject.
+        /// Task 0211: evaluate for a candidate LOCATION (a location alias that finds a match): the conditions that run
+        /// "on subject" ask about this location. kNullFormId (the default) restores the speaker as the subject.
         void setSubjectLocation(FormId location) { mSubjectLocation = location; }
         [[nodiscard]] FormId locationSubject() const override { return mSubjectLocation; }
         [[nodiscard]] FormId resolveLocationForm(std::uint32_t stored) const override;
@@ -462,13 +464,16 @@ namespace game_skyrimse
         [[nodiscard]] FormId editorLocationOfSubject(conditions::Subject subject) const override; // task 0230
         /// The editor location of a reference / of an actor known by its base (see the .cpp for the order of sources).
         [[nodiscard]] FormId editorLocationOf(FormId reference, FormId base) const;
-        /// The story filler's view of the aliases it has filled so far in the quest being planned (empty: the saved state
-        /// only). Set around the evaluation of a location alias's conditions.
+        /// The story filler's view of the aliases it has filled so far in the quest being planned (empty: the saved
+        /// state only). Set around the evaluation of a location alias's conditions.
         void setAliasView(std::function<FormId(std::uint32_t)> view) { mAliasView = std::move(view); }
         /// The location of a reference no location lists (its cell's location); empty: none.
         void setReferenceLocation(std::function<FormId(FormId)> lookup) { mReferenceLocation = std::move(lookup); }
         /// Task 0194: fn_550 reads the scene runner through this lookup (scene, action index).
-        void setSceneActionLookup(std::function<bool(FormId, std::uint32_t)> lookup) { mSceneAction = std::move(lookup); }
+        void setSceneActionLookup(std::function<bool(FormId, std::uint32_t)> lookup)
+        {
+            mSceneAction = std::move(lookup);
+        }
         [[nodiscard]] bool sceneActionComplete(FormId scene, std::uint32_t actionIndex) const override
         {
             return mSceneAction && mSceneAction(scene, actionIndex);

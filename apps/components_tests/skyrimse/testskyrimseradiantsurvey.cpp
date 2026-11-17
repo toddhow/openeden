@@ -145,7 +145,8 @@ namespace
                   << "; exterior " << exteriorCells << " with XLCN " << exteriorWithLocation << " ("
                   << locationsOfExterior.size() << " distinct locations)\n";
         {
-            // is the stored pair Y then X? count the cells whose own location (or an ancestor) lists the square both ways
+            // is the stored pair Y then X? count the cells whose own location (or an ancestor) lists the square both
+            // ways
             std::uint64_t listedYx = 0, listedXy = 0, listedNeither = 0;
             for (const XlcnCell& c : exteriorWithXlcn)
             {
@@ -158,8 +159,9 @@ namespace
                 else
                     ++listedNeither;
             }
-            std::cout << "SKYRIMSE-RAD LCEC order check over " << exteriorWithXlcn.size() << " cells with XLCN: Y-then-X agrees "
-                      << listedYx << ", swapped agrees " << listedXy << ", neither " << listedNeither << "\n";
+            std::cout << "SKYRIMSE-RAD LCEC order check over " << exteriorWithXlcn.size()
+                      << " cells with XLCN: Y-then-X agrees " << listedYx << ", swapped agrees " << listedXy
+                      << ", neither " << listedNeither << "\n";
         }
         std::cout << "SKYRIMSE-RAD LCTN records " << lctn.mRecords << "\n";
         for (const auto& [k, v] : lctn.mRecordsWith)
@@ -194,14 +196,16 @@ namespace
                 radiantNames.insert(q->mCommon.mEditorId);
             if (q->mCommon.mEditorId == "BQ01" || q->mCommon.mEditorId == "DLC1RV02")
             {
-                std::cout << "SKYRIMSE-RAD ADIA sample " << q->mCommon.mEditorId << " aliases " << q->mAliases.size() << "\n";
+                std::cout << "SKYRIMSE-RAD ADIA sample " << q->mCommon.mEditorId << " aliases " << q->mAliases.size()
+                          << "\n";
                 for (const QuestAlias& a : q->mAliases)
                 {
                     std::string fns;
                     for (const survey::Ctda& c : a.mConditions)
                         fns += " fn" + std::to_string(c.mFunction) + "/run" + std::to_string(c.mRunOn);
-                    std::cout << "SKYRIMSE-RAD    alias " << a.mId << " " << a.mName << " " << (a.mIsLocation ? "LOC " : "REF ")
-                              << fillName(a.mFill) << " flags " << a.mFlags << fns << "\n";
+                    std::cout << "SKYRIMSE-RAD    alias " << a.mId << " " << a.mName << " "
+                              << (a.mIsLocation ? "LOC " : "REF ") << fillName(a.mFill) << " flags " << a.mFlags << fns
+                              << "\n";
                 }
             }
             if (q->mEvent == "KILL")
@@ -227,7 +231,8 @@ namespace
             }
         }
         {
-            // the story nodes that start some quests worth a look: the node chain and the keyword or location it asks for
+            // the story nodes that start some quests worth a look: the node chain and the keyword or location it asks
+            // for
             const std::set<std::string> wanted = { "CR09", "DLC1RV02", "MGR20", "TGRGF", "WE06", "DLC2TTR1",
                 "FreeformHighHrothgarA", "FreeformOldHroldanB", "DLC1RH02", "BQ01", "Favor001" };
             for (const FormId id : quests.questIds())
@@ -235,7 +240,8 @@ namespace
                 const QuestRecord* q = quests.quest(id);
                 if (wanted.count(q->mCommon.mEditorId) == 0)
                     continue;
-                std::cout << "SKYRIMSE-RAD node chain of " << q->mCommon.mEditorId << " (" << std::hex << id << std::dec << ")\n";
+                std::cout << "SKYRIMSE-RAD node chain of " << q->mCommon.mEditorId << " (" << std::hex << id << std::dec
+                          << ")\n";
                 for (const FormId nid : story.allNodeIds())
                 {
                     const StoryNode* n = story.node(nid);
@@ -244,10 +250,11 @@ namespace
                         continue;
                     for (const StoryNode* at = n; at != nullptr; at = story.node(at->mParent))
                     {
-                        std::cout << "SKYRIMSE-RAD    node " << std::hex << at->mCommon.mId << std::dec << " " << at->mCommon.mEditorId
-                                  << " event '" << at->mEvent << "' conds";
+                        std::cout << "SKYRIMSE-RAD    node " << std::hex << at->mCommon.mId << std::dec << " "
+                                  << at->mCommon.mEditorId << " event '" << at->mEvent << "' conds";
                         for (const survey::Ctda& c : at->mConditions)
-                            std::cout << " fn" << c.mFunction << "(" << std::hex << c.mParam1 << "," << c.mParam2 << std::dec << ")";
+                            std::cout << " fn" << c.mFunction << "(" << std::hex << c.mParam1 << "," << c.mParam2
+                                      << std::dec << ")";
                         std::cout << "\n";
                         if (at->mParent == kNullFormId)
                             break;

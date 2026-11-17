@@ -493,8 +493,8 @@ namespace
 
     TEST_F(PowerCombat, onlyPowersAndLesserPowersAreListedWithWhatTheRuntimeDoesWithThem)
     {
-        const std::vector<SkyrimCombat::RacePower> list = mCombat.racePowers(
-            { kAbility, kPowerHeal, kPowerNight, kPowerRage, kPowerCry, kPlainSpell, kUnknown });
+        const std::vector<SkyrimCombat::RacePower> list
+            = mCombat.racePowers({ kAbility, kPowerHeal, kPowerNight, kPowerRage, kPowerCry, kPlainSpell, kUnknown });
         ASSERT_EQ(list.size(), 4u);
         EXPECT_EQ(list[0].mId, kPowerHeal);
         EXPECT_EQ(list[0].mSupport, SkyrimCombat::PowerSupport::Works);

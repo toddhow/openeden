@@ -1,5 +1,6 @@
-// Task 0244: the Skyrim-style combat HUD's numbers (game_skyrimse/hud_style.hpp): the boss rule, which actors get a bar,
-// the secondary bars, the top bar and the script package. Written from the header and the task spec first; no game data.
+// Task 0244: the Skyrim-style combat HUD's numbers (game_skyrimse/hud_style.hpp): the boss rule, which actors get a
+// bar, the secondary bars, the top bar and the script package. Written from the header and the task spec first; no game
+// data.
 #include <game_skyrimse/hud.hpp>
 #include <game_skyrimse/hud_style.hpp>
 
@@ -60,8 +61,8 @@ namespace
 
     TEST(HudStyleSelect, keepsTheEngagedLivingActorsInRangeNearestFirst)
     {
-        std::vector<ActorSample> in = { sample(1, 300, 0), sample(2, 100, 0), sample(3, 200, 0, false),
-            sample(4, 9000, 0), sample(5, 50, 0) };
+        std::vector<ActorSample> in
+            = { sample(1, 300, 0), sample(2, 100, 0), sample(3, 200, 0, false), sample(4, 9000, 0), sample(5, 50, 0) };
         in[4].mDead = true;
         std::vector<ActorSample> out;
         selectBars(0, 0, 0, in, SelectOptions{}, out);
@@ -98,8 +99,8 @@ namespace
     TEST(HudStyleSelect, aPositionThatIsNotFiniteNeverPasses)
     {
         const double nan = std::numeric_limits<double>::quiet_NaN();
-        std::vector<ActorSample> in = { sample(1, nan, 0), sample(2, 0, std::numeric_limits<double>::infinity()),
-            sample(3, 10, 0) };
+        std::vector<ActorSample> in
+            = { sample(1, nan, 0), sample(2, 0, std::numeric_limits<double>::infinity()), sample(3, 10, 0) };
         std::vector<ActorSample> out;
         selectBars(0, 0, 0, in, SelectOptions{}, out);
         ASSERT_EQ(out.size(), 1u);

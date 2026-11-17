@@ -84,8 +84,8 @@ namespace
             Bytes misc = sub4("EDID", Bytes().zstring("Pebble"));
             misc.append(sub4("DATA", Bytes().u32(25).f32(0.5f)));
             all.append(group4(Content::fourCC("MISC"), 0, record4("MISC", 0, kMisc, misc)));
-            all.append(group4(Content::fourCC("WEAP"), 0,
-                record4("WEAP", 0, kWeap, sub4("DATA", Bytes().u32(25).f32(9.f).u16(7)))));
+            all.append(group4(
+                Content::fourCC("WEAP"), 0, record4("WEAP", 0, kWeap, sub4("DATA", Bytes().u32(25).f32(9.f).u16(7)))));
             Bytes gold = sub4("DATA", Bytes().u32(1).f32(0.f));
             all.append(group4(Content::fourCC("MISC"), 0, record4("MISC", 0, 0x0000000F, gold)));
             Bytes cont;
@@ -93,10 +93,12 @@ namespace
             cont.append(sub4("CNTO", Bytes().u32(kWeap).u32(1)));
             all.append(group4(Content::fourCC("CONT"), 0, record4("CONT", 0, kCont, cont)));
             // the file is named test.esp: a plugin finds its own load order slot by its file name
-            mDir = std::filesystem::temp_directory_path() / (std::string("oe_inv_") + testing::UnitTest::GetInstance()->current_test_info()->name());
+            mDir = std::filesystem::temp_directory_path()
+                / (std::string("oe_inv_") + testing::UnitTest::GetInstance()->current_test_info()->name());
             std::filesystem::create_directories(mDir);
             mPath = mDir / "test.esp";
-            std::ofstream(mPath, std::ios::binary).write(all.str().data(), static_cast<std::streamsize>(all.str().size()));
+            std::ofstream(mPath, std::ios::binary)
+                .write(all.str().data(), static_cast<std::streamsize>(all.str().size()));
 
             Hooks hooks;
             hooks.mInputs = [this](Inputs& out) {
@@ -209,7 +211,8 @@ namespace
         EXPECT_DOUBLE_EQ(mBindings.call("weight", { str(formatId(kWeap)) }).value.number, 9.0);
         EXPECT_EQ(mBindings.call("value", { str(formatId(kMisc)) }).value.integer, 25);
         // a form with no name shows its id
-        EXPECT_EQ(mBindings.call("name", { str(formatId(kSelf | 0x777)) }).value.text, "<" + formatId(kSelf | 0x777) + ">");
+        EXPECT_EQ(
+            mBindings.call("name", { str(formatId(kSelf | 0x777)) }).value.text, "<" + formatId(kSelf | 0x777) + ">");
     }
 
     TEST_F(Fixture, aTransferThroughTheMutateFunctionMovesItemsAndMovesTheRevision)

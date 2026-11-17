@@ -3,8 +3,8 @@
 
 // Task 0194 (milestone M-S6, scenes): the lines a game pack's quest scenes make its actors say. The pack queues a line
 // (subtitle text and voice files); this plays them: per actor, one line after the other, each line's voice files one
-// after the other, the subtitle shown when the line starts. Pure over an opaque actor key and a `Sink`, so a test drives
-// it with a fake. Main thread only; allocation: only when a line is added.
+// after the other, the subtitle shown when the line starts. Pure over an opaque actor key and a `Sink`, so a test
+// drives it with a fake. Main thread only; allocation: only when a line is added.
 
 #include "neutraldialogue.hpp"
 

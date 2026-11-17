@@ -77,9 +77,8 @@ namespace game_skyrimse::menus
 
     /// Reads the LSCR records of one plugin. False with `out.mWalkError` for a plugin that is not Skyrim SE's or whose
     /// walk failed.
-    [[nodiscard]] bool parseLoadingScreens(
-        const Content::Plugin& plugin, const LoadOrder& order, const LoadingScreenLimits& limits,
-        LoadingScreenRecords& out);
+    [[nodiscard]] bool parseLoadingScreens(const Content::Plugin& plugin, const LoadOrder& order,
+        const LoadingScreenLimits& limits, LoadingScreenRecords& out);
 
     /// The screens of a load order: a later record of the same form id replaces an earlier one, a deleted one removes
     /// it. Add plugins in load order (the plugin index is the position among the calls).

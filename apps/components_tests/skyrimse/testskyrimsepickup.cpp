@@ -1,5 +1,5 @@
-// Task 0208: the pure pickup and pickpocket rules (pickup.hpp). Written from the spec before the code and run red against
-// a stub.
+// Task 0208: the pure pickup and pickpocket rules (pickup.hpp). Written from the spec before the code and run red
+// against a stub.
 #include <game_skyrimse/pickup.hpp>
 
 #include <gtest/gtest.h>

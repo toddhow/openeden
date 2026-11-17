@@ -1,9 +1,9 @@
 #ifndef OPENEDEN_COMPONENTS_SCRIPT_PAPYRUS_PAPYRUSRUNTIME_H
 #define OPENEDEN_COMPONENTS_SCRIPT_PAPYRUS_PAPYRUSRUNTIME_H
 
-#include <functional>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
@@ -171,7 +171,8 @@ namespace ScriptPapyrus
         /// are keyed by (quest, alias). The resolver maps a handle to its (quest, alias) so that `alias as SomeScript`
         /// finds the alias's script of that class, as it does for a quest or a reference. Without it (the default) a
         /// cast of an alias handle finds nothing, as before.
-        using AliasResolver = std::function<bool(std::uint32_t handle, openeden::script::FormId& quest, std::uint32_t& alias)>;
+        using AliasResolver
+            = std::function<bool(std::uint32_t handle, openeden::script::FormId& quest, std::uint32_t& alias)>;
         virtual void setAliasResolver(AliasResolver resolver) { (void)resolver; }
     };
 

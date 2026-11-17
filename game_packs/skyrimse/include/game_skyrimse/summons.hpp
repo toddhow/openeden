@@ -25,8 +25,8 @@
 
 namespace game_skyrimse
 {
-    /// `[extension.skyrimse] summons` (off) turns the effects on (it needs `combat spell delivery`); `summons max` is how
-    /// many things one caster keeps (default kDefaultMaxSummons).
+    /// `[extension.skyrimse] summons` (off) turns the effects on (it needs `combat spell delivery`); `summons max` is
+    /// how many things one caster keeps (default kDefaultMaxSummons).
     inline constexpr std::string_view kSummonsKey = "summons";
     inline constexpr std::string_view kSummonsMaxKey = "summons max";
     inline constexpr std::string_view kSummonsTestKillKey = "summons test kill";
@@ -46,7 +46,8 @@ namespace game_skyrimse
     inline constexpr std::size_t kDefaultMaxSummons = 1;
     /// The ledger never holds more than this across all casters.
     inline constexpr std::size_t kMaxSummonEntries = 64;
-    /// Where a summon appears: this far in front of the caster and this far above its feet (OURS; it falls to the floor).
+    /// Where a summon appears: this far in front of the caster and this far above its feet (OURS; it falls to the
+    /// floor).
     inline constexpr double kSummonSpawnDistance = 150.0;
     inline constexpr double kSummonSpawnRise = 8.0;
     /// A summon with no duration lives this long (a duration of 0 in the data would mean "instant").
@@ -76,7 +77,8 @@ namespace game_skyrimse
         openeden::sdk::game::WorldId mCorpse = openeden::sdk::game::kNoWorldId;
         bool mArrived = false; ///< the core told the pack about the actor
         openeden::sdk::game::ActorHandle mHandle; ///< valid once it arrived
-        float mDeadAt = -1.f; ///< the combat clock when it was seen dead (a Summoned one is removed kSummonDeadLinger later)
+        float mDeadAt
+            = -1.f; ///< the combat clock when it was seen dead (a Summoned one is removed kSummonDeadLinger later)
     };
 
     /// What the pack asks of the world; each is set by the glue that owns the world source service. A missing hook
@@ -112,7 +114,8 @@ namespace game_skyrimse
     [[nodiscard]] bool reanimateLevelAllowed(std::uint16_t targetLevel, float magnitude);
 
     /// Is the corpse at (cx, cy) in front of the caster at (x, y) facing `heading`, within `reach`? The dot product of
-    /// the caster's facing with the direction to the corpse must be at least `minDot`; a corpse on the same spot counts.
+    /// the caster's facing with the direction to the corpse must be at least `minDot`; a corpse on the same spot
+    /// counts.
     [[nodiscard]] bool corpseInSights(
         double x, double y, double heading, double cx, double cy, double reach, double minDot);
 

@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cmath>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 
 // The inventory service and its bindings: see the header (task 0182).
@@ -189,9 +189,9 @@ namespace game_skyrimse::inventory
                     // what was read stays: the table is then partial, never undefined
                 }
                 mBuilt = std::move(table);
-                mMillis = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - started)
-                                                         .count());
+                mMillis = static_cast<std::uint64_t>(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started)
+                        .count());
                 mState.store(2, std::memory_order_release);
             });
             return false;
@@ -202,8 +202,8 @@ namespace game_skyrimse::inventory
         mTable = std::move(mBuilt);
         mReady = true;
         if (mHooks.mLog)
-            mHooks.mLog("INV item table built on a worker in " + std::to_string(mMillis) + " ms: "
-                + std::to_string(mTable.itemCount()) + " items, " + std::to_string(mTable.containerCount())
+            mHooks.mLog("INV item table built on a worker in " + std::to_string(mMillis)
+                + " ms: " + std::to_string(mTable.itemCount()) + " items, " + std::to_string(mTable.containerCount())
                 + " containers, " + std::to_string(mTable.leveledCount()) + " leveled lists, "
                 + std::to_string(mTable.oddSubrecords()) + " odd subrecords");
         return true;
@@ -285,8 +285,8 @@ namespace game_skyrimse::inventory
         if (status != EquipStatus::Ok && mHooks.mLog)
             mHooks.mLog("INV equip " + formatId(item) + " refused: " + std::string(equipStatusName(status)));
         else if (mHooks.mLog)
-            mHooks.mLog("INV equip " + formatId(item) + ": ok, " + std::to_string(mModel.equipped().size())
-                + " equipped");
+            mHooks.mLog(
+                "INV equip " + formatId(item) + ": ok, " + std::to_string(mModel.equipped().size()) + " equipped");
         return status;
     }
 
@@ -384,20 +384,20 @@ namespace game_skyrimse::inventory
         static const BindingType transferParams[]
             = { BindingType::String, BindingType::String, BindingType::String, BindingType::Int32 };
 
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, bool hasResult,
-                             BindingType result, BindingAccess access, Fn::Body body,
-                             BindingShape resultShape = BindingShape::Single) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = hasResult;
-            f.result = result;
-            f.access = access;
-            f.handler = m.mHandlers.back().get();
-            f.resultShape = resultShape;
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, bool hasResult, BindingType result,
+                  BindingAccess access, Fn::Body body, BindingShape resultShape = BindingShape::Single) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = hasResult;
+                  f.result = result;
+                  f.access = access;
+                  f.handler = m.mHandlers.back().get();
+                  f.resultShape = resultShape;
+                  m.mFunctions.push_back(f);
+              };
 
         const auto owner = [](const BindingValue& v, std::uint64_t& out) { return parseOwner(v.text, out); };
         const auto itemOf = [](const BindingValue& v, FormId& out) {
@@ -426,16 +426,16 @@ namespace game_skyrimse::inventory
             r.value = integer(static_cast<std::int32_t>(self->mModel.revision() & 0x7FFFFFFF));
             return r;
         });
-        add("known", s1, true, BindingType::Bool, BindingAccess::Read,
-            [self, owner](std::span<const BindingValue> a) {
-                std::uint64_t o = 0;
-                if (!owner(a[0], o))
-                    return fail(BindingStatus::BadArgument, "not an owner id");
-                BindingResult r = ok();
-                r.value = boolean(self->mModel.hasOwner(o));
-                return r;
-            });
-        add("items", s1, true, kStr, BindingAccess::Read,
+        add("known", s1, true, BindingType::Bool, BindingAccess::Read, [self, owner](std::span<const BindingValue> a) {
+            std::uint64_t o = 0;
+            if (!owner(a[0], o))
+                return fail(BindingStatus::BadArgument, "not an owner id");
+            BindingResult r = ok();
+            r.value = boolean(self->mModel.hasOwner(o));
+            return r;
+        });
+        add(
+            "items", s1, true, kStr, BindingAccess::Read,
             [self, &m, owner, nameOf](std::span<const BindingValue> a) {
                 std::uint64_t o = 0;
                 if (!owner(a[0], o))

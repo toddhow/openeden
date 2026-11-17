@@ -342,14 +342,17 @@ namespace
         EXPECT_DOUBLE_EQ(plan.value.elements[2].number, 55.0);
         EXPECT_DOUBLE_EQ(plan.value.elements[4].number, 5.0);
         EXPECT_EQ(mBindings.call("plan_ref", { i32(world()), str("01000999"), dbl(0), dbl(0) }).value.count, 0u);
-        EXPECT_EQ(std::string(mBindings.call("refusal_ref", { i32(world()), flag(false), str("01000600"), dbl(0), dbl(0) })
-                                  .value.text),
+        EXPECT_EQ(
+            std::string(mBindings.call("refusal_ref", { i32(world()), flag(false), str("01000600"), dbl(0), dbl(0) })
+                            .value.text),
             "");
-        EXPECT_EQ(std::string(mBindings.call("refusal_ref", { i32(world()), flag(true), str("01000600"), dbl(0), dbl(0) })
-                                  .value.text),
+        EXPECT_EQ(
+            std::string(mBindings.call("refusal_ref", { i32(world()), flag(true), str("01000600"), dbl(0), dbl(0) })
+                            .value.text),
             "interior");
-        EXPECT_EQ(std::string(mBindings.call("refusal_ref", { i32(world()), flag(false), str("zz"), dbl(0), dbl(0) })
-                                  .value.text),
+        EXPECT_EQ(
+            std::string(
+                mBindings.call("refusal_ref", { i32(world()), flag(false), str("zz"), dbl(0), dbl(0) }).value.text),
             "unknown");
     }
 
@@ -371,7 +374,8 @@ namespace
         ASSERT_TRUE(env.mMap->declare(bindings).ok);
         EXPECT_TRUE(bindings.mFunctions.count("interior_world"));
         EXPECT_EQ(bindings.call("interior_world", { str("TheMare") }).value.integer, static_cast<std::int32_t>(kWorld));
-        EXPECT_EQ(bindings.call("interior_world", { str("TheCellar") }).value.integer, static_cast<std::int32_t>(kChild));
+        EXPECT_EQ(
+            bindings.call("interior_world", { str("TheCellar") }).value.integer, static_cast<std::int32_t>(kChild));
         EXPECT_EQ(bindings.call("interior_world", { str("Nowhere") }).value.integer, 0);
         EXPECT_EQ(bindings.call("interior_world", { str("") }).value.integer, 0);
         EXPECT_EQ(bindings.mFunctions["interior_world"].access, openeden::sdk::BindingAccess::Read);
@@ -740,7 +744,8 @@ namespace
         EXPECT_FALSE(tolerant("actor.isinfaction"));
     }
 
-    // ---- GetOwningQuest() as a quest's own script (the carriage topics' fragments) -----------------------------------
+    // ---- GetOwningQuest() as a quest's own script (the carriage topics' fragments)
+    // -----------------------------------
 
     constexpr FormId kOwnerQuest = 0x01000E01;
     constexpr FormId kOwnerInfo = 0x01000E02;

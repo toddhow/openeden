@@ -330,8 +330,8 @@ namespace game_skyrimse
         FormId current = world;
         for (int hops = 0; hops < 8 && current != kNullFormId; ++hops)
         {
-            const auto first = mLands.lower_bound(LandKey{ current, std::numeric_limits<std::int32_t>::min(),
-                std::numeric_limits<std::int32_t>::min() });
+            const auto first = mLands.lower_bound(
+                LandKey{ current, std::numeric_limits<std::int32_t>::min(), std::numeric_limits<std::int32_t>::min() });
             if (first != mLands.end() && std::get<0>(first->first) == current)
                 best = current;
             const auto w = mWorlds.find(current);
@@ -342,8 +342,8 @@ namespace game_skyrimse
         if (best == kNullFormId)
             return false;
         bool any = false;
-        for (auto it = mLands.lower_bound(LandKey{ best, std::numeric_limits<std::int32_t>::min(),
-                 std::numeric_limits<std::int32_t>::min() });
+        for (auto it = mLands.lower_bound(
+                 LandKey{ best, std::numeric_limits<std::int32_t>::min(), std::numeric_limits<std::int32_t>::min() });
              it != mLands.end() && std::get<0>(it->first) == best; ++it)
         {
             const std::int32_t x = std::get<1>(it->first);
@@ -411,9 +411,7 @@ namespace game_skyrimse
                 b = 130;
                 shade = 1.0;
             }
-            const auto channel = [&](double v) {
-                return static_cast<std::int32_t>(std::clamp(v * shade, 0.0, 255.0));
-            };
+            const auto channel = [&](double v) { return static_cast<std::int32_t>(std::clamp(v * shade, 0.0, 255.0)); };
             out.push_back((channel(r) << 16) | (channel(g) << 8) | channel(b));
         }
         return true;

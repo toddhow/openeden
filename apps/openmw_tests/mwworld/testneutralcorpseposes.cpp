@@ -109,7 +109,8 @@ namespace
         NeutralCorpsePoses store;
         EXPECT_FALSE(store.put("", 1, names(3), states(3)));
         EXPECT_FALSE(store.put("skyrimse", 1, names(0), states(0)));
-        EXPECT_FALSE(store.put("skyrimse", 1, names(kNeutralSaveMaxPoseBones + 1), states(kNeutralSaveMaxPoseBones + 1)));
+        EXPECT_FALSE(
+            store.put("skyrimse", 1, names(kNeutralSaveMaxPoseBones + 1), states(kNeutralSaveMaxPoseBones + 1)));
         EXPECT_FALSE(store.put("skyrimse", 1, names(3), states(2)));
         std::vector<std::string> longName = names(3);
         longName[1] = std::string(kNeutralSaveMaxPoseName + 1, 'x');
@@ -229,8 +230,8 @@ namespace
 
     TEST(CorpsePoseSave, theWriterSortsAndDropsDuplicates)
     {
-        const NeutralSaveState state
-            = stateWith({ poseOf("skyrimse", 30), poseOf("skyrimse", 10), poseOf("skyrimse", 30), poseOf("fallout4", 5) });
+        const NeutralSaveState state = stateWith(
+            { poseOf("skyrimse", 30), poseOf("skyrimse", 10), poseOf("skyrimse", 30), poseOf("fallout4", 5) });
         NeutralSaveState back;
         std::string error;
         ASSERT_TRUE(decodeNeutralSave(encodeNeutralSave(state), back, error)) << error;
@@ -308,7 +309,8 @@ namespace
         const std::vector<std::byte> bytes = goodBytes();
         ASSERT_TRUE(decodes(bytes));
         for (std::size_t n = 0; n < bytes.size(); ++n)
-            EXPECT_FALSE(decodes(std::vector<std::byte>(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(n)))) << n;
+            EXPECT_FALSE(decodes(std::vector<std::byte>(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(n))))
+                << n;
     }
 
     TEST(CorpsePoseSave, bytesAfterTheEndAreRefused)

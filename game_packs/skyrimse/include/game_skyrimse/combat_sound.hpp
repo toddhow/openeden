@@ -61,15 +61,13 @@ namespace game_skyrimse
         void flush(openeden::sdk::game::CombatRequestWriter& writer);
 
         /// The weapon is drawn, once per subject.
-        void weaponDraw(
-            openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::CombatSubject who,
+        void weaponDraw(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::CombatSubject who,
             const WeaponRecord* w);
         /// A melee or arrow hit (see HitSoundInput); the sound plays at the victim.
         void hit(openeden::sdk::game::CombatRequestWriter& writer, const HitSoundInput& input);
         /// A bow is drawn / lets go. A weapon with its own attack sound (a crossbow) uses it for the release.
         void bowNock(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::CombatSubject who);
-        void bowRelease(
-            openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::CombatSubject who,
+        void bowRelease(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::CombatSubject who,
             const WeaponRecord* w);
 
         [[nodiscard]] std::size_t played() const { return mPlayed; }

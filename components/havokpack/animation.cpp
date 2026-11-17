@@ -321,8 +321,8 @@ namespace HavokPack
                 {
                     clip.mTrackNames.resize(notes.mSize);
                     for (std::uint32_t k = 0; k < notes.mSize; ++k)
-                        if (const auto name = file.pointerAt(
-                                { notes.mData->mSection, notes.mData->mOffset + AnnotationTrackSize * k }))
+                        if (const auto name
+                            = file.pointerAt({ notes.mData->mSection, notes.mData->mOffset + AnnotationTrackSize * k }))
                             clip.mTrackNames[k] = std::string(file.cstring(*name));
                 }
             }

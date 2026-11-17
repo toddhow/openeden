@@ -113,7 +113,8 @@ namespace MWPhysics
         std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
     {
         out = {};
-        // Task 0259: a creature's clip may carry its folder, `werewolfbeast::ww_attackrightfast`; each part is a plain name.
+        // Task 0259: a creature's clip may carry its folder, `werewolfbeast::ww_attackrightfast`; each part is a plain
+        // name.
         const std::size_t folderEnd = clip.find("::");
         const bool nameOk = folderEnd == std::string_view::npos
             ? validClipName(clip)
@@ -763,17 +764,15 @@ namespace MWPhysics
         CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r)
     {
         NeutralCombatBridge& b = mBridge;
-        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z)
-            && std::isfinite(r.heading) && std::isfinite(r.pitch) && std::isfinite(r.speed)
-            && std::isfinite(r.gravity) && std::isfinite(r.range) && std::isfinite(r.stickDepth)
-            && std::isfinite(r.stickSeconds);
+        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z) && std::isfinite(r.heading)
+            && std::isfinite(r.pitch) && std::isfinite(r.speed) && std::isfinite(r.gravity) && std::isfinite(r.range)
+            && std::isfinite(r.stickDepth) && std::isfinite(r.stickSeconds);
         if (mSink == nullptr || !owner.valid() || !finite || !(r.speed > 0.f && r.speed <= kMaxProjectileSpeed)
             || !(r.gravity >= 0.f && r.gravity <= kMaxProjectileGravity)
             || !(r.range > 0.f && r.range <= kMaxProjectileRange) || !(std::abs(r.pitch) < kHalfPi)
             || !(r.stickDepth >= 0.f && r.stickDepth <= kMaxStickDepth)
             || !(r.stickSeconds >= 0.f && r.stickSeconds <= kMaxStickSeconds) || !validModelPath(r.model)
-            || (!owner.player && b.mActors.keyOfHandle(owner.actor) == nullptr)
-            || b.mShots.size() >= kMaxProjectiles)
+            || (!owner.player && b.mActors.keyOfHandle(owner.actor) == nullptr) || b.mShots.size() >= kMaxProjectiles)
         {
             ++b.mStats.mProjectilesRefused;
             return false;
@@ -788,8 +787,8 @@ namespace MWPhysics
         const double heading = static_cast<double>(r.heading);
         const double pitch = static_cast<double>(r.pitch);
         const double speed = static_cast<double>(r.speed);
-        const NeutralProjectile::Vec direction{ std::sin(heading) * std::cos(pitch), std::cos(heading) * std::cos(pitch),
-            std::sin(pitch) };
+        const NeutralProjectile::Vec direction{ std::sin(heading) * std::cos(pitch),
+            std::cos(heading) * std::cos(pitch), std::sin(pitch) };
         shot.mVelocity = { direction.x * speed, direction.y * speed, direction.z * speed };
         shot.mGravity = r.gravity;
         shot.mRangeLeft = r.range;
@@ -880,8 +879,7 @@ namespace MWPhysics
     {
         return guarded([&] { return doPlaySound(request); });
     }
-    bool NeutralCombatBridge::Writer::clipEventTime(
-        std::string_view clip, bool perSex, ClipEventKind kind, float& out)
+    bool NeutralCombatBridge::Writer::clipEventTime(std::string_view clip, bool perSex, ClipEventKind kind, float& out)
     {
         return guarded([&] { return doClipEventTime(clip, perSex, kind, out); });
     }
@@ -1004,8 +1002,8 @@ namespace MWPhysics
     {
         NeutralCombatBridge& b = mBridge;
         out = {};
-        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z)
-            && std::isfinite(r.heading) && std::isfinite(r.pitch) && std::isfinite(r.range);
+        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z) && std::isfinite(r.heading)
+            && std::isfinite(r.pitch) && std::isfinite(r.range);
         if (mSink == nullptr || mWorld == nullptr || !from.valid() || !finite
             || !(r.range > 0.f && r.range <= kMaxProjectileRange) || !(std::abs(r.pitch) < kHalfPi)
             || (!from.player && b.mActors.keyOfHandle(from.actor) == nullptr))
@@ -1059,8 +1057,8 @@ namespace MWPhysics
     {
         NeutralCombatBridge& b = mBridge;
         openeden::sdk::game::SubjectState state;
-        const bool replaces = std::any_of(
-            b.mEffects.begin(), b.mEffects.end(), [&](const Effect& e) { return e.mToken == r.token; });
+        const bool replaces
+            = std::any_of(b.mEffects.begin(), b.mEffects.end(), [&](const Effect& e) { return e.mToken == r.token; });
         if (mSink == nullptr || mWorld == nullptr || !subject.valid() || r.model.empty() || !validModelPath(r.model)
             || !std::isfinite(r.heightOffset) || (!subject.player && b.mActors.keyOfHandle(subject.actor) == nullptr)
             || (!replaces && b.mEffects.size() >= openeden::sdk::game::kMaxShownEffects)

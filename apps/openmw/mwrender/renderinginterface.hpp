@@ -5,8 +5,8 @@
 #include <memory>
 #include <span>
 #include <string>
-#include <vector>
 #include <string_view>
+#include <vector>
 
 #include <components/havokpack/clipevents.hpp>
 
@@ -117,8 +117,8 @@ namespace MWRender
             return false;
         }
         /// Task 0263: the pose the actor's ragdoll driver drew last (the saved form). False when no driver has drawn.
-        virtual bool neutralRagdollDrivenPose(
-            const MWWorld::Ptr& /*ptr*/, std::vector<std::string>& /*names*/, std::vector<MWPhysics::RagdollBoneState>& /*states*/)
+        virtual bool neutralRagdollDrivenPose(const MWWorld::Ptr& /*ptr*/, std::vector<std::string>& /*names*/,
+            std::vector<MWPhysics::RagdollBoneState>& /*states*/)
         {
             return false;
         }

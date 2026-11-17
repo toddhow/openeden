@@ -196,8 +196,8 @@ namespace openeden::sdk::game
         float healthMax
             = 0.f; ///< the player's maximum health (0 for an actor, and for a player the engine has no health for)
         float pitch = 0.f; ///< 0.3: the look direction's elevation, radians, positive up; 0 for an actor
-        /// Task 0227 (additive, trailing, version unchanged): the player is sneaking (the engine's Stance_Sneak); false for
-        /// an actor.
+        /// Task 0227 (additive, trailing, version unchanged): the player is sneaking (the engine's Stance_Sneak); false
+        /// for an actor.
         bool sneaking = false;
         /// Task 0235 (additive, trailing, version unchanged): what the player has drawn, the engine's draw state: 0
         /// nothing, 1 a weapon, 2 a spell; 0 for an actor.

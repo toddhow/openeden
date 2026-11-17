@@ -1,5 +1,5 @@
-#include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/music.hpp>
+#include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
 
 #include <cctype>
@@ -755,7 +755,8 @@ namespace game_skyrimse
             return false;
         music::ConditionFacts facts;
         facts.mGameHour = context.gameHour;
-        return runtime->plan(static_cast<FormId>(typeId), facts, mMusicSeed, context.pick,
+        return runtime->plan(
+            static_cast<FormId>(typeId), facts, mMusicSeed, context.pick,
             [data](const std::string& path) { return data->musicFileExists(path); }, out);
     }
 

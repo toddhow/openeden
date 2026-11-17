@@ -37,17 +37,17 @@ namespace
     using namespace game_skyrimse;
     using openeden::sdk::game::ActorHandle;
     using openeden::sdk::game::ActorInfo;
-    using openeden::sdk::game::FurniturePose;
-    using openeden::sdk::game::GoalResult;
     using openeden::sdk::game::ClipEnd;
     using openeden::sdk::game::ClipRequest;
     using openeden::sdk::game::ClipTiming;
-    using openeden::sdk::game::DamageReport;
-    using openeden::sdk::game::SweepRequest;
     using openeden::sdk::game::CombatRequestWriter;
     using openeden::sdk::game::CombatSubject;
+    using openeden::sdk::game::DamageReport;
+    using openeden::sdk::game::FurniturePose;
+    using openeden::sdk::game::GoalResult;
     using openeden::sdk::game::SubjectState;
     using openeden::sdk::game::SweepHit;
+    using openeden::sdk::game::SweepRequest;
     using openeden::sdk::game::SweepTarget;
     using openeden::sdk::game::WorldId;
     using Turn = openeden::sdk::game::DialogueTurn;
@@ -61,7 +61,8 @@ namespace
         return o;
     }
 
-    // ---- ForceGreet ---------------------------------------------------------------------------------------------------
+    // ---- ForceGreet
+    // ---------------------------------------------------------------------------------------------------
 
     constexpr FormId kActorRef = 0x0001A68F;
     constexpr FormId kActorBase = 0x0001A68E;
@@ -181,7 +182,8 @@ namespace
             EXPECT_EQ(f.access, openeden::sdk::BindingAccess::Read) << name << " must be Read only";
     }
 
-    // ---- PDTO of a package --------------------------------------------------------------------------------------------
+    // ---- PDTO of a package
+    // --------------------------------------------------------------------------------------------
 
     TEST(SkyrimCompanionsPackage, theFirstTopicOfAPackagesDataIsItsForceGreetTopic)
     {
@@ -229,7 +231,8 @@ namespace
         EXPECT_EQ(records.mOddSubrecords, 1u);
     }
 
-    // ---- a conversation opened by a topic ------------------------------------------------------------------------------
+    // ---- a conversation opened by a topic
+    // ------------------------------------------------------------------------------
 
     constexpr FormId kSelf = 0x01000000;
     constexpr FormId kRaceNord = 0x00013746;
@@ -360,8 +363,7 @@ namespace
                 << e2.mMessage;
             mActors.add(mActorRecords);
             mIndex.add(mDialogue, FormIdResolver(mPlugin->header(), "test.esp", order()));
-            mRuntime = std::make_unique<DialogueRuntime>(
-                mActors, mIndex, mQuests, QuestState::initial(mQuests),
+            mRuntime = std::make_unique<DialogueRuntime>(mActors, mIndex, mQuests, QuestState::initial(mQuests),
                 [](const LString& text, std::uint32_t, StringTableKind) { return text.mText; });
         }
         static DialogueSpeaker speaker()
@@ -426,7 +428,8 @@ namespace
         EXPECT_TRUE(rumors);
     }
 
-    // ---- the Papyrus natives --------------------------------------------------------------------------------------------
+    // ---- the Papyrus natives
+    // --------------------------------------------------------------------------------------------
 
     constexpr FormId kQuestA = 0x01000800;
     constexpr FormId kActor = 0x01000A01;
@@ -539,7 +542,9 @@ namespace
             probe.var("state", "Int");
             probe.var("bleeds", "Int");
             probe.var("av", "Float");
-            probe.function("Fight").local("n", "None").callMethod("StartCombat", Id("self"), Id("n"), { Id("::Target_var") });
+            probe.function("Fight")
+                .local("n", "None")
+                .callMethod("StartCombat", Id("self"), Id("n"), { Id("::Target_var") });
             probe.function("FightNobody").local("n", "None").callMethod("StartCombat", Id("self"), Id("n"), { Nil() });
             probe.function("Stop").local("n", "None").callMethod("StopCombat", Id("self"), Id("n"));
             probe.function("Reset").local("n", "None").callMethod("ResetHealthAndLimbs", Id("self"), Id("n"));
@@ -681,8 +686,8 @@ namespace
         EXPECT_EQ(rig.mHost->numberVariable(kActor, "Probe", "bleeds"), 1.0);
     }
 
-
-    // ---- an engaged sitter stands up ------------------------------------------------------------------------------------
+    // ---- an engaged sitter stands up
+    // ------------------------------------------------------------------------------------
 
     class BrainSource final : public PackageSource, public FurnitureSource
     {
@@ -816,7 +821,8 @@ namespace
         EXPECT_TRUE(rig.mBrain->view(0x10)->mSeated);
     }
 
-    // ---- the combat ------------------------------------------------------------------------------------------------------
+    // ---- the combat
+    // ------------------------------------------------------------------------------------------------------
 
     constexpr WorldId kFighterBase = 100;
 
@@ -855,7 +861,10 @@ namespace
             return true;
         }
         FighterProfile playerFighter() override { return mPlayer; }
-        const WeaponRecord* weaponByEditorId(std::string_view id) override { return id == "ironsword" ? &mSword : nullptr; }
+        const WeaponRecord* weaponByEditorId(std::string_view id) override
+        {
+            return id == "ironsword" ? &mSword : nullptr;
+        }
         CombatSettings settings() override { return CombatSettings(); }
         WeaponRecord mSword;
         std::map<WorldId, FighterProfile> mProfiles;
@@ -1058,7 +1067,8 @@ namespace
         EXPECT_EQ(mBleedouts.size(), 2u);
     }
 
-    // ---- scenes: their quest and their fragment scripts across a save ----------------------------------------------------
+    // ---- scenes: their quest and their fragment scripts across a save
+    // ----------------------------------------------------
 
     constexpr FormId kScene = 0x01000D01;
 
@@ -1087,7 +1097,8 @@ namespace
         v.mScripts.push_back(script);
         ASSERT_EQ(rig.mHost->runSceneFragment(kScene, v, "SF_Test", "Fragment_1"), 1u);
         rig.tick();
-        EXPECT_EQ(rig.mHost->numberVariable(kScene, "SF_Test", "quest"), std::optional<double>(static_cast<double>(kQuestA)));
+        EXPECT_EQ(
+            rig.mHost->numberVariable(kScene, "SF_Test", "quest"), std::optional<double>(static_cast<double>(kQuestA)));
         EXPECT_TRUE(rig.mErrors.empty());
         if (::testing::Test::HasFailure())
             for (const std::string& line : rig.mLogs)

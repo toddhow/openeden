@@ -18,10 +18,10 @@ namespace game_skyrimse::progression
 
     namespace
     {
-        constexpr const char* kEditorIds[kSkillCount] = { "AVOneHanded", "AVTwoHanded", "AVMarksman", "AVBlock",
-            "AVSmithing", "AVHeavyArmor", "AVLightArmor", "AVPickpocket", "AVLockpicking", "AVSneak", "AVAlchemy",
-            "AVSpeechcraft", "AVAlteration", "AVConjuration", "AVDestruction", "AVMysticism", "AVRestoration",
-            "AVEnchanting" };
+        constexpr const char* kEditorIds[kSkillCount]
+            = { "AVOneHanded", "AVTwoHanded", "AVMarksman", "AVBlock", "AVSmithing", "AVHeavyArmor", "AVLightArmor",
+                  "AVPickpocket", "AVLockpicking", "AVSneak", "AVAlchemy", "AVSpeechcraft", "AVAlteration",
+                  "AVConjuration", "AVDestruction", "AVMysticism", "AVRestoration", "AVEnchanting" };
         constexpr const char* kNames[kSkillCount] = { "One-Handed", "Two-Handed", "Archery", "Block", "Smithing",
             "Heavy Armor", "Light Armor", "Pickpocket", "Lockpicking", "Sneak", "Alchemy", "Speech", "Alteration",
             "Conjuration", "Destruction", "Illusion", "Restoration", "Enchanting" };

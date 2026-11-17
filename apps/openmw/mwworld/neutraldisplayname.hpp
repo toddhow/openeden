@@ -24,8 +24,9 @@ namespace MWWorld
         /// `source` may be null. The returned view stays valid until `clear()`.
         [[nodiscard]] std::string_view nameOf(const NeutralBase& base, openeden::sdk::game::DisplayNameSource* source);
 
-        /// Task 0224: keeps a text the pack gave for ONE placement (a depleted vein's name) and returns a view that stays
-        /// valid until `clear()`; the same text gives the same view. Used for names that change with the object's state.
+        /// Task 0224: keeps a text the pack gave for ONE placement (a depleted vein's name) and returns a view that
+        /// stays valid until `clear()`; the same text gives the same view. Used for names that change with the object's
+        /// state.
         [[nodiscard]] std::string_view intern(std::string_view text);
 
         /// Forgets every cached name (a new session may load other content).

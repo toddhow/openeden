@@ -112,7 +112,8 @@ namespace game_skyrimse::pickup
         if (mHooks.mActivated)
             mHooks.mActivated(placement);
         const bool disabled = mHooks.mDisable && mHooks.mDisable(placement);
-        // Remembered even when the world could not be told: the item is in the inventory, so it must not be taken twice.
+        // Remembered even when the world could not be told: the item is in the inventory, so it must not be taken
+        // twice.
         (void)mBook.markTaken(placement);
         mState = "taken";
         mMessage = std::string();
@@ -199,15 +200,14 @@ namespace game_skyrimse::pickup
             r.value = integer(static_cast<std::int32_t>(self->mRevision & 0x7FFFFFFF));
             return r;
         });
-        add("chance", s2, true, BindingType::Int32, BindingAccess::Read,
-            [self, idOf](std::span<const BindingValue> a) {
-                std::uint64_t owner = 0, item = 0;
-                if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
-                    return fail(BindingStatus::BadArgument, "not an id");
-                BindingResult r = ok();
-                r.value = integer(static_cast<std::int32_t>(self->chance(owner, static_cast<FormId>(item), 1) + 0.5f));
-                return r;
-            });
+        add("chance", s2, true, BindingType::Int32, BindingAccess::Read, [self, idOf](std::span<const BindingValue> a) {
+            std::uint64_t owner = 0, item = 0;
+            if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
+                return fail(BindingStatus::BadArgument, "not an id");
+            BindingResult r = ok();
+            r.value = integer(static_cast<std::int32_t>(self->chance(owner, static_cast<FormId>(item), 1) + 0.5f));
+            return r;
+        });
         add("pickup", s2, false, BindingType::Bool, BindingAccess::Mutate,
             [self, idOf](std::span<const BindingValue> a) {
                 std::uint64_t placement = 0, base = 0;
@@ -216,14 +216,13 @@ namespace game_skyrimse::pickup
                 (void)self->pickup(static_cast<FormId>(placement), static_cast<FormId>(base));
                 return ok();
             });
-        add("take", s3, false, BindingType::Bool, BindingAccess::Mutate,
-            [self, idOf](std::span<const BindingValue> a) {
-                std::uint64_t owner = 0, item = 0;
-                if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
-                    return fail(BindingStatus::BadArgument, "not an id");
-                (void)self->take(owner, static_cast<FormId>(item), a[2].integer);
-                return ok();
-            });
+        add("take", s3, false, BindingType::Bool, BindingAccess::Mutate, [self, idOf](std::span<const BindingValue> a) {
+            std::uint64_t owner = 0, item = 0;
+            if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
+                return fail(BindingStatus::BadArgument, "not an id");
+            (void)self->take(owner, static_cast<FormId>(item), a[2].integer);
+            return ok();
+        });
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = "skyrimse.pickup";

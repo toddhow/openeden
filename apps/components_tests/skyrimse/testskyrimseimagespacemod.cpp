@@ -83,7 +83,8 @@ namespace
         return sub4("TNAM", d);
     }
 
-    // The intro of Night Eye as Skyrim.esm stores it (4 s; Update.esm overrides it with a 1 s one), cut down to what the core reads.
+    // The intro of Night Eye as Skyrim.esm stores it (4 s; Update.esm overrides it with a 1 s one), cut down to what
+    // the core reads.
     Bytes nightEyeIntroSubs()
     {
         Bytes b;

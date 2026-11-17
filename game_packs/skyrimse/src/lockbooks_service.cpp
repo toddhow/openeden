@@ -193,9 +193,9 @@ namespace game_skyrimse::lockbooks
         mImpl->mRefused = false;
         mReason.clear();
         if (mHooks.mLog)
-            mHooks.mLog("LOCKBOOKS pick begins on " + inventory::formatId(placement) + " level "
-                + std::to_string(level) + " (" + std::string(tierName(mAttempt.tier())) + "), window "
-                + std::to_string(mAttempt.window()) + " degrees, " + std::to_string(picks()) + " lockpicks");
+            mHooks.mLog("LOCKBOOKS pick begins on " + inventory::formatId(placement) + " level " + std::to_string(level)
+                + " (" + std::string(tierName(mAttempt.tier())) + "), window " + std::to_string(mAttempt.window())
+                + " degrees, " + std::to_string(picks()) + " lockpicks");
         return true;
     }
 
@@ -389,20 +389,20 @@ namespace game_skyrimse::lockbooks
         static const BindingType beginParams[] = { BindingType::String, BindingType::Int32 };
         static const BindingType inputParams[] = { BindingType::Double, BindingType::Bool, BindingType::Double };
 
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, bool hasResult,
-                             BindingType result, BindingAccess access, Fn::Body body,
-                             BindingShape resultShape = BindingShape::Single) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = hasResult;
-            f.result = result;
-            f.access = access;
-            f.handler = m.mHandlers.back().get();
-            f.resultShape = resultShape;
-            m.mFunctions.push_back(f);
-        };
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, bool hasResult, BindingType result,
+                  BindingAccess access, Fn::Body body, BindingShape resultShape = BindingShape::Single) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = hasResult;
+                  f.result = result;
+                  f.access = access;
+                  f.handler = m.mHandlers.back().get();
+                  f.resultShape = resultShape;
+                  m.mFunctions.push_back(f);
+              };
         constexpr BindingType kStr = BindingType::String;
         const auto itemOf = [](const BindingValue& v, FormId& out) {
             std::uint64_t id = 0;
@@ -530,7 +530,8 @@ namespace game_skyrimse::lockbooks
         });
         itemText("book_teaches", [self](FormId item) { return self->bookTeaches(item); });
         itemText("book_result", [self](FormId item) { return self->bookResult(item); });
-        add("book_pages", s1, true, kStr, BindingAccess::Read,
+        add(
+            "book_pages", s1, true, kStr, BindingAccess::Read,
             [self, &m, itemOf](std::span<const BindingValue> a) {
                 FormId item = 0;
                 if (!itemOf(a[0], item))
@@ -549,21 +550,24 @@ namespace game_skyrimse::lockbooks
                 return r;
             },
             BindingShape::Array);
-        add("spells", {}, true, kStr, BindingAccess::Read, [self, &m](std::span<const BindingValue>) {
-            m.mStrings.clear();
-            for (const FormId spell : self->mModel.spells())
-                m.mStrings.push_back(inventory::formatId(spell));
-            if (m.mStrings.size() > openeden::sdk::kMaxBindingArrayElements)
-                m.mStrings.resize(openeden::sdk::kMaxBindingArrayElements);
-            m.mElements.clear();
-            for (const std::string& s : m.mStrings)
-                m.mElements.push_back(text(s));
-            BindingResult r = ok();
-            r.value.type = kStr;
-            r.value.elements = m.mElements.data();
-            r.value.count = m.mElements.size();
-            return r;
-        }, BindingShape::Array);
+        add(
+            "spells", {}, true, kStr, BindingAccess::Read,
+            [self, &m](std::span<const BindingValue>) {
+                m.mStrings.clear();
+                for (const FormId spell : self->mModel.spells())
+                    m.mStrings.push_back(inventory::formatId(spell));
+                if (m.mStrings.size() > openeden::sdk::kMaxBindingArrayElements)
+                    m.mStrings.resize(openeden::sdk::kMaxBindingArrayElements);
+                m.mElements.clear();
+                for (const std::string& s : m.mStrings)
+                    m.mElements.push_back(text(s));
+                BindingResult r = ok();
+                r.value.type = kStr;
+                r.value.elements = m.mElements.data();
+                r.value.count = m.mElements.size();
+                return r;
+            },
+            BindingShape::Array);
 
         // ---- Mutate: no result; a refusal is logged
         add("pick_begin", beginParams, false, BindingType::Bool, BindingAccess::Mutate,
@@ -598,7 +602,7 @@ namespace game_skyrimse::lockbooks
                 const ReadStatus s = self->readBook(item);
                 if (s != ReadStatus::Ok)
                     log("LOCKBOOKS read refused: " + inventory::formatId(item)
-                        + (s == ReadStatus::NotReady ? " (not ready)"
+                        + (s == ReadStatus::NotReady       ? " (not ready)"
                                 : s == ReadStatus::NotHeld ? " (not held)"
                                                            : " (not a book)"));
                 return ok();

@@ -1,15 +1,15 @@
 #include "game_skyrimse/papyrus_host.hpp"
 
-#include <openeden/game/world_source_service.hpp>
 #include <components/script_papyrus/papyrusnatives.hpp>
 #include <components/script_papyrus/pexfile.hpp>
+#include <openeden/game/world_source_service.hpp>
 
 #include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <deque>
 
 namespace game_skyrimse
@@ -72,7 +72,8 @@ namespace game_skyrimse
         }
     }
 
-    struct PapyrusHost::Impl final : public openeden::script::PapyrusWorld, public openeden::script::PapyrusAttachKeyCheck
+    struct PapyrusHost::Impl final : public openeden::script::PapyrusWorld,
+                                     public openeden::script::PapyrusAttachKeyCheck
     {
         struct InstanceInfo
         {
@@ -220,9 +221,9 @@ namespace game_skyrimse
                                        : it->second.mForm;
         }
 
-        // Task 0223: the value of a quest as a script sees it. A scripted quest IS its script in Papyrus, so a cast to the
-        // script's type (the carriage topics' fragments: GetOwningQuest() as CarriageSystemScript) needs the attached
-        // instance; a quest of several scripts gives the first that is not a fragment script (QF_...).
+        // Task 0223: the value of a quest as a script sees it. A scripted quest IS its script in Papyrus, so a cast to
+        // the script's type (the carriage topics' fragments: GetOwningQuest() as CarriageSystemScript) needs the
+        // attached instance; a quest of several scripts gives the first that is not a fragment script (QF_...).
         PapyrusValue questValue(FormId quest)
         {
             if (quest == 0)
@@ -519,8 +520,8 @@ namespace game_skyrimse
         }
 
         // Task 0187: the runtime refuses to load a script from inside a native, and attaching a quest that no script
-        // named before loads its scripts. So the attach, the fragments and the events of a stage change or a start that a
-        // script asked for run right after the native (and the script that called it) returned.
+        // named before loads its scripts. So the attach, the fragments and the events of a stage change or a start that
+        // a script asked for run right after the native (and the script that called it) returned.
         void afterNative(std::function<void()> work)
         {
             if (mNativeDepth > 0)
@@ -550,8 +551,9 @@ namespace game_skyrimse
             if (mPreloaded)
                 return;
             mPreloaded = true;
-            for (const char* name : { "form", "objectreference", "actor", "quest", "alias", "referencealias",
-                     "locationalias", "location", "keyword", "topicinfo", "scene", "cell", "spell", "game", "utility", "debug" })
+            for (const char* name :
+                { "form", "objectreference", "actor", "quest", "alias", "referencealias", "locationalias", "location",
+                    "keyword", "topicinfo", "scene", "cell", "spell", "game", "utility", "debug" })
                 (void)load(name, false);
         }
 
@@ -734,8 +736,8 @@ namespace game_skyrimse
             return reference;
         }
 
-        // Task 0268: a MoveTo of `self` to `at`, near the player, that the world cannot do in place: asks the hook for a
-        // new reference there, hides the old one, points the quest's aliases at the new one. False: not done.
+        // Task 0268: a MoveTo of `self` to `at`, near the player, that the world cannot do in place: asks the hook for
+        // a new reference there, hides the old one, points the quest's aliases at the new one. False: not done.
         bool tryRelocate(FormId self, FormId target, const double* at, const std::array<double, 3>* angles)
         {
             if (!mRelocate || mHooks == nullptr || self == kPlayerReference)
@@ -827,8 +829,8 @@ namespace game_skyrimse
                 // task 0239: the fragment script a dialogue line left on its INFO (the follower topics' own)
                 if (mData.isTopicInfo(key.formId))
                     return true;
-                // task 0264: the fragment script a scene left on its SCEN (`SF_...`): a save made after any scene fragment
-                // ran was refused as a whole ("the game no longer has what its attach key names")
+                // task 0264: the fragment script a scene left on its SCEN (`SF_...`): a save made after any scene
+                // fragment ran was refused as a whole ("the game no longer has what its attach key names")
                 if (mData.isScene(key.formId))
                     return true;
                 return !mData.formClass(key.formId).empty();
@@ -969,9 +971,8 @@ namespace game_skyrimse
                     mCasts.push_back(cast);
                 return NativeResult{};
             });
-            reg("Message", "Show", false, [this](const NativeCall& c) {
-                return result(PapyrusValue::makeInt(showMessage(formOf(c.self))));
-            });
+            reg("Message", "Show", false,
+                [this](const NativeCall& c) { return result(PapyrusValue::makeInt(showMessage(formOf(c.self)))); });
             reg("Game", "AddAchievement", true, [](const NativeCall&) { return NativeResult{}; });
             reg("ObjectReference", "PlayAnimation", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
@@ -1116,8 +1117,8 @@ namespace game_skyrimse
                 {
                     // Task 0268: what the world cannot move in place is made again at the place (actors, objects of
                     // other cells), near the player only
-                    const double at[3] = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2),
-                        where[2] + argNumber(c, 3) };
+                    const double at[3]
+                        = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2), where[2] + argNumber(c, 3) };
                     std::array<double, 3> turned{};
                     const bool turnTo = argNumber(c, 4) != 0.0 && anglesOf(target, turned);
                     if (tryRelocate(self, target, at, turnTo ? &turned : nullptr))
@@ -1130,8 +1131,8 @@ namespace game_skyrimse
                             + " is in another cell: not done (an object stays in its own cell)");
                     return NativeResult{};
                 }
-                const double newPosition[3] = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2),
-                    where[2] + argNumber(c, 3) };
+                const double newPosition[3]
+                    = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2), where[2] + argNumber(c, 3) };
                 // abMatchRotation: the target's angles, when this host knows them
                 std::array<double, 3> angles{};
                 const bool turn = argNumber(c, 4) != 0.0 && anglesOf(target, angles);
@@ -1243,8 +1244,8 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(true));
             });
             // Quest
-            // SetCurrentStageID is an alias of SetStage in the game (task 0181 slice 2b, the Creation Kit wiki through search
-            // summaries, toddhow's approval of 2026-11-15): done mark, fragment and OnStageSet.
+            // SetCurrentStageID is an alias of SetStage in the game (task 0181 slice 2b, the Creation Kit wiki through
+            // search summaries, toddhow's approval of 2026-11-15): done mark, fragment and OnStageSet.
             const auto setStageNative = [this](const NativeCall& c) {
                 return result(
                     PapyrusValue::makeBool(setStage(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)))));
@@ -1288,7 +1289,8 @@ namespace game_skyrimse
             const auto sceneStart = [this](bool force) {
                 return [this, force](const NativeCall& c) {
                     const FormId scene = formOf(c.self);
-                    say(false, "Papyrus: Scene." + std::string(force ? "ForceStart " : "Start ") + hex(scene)
+                    say(false,
+                        "Papyrus: Scene." + std::string(force ? "ForceStart " : "Start ") + hex(scene)
                             + (mScenes == nullptr ? " (no scene runner)" : ""));
                     if (mScenes == nullptr)
                         return result(PapyrusValue::makeBool(false));
@@ -1325,10 +1327,10 @@ namespace game_skyrimse
                 const auto it = mObjectivesCompleted.find({ formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)) });
                 return result(PapyrusValue::makeBool(it != mObjectivesCompleted.end() && it->second));
             });
-            reg("TopicInfo", "GetOwningQuest", false, [this](const NativeCall& c) {
-                return result(questValue(mData.questOfInfo(formOf(c.self))));
-            });
-            // Task 0187: Keyword.SendStoryEvent(akLoc, akRef1, akRef2, aiValue1, aiValue2): the keyword is the event's K1
+            reg("TopicInfo", "GetOwningQuest", false,
+                [this](const NativeCall& c) { return result(questValue(mData.questOfInfo(formOf(c.self)))); });
+            // Task 0187: Keyword.SendStoryEvent(akLoc, akRef1, akRef2, aiValue1, aiValue2): the keyword is the event's
+            // K1
             const auto sendStory = [this](const NativeCall& c) {
                 StoryEvent event;
                 event.mType = "SCPT";
@@ -1448,17 +1450,17 @@ namespace game_skyrimse
             registerCrimeNatives();
         }
 
-        // ---- task 0258: what the guards' arrest dialogue fragments call (TIF__000267E0 and its kin) -------------------
-        // Actor.GetCrimeFaction() -> Faction, Faction.PlayerPayCrimeGold(abRemoveStolenItems, abGoToJail),
-        // Faction.SendPlayerToJail(abRemoveInventory, abRealJail), Actor.SetPlayerResistingArrest(),
+        // ---- task 0258: what the guards' arrest dialogue fragments call (TIF__000267E0 and its kin)
+        // ------------------- Actor.GetCrimeFaction() -> Faction, Faction.PlayerPayCrimeGold(abRemoveStolenItems,
+        // abGoToJail), Faction.SendPlayerToJail(abRemoveInventory, abRealJail), Actor.SetPlayerResistingArrest(),
         // Faction.GetCrimeGold() -> Int (Creation Kit wiki, recalled, RECALLED-VERIFY). The effects are the pack's
         // (PapyrusWorldHooks); with no hooks every one is tolerant. The decompiled fragments pass (true, true) for the
-        // payment and (true, true) for the jail: what the flags change in the game is not known, the pack's rules ignore them.
+        // payment and (true, true) for the jail: what the flags change in the game is not known, the pack's rules
+        // ignore them.
         void registerCrimeNatives()
         {
-            const auto flag = [](const NativeCall& c, std::size_t i) {
-                return i < c.arguments.size() && argNumber(c, i) != 0.0;
-            };
+            const auto flag
+                = [](const NativeCall& c, std::size_t i) { return i < c.arguments.size() && argNumber(c, i) != 0.0; };
             reg("Actor", "GetCrimeFaction", false, [this](const NativeCall& c) {
                 const FormId faction = mHooks != nullptr ? mHooks->crimeFactionOf(formOf(c.self)) : 0;
                 return result(formValue(faction));
@@ -1508,9 +1510,8 @@ namespace game_skyrimse
 
         void registerFollowerNatives()
         {
-            const auto factionArgument = [this](const NativeCall& c) {
-                return c.arguments.empty() ? FormId(0) : formOf(c.arguments[0]);
-            };
+            const auto factionArgument
+                = [this](const NativeCall& c) { return c.arguments.empty() ? FormId(0) : formOf(c.arguments[0]); };
             reg("Actor", "AddToFaction", false, [this, factionArgument](const NativeCall& c) {
                 if (mFollowers != nullptr)
                     (void)mFollowers->addToFaction(formOf(c.self), factionArgument(c));
@@ -1585,14 +1586,15 @@ namespace game_skyrimse
                 [this](const NativeCall& c) { return result(formValue(mData.baseOf(formOf(c.self)))); });
         }
 
-        // ---- task 0223: what the carriage scripts (CarriageSystemScript, CarriageDriverScript) call ------------------
-        // Game.FastTravel(akDestination) leaves the travel to the pack's travel service (a global script teleports the
-        // player and passes the game clock). The driver's script pays the fee itself (RemoveItem(Gold, CarriageCost.value
-        // as int)), so GlobalVariable.GetValue answers the GLOB's value. The fades, the player controls, the vehicle, the
-        // driver's idles and talk are no-ops that only count (the ride has no animation), the cart seat counts as taken
-        // at once (the player "sits" so the script goes straight to its travel), and nobody is in the BYOH faction or in a
-        // fight (Actor.IsInCombat stays tolerant: it answers false anyway, and an existing test names it as its example of a
-        // tolerant native). Signatures are the Creation Kit wiki's (recalled, RECALLED-VERIFY).
+        // ---- task 0223: what the carriage scripts (CarriageSystemScript, CarriageDriverScript) call
+        // ------------------ Game.FastTravel(akDestination) leaves the travel to the pack's travel service (a global
+        // script teleports the player and passes the game clock). The driver's script pays the fee itself
+        // (RemoveItem(Gold, CarriageCost.value as int)), so GlobalVariable.GetValue answers the GLOB's value. The
+        // fades, the player controls, the vehicle, the driver's idles and talk are no-ops that only count (the ride has
+        // no animation), the cart seat counts as taken at once (the player "sits" so the script goes straight to its
+        // travel), and nobody is in the BYOH faction or in a fight (Actor.IsInCombat stays tolerant: it answers false
+        // anyway, and an existing test names it as its example of a tolerant native). Signatures are the Creation Kit
+        // wiki's (recalled, RECALLED-VERIFY).
         void registerCarriageNatives()
         {
             reg("Game", "FastTravel", true, [this](const NativeCall& c) {
@@ -1623,8 +1625,8 @@ namespace game_skyrimse
                 return NativeResult{};
             });
             const auto nothing = [](const NativeCall&) { return NativeResult{}; };
-            for (const char* name : { "DisablePlayerControls", "EnablePlayerControls", "FadeOutGame", "ForceFirstPerson",
-                     "ShowFirstPersonGeometry", "SetInChargen" })
+            for (const char* name : { "DisablePlayerControls", "EnablePlayerControls", "FadeOutGame",
+                     "ForceFirstPerson", "ShowFirstPersonGeometry", "SetInChargen" })
                 reg("Game", name, true, nothing);
             for (const char* name : { "Apply", "PopTo", "Remove", "ApplyCrossFade" })
                 reg("ImageSpaceModifier", name, false, nothing);
@@ -1644,13 +1646,15 @@ namespace game_skyrimse
             for (const char* name : { "SetVehicle", "SetRestrained", "Say", "EvaluatePackage" })
                 reg("Actor", name, false, nothing);
             // Task 0268 (the main quest's opening): the cart ride's setup waits for the actors to be loaded, and sets
-            // up what has no meaning here yet (the cart HUD, the title sequence, the gate, a cart's tether to its horse)
+            // up what has no meaning here yet (the cart HUD, the title sequence, the gate, a cart's tether to its
+            // horse)
             reg("ObjectReference", "Is3DLoaded", false, [this](const NativeCall& c) {
                 const FormId self = liveReference(formOf(c.self));
                 return result(PapyrusValue::makeBool(
                     self == kPlayerReference || mHooks == nullptr || mHooks->referenceLoaded(self)));
             });
-            for (const char* name : { "SetHudCartMode", "StartTitleSequence", "ShowTitleSequenceMenu", "HideTitleSequenceMenu" })
+            for (const char* name :
+                { "SetHudCartMode", "StartTitleSequence", "ShowTitleSequenceMenu", "HideTitleSequenceMenu" })
                 reg("Game", name, true, nothing);
             for (const char* name : { "SetOpen", "TetherToHorse" })
                 reg("ObjectReference", name, false, nothing);
@@ -1766,9 +1770,8 @@ namespace game_skyrimse
         void registerActorNatives()
         {
             const auto valueName = [](const NativeCall& c) {
-                return !c.arguments.empty() && c.arguments[0].kind == PapyrusKind::String
-                    ? avKey(c.arguments[0].text)
-                    : std::string();
+                return !c.arguments.empty() && c.arguments[0].kind == PapyrusKind::String ? avKey(c.arguments[0].text)
+                                                                                          : std::string();
             };
             reg("Actor", "GetActorValue", false, [this, valueName](const NativeCall& c) {
                 double now = 0.0, max = 0.0;
@@ -1833,8 +1836,8 @@ namespace game_skyrimse
             });
             reg("Actor", "GetCombatState", false, [this](const NativeCall& c) {
                 const FormId actor = formOf(c.self);
-                return result(PapyrusValue::makeInt(
-                    mHooks != nullptr && actor != 0 && mHooks->inCombat(actor) ? 1 : 0));
+                return result(
+                    PapyrusValue::makeInt(mHooks != nullptr && actor != 0 && mHooks->inCombat(actor) ? 1 : 0));
             });
             reg("Actor", "EvaluatePackage", false, [](const NativeCall&) { return NativeResult{}; });
             reg("Actor", "Kill", false, [this](const NativeCall& c) {
@@ -1865,7 +1868,8 @@ namespace game_skyrimse
                 const std::string file = c.arguments.size() > 1 && c.arguments[1].kind == PapyrusKind::String
                     ? lower(c.arguments[1].text)
                     : std::string();
-                const FormId form = file.empty() ? 0 : mData.formFromFile(file, static_cast<std::uint32_t>(argInt(c, 0)));
+                const FormId form
+                    = file.empty() ? 0 : mData.formFromFile(file, static_cast<std::uint32_t>(argInt(c, 0)));
                 return result(formValue(form));
             });
         }
@@ -1943,7 +1947,8 @@ namespace game_skyrimse
         QuestVmadLookup mVmads;
         QuestAliasFiller* mFiller = nullptr; ///< task 0187
         int mNativeDepth = 0; ///< > 0 while a native runs: a script cannot be loaded then (task 0187)
-        std::vector<std::function<void()>> mDeferred; ///< work that needs a script loaded, run after the native returned
+        std::vector<std::function<void()>>
+            mDeferred; ///< work that needs a script loaded, run after the native returned
         bool mPreloaded = false;
         SceneControl* mScenes = nullptr; ///< task 0194
         StoryEventSink mStorySink; ///< task 0187
@@ -1997,7 +2002,8 @@ namespace game_skyrimse
         LocationKeywordData* mKeywordData = nullptr; ///< task 0217
         FollowerState* mFollowers = nullptr; ///< task 0239
         PapyrusHost::FastTravelSink mFastTravel; ///< task 0223
-        bool mTraceNatives = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE") != nullptr; ///< a developer aid: one line a native
+        bool mTraceNatives
+            = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE") != nullptr; ///< a developer aid: one line a native
         std::uint64_t mTraceCount = 0;
         static constexpr std::uint64_t kMaxTracedNatives = 100000;
         std::map<FormId, float> mGlobalValues; ///< task 0223: values scripts set (SetValue); the data gives the rest
@@ -2037,8 +2043,8 @@ namespace game_skyrimse
 
         [[nodiscard]] bool actorDead(FormId actor) const
         {
-            return mDead.count(actor) != 0 || mKilling.count(actor) != 0
-                || (mHooks != nullptr && mHooks->isDead(actor)) || mData.initiallyDead(actor);
+            return mDead.count(actor) != 0 || mKilling.count(actor) != 0 || (mHooks != nullptr && mHooks->isDead(actor))
+                || mData.initiallyDead(actor);
         }
 
         // The reference an alias holds now: a script's ForceRefTo, else what the quest state filled (never fills).
@@ -2111,7 +2117,8 @@ namespace game_skyrimse
     namespace
     {
         // ---- the host's state as bytes (task 0181) -----------------------------------------------------------------
-        // Little endian, canonical (maps and sets in key order), ended by an FNV-1a 64 checksum of everything before it.
+        // Little endian, canonical (maps and sets in key order), ended by an FNV-1a 64 checksum of everything before
+        // it.
         constexpr std::uint32_t kStateMagic = 0x31534850u; // "PHS1"
         // 4 (task 0241) adds the perks; 3 (task 0202) adds created references and angles; 2 (task 0198) adds actor
         // value changes and deaths; 1, 2 and 3 are still read
@@ -2955,7 +2962,8 @@ namespace game_skyrimse
         if (m.mIndex == nullptr || m.mState == nullptr || m.mIndex->quest(quest) == nullptr)
             return false;
         m.mState->setStage(*m.mIndex, quest, stage); // state only: no fragment, no event, no script attach
-        m.say(false, "Papyrus: quest " + hex(quest) + " stage " + std::to_string(stage) + " marked done by the test aid");
+        m.say(
+            false, "Papyrus: quest " + hex(quest) + " stage " + std::to_string(stage) + " marked done by the test aid");
         return true;
     }
 
@@ -3137,7 +3145,8 @@ namespace game_skyrimse
         std::size_t queued = 0;
         for (const TriggerEdge& edge : edges)
             for (const InstanceId instance : m.instancesOf(edge.mReference))
-                if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave", { m.formValue(kPlayerReference) }))
+                if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
+                        { m.formValue(kPlayerReference) }))
                     ++queued;
         return queued;
     }
@@ -3480,8 +3489,8 @@ namespace game_skyrimse
         return r.ok;
     }
 
-    bool PapyrusHost::callFunctionWith(FormId form, std::string_view script, std::string_view function,
-        std::span<const CallArgument> arguments)
+    bool PapyrusHost::callFunctionWith(
+        FormId form, std::string_view script, std::string_view function, std::span<const CallArgument> arguments)
     {
         Impl& m = *mImpl;
         const InstanceId instance = m.findInstance(form, script);

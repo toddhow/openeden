@@ -209,8 +209,8 @@ namespace
         }
         const ProjectileRecord* projectileById(FormId id) override { return id == kProjectile ? &mProj : nullptr; }
 
-        void addEffect(FormId id, std::uint32_t archetype, std::int32_t value, std::uint32_t flags,
-            std::int32_t resist = -1)
+        void addEffect(
+            FormId id, std::uint32_t archetype, std::int32_t value, std::uint32_t flags, std::int32_t resist = -1)
         {
             MagicEffectRecord m;
             m.mCommon.mId = id;

@@ -41,8 +41,8 @@ namespace game_skyrimse::music
         class Walker final : public Content::Visitor
         {
         public:
-            Walker(const Content::Plugin& plugin, const FormIdResolver& resolver, const MusicLimits& limits,
-                Records& out)
+            Walker(
+                const Content::Plugin& plugin, const FormIdResolver& resolver, const MusicLimits& limits, Records& out)
                 : mPlugin(plugin)
                 , mResolver(resolver)
                 , mLimits(limits)
@@ -619,9 +619,8 @@ namespace game_skyrimse::music
             return std::string();
         const std::size_t slash = s.rfind('/');
         const std::size_t dot = s.rfind('.');
-        const std::string stem = dot != std::string::npos && (slash == std::string::npos || dot > slash)
-            ? s.substr(0, dot)
-            : s;
+        const std::string stem
+            = dot != std::string::npos && (slash == std::string::npos || dot > slash) ? s.substr(0, dot) : s;
         const std::string candidates[2] = { stem + ".xwm", s };
         for (const std::string& candidate : candidates)
             if (!exists || exists(candidate))

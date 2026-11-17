@@ -77,8 +77,9 @@ namespace
         CancelRules mRules;
         CancelSink mSink;
         CancelWorld mWorld;
-        MWPhysics::NeutralClipMetaFn mMetaFn
-            = [](const void*) -> HavokPack::ClipProgress { return { nullptr, true, 0.f }; };
+        MWPhysics::NeutralClipMetaFn mMetaFn = [](const void*) -> HavokPack::ClipProgress {
+            return { nullptr, true, 0.f };
+        };
         ActorHandle mHandleA = mActors.add(nullptr, &mKeyA, 11, 1, "A", 0, 0, 0, 0);
 
         void frame(float seconds = 0.1f) { mCombat.update(&mRules, seconds, mSink, mMetaFn, &mWorld); }

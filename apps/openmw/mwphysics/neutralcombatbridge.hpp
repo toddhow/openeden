@@ -328,12 +328,12 @@ namespace MWPhysics
                 openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r) override;
             bool setClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier) override;
             bool playSound(const openeden::sdk::game::SoundRequest& request) override;
-            bool clipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
-                float& out) override;
+            bool clipEventTime(
+                std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind, float& out) override;
             bool castRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
                 openeden::sdk::game::RayHit& out) override;
-            bool showEffect(openeden::sdk::game::CombatSubject subject,
-                const openeden::sdk::game::EffectRequest& request) override;
+            bool showEffect(
+                openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::EffectRequest& request) override;
             bool hideEffect(std::uint32_t token) override;
             bool cancelProjectile(std::uint32_t token) override; // task 0262
             NeutralClipSink* mSink = nullptr; ///< non-null only while the pack's combatUpdate runs
@@ -359,12 +359,12 @@ namespace MWPhysics
                 openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r);
             bool doSetClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier);
             bool doPlaySound(const openeden::sdk::game::SoundRequest& request);
-            bool doClipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
-                float& out);
+            bool doClipEventTime(
+                std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind, float& out);
             bool doCastRay(openeden::sdk::game::CombatSubject from, const openeden::sdk::game::RayRequest& request,
                 openeden::sdk::game::RayHit& out);
-            bool doShowEffect(openeden::sdk::game::CombatSubject subject,
-                const openeden::sdk::game::EffectRequest& request);
+            bool doShowEffect(
+                openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::EffectRequest& request);
             bool doHideEffect(std::uint32_t token);
             bool doCancelProjectile(std::uint32_t token);
             NeutralCombatBridge& mBridge;

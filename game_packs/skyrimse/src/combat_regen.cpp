@@ -54,8 +54,7 @@ namespace game_skyrimse
         for (std::size_t i = anyRunning ? list.size() : 0; i-- > 0;)
         {
             const ActiveEffect& e = list[i];
-            if (e.mTiming != EffectTiming::Timed || !(e.mTarget == fighter.mSubject)
-                || regenVital(e.mValue) != vital)
+            if (e.mTiming != EffectTiming::Timed || !(e.mTarget == fighter.mSubject) || regenVital(e.mValue) != vital)
                 continue;
             const std::pair<FormId, FormId> key{ e.mSpell, e.mEffect };
             if (std::find(counted.begin(), counted.begin() + static_cast<std::ptrdiff_t>(countedSize), key)
@@ -73,8 +72,9 @@ namespace game_skyrimse
         const Fighter* f = find(subject);
         if (f == nullptr || !f->mHasProfile || vital < 0 || vital > 2)
             return -1.f;
-        const float base = vital == 0 ? f->mProfile.mHealthRegenPercent
-                                      : (vital == 1 ? f->mProfile.mMagickaRegenPercent : f->mProfile.mStaminaRegenPercent);
+        const float base = vital == 0
+            ? f->mProfile.mHealthRegenPercent
+            : (vital == 1 ? f->mProfile.mMagickaRegenPercent : f->mProfile.mStaminaRegenPercent);
         return regenRateFor(*f, vital, base, anyRegenEffect());
     }
 

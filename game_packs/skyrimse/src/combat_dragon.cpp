@@ -1,13 +1,14 @@
 // Task 0253 (dragons, first slice): the dragon in the combat rules. Behind the pack setting `dragons` (off by default).
 //  - The flight (dragons.hpp `Flight`) is stepped here once an update and written as intents (AiMoveIntent::Fly and
-//    Land) that the cell source turns into the actor requests useFurniture / placeFurniture / leaveFurniture; an airborne
-//    dragon (or one that is breathing) is skipped by the combat AI (`dragonHolds`).
+//    Land) that the cell source turns into the actor requests useFurniture / placeFurniture / leaveFurniture; an
+//    airborne dragon (or one that is breathing) is skipped by the combat AI (`dragonHolds`).
 //  - The breath is the first spell of the shout the dragon's NPC_ lists (`DragonFireBreathShout01`...): a concentration
-//    spell. It is NOT cast through the player's shout runtime or `beginCast` (those pay magicka and wait for a SpellFire
-//    event the dragon's clip does not send under that name): the breath clip is played, the spell goes
+//    spell. It is NOT cast through the player's shout runtime or `beginCast` (those pay magicka and wait for a
+//    SpellFire event the dragon's clip does not send under that name): the breath clip is played, the spell goes
 //    kBreathFireDelay seconds later and each update during its cast duration every fighter inside a cone from the mouth
 //    to the target takes the spell's per-second effects. No allocation per update beyond the trace lines.
-//  - A dead dragon's soul goes to the player (ShoutState::addSouls) once the player is near enough, a delay after death.
+//  - A dead dragon's soul goes to the player (ShoutState::addSouls) once the player is near enough, a delay after
+//  death.
 // Main thread only, in combatUpdate. No clock but the combat clock.
 #include "game_skyrimse/combat.hpp"
 
@@ -118,8 +119,8 @@ namespace game_skyrimse
                 // A developer aid: it starts weak enough to be killed in a run.
                 (void)setFighterHealth(f.mSubject, mDragonSettings.mTestHealth);
                 if (mTrace)
-                    trace("COMBAT dragon " + who(f.mSubject) + " starts with health "
-                        + num(mDragonSettings.mTestHealth));
+                    trace(
+                        "COMBAT dragon " + who(f.mSubject) + " starts with health " + num(mDragonSettings.mTestHealth));
             }
         }
         if (mDragonStates.empty())
@@ -160,8 +161,8 @@ namespace game_skyrimse
                     // Its own death clip (a death by a spell plays a humanoid stagger clip in combat_magic.cpp, which a
                     // dragon's skeleton has not).
                     state.mDeathClipPlayed = true;
-                    const std::string_view death = f->mProfile.mCreature != nullptr ? f->mProfile.mCreature->mDeath
-                                                                                    : std::string_view();
+                    const std::string_view death
+                        = f->mProfile.mCreature != nullptr ? f->mProfile.mCreature->mDeath : std::string_view();
                     if (!death.empty())
                     {
                         ClipRequest request;
@@ -332,8 +333,8 @@ namespace game_skyrimse
                 const float range = beamRange(*breath);
                 const double flat = std::hypot(target.x - self.x, target.y - self.y);
                 const double distance = air ? std::hypot(flat, target.z - self.z) : flat;
-                const float reach = meleeReachUnits(weaponFor(*f), f->mProfile.mUnarmedReach, mCombatSettings)
-                    + kBodyRadius - 4.f;
+                const float reach
+                    = meleeReachUnits(weaponFor(*f), f->mProfile.mUnarmedReach, mCombatSettings) + kBodyRadius - 4.f;
                 const double least = air ? 0.0 : static_cast<double>(reach + dragons::kBreathMinExtra);
                 if (!(distance > least) || distance > static_cast<double>(range))
                     continue;
@@ -377,8 +378,8 @@ namespace game_skyrimse
             // The breath in progress: the spell goes after the clip's event, then the cone burns for its cast duration.
             const float elapsed = mClock - state.mBreathStarted;
             const float fireEnd = dragons::kBreathFireDelay + state.mBreathSeconds;
-            const float seconds = std::max(
-                0.f, std::min(elapsed, fireEnd) - std::max(elapsed - step, dragons::kBreathFireDelay));
+            const float seconds
+                = std::max(0.f, std::min(elapsed, fireEnd) - std::max(elapsed - step, dragons::kBreathFireDelay));
             if (seconds > 0.f)
             {
                 if (!state.mBreathFired)
@@ -388,8 +389,8 @@ namespace game_skyrimse
                         trace("COMBAT dragon breath fires " + spellLabel(*breath) + " " + who(f->mSubject));
                 }
                 const float range = beamRange(*breath);
-                const dragons::Cone cone = dragons::breathCone(
-                    mouthX, mouthY, mouthZ, aimX, aimY, aimZ, range, dragons::kBreathHalfAngle);
+                const dragons::Cone cone
+                    = dragons::breathCone(mouthX, mouthY, mouthZ, aimX, aimY, aimZ, range, dragons::kBreathHalfAngle);
                 if (mSpellVisuals && mClock >= state.mNextVisual)
                 {
                     state.mNextVisual = mClock + kBeamVisualInterval;
@@ -398,8 +399,7 @@ namespace game_skyrimse
                     ray.y = mouthY;
                     ray.z = mouthZ;
                     ray.heading = static_cast<float>(std::atan2(aimX - mouthX, aimY - mouthY));
-                    ray.pitch = static_cast<float>(
-                        std::atan2(aimZ - mouthZ, std::hypot(aimX - mouthX, aimY - mouthY)));
+                    ray.pitch = static_cast<float>(std::atan2(aimZ - mouthZ, std::hypot(aimX - mouthX, aimY - mouthY)));
                     ray.range = range;
                     launchBeamVisual(writer, *f, *breath, ray, range);
                 }
@@ -442,11 +442,11 @@ namespace game_skyrimse
                         float magnitude = signedMagnitude(effect.mMagnitude, record->mFlags);
                         if (hostile)
                             magnitude = (magnitude < 0.f ? -1.f : 1.f)
-                                * weakened(resistedMagnitude(
-                                               std::abs(magnitude), resistOf(victim, record->mResistValue)),
+                                * weakened(
+                                    resistedMagnitude(std::abs(magnitude), resistOf(victim, record->mResistValue)),
                                     weaknessOf(victim, record->mResistValue));
-                        (void)changeVital(
-                            writer, f, victim, record->mPrimaryValue, magnitude * seconds * mDragonSettings.mTestDamageScale, &where);
+                        (void)changeVital(writer, f, victim, record->mPrimaryValue,
+                            magnitude * seconds * mDragonSettings.mTestDamageScale, &where);
                         if (victim.mDead)
                             break;
                     }

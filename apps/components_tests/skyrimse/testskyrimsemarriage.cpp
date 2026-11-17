@@ -246,7 +246,8 @@ namespace
                 << e2.mMessage;
             mActors.add(mActorRecords);
             mIndex.add(mDialogue, FormIdResolver(mPlugin->header(), "test.esp", order()));
-            mRuntime = std::make_unique<DialogueRuntime>(mActors, mIndex, mQuests, QuestState::initial(mQuests),
+            mRuntime = std::make_unique<DialogueRuntime>(
+                mActors, mIndex, mQuests, QuestState::initial(mQuests),
                 [](const LString& text, std::uint32_t, StringTableKind) { return text.mText; },
                 DialogueRuntimeLimits());
         }
@@ -277,7 +278,6 @@ namespace
         return 0;
     }
 
-
     InfoSpec info(std::uint32_t local, const std::string& text)
     {
         InfoSpec s;
@@ -286,8 +286,8 @@ namespace
         return s;
     }
 
-    /// The marriage offer's shape: a named start topic whose response links to two topics that have NO name of their own
-    /// (no FULL) and whose INFOs carry the choice's words as their prompt (RNAM).
+    /// The marriage offer's shape: a named start topic whose response links to two topics that have NO name of their
+    /// own (no FULL) and whose INFOs carry the choice's words as their prompt (RNAM).
     Plugin offerPlugin(bool promptOnYes)
     {
         Plugin p;

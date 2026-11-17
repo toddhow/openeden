@@ -4,9 +4,10 @@
 // Skyrim SE scenes (task 0194, milestone M-S6 "scenes and more story events"). Pack side only: decode SCEN records and
 // merge a load order. The runner that plays a scene is in scene_runner.hpp. Pure: no engine, Papyrus or Qt type.
 //
-// Layout, VERIFIED on the five masters (2,141 SCEN records, 10,753 phases, 16,435 actions; walker of the task, aggregates
-// only; names are xEdit's wbSCEN, RECALLED-VERIFY):
-//  - EDID, optional VMAD (scene fragments, see vmad::parseScene), FNAM u32 scene flags (values seen: 0, 1, 3, 4, 5, 6, 7,
+// Layout, VERIFIED on the five masters (2,141 SCEN records, 10,753 phases, 16,435 actions; walker of the task,
+// aggregates only; names are xEdit's wbSCEN, RECALLED-VERIFY):
+//  - EDID, optional VMAD (scene fragments, see vmad::parseScene), FNAM u32 scene flags (values seen: 0, 1, 3, 4, 5, 6,
+//  7,
 //    12, 16, 19, 20, 23), then the phases, the actors, the actions, PNAM u32 (the scene's quest), INAM u32 (the last
 //    action index), VNAM (16 bytes, not read), and CTDA after VNAM (59 conditions: the scene's own).
 //  - Phase: HNAM (empty) opens it, NAM0 name, start conditions (CTDA, CIS1, CIS2), NEXT (empty), completion conditions,
@@ -16,10 +17,10 @@
 //    GetVMQuestVariable, GetStage.
 //  - Actor: ALID u32 (the quest alias), LNAM u32 flags, DNAM u32 behaviour flags.
 //  - Action: ANAM u16 type (0 dialogue 11,991, 1 package 3,549, 2 timer 895), NAM0 name, ALID u32 (the actor's alias;
-//    0 for a timer), INAM u32 (the action's index; the number fn_550 names), FNAM u32 flags (dialogue only), SNAM u32 start
-//    phase, ENAM u32 end phase, dialogue: DATA u32 (the topic, DIAL; 0 in 3,121 of them), HTID u32 (alias to look at,
-//    0xFFFFFFFF none), DMAX f32, DMIN f32, DEMO, DEVA; package: PNAM u32 (one or more packages); timer: a second SNAM f32
-//    (the seconds); ANAM (empty) closes the action.
+//    0 for a timer), INAM u32 (the action's index; the number fn_550 names), FNAM u32 flags (dialogue only), SNAM u32
+//    start phase, ENAM u32 end phase, dialogue: DATA u32 (the topic, DIAL; 0 in 3,121 of them), HTID u32 (alias to look
+//    at, 0xFFFFFFFF none), DMAX f32, DMIN f32, DEMO, DEVA; package: PNAM u32 (one or more packages); timer: a second
+//    SNAM f32 (the seconds); ANAM (empty) closes the action.
 
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/records.hpp>
@@ -157,7 +158,10 @@ namespace game_skyrimse
         [[nodiscard]] const SceneRecord* scene(FormId id) const;
         /// The scenes of a quest, by form id.
         [[nodiscard]] std::vector<FormId> scenesOfQuest(FormId quest) const;
-        [[nodiscard]] const FormIdResolver& resolverOf(const SceneRecord& scene) const { return mResolvers[scene.mPlugin]; }
+        [[nodiscard]] const FormIdResolver& resolverOf(const SceneRecord& scene) const
+        {
+            return mResolvers[scene.mPlugin];
+        }
         [[nodiscard]] std::size_t count() const { return mScenes.size(); }
 
     private:

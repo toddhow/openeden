@@ -192,7 +192,8 @@ namespace
         return writer.mBytes;
     }
 
-    bool readChunk(const std::vector<unsigned char>& bytes, std::map<FormId, DeathEntry>& out, std::uint32_t version = 1)
+    bool readChunk(
+        const std::vector<unsigned char>& bytes, std::map<FormId, DeathEntry>& out, std::uint32_t version = 1)
     {
         DeathsChunk chunk({}, [&out](const std::map<FormId, DeathEntry>& data) {
             out = data;

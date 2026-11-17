@@ -53,8 +53,7 @@ namespace game_skyrimse
     bool DeathLedger::setPosition(FormId reference, double x, double y, double z, float heading)
     {
         DeathEntry* entry = find(reference);
-        if (entry == nullptr || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)
-            || !std::isfinite(heading))
+        if (entry == nullptr || !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !std::isfinite(heading))
             return false;
         entry->mX = x;
         entry->mY = y;
@@ -210,8 +209,7 @@ namespace game_skyrimse
             {
                 std::uint64_t x = 0, y = 0, z = 0;
                 std::uint32_t heading = 0;
-                if (!reader.readValue(x) || !reader.readValue(y) || !reader.readValue(z)
-                    || !reader.readValue(heading))
+                if (!reader.readValue(x) || !reader.readValue(y) || !reader.readValue(z) || !reader.readValue(heading))
                     return refuse("truncated position");
                 entry.mX = std::bit_cast<double>(x);
                 entry.mY = std::bit_cast<double>(y);
@@ -256,7 +254,8 @@ namespace game_skyrimse
                 entry->mSinceRefresh = kDeathRefreshEvery; // read at once
                 fresh = true;
                 if (mTrace)
-                    mTrace("DEATHS noted actor " + std::to_string(reference) + " hours " + std::to_string(entry->mHours));
+                    mTrace(
+                        "DEATHS noted actor " + std::to_string(reference) + " hours " + std::to_string(entry->mHours));
                 if (mHooks.hold)
                     mHooks.hold(reference, true); // a corpse does not walk on by its package
             }

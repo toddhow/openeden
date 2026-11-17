@@ -57,7 +57,8 @@ namespace
     TEST(NeutralActorRadius, aBadRadiusMeansThePersonsRadius)
     {
         const Capsule plain = capsuleFor(1.f);
-        for (const float bad : { -5.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
+        for (const float bad :
+            { -5.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
         {
             const Capsule c = capsuleFor(1.f, bad);
             EXPECT_FLOAT_EQ(c.mRadius, plain.mRadius) << bad;

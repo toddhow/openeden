@@ -232,8 +232,8 @@ namespace game_skyrimse::crime
         virtual std::int32_t takeItem(FormId item, std::int32_t count) = 0;
         virtual std::int32_t itemCount(FormId item) = 0;
         /// The guard walks to a point, stops (and holds still for the talk), is let go, or turns hostile.
-        virtual void guardGoTo(openeden::sdk::game::ActorHandle guard, double x, double y, double z,
-            openeden::sdk::game::ActorSpeed speed)
+        virtual void guardGoTo(
+            openeden::sdk::game::ActorHandle guard, double x, double y, double z, openeden::sdk::game::ActorSpeed speed)
             = 0;
         virtual void guardHold(openeden::sdk::game::ActorHandle guard) = 0;
         virtual void guardRelease(openeden::sdk::game::ActorHandle guard) = 0;
@@ -307,8 +307,8 @@ namespace game_skyrimse::crime
         /// Replaces the line the window shows (a refusal the service found, such as a faction with no jail).
         void setMessage(std::string text);
 
-        /// Task 0227 (sneaking): with a lookup set, only a witness that has NOTICED the player counts (the lookup answers
-        /// per actor reference); without one (the default) a clear sight line is enough, as before.
+        /// Task 0227 (sneaking): with a lookup set, only a witness that has NOTICED the player counts (the lookup
+        /// answers per actor reference); without one (the default) a clear sight line is enough, as before.
         void setDetectedLookup(std::function<bool(std::uint32_t reference)> lookup) { mDetected = std::move(lookup); }
 
         /// Task 0235: called once for each witness (nearest first) of a crime that counts, after its bounty is charged:
@@ -334,9 +334,9 @@ namespace game_skyrimse::crime
         /// Should a conversation with the actor placed as `reference` open as the arrest dialogue? True while a
         /// `Dialogue` offer of that guard stands and its conversation has not begun.
         [[nodiscard]] bool wantsDialogueWith(openeden::sdk::game::WorldId reference) const;
-        /// The conversation began / ended / could not begin. A failure turns the offer into a `Window` offer at once; an
-        /// end does so at the next update, if no choice was made by then (the response's fragment makes the choice in the
-        /// first frame the game runs again).
+        /// The conversation began / ended / could not begin. A failure turns the offer into a `Window` offer at once;
+        /// an end does so at the next update, if no choice was made by then (the response's fragment makes the choice
+        /// in the first frame the game runs again).
         void dialogueBegan(openeden::sdk::game::WorldId reference);
         void dialogueEnded(openeden::sdk::game::WorldId reference);
         void dialogueFailed(openeden::sdk::game::WorldId reference);
@@ -409,9 +409,9 @@ namespace game_skyrimse::crime
     };
 
     /// The outermost wrapper of the combat chain (task 0204): it tells the crime system of every damage report and
-    /// death BEFORE the report goes on (so before the victim is provoked), and forwards everything. It adds no virtual; every
-    /// virtual of the contract is forwarded (a wrapper that does not forward a new one silently gives the pack the
-    /// refusing default).
+    /// death BEFORE the report goes on (so before the victim is provoked), and forwards everything. It adds no virtual;
+    /// every virtual of the contract is forwarded (a wrapper that does not forward a new one silently gives the pack
+    /// the refusing default).
     class CrimeWriter final : public openeden::sdk::game::CombatRequestWriter
     {
     public:

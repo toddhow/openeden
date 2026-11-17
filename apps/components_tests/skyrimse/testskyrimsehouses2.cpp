@@ -1,6 +1,6 @@
-// Task 0269 (milestone M-S7): the other four purchasable houses (Honeyside, Proudspire Manor, Vlindrel Hall, Hjerim). The
-// pack's side: the developer aid's list of jarls whose goodwill the offers need, and the host aid that marks a quest
-// stage done WITHOUT running its fragments (Hjerim's offer needs MS11 finished). Written FIRST, against stubs.
+// Task 0269 (milestone M-S7): the other four purchasable houses (Honeyside, Proudspire Manor, Vlindrel Hall, Hjerim).
+// The pack's side: the developer aid's list of jarls whose goodwill the offers need, and the host aid that marks a
+// quest stage done WITHOUT running its fragments (Hjerim's offer needs MS11 finished). Written FIRST, against stubs.
 #include <game_skyrimse/houses.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -145,9 +145,8 @@ namespace
             mVmad.mScripts = { qs };
             mVmad.mFragments.push_back({ 10, 0, "QF_Houses", "Fragment_0" });
             mVmad.mFragments.push_back({ 10, 1, "QF_Houses", "Fragment_1" });
-            mHost->setQuests(&mIndex, &mState, [this](FormId questId) -> const vmad::Vmad* {
-                return questId == kQuestA ? &mVmad : nullptr;
-            });
+            mHost->setQuests(&mIndex, &mState,
+                [this](FormId questId) -> const vmad::Vmad* { return questId == kQuestA ? &mVmad : nullptr; });
             mHost->startGame();
         }
         ~Rig()
@@ -178,7 +177,8 @@ namespace
         EXPECT_EQ(unique.size(), bases.size()) << "no jarl twice";
         // Whiterun: Balgruuf and Vignar; Windhelm: Ulfric and Brunwulf; Riften: Laila and Maven; Markarth: Igmund and
         // Thongvor; Solitude: Elisif (the offers' aliases 10, 14, 11, 15, 12, 16, 13, 17 and 9)
-        for (const FormId expected : { 0x13BBDu, 0x13BB5u, 0x1414Du, 0x14149u, 0x13366u, 0x1336Au, 0x1339Fu, 0x133BBu, 0x1326Au })
+        for (const FormId expected :
+            { 0x13BBDu, 0x13BB5u, 0x1414Du, 0x14149u, 0x13366u, 0x1336Au, 0x1339Fu, 0x133BBu, 0x1326Au })
             EXPECT_TRUE(unique.count(expected) == 1) << std::hex << expected;
         EXPECT_EQ(bases.size(), 9u);
     }
@@ -187,7 +187,6 @@ namespace
     {
         EXPECT_EQ(houses::kMs11Quest, 0x1F7A3u);
     }
-
 
     TEST(SkyrimHouses2Host, aStageMarkedByTheAidIsDoneAndCurrentAndRunsNoFragment)
     {
@@ -274,7 +273,7 @@ namespace
 
     TEST(SkyrimHouses2Steward, theHoldDialogueQuestsAreTheFiveOfTheGame)
     {
-        EXPECT_EQ(houses::holdDialogueQuests(),
-            (std::vector<FormId>{ 0x270A4u, 0x368D8u, 0x3502Eu, 0x17F05u, 0x2E1ADu }));
+        EXPECT_EQ(
+            houses::holdDialogueQuests(), (std::vector<FormId>{ 0x270A4u, 0x368D8u, 0x3502Eu, 0x17F05u, 0x2E1ADu }));
     }
 }

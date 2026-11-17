@@ -365,7 +365,8 @@ namespace
         EXPECT_FLOAT_EQ(sneak::applySneakAttackPerks(engine, none, owner, nullptr, target, -1.f), -1.f);
     }
 
-    // ---- crime and pickpocketing ----------------------------------------------------------------------------------------
+    // ---- crime and pickpocketing
+    // ----------------------------------------------------------------------------------------
 
     constexpr FormId kHold = 0x010000a0;
 

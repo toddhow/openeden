@@ -454,9 +454,9 @@ namespace
 
     TEST(JournalBuild, tagsInTheTextsAreExpandedBeforeTheyAreShown)
     {
-        Env e = envOf({ makeQuest(kQ1, "Tags", kEnabled,
-            { { 10, "Take <Alias=Staff> to <Alias=Jarl>", 0, StageFlags::StartUp } },
-            { { 0, "Pay <Global=Gold>" } }) });
+        Env e = envOf(
+            { makeQuest(kQ1, "Tags", kEnabled, { { 10, "Take <Alias=Staff> to <Alias=Jarl>", 0, StageFlags::StartUp } },
+                { { 0, "Pay <Global=Gold>" } }) });
         e.mObjectives[{ kQ1, 0 }] = { true, false };
         Snapshot s;
         build(e.inputs(), s);
@@ -572,8 +572,8 @@ namespace
         EXPECT_EQ(mBindings.mName, "skyrimse.journal");
         EXPECT_EQ(mBindings.mVersion.major, 1);
         EXPECT_EQ(mBindings.mVersion.minor, 0);
-        for (const char* fn : { "ready", "revision", "quests", "name", "entry", "status", "log", "objectives",
-                 "objective_done" })
+        for (const char* fn :
+            { "ready", "revision", "quests", "name", "entry", "status", "log", "objectives", "objective_done" })
         {
             ASSERT_EQ(mBindings.mFunctions.count(fn), 1u) << fn;
             EXPECT_EQ(mBindings.mFunctions[fn].access, BindingAccess::Read) << fn;

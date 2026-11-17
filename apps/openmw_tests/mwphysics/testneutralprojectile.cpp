@@ -52,7 +52,8 @@ namespace
         int mCalls = 0;
     };
 
-    Shot shotAt(double x, double y, double z, double vx, double vy, double vz, float gravity = 0.f, float range = 5000.f)
+    Shot shotAt(
+        double x, double y, double z, double vx, double vy, double vz, float gravity = 0.f, float range = 5000.f)
     {
         Shot s;
         s.mId = 1;
@@ -206,8 +207,8 @@ namespace
     {
         Shot s = shotAt(0, 0, 0, 1000, 0, 0);
         const Shot before = s;
-        for (const float dt : { 0.f, -1.f, std::numeric_limits<float>::quiet_NaN(),
-                 std::numeric_limits<float>::infinity() })
+        for (const float dt :
+            { 0.f, -1.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
         {
             const StepResult r = step(s, dt, {}, nullptr);
             EXPECT_EQ(r.mOutcome, Outcome::Flying);

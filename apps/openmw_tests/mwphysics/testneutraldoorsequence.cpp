@@ -1,4 +1,5 @@
-// Task 0232: the rules around a door that swings by its model's own sequence (apps/openmw/mwphysics/neutraldoorswing.hpp).
+// Task 0232: the rules around a door that swings by its model's own sequence
+// (apps/openmw/mwphysics/neutraldoorswing.hpp).
 #include "apps/openmw/mwphysics/neutraldoorswing.hpp"
 
 #include <gtest/gtest.h>

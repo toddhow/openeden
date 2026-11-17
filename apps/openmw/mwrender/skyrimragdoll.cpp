@@ -73,8 +73,8 @@ namespace MWRender::SkyrimRagdoll
         return makeActorStartPose(mBones, mRoot, mRest, mTable->set(), out);
     }
 
-    bool Controller::arm(std::span<const std::string> names, std::span<const MWPhysics::RagdollBoneState> initial,
-        std::string& reason)
+    bool Controller::arm(
+        std::span<const std::string> names, std::span<const MWPhysics::RagdollBoneState> initial, std::string& reason)
     {
         if (initial.size() < names.size())
         {
@@ -99,8 +99,8 @@ namespace MWRender::SkyrimRagdoll
         return true;
     }
 
-    bool Controller::armFrozen(std::span<const std::string> names,
-        std::span<const MWPhysics::RagdollBoneState> states, std::string& reason)
+    bool Controller::armFrozen(
+        std::span<const std::string> names, std::span<const MWPhysics::RagdollBoneState> states, std::string& reason)
     {
         if (states.size() < names.size())
         {
@@ -125,8 +125,7 @@ namespace MWRender::SkyrimRagdoll
         return true;
     }
 
-    bool Controller::drivenPose(
-        std::vector<std::string>& names, std::vector<MWPhysics::RagdollBoneState>& states) const
+    bool Controller::drivenPose(std::vector<std::string>& names, std::vector<MWPhysics::RagdollBoneState>& states) const
     {
         std::scoped_lock lock(mMutex);
         if (!mArmed || !mDriver || !mSnapshot)

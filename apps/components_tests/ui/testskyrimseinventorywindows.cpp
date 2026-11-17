@@ -1,6 +1,6 @@
-// Task 0182: the Skyrim SE inventory and container windows of files/data/openeden/skyrimse/inventory_windows.lua over the
-// headless UI backend and a fake `core.skyrimse.inventory` package written in Lua. Written before the module and run
-// red against a stub module first.
+// Task 0182: the Skyrim SE inventory and container windows of files/data/openeden/skyrimse/inventory_windows.lua over
+// the headless UI backend and a fake `core.skyrimse.inventory` package written in Lua. Written before the module and
+// run red against a stub module first.
 #include "uiluafixture.hpp"
 
 #include <algorithm>

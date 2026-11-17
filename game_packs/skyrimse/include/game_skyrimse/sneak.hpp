@@ -7,8 +7,8 @@
 //
 // Where the numbers come from: the GMST values below are Skyrim.esm's (VERIFIED by reading the five masters: only
 // Skyrim.esm holds them; there is NO bow multiplier and NO two-handed hammer multiplier in the data). The FORMULA that
-// combines them is RECALLED-VERIFY: Skyrim's own detection is a stealth-point meter whose exact arithmetic is not in the
-// data, so this is a model of ours built from those names. Every number of ours is a named constant in `Settings`.
+// combines them is RECALLED-VERIFY: Skyrim's own detection is a stealth-point meter whose exact arithmetic is not in
+// the data, so this is a model of ours built from those names. Every number of ours is a named constant in `Settings`.
 //
 // Standard library, the SDK combat types and the crime actor roster only (no engine type). Main thread; everything that
 // needs the writer (positions, rays) runs inside combatUpdate, as the crime rules do.
@@ -87,7 +87,8 @@ namespace game_skyrimse::sneak
         float mMessageSeconds = 3.f; ///< how long the sneak attack message is meant to show
     };
 
-    // ---- the pure rules ----------------------------------------------------------------------------------------------
+    // ---- the pure rules
+    // ----------------------------------------------------------------------------------------------
 
     /// What is known of the player's stealth right now.
     struct PlayerStealth
@@ -104,8 +105,8 @@ namespace game_skyrimse::sneak
     /// The new notice value of an observer after `seconds`: it grows when the player is within the range it can
     /// perceive him at (sight: the full range; no sight: the range times mSoundLosMult, and it stops at mHeardCap) and
     /// decays otherwise. Always in [0, mNoticeMax].
-    [[nodiscard]] float updateNotice(const Settings& settings, float notice, float seconds, float range, float distance,
-        bool sees);
+    [[nodiscard]] float updateNotice(
+        const Settings& settings, float notice, float seconds, float range, float distance, bool sees);
 
     /// The alert state a notice value gives, with hysteresis from the state before.
     [[nodiscard]] Alert classify(const Settings& settings, float notice, Alert before);
@@ -122,14 +123,15 @@ namespace game_skyrimse::sneak
     [[nodiscard]] float hiddenTraining(
         const Settings& settings, bool sneaking, float speed, std::size_t hiddenWatchers, float seconds);
 
-    /// The perk side of a sneak attack (entry point ModSneakAttackMult, 18): the multiplier after the owner's perks, with
-    /// the owner counted as sneaking. `weapon` may be null (bare hands). Unchanged when no perk has the entry point or no
-    /// effect's conditions hold. `applied` (optional) counts the effects that applied.
+    /// The perk side of a sneak attack (entry point ModSneakAttackMult, 18): the multiplier after the owner's perks,
+    /// with the owner counted as sneaking. `weapon` may be null (bare hands). Unchanged when no perk has the entry
+    /// point or no effect's conditions hold. `applied` (optional) counts the effects that applied.
     [[nodiscard]] float applySneakAttackPerks(PerkEngine& engine, std::span<const FormId> perks,
         const PerkParticipant& owner, const PerkParticipant* weapon, const PerkParticipant& target, float multiplier,
         std::size_t* applied = nullptr);
 
-    // ---- the system ----------------------------------------------------------------------------------------------------
+    // ---- the system
+    // ----------------------------------------------------------------------------------------------------
 
     /// What the system needs of the game; a missing hook gives the stand-in value.
     struct Hooks

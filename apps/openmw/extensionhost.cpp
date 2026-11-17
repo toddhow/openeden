@@ -21,21 +21,21 @@
 
 #include "extensionworld.hpp"
 #include "mwbase/environment.hpp"
+#include "mwbase/rotationflags.hpp"
 #include "mwbase/statemanager.hpp"
 #include "mwbase/world.hpp"
-#include "mwworld/worldmodel.hpp"
 #include "mwphysics/physicssystem.hpp"
-#include "mwworld/craftingrules.hpp"
+#include "mwrender/transparency.hpp"
 #include "mwworld/cellstore.hpp"
+#include "mwworld/craftingrules.hpp"
 #include "mwworld/gamerules.hpp"
 #include "mwworld/neutralcell.hpp"
 #include "mwworld/neutralsave.hpp"
 #include "mwworld/neutralstore.hpp"
-#include "mwbase/rotationflags.hpp"
-#include <components/mwanimation/context.hpp>
-#include "mwrender/transparency.hpp"
 #include "mwworld/ptr.hpp"
+#include "mwworld/worldmodel.hpp"
 #include <components/extension/extension_loader.hpp>
+#include <components/mwanimation/context.hpp>
 
 #include <openeden/game/game_rules.hpp>
 #include <openeden/logging.hpp>

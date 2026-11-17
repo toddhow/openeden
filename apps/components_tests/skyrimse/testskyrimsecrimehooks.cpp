@@ -30,7 +30,7 @@ namespace
     constexpr FormId kSword = kSelf | 0x101;
     constexpr FormId kPebble = kSelf | 0x102;
     constexpr FormId kCont = kSelf | 0x200;
-constexpr FormId kVendorCont = kSelf | 0x201; // the merchant's stock: gold
+    constexpr FormId kVendorCont = kSelf | 0x201; // the merchant's stock: gold
     constexpr std::uint64_t kChestRef = kSelf | 0x700; // an owned container in the world
     constexpr std::uint64_t kVendorRef = kSelf | 0x701; // the merchant's chest
     constexpr FormId kNpcBase = kSelf | 0x900;
@@ -92,12 +92,12 @@ constexpr FormId kVendorCont = kSelf | 0x201; // the merchant's stock: gold
         void SetUp() override
         {
             Bytes all = tes4Header(1.7f, 0, "A", "B", 6, { { "Skyrim.esm", 0 } }, 24, 44);
-            all.append(group4(Content::fourCC("WEAP"), 0,
-                record4("WEAP", 0, kSword, sub4("DATA", Bytes().u32(25).f32(9.f).u16(7)))));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, kPebble, sub4("DATA", Bytes().u32(10).f32(0.5f)))));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
+            all.append(group4(
+                Content::fourCC("WEAP"), 0, record4("WEAP", 0, kSword, sub4("DATA", Bytes().u32(25).f32(9.f).u16(7)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, kPebble, sub4("DATA", Bytes().u32(10).f32(0.5f)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
             Bytes cont;
             cont.append(sub4("CNTO", Bytes().u32(kPebble).u32(3)));
             cont.append(sub4("CNTO", Bytes().u32(kSword).u32(1)));

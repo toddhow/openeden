@@ -6,14 +6,15 @@
 //
 // The pack's side: when the player may travel, where the travel ends, how long it takes, and the script package
 // `core.skyrimse.travel` that the Lua world map window and the global travel script read. The teleport itself and the
-// passing of the game clock are done by a global script (`player:teleport`, `world.advanceTime`); the engine carries the
-// player's followers with a script teleport the way it does with a door (mwworld/neutralfollowers.*).
+// passing of the game clock are done by a global script (`player:teleport`, `world.advanceTime`); the engine carries
+// the player's followers with a script teleport the way it does with a door (mwworld/neutralfollowers.*).
 //
 // What the data settles (docs/tasks/0218-skyrim-fast-travel.md section 2, Skyrim.esm):
 //  - 353 of the 397 map markers carry an XLKR of 8 bytes: a null keyword and a reference. The reference is a static
 //    "landing" place next to the marker (a REFR whose editor id often says MapLandingMarker); the median distance from
 //    the marker is 1,873 units (25 to 8,770). The 44 markers with no XLKR have no landing.
-//  - The marker FNAM flags are 0, 1 or 3 in the data; bit 1 (can travel to) is set in 11 only, so a travel destination is
+//  - The marker FNAM flags are 0, 1 or 3 in the data; bit 1 (can travel to) is set in 11 only, so a travel destination
+//  is
 //    a marker that is discovered or has that bit. RECALLED-VERIFY: Skyrim sets "visible" and "can travel to" when the
 //    player discovers a marker.
 // RECALLED-VERIFY: that Skyrim itself arrives at the marker's linked reference (UESP, the CK's "Fast Travel Marker"
@@ -105,7 +106,8 @@ namespace game_skyrimse::travel
         std::function<bool()> mReady; ///< the combat's data is read
         std::function<bool()> mInCombat; ///< the player fought a moment ago
         std::function<bool()> mEnemiesNear; ///< a live hostile is engaged
-        std::function<std::size_t()> mFollowerCount; ///< how many followers the pack has (a trace; the engine carries them)
+        std::function<std::size_t()>
+            mFollowerCount; ///< how many followers the pack has (a trace; the engine carries them)
         std::function<void(const std::string&)> mLog;
     };
 

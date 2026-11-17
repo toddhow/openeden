@@ -115,7 +115,8 @@ namespace
             ASSERT_TRUE(r.mService.setObjectEnabled(r.mSource, 1, 0x1000 + i, false));
         EXPECT_FALSE(r.mService.setObjectEnabled(r.mSource, 1, 0x9000, false)) << "full";
         EXPECT_EQ(r.mService.droppedObjectChanges(), 1u);
-        EXPECT_TRUE(r.mService.setObjectEnabled(r.mSource, 1, 0x1000, true)) << "a placement already queued still updates";
+        EXPECT_TRUE(r.mService.setObjectEnabled(r.mSource, 1, 0x1000, true))
+            << "a placement already queued still updates";
         std::vector<ObjectEnableChange> out;
         EXPECT_EQ(r.mService.takeObjectEnableChanges(out), WorldSourceServiceImpl::kMaxPendingObjectChanges);
         EXPECT_TRUE(r.mService.setObjectEnabled(r.mSource, 1, 0x9000, false)) << "room again after a take";

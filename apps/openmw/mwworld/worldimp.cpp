@@ -49,15 +49,15 @@
 
 #include "defaultglobals.hpp"
 #include "neutraldialogue.hpp"
-#include "neutralmusicdriver.hpp"
 #include "neutralimagespace.hpp"
-#include "neutralplayername.hpp"
-#include "neutralscenespeech.hpp"
-#include "neutralprojectiles.hpp"
+#include "neutralmusicdriver.hpp"
 #include "neutralnavigation.hpp"
 #include "neutralpick.hpp"
-#include "neutralstore.hpp"
+#include "neutralplayername.hpp"
+#include "neutralprojectiles.hpp"
 #include "neutralrotation.hpp"
+#include "neutralscenespeech.hpp"
+#include "neutralstore.hpp"
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/navigator.hpp>
@@ -87,8 +87,8 @@
 #include "../mwmechanics/aiavoiddoor.hpp" //Used to tell actors to avoid doors
 #include "../mwmechanics/combat.hpp"
 #include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/movement.hpp"
 #include "../mwmechanics/levelledlist.hpp"
+#include "../mwmechanics/movement.hpp"
 #include "../mwmechanics/npcstats.hpp"
 #include "../mwmechanics/spellcasting.hpp"
 #include "../mwmechanics/spellutil.hpp"
@@ -402,8 +402,8 @@ namespace MWWorld
                     out.mSneaking = player.getClass().getCreatureStats(player).getStance(
                         MWMechanics::CreatureStats::Stance_Sneak); // task 0227
                     // Task 0235: 0 nothing, 1 weapon, 2 spell (MWMechanics::DrawState)
-                    out.mDrawState = static_cast<std::uint8_t>(
-                        player.getClass().getCreatureStats(player).getDrawState());
+                    out.mDrawState
+                        = static_cast<std::uint8_t>(player.getClass().getCreatureStats(player).getDrawState());
                     // Task 0172 (stage S5-4): the attack action. It is only read, never changed, and only because
                     // `[Game] neutral combat` is on (this hook is installed under it).
                     MWBase::InputManager* input = MWBase::Environment::get().getInputManager();
@@ -500,7 +500,8 @@ namespace MWWorld
                 if (player.isEmpty())
                     return false;
                 // A little above the horse's feet: the floor rules take him down from there.
-                moveObject(player, vsg::vec3(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) + 30.f));
+                moveObject(
+                    player, vsg::vec3(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) + 30.f));
                 mPhysics->setPlayerCollisionMode(true);
                 return true;
             };
@@ -1791,8 +1792,8 @@ namespace MWWorld
                         MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
                         Log(Debug::Info) << "SCENESPEECH voice " << path;
                         if (sound != nullptr)
-                            sound->say(mSpeakers[actor],
-                                Misc::ResourceHelpers::correctSoundPath(VFS::Path::Normalized(path)));
+                            sound->say(
+                                mSpeakers[actor], Misc::ResourceHelpers::correctSoundPath(VFS::Path::Normalized(path)));
                     }
                     void subtitle(const void* actor, const std::string& text) override
                     {
@@ -2404,8 +2405,7 @@ namespace MWWorld
             if (hitDistance > 1e-6)
             {
                 const vsg::dvec3 direction = toHit * (1.0 / hitDistance);
-                const bool hitCanBeActivated
-                    = !focusObject.isEmpty() && focusObject.getClass().hasToolTip(focusObject);
+                const bool hitCanBeActivated = !focusObject.isEmpty() && focusObject.getClass().hasToolTip(focusObject);
                 double bestEntry = std::numeric_limits<double>::infinity();
                 Ptr best;
                 for (CellStore* cellstore : mWorldScene->getActiveCells())
@@ -2418,10 +2418,10 @@ namespace MWWorld
                             return;
                         const ESM::Position& position = candidate.getRefData().getPosition();
                         const auto box = rayOrientedBox(origin, direction, maxDistance,
-                            vsg::dvec3(base.mCollision.boundsMin.x, base.mCollision.boundsMin.y,
-                                base.mCollision.boundsMin.z),
-                            vsg::dvec3(base.mCollision.boundsMax.x, base.mCollision.boundsMax.y,
-                                base.mCollision.boundsMax.z),
+                            vsg::dvec3(
+                                base.mCollision.boundsMin.x, base.mCollision.boundsMin.y, base.mCollision.boundsMin.z),
+                            vsg::dvec3(
+                                base.mCollision.boundsMax.x, base.mCollision.boundsMax.y, base.mCollision.boundsMax.z),
                             vsg::dvec3(position.pos[0], position.pos[1], position.pos[2]),
                             Misc::Convert::makeOsgQuat(position), candidate.getCellRef().getScale());
                         if (box && box->mEntry < bestEntry && boxBeatsRenderHit(*box, hitDistance, hitCanBeActivated))
@@ -2967,7 +2967,8 @@ namespace MWWorld
             mNeutralSaveBytes.clear();
             return;
         }
-        NeutralWorld::NeutralWorldStore* neutral = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        NeutralWorld::NeutralWorldStore* neutral
+            = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
         if (neutral == nullptr || !mStore.hasNeutralStubs())
         {
             mNeutralSaveBytes.clear();
@@ -2985,10 +2986,10 @@ namespace MWWorld
         const WorldModel::NeutralSaveRestore restored = mWorldModel.restoreNeutralSave(state, *neutral);
         for (const std::string& warning : restored.mWarnings)
             Log(Debug::Warning) << warning;
-        Log(Debug::Info) << "Neutral world restored: " << restored.mCells << " cells with changes, " << restored.mObjects
-                         << " changed objects (" << restored.mMissing << " no longer in the game), "
-                         << state.mUnlocked.size() << " opened locks, " << state.mKeys.size() << " keys, "
-                         << restored.mCreated << " created objects";
+        Log(Debug::Info) << "Neutral world restored: " << restored.mCells << " cells with changes, "
+                         << restored.mObjects << " changed objects (" << restored.mMissing
+                         << " no longer in the game), " << state.mUnlocked.size() << " opened locks, "
+                         << state.mKeys.size() << " keys, " << restored.mCreated << " created objects";
         // Task 0202: queued operations and fades belong to the world that is gone; the counter is the save's
         MWBase::Environment::get().getExtensionManager()->resetNeutralObjects(state.mNextCreatedIndex);
         if (restored.mPlayerCell == nullptr)

@@ -9,10 +9,10 @@
 #include "game_skyrimse/dialogue_runtime.hpp"
 #include "game_skyrimse/harvest.hpp"
 #include "game_skyrimse/location.hpp"
+#include "game_skyrimse/music.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/player_body.hpp"
 #include "game_skyrimse/quest_script.hpp"
-#include "game_skyrimse/music.hpp"
 #include "game_skyrimse/story_events.hpp"
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
@@ -478,9 +478,8 @@ namespace game_skyrimse
 
     const ShoutIndex* SkyrimWorldView::shoutIndex() const
     {
-        return mCombatState.load(std::memory_order_acquire) != 3 || mCombatIndex == nullptr
-            ? nullptr
-            : &mCombatIndex->shouts();
+        return mCombatState.load(std::memory_order_acquire) != 3 || mCombatIndex == nullptr ? nullptr
+                                                                                            : &mCombatIndex->shouts();
     }
 
     const ProjectileRecord* SkyrimWorldView::projectileById(FormId id)
@@ -527,7 +526,8 @@ namespace game_skyrimse
 
     bool SkyrimWorldView::raceIsChild(FormId race)
     {
-        // RACE DATA +32 bit 2 (0x4): the Child flag. VERIFIED by the data: every *RaceChild race has it, no adult race does.
+        // RACE DATA +32 bit 2 (0x4): the Child flag. VERIFIED by the data: every *RaceChild race has it, no adult race
+        // does.
         const RaceRecord* record = mActorIndex ? mActorIndex->race(race) : nullptr;
         return record != nullptr && (record->mFlags & 0x4u) != 0;
     }
@@ -633,8 +633,7 @@ namespace game_skyrimse
         return static_cast<double>(mCombatIndex->settings().get("iHoursToRespawnCell", 240.f));
     }
 
-    bool SkyrimWorldView::fighterFor(
-        openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
+    bool SkyrimWorldView::fighterFor(openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
     {
         out = {};
         // Task 0216: with `creatures` on the placement's own number picks a leveled template, as in describeActor.
@@ -676,7 +675,8 @@ namespace game_skyrimse
                 if (mActorIndex->resolve(npc, kAppearanceLevel, pick, shown) == ActorIndex::ResolveStatus::Ok)
                     if (const RaceRecord* creatureRace = mActorIndex->race(shown.mRace))
                     {
-                        out.mCreature = creatureProfileFor(creatureRace->skeleton(out.mFemale ? Sex::Female : Sex::Male));
+                        out.mCreature
+                            = creatureProfileFor(creatureRace->skeleton(out.mFemale ? Sex::Female : Sex::Male));
                         if (out.mCreature == nullptr)
                             out.mCreature = creatureProfileFor(creatureRace->skeleton(Sex::Male));
                         if (out.mCreature == nullptr && mDragons)
@@ -1153,10 +1153,10 @@ namespace game_skyrimse
         const bool loadingScreens = mWantLoadingScreens;
         mDialogueThread
             = std::thread([this, plugins = std::move(plugins), order = mOrder, mapMarkers, loadingScreens]() {
-            std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers, loadingScreens);
-            mPrefetched = std::move(data);
-            mDialogueReady.store(true);
-        });
+                  std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers, loadingScreens);
+                  mPrefetched = std::move(data);
+                  mDialogueReady.store(true);
+              });
     }
 
     bool SkyrimWorldView::ensureDialogue()
@@ -1333,16 +1333,17 @@ namespace game_skyrimse
             {
                 QuestAliasFiller::Environment env;
                 env.mLocations = &raw->mData->mLocations;
-                env.mLocationMatcher = [raw, world](const QuestRecord& quest, const QuestAlias& alias, FormId location) {
-                    world->setStoryEvent(nullptr);
-                    world->setSpeaker(DialogueSpeaker());
-                    world->setQuestContext(quest.mCommon.mId);
-                    world->setPlugin(&raw->mData->mQuests.resolverOf(quest));
-                    world->setSubjectLocation(location);
-                    const bool ok = raw->mQuestEvaluator.evaluate(alias.mConditions, *world);
-                    world->setSubjectLocation(kNullFormId);
-                    return ok;
-                };
+                env.mLocationMatcher
+                    = [raw, world](const QuestRecord& quest, const QuestAlias& alias, FormId location) {
+                          world->setStoryEvent(nullptr);
+                          world->setSpeaker(DialogueSpeaker());
+                          world->setQuestContext(quest.mCommon.mId);
+                          world->setPlugin(&raw->mData->mQuests.resolverOf(quest));
+                          world->setSubjectLocation(location);
+                          const bool ok = raw->mQuestEvaluator.evaluate(alias.mConditions, *world);
+                          world->setSubjectLocation(kNullFormId);
+                          return ok;
+                      };
                 // task 0226: the location of a reference that no location lists is the location of its cell
                 const auto referenceLocation = [this, raw](FormId reference) {
                     const PlacedEntry* entry = raw->mData->mPlacedRefs.find(reference);
@@ -1350,9 +1351,8 @@ namespace game_skyrimse
                 };
                 env.mReferenceLocation = referenceLocation;
                 world->setReferenceLocation(referenceLocation);
-                env.mSetAliasView = [world](const std::function<FormId(std::uint32_t)>& view) {
-                    world->setAliasView(view);
-                };
+                env.mSetAliasView
+                    = [world](const std::function<FormId(std::uint32_t)>& view) { world->setAliasView(view); };
                 env.mPlayer = [this] { return mPlayerSite ? mPlayerSite() : QuestAliasFiller::PlayerSite(); };
                 env.mCell = [this](FormId cell) {
                     QuestAliasFiller::CellFacts facts;
@@ -1362,15 +1362,18 @@ namespace game_skyrimse
                     facts.mKnown = true;
                     facts.mInterior = it->second.mInfo.interior;
                     facts.mWorld = facts.mInterior ? kNullFormId : static_cast<FormId>(it->second.mInfo.world);
-                    const QuestAliasFiller::PlayerSite site = mPlayerSite ? mPlayerSite() : QuestAliasFiller::PlayerSite();
+                    const QuestAliasFiller::PlayerSite site
+                        = mPlayerSite ? mPlayerSite() : QuestAliasFiller::PlayerSite();
                     if (site.mKnown)
                     {
                         if (facts.mInterior)
                             facts.mLoaded = site.mInterior && site.mCell == cell;
                         else if (!site.mInterior && site.mWorld == facts.mWorld && it->second.mInfo.hasGrid)
                         {
-                            const auto gx = static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize));
-                            const auto gy = static_cast<std::int32_t>(std::floor(site.mY / QuestAliasFiller::kCellSize));
+                            const auto gx
+                                = static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize));
+                            const auto gy
+                                = static_cast<std::int32_t>(std::floor(site.mY / QuestAliasFiller::kCellSize));
                             facts.mLoaded = std::abs(it->second.mInfo.gridX - gx) <= kLoadedRing
                                 && std::abs(it->second.mInfo.gridY - gy) <= kLoadedRing;
                         }
@@ -1460,7 +1463,8 @@ namespace game_skyrimse
             const LocationRecord* record = locations.location(location);
             location = record != nullptr ? record->mParent : kNullFormId;
         }
-        // a city's own record may list no cells (a later plugin's record replaces it whole): then a location inside it does
+        // a city's own record may list no cells (a later plugin's record replaces it whole): then a location inside it
+        // does
         const std::vector<FormId> all = locations.ids();
         for (const FormId ancestor : chain)
             for (const FormId other : all)
@@ -1598,8 +1602,9 @@ namespace game_skyrimse
             out = list;
             mDialogue->mPackageLists.emplace(base, std::move(list));
         }
-        // Task 0271: the packages a running quest's alias gives this actor (ALPC) come first, in the alias's order. Which
-        // quests run is read now; a quest that starts or stops later changes the list when the actor is resolved again.
+        // Task 0271: the packages a running quest's alias gives this actor (ALPC) come first, in the alias's order.
+        // Which quests run is read now; a quest that starts or stops later changes the list when the actor is resolved
+        // again.
         if (!mAliasPackagesOn)
             return true;
         if (!mDialogue->mAliasPackagesBuilt)
@@ -2146,7 +2151,8 @@ namespace game_skyrimse
     // Task 0228: 1 when the NPC of the alias is female, 0 male, -1 when nothing fills it or it is no one.
     int SkyrimWorldView::aliasFemale(FormId quest, std::string_view aliasName)
     {
-        if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr || mActorIndex == nullptr)
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr
+            || mActorIndex == nullptr)
             return -1;
         const QuestAlias* alias = findAliasByName(quest, aliasName);
         if (alias == nullptr || alias->mIsLocation)
@@ -2185,7 +2191,8 @@ namespace game_skyrimse
             return entry != nullptr ? entry->mBase : kNullFormId;
         };
         // Task 0217: the journal names what an alias holds
-        out.mAliasName = [this](FormId quest, std::string_view aliasName) { return aliasDisplayName(quest, aliasName); };
+        out.mAliasName
+            = [this](FormId quest, std::string_view aliasName) { return aliasDisplayName(quest, aliasName); };
         out.mSetSceneLookup = [state](std::function<bool(FormId, std::uint32_t)> lookup) {
             state->mQuestWorld->setSceneActionLookup(std::move(lookup));
         };
@@ -2219,8 +2226,8 @@ namespace game_skyrimse
             line.mVoice = turn.voice;
             return true;
         };
-        out.mBark = [this, state, data](
-                        std::string_view subtype, FormId reference, std::uint32_t pick, bool speakerIsVictim, SceneLine& line) {
+        out.mBark = [this, state, data](std::string_view subtype, FormId reference, std::uint32_t pick,
+                        bool speakerIsVictim, SceneLine& line) {
             const PlacedEntry* entry = data->mPlacedRefs.find(reference);
             if (entry == nullptr)
                 return false;
@@ -2236,9 +2243,8 @@ namespace game_skyrimse
             line.mVoice = turn.voice;
             return true;
         };
-        out.mSetStance = [state](bool sneaking, std::uint8_t drawState) {
-            state->mRuntime->setPlayerStance(sneaking, drawState);
-        };
+        out.mSetStance
+            = [state](bool sneaking, std::uint8_t drawState) { state->mRuntime->setPlayerStance(sneaking, drawState); };
         out.mQuestConditions = [state, data](const std::vector<survey::Ctda>& list, FormId quest) {
             const QuestRecord* record = data->mQuests.quest(quest);
             if (record == nullptr)
@@ -2272,9 +2278,9 @@ namespace game_skyrimse
                     // honoured: decision for toddhow)
                     if (event.mType == "ADIA" && state->mStoryRan.count(quest) != 0)
                         return false;
-                    // Task 0211: for every event, a quest starts only when its required aliases of an answered kind fill
-                    // (the event members, a find-matching reference or location, a reference in a location)
-                    // Task 0217: the dry run of the alias filler evaluates conditions on candidates and so clears the
+                    // Task 0211: for every event, a quest starts only when its required aliases of an answered kind
+                    // fill (the event members, a find-matching reference or location, a reference in a location) Task
+                    // 0217: the dry run of the alias filler evaluates conditions on candidates and so clears the
                     // world's event; without putting it back every node after the first quest tried saw no event (all
                     // the fn_576 conditions failed) and the walk could never go past it.
                     const StoryEvent* const walking = world->currentStoryEvent();
@@ -2389,8 +2395,8 @@ namespace game_skyrimse
         speaker.mCell = static_cast<FormId>(cell);
         // Task 0156: what the cell says about interior and location
         fillSpeakerCell(speaker, speaker.mCell);
-        // Task 0230: the running quests' aliases that need the speaker's editor location (Steward, Innkeeper, Jarl) take
-        // him now when they are still empty, so their dialogue lines can be offered
+        // Task 0230: the running quests' aliases that need the speaker's editor location (Steward, Innkeeper, Jarl)
+        // take him now when they are still empty, so their dialogue lines can be offered
         if (mDialogue->mAliasFiller != nullptr)
             (void)mDialogue->mAliasFiller->fillForSpeaker(
                 mDialogue->mRuntime->questsMutable(), speaker.mReference, speaker.mBase);
@@ -3238,8 +3244,8 @@ namespace game_skyrimse
         return *prefix | (local & (mOrder.isLight(lowerFile) ? 0xFFFu : 0xFFFFFFu));
     }
 
-    bool SkyrimWorldView::inventoryInputs(std::vector<std::filesystem::path>& paths, LoadOrder& order,
-        std::vector<LeveledList>& leveled) const
+    bool SkyrimWorldView::inventoryInputs(
+        std::vector<std::filesystem::path>& paths, LoadOrder& order, std::vector<LeveledList>& leveled) const
     {
         if (mBuilding.load(std::memory_order_acquire) || mFailed.load(std::memory_order_acquire))
             return false;
@@ -3268,8 +3274,7 @@ namespace game_skyrimse
         const ArmorExtra* armor = mActorIndex->armor(id);
         if (armor == nullptr)
             return false;
-        out = { static_cast<float>(armor->mRating) / 100.f, armor->mSlotMask, armor->mArmorType, id,
-            armor->mKeywords };
+        out = { static_cast<float>(armor->mRating) / 100.f, armor->mSlotMask, armor->mArmorType, id, armor->mKeywords };
         return true;
     }
 
@@ -3369,8 +3374,8 @@ namespace game_skyrimse
                 name = &m.mName;
                 // Task 0221: with the harvest on, a plant's prompt is its verb and name ("Harvest Canis Root").
                 if (mHarvestPrompts && m.mHarvest && m.mHarvest->mIngredient != kNullFormId)
-                    return harvest::promptFor(m.mHarvest->mActivateText.mPresent ? m.mHarvest->mActivateText.mText
-                                                                                  : std::string(),
+                    return harvest::promptFor(
+                        m.mHarvest->mActivateText.mPresent ? m.mHarvest->mActivateText.mText : std::string(),
                         name->mPresent ? name->mText : m.mCommon.mEditorId);
                 break;
             }

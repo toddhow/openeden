@@ -78,8 +78,8 @@ namespace MWWorld
         };
 
         void ask(openeden::sdk::game::WorldId cell, float gameHour);
-        void enterType(const openeden::sdk::game::MusicTypeDescription& description,
-            openeden::sdk::game::WorldId cell, float gameHour);
+        void enterType(const openeden::sdk::game::MusicTypeDescription& description, openeden::sdk::game::WorldId cell,
+            float gameHour);
         void startPlan(float transitionFade, openeden::sdk::game::WorldId cell, float gameHour);
         void beginItem(float transitionFade);
         void advance(float dt, openeden::sdk::game::WorldId cell, float gameHour);

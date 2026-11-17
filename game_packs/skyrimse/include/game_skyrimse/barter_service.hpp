@@ -5,8 +5,8 @@
 //
 // `BarterService` sits on top of the `InventoryService` of task 0182. A session is opened for one merchant (the NPC the
 // player talked to): the pack finds its vendor faction, registers the vendor chest as an owner of the inventory model
-// and from then on a trade is `barter::buy` / `barter::sell` over that model. Ids cross the binding as text exactly as in
-// the inventory namespace (an item is 8 hex digits, an owner is the chest's hex id).
+// and from then on a trade is `barter::buy` / `barter::sell` over that model. Ids cross the binding as text exactly as
+// in the inventory namespace (an item is 8 hex digits, an owner is the chest's hex id).
 //
 // Namespace skyrimse.barter 1.0 (Read unless marked):
 //   state() -> string                 "none", "pending" (the data is being read), "ready" or "refused"

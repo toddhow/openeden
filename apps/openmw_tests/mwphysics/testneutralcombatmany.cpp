@@ -162,8 +162,8 @@ namespace
             for (int i = 0; i < bystanders; ++i)
             {
                 const std::size_t index = static_cast<std::size_t>(fighters + i);
-                const ActorHandle handle = mActors.add(
-                    nullptr, &mKeys[index], static_cast<WorldId>(5000 + i), kBase, "Citizen", 0, 0, 0, 0);
+                const ActorHandle handle
+                    = mActors.add(nullptr, &mKeys[index], static_cast<WorldId>(5000 + i), kBase, "Citizen", 0, 0, 0, 0);
                 ActorInfo info;
                 info.handle = handle;
                 info.base = kBase;
@@ -182,8 +182,9 @@ namespace
         World mWorld;
         Sink mSink;
         std::shared_ptr<const HavokPack::ClipMeta> mMeta = attackMeta();
-        MWPhysics::NeutralClipMetaFn mMetaFn
-            = [this](const void*) -> HavokPack::ClipProgress { return { mMeta, true, 0.f }; };
+        MWPhysics::NeutralClipMetaFn mMetaFn = [this](const void*) -> HavokPack::ClipProgress {
+            return { mMeta, true, 0.f };
+        };
     };
 
     struct Measure
@@ -220,7 +221,8 @@ namespace
         std::cout << "[ STATS ] sweeps " << stats.mSweeps << " hits " << stats.mSweepHits << " damage "
                   << stats.mDamageReports << " refused " << stats.mDamageRefused << " clips " << stats.mClipsStarted
                   << " completed " << stats.mClipsCompleted << " events " << stats.mEventsDelivered << "\n";
-        std::cout << "[ STATS ] the bridge reserves " << fight.mCombat.reservedBytes() << " bytes in all (fixed, whatever "
+        std::cout << "[ STATS ] the bridge reserves " << fight.mCombat.reservedBytes()
+                  << " bytes in all (fixed, whatever "
                   << "the number of fighters)\n";
         EXPECT_GT(stats.mSweeps, 100u); // 16 fighters x 20 s / 2.5 s each = about 128
         EXPECT_GT(stats.mSweepHits, 100u);
@@ -231,8 +233,8 @@ namespace
         EXPECT_EQ(stats.mWriterFailures, 0u);
     }
 
-    // The cost of the rest of the world: 16 fighters and 0 / 70 / 400 / 1,000 other actors that never fight. Printed, and
-    // the allocations of a steady fight stay at zero whatever the population.
+    // The cost of the rest of the world: 16 fighters and 0 / 70 / 400 / 1,000 other actors that never fight. Printed,
+    // and the allocations of a steady fight stay at zero whatever the population.
     TEST(NeutralCombatMany, theCostPerFrameAndTheAllocationsWithAPopulation)
     {
         for (const int bystanders : { 0, 70, 400, 1000 })
@@ -243,8 +245,7 @@ namespace
             const auto start = std::chrono::steady_clock::now();
             const Measure m = measure(fight, 1200);
             const double us
-                = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count()
-                / 1200.0;
+                = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count() / 1200.0;
             std::cout << "[ MEASURE ] 16 fighters and " << bystanders << " other actors: " << us
                       << " us a frame (bridge and pack, with the allocation counter on), " << m.mAllocations
                       << " allocations\n";
@@ -261,8 +262,8 @@ namespace
                 fight.frame();
             const Measure m = measure(fight, 1200);
             std::cout << "[ MEASURE ] " << fighters << " fighters: " << m.mAllocations << " allocations in "
-                      << m.mFrames << " frames, " << m.mFramesWithAllocations << " frames with any, worst frame " << m.mWorstFrame
-                      << "\n";
+                      << m.mFrames << " frames, " << m.mFramesWithAllocations << " frames with any, worst frame "
+                      << m.mWorstFrame << "\n";
             // The bound is set from the measurement (see the task log).
             EXPECT_EQ(m.mAllocations, 0u) << fighters << " fighters";
         }

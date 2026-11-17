@@ -41,7 +41,10 @@ namespace
         return o;
     }
 
-    Bytes empty(const char (&type)[5]) { return sub4(type, Bytes()); }
+    Bytes empty(const char (&type)[5])
+    {
+        return sub4(type, Bytes());
+    }
 
     Bytes ctda(std::uint16_t function, float value, std::uint32_t p1 = 0, std::uint32_t p2 = 0)
     {
@@ -75,7 +78,8 @@ namespace
         return b;
     }
 
-    Bytes actionHead(std::uint16_t type, std::uint32_t alias, std::uint32_t index, std::uint32_t start, std::uint32_t end)
+    Bytes actionHead(
+        std::uint16_t type, std::uint32_t alias, std::uint32_t index, std::uint32_t start, std::uint32_t end)
     {
         Bytes b;
         b.append(sub4("ANAM", Bytes().u16(type)));
@@ -118,9 +122,9 @@ namespace
         return b;
     }
 
-    Bytes scenRecord(FormId id, std::uint32_t flags, const std::vector<Bytes>& phases, const std::vector<std::uint32_t>& actors,
-        const std::vector<Bytes>& actions, FormId quest, const Bytes& sceneConditions = Bytes(),
-        const Bytes& vmad = Bytes())
+    Bytes scenRecord(FormId id, std::uint32_t flags, const std::vector<Bytes>& phases,
+        const std::vector<std::uint32_t>& actors, const std::vector<Bytes>& actions, FormId quest,
+        const Bytes& sceneConditions = Bytes(), const Bytes& vmad = Bytes())
     {
         Bytes b;
         b.append(sub4("EDID", Bytes().zstring("Scene" + std::to_string(id & 0xFFF))));
@@ -384,7 +388,10 @@ namespace
         std::vector<std::string> mLog;
     };
 
-    SceneLine line(const std::string& text) { return SceneLine{ text, { "a/" + text + ".fuz" } }; }
+    SceneLine line(const std::string& text)
+    {
+        return SceneLine{ text, { "a/" + text + ".fuz" } };
+    }
 
     // dialogue in phases 0 and 1, spoken by alias 1 then alias 2
     Parsed twoLines(std::uint32_t flags = 0, const Bytes& vmad = Bytes(), const Bytes& completion0 = Bytes())
@@ -526,7 +533,8 @@ namespace
 
     TEST(SceneRunnerTest, aPackageActionIsGivenAndEndsWhenTheActorFinishedIt)
     {
-        const Parsed p({ scenRecord(kScene, 0, { phase() }, { 1 }, { packageAction(1, 1, 0, 0, { kPackage }) }, kQuest) });
+        const Parsed p(
+            { scenRecord(kScene, 0, { phase() }, { 1 }, { packageAction(1, 1, 0, 0, { kPackage }) }, kQuest) });
         FakeEnv env;
         SceneRunner runner(p.mIndex, env);
         ASSERT_TRUE(runner.start(kScene));
@@ -541,7 +549,8 @@ namespace
 
     TEST(SceneRunnerTest, aPackageThatNeverFinishesEndsAfterItsTimeout)
     {
-        const Parsed p({ scenRecord(kScene, 0, { phase() }, { 1 }, { packageAction(1, 1, 0, 0, { kPackage }) }, kQuest) });
+        const Parsed p(
+            { scenRecord(kScene, 0, { phase() }, { 1 }, { packageAction(1, 1, 0, 0, { kPackage }) }, kQuest) });
         FakeEnv env;
         SceneRunner::Options options;
         options.mPackageSeconds = 10.f;

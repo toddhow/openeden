@@ -667,9 +667,9 @@ namespace
     {
         ParsedPlugin plugin;
         Content::Error error;
-        ASSERT_TRUE(parseCell(
-            cellGroup(0x00000D2A, "OwnedRoom", CellFlags::Interior, sub4("XOWN", Bytes().u32(0x00000555))), plugin,
-            error))
+        ASSERT_TRUE(
+            parseCell(cellGroup(0x00000D2A, "OwnedRoom", CellFlags::Interior, sub4("XOWN", Bytes().u32(0x00000555))),
+                plugin, error))
             << error.describe();
         ASSERT_EQ(plugin.mCells.size(), 1u);
         EXPECT_EQ(plugin.mCells[0].mOwner, 0x00000555u);
@@ -688,8 +688,8 @@ namespace
     {
         ParsedPlugin plugin;
         Content::Error error;
-        ASSERT_TRUE(parseCell(cellGroup(0x00000D2A, "Room", CellFlags::Interior | CellFlags::PublicArea,
-                                  sub4("XOWN", Bytes().u16(7))),
+        ASSERT_TRUE(parseCell(
+            cellGroup(0x00000D2A, "Room", CellFlags::Interior | CellFlags::PublicArea, sub4("XOWN", Bytes().u16(7))),
             plugin, error));
         ASSERT_EQ(plugin.mCells.size(), 1u);
         EXPECT_EQ(plugin.mCells[0].mOwner, kNullFormId);
@@ -725,8 +725,7 @@ namespace
     {
         TempDir dir;
         Bytes body;
-        body.append(
-            cellGroup(0x00000D20, "PrivateHome", CellFlags::Interior, sub4("XOWN", Bytes().u32(0x00000555))));
+        body.append(cellGroup(0x00000D20, "PrivateHome", CellFlags::Interior, sub4("XOWN", Bytes().u32(0x00000555))));
         body.append(cellGroup(0x00000D31, "PublicInn", CellFlags::Interior | CellFlags::PublicArea,
             sub4("XOWN", Bytes().u32(0x00000556))));
         body.append(cellGroup(0x00000D42, "EmptyRoom", CellFlags::Interior, Bytes()));

@@ -1,7 +1,7 @@
 // Task 0181 (Papyrus slice 2, part 1): the VMAD of base records (ACTI, NPC_, MISC ...) and their keywords, and the rule
-// that combines the scripts of a placed reference with those of its base. Generated plugins; no game data. Written first
-// and run red against stubs (no `mScripts` on the base records: the file did not compile; the combine function a stub that
-// returned only the reference's scripts).
+// that combines the scripts of a placed reference with those of its base. Generated plugins; no game data. Written
+// first and run red against stubs (no `mScripts` on the base records: the file did not compile; the combine function a
+// stub that returned only the reference's scripts).
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
 
@@ -74,8 +74,8 @@ namespace
     {
         ParsedPlugin plugin;
         Content::Error error;
-        ASSERT_TRUE(parseRecordsBytes(
-            topGroup("ACTI", actiWith(vmadBytes(0x01000555, 7))).str(), "test.esp", order(), ParseLimits(), plugin, error))
+        ASSERT_TRUE(parseRecordsBytes(topGroup("ACTI", actiWith(vmadBytes(0x01000555, 7))).str(), "test.esp", order(),
+            ParseLimits(), plugin, error))
             << error.describe();
         ASSERT_EQ(plugin.mModels.size(), 1u);
         const ModelRecord& acti = plugin.mModels[0];
@@ -91,8 +91,8 @@ namespace
     {
         ParsedPlugin plugin;
         Content::Error error;
-        ASSERT_TRUE(
-            parseRecordsBytes(topGroup("ACTI", actiWith(Bytes())).str(), "test.esp", order(), ParseLimits(), plugin, error));
+        ASSERT_TRUE(parseRecordsBytes(
+            topGroup("ACTI", actiWith(Bytes())).str(), "test.esp", order(), ParseLimits(), plugin, error));
         ASSERT_EQ(plugin.mModels.size(), 1u);
         EXPECT_TRUE(plugin.mModels[0].mScripts.empty());
     }
@@ -195,6 +195,7 @@ namespace
         const std::vector<vmad::Script> none;
         EXPECT_TRUE(vmad::combineScripts(none, nullptr).empty());
         const std::vector<vmad::Script> base = { named("C", 3) };
-        EXPECT_EQ(vmad::combineScripts(none, &base).size(), 1u) << "a reference with no VMAD of its own gets its base's";
+        EXPECT_EQ(vmad::combineScripts(none, &base).size(), 1u)
+            << "a reference with no VMAD of its own gets its base's";
     }
 }

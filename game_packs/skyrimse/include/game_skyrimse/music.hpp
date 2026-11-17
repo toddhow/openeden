@@ -221,8 +221,8 @@ namespace game_skyrimse::music
         [[nodiscard]] FormId combatType() const { return mIndex.combatType(); }
 
         /// The type as the SDK describes it.
-        [[nodiscard]] bool describe(FormId type, const char* reason, bool combat,
-            openeden::sdk::game::MusicTypeDescription& out) const;
+        [[nodiscard]] bool describe(
+            FormId type, const char* reason, bool combat, openeden::sdk::game::MusicTypeDescription& out) const;
 
         /// The next plan of a type: a track whose conditions pass, chosen by the seed (or in order for a type that
         /// cycles or keeps its order), expanded to files that exist. False when nothing can play.
@@ -244,8 +244,8 @@ namespace game_skyrimse::music
     };
 
     /// The deterministic mixer behind every choice (splitmix64 finalizer of the seed, the ids and the counter).
-    [[nodiscard]] std::uint64_t musicRandom(std::uint64_t seed, std::uint32_t typeId, std::uint32_t pick,
-        std::uint32_t salt);
+    [[nodiscard]] std::uint64_t musicRandom(
+        std::uint64_t seed, std::uint32_t typeId, std::uint32_t pick, std::uint32_t salt);
 
     /// Reads the music records of a load order on a worker and answers the SDK's questions once they are in.
     class MusicRuntime

@@ -57,9 +57,9 @@ namespace game_skyrimse
         /// The kinds this filler decides: a required alias of one of them that cannot fill blocks a start.
         bool blockingKind(const QuestAlias& alias)
         {
-            // a find-matching REFERENCE is not one: its conditions ask for actor state the neutral world cannot all answer
-            // (distance to the event's references, voice types, relationships), so a strict gate would stop quests the game
-            // starts (the ambient dialogue scenes need an onlooker). Decision for toddhow (task 0211).
+            // a find-matching REFERENCE is not one: its conditions ask for actor state the neutral world cannot all
+            // answer (distance to the event's references, voice types, relationships), so a strict gate would stop
+            // quests the game starts (the ambient dialogue scenes need an onlooker). Decision for toddhow (task 0211).
             if (!alias.mIsLocation && alias.mFill == AliasFillKind::FindMatching)
                 return false;
             return alias.mFill == AliasFillKind::FindMatching || alias.mFill == AliasFillKind::FromEvent
@@ -76,8 +76,8 @@ namespace game_skyrimse
     {
     }
 
-    // Where the player is for the purpose of "closest": an exterior place as it is, an interior place by the position of
-    // the first cell of the nearest location up its chain (the interior itself has no position in the world).
+    // Where the player is for the purpose of "closest": an exterior place as it is, an interior place by the position
+    // of the first cell of the nearest location up its chain (the interior itself has no position in the world).
     bool QuestAliasFiller::anchorOf(const PlayerSite& site, FormId& world, double& x, double& y) const
     {
         if (!site.mKnown)
@@ -192,8 +192,9 @@ namespace game_skyrimse
         return Result::Empty;
     }
 
-    QuestAliasFiller::Result QuestAliasFiller::pickLocationOfReference(const QuestRecord& quest, const QuestAlias& alias,
-        const QuestAlias& source, const QuestState& state, const FillMap& plan, bool dry, AliasFill& out)
+    QuestAliasFiller::Result QuestAliasFiller::pickLocationOfReference(const QuestRecord& quest,
+        const QuestAlias& alias, const QuestAlias& source, const QuestState& state, const FillMap& plan, bool dry,
+        AliasFill& out)
     {
         Stats& st = dry ? mDryStats : mStats;
         const LocationIndex* locations = mEnvironment.mLocations;
@@ -420,7 +421,8 @@ namespace game_skyrimse
         if (!matching || !mMatcher)
             return Result::Empty;
         if (dry && alias.mFill == AliasFillKind::FindMatching)
-            return Result::Empty; // not a blocking kind: a dry run does not look (it would cost every actor of the world)
+            return Result::Empty; // not a blocking kind: a dry run does not look (it would cost every actor of the
+                                  // world)
 
         // task 0230: GetIsEditorLocAlias reads another alias (the Hold, the Location): until that one is filled the
         // conditions would fail for every candidate, so the alias waits for it (as a location alias does for fn_181)
@@ -547,7 +549,8 @@ namespace game_skyrimse
                 order[i] = keyed[i].second;
         }
 
-        // task 0230: the conditions read the aliases filled so far (GetIsEditorLocAlias names the Hold or Location alias)
+        // task 0230: the conditions read the aliases filled so far (GetIsEditorLocAlias names the Hold or Location
+        // alias)
         const AliasViewScope view(mEnvironment, [&](std::uint32_t aliasId) { return currentOf(aliasId).mReference; });
         std::uint32_t evaluated = 0;
         for (const PlacedEntry* e : order)
@@ -586,8 +589,8 @@ namespace game_skyrimse
                 return true;
             return target != nullptr && target->mFill == AliasFillKind::InLocationAlias && a.mId == target->mOtherAlias;
         };
-        // locations first (a reference alias may live in one), then references; an alias that waits for another one is asked
-        // again in the next round
+        // locations first (a reference alias may live in one), then references; an alias that waits for another one is
+        // asked again in the next round
         std::vector<const QuestAlias*> pending;
         for (const bool locations : { true, false })
             for (const QuestAlias& a : quest.mAliases)
@@ -640,8 +643,9 @@ namespace game_skyrimse
         return plan.size();
     }
 
-    // Task 0230. Only an alias whose conditions call GetIsEditorLocAlias (fn_567) is tried: that function was unanswered, so
-    // the aliases that need it were not filled at the start of the quest; every other empty alias keeps the rule it had.
+    // Task 0230. Only an alias whose conditions call GetIsEditorLocAlias (fn_567) is tried: that function was
+    // unanswered, so the aliases that need it were not filled at the start of the quest; every other empty alias keeps
+    // the rule it had.
     std::size_t QuestAliasFiller::fillForSpeaker(QuestState& state, FormId reference, FormId base)
     {
         if (!usable(reference) || !mMatcher)
@@ -676,8 +680,8 @@ namespace game_skyrimse
                            return other.mId != alias.mId && state.aliasFill(questId, other.mId).mReference == reference;
                        }))
                     continue;
-                const AliasViewScope view(mEnvironment,
-                    [&](std::uint32_t aliasId) { return state.aliasFill(questId, aliasId).mReference; });
+                const AliasViewScope view(
+                    mEnvironment, [&](std::uint32_t aliasId) { return state.aliasFill(questId, aliasId).mReference; });
                 ++mStats.mEvaluated;
                 if (!mMatcher(*quest, alias, reference, entryBase))
                     continue;
@@ -713,9 +717,8 @@ namespace game_skyrimse
         const QuestRecord* quest = mQuests.quest(questId);
         if (quest == nullptr)
             return false;
-        const bool any = std::any_of(quest->mAliases.begin(), quest->mAliases.end(), [](const QuestAlias& a) {
-            return (a.mFlags & AliasFlags::Optional) == 0 && blockingKind(a);
-        });
+        const bool any = std::any_of(quest->mAliases.begin(), quest->mAliases.end(),
+            [](const QuestAlias& a) { return (a.mFlags & AliasFlags::Optional) == 0 && blockingKind(a); });
         if (!any)
             return true;
         ++mStats.mPlans;

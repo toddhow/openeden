@@ -60,9 +60,6 @@ namespace openeden::sdk::game
 
         /// The core moved a follower to another cell (a door the player used). Informational: the actor is removed and
         /// added again by the actor hooks, and the pack keeps it a follower by its placement id. Default ignores it.
-        virtual void onFollowerCarried(WorldId reference)
-        {
-            (void)reference;
-        }
+        virtual void onFollowerCarried(WorldId reference) { (void)reference; }
     };
 }

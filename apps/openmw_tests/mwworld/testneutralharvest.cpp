@@ -67,7 +67,8 @@ namespace
 
     TEST(NeutralHarvestEvent, carriesThePlacementTheBaseAndTheKind)
     {
-        const std::vector<NeutralInventoryEventField> fields = neutralInventoryEventFields(0x000a1001, 0x0010dcc0, "flora", "Canis Root");
+        const std::vector<NeutralInventoryEventField> fields
+            = neutralInventoryEventFields(0x000a1001, 0x0010dcc0, "flora", "Canis Root");
         ASSERT_EQ(fields.size(), 4u);
         EXPECT_EQ(fields[0].mName, "placement");
         EXPECT_EQ(fields[0].mText, "000a1001");

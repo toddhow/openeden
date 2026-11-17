@@ -10,16 +10,17 @@
 // of them). The other subrecords (FULL, LCSR, LCEC, LCPR, LCID, LCEP, LCUN, RNAM, MNAM, CNAM, the A* actor
 // versions ...) are left out.
 //
-// Task 0211 adds the lists radiant quests and the story manager need (xEdit's definitions, cited in the task; sizes VERIFIED
-// on the five masters by divisibility and by resolving the ids, see SkyrimRadiantSurvey):
-//  - LCEC / ACEC / RCEC "exterior cells": a world id (4) then one (Y i16, X i16) pair (4 bytes) per cell of that world in
+// Task 0211 adds the lists radiant quests and the story manager need (xEdit's definitions, cited in the task; sizes
+// VERIFIED on the five masters by divisibility and by resolving the ids, see SkyrimRadiantSurvey):
+//  - LCEC / ACEC / RCEC "exterior cells": a world id (4) then one (Y i16, X i16) pair (4 bytes) per cell of that world
+//  in
 //    this location (403 of 831 records have one: this is how most exterior cells belong to a location, only 1,907 of
 //    75,776 exterior CELL records have an XLCN);
 //  - LCSR / ACSR "special references": 16 bytes each: location reference type (LCRT), reference, world or cell, grid;
 //  - LCPR / ACPR / RCPR "persistent references": 12 bytes each: reference, world or cell, grid;
 //  - LCUN / ACUN "unique NPCs": 12 bytes each: actor (NPC_), reference, location.
-//  The three families (L*, A*, R*) are merged into one list per kind, in the order they occur: what each family means in the
-//  game (location's own, actor-enabled, reference-enabled) is not needed by anything here (RECALLED-VERIFY).
+//  The three families (L*, A*, R*) are merged into one list per kind, in the order they occur: what each family means
+//  in the game (location's own, actor-enabled, reference-enabled) is not needed by anything here (RECALLED-VERIFY).
 //
 // RECALLED-VERIFY (the CK wiki says it, the data cannot): GetInCurrentLoc is also true for a location INSIDE the asked
 // one, so the parent chain is walked; LocationHasKeyword reads the location's own keywords only.
@@ -38,7 +39,8 @@
 
 namespace game_skyrimse
 {
-    /// A cell of a worldspace as a location record stores it: Y then X (xEdit's order; checked against the CELL records).
+    /// A cell of a worldspace as a location record stores it: Y then X (xEdit's order; checked against the CELL
+    /// records).
     struct LocationGrid
     {
         std::int16_t mY = 0;
@@ -127,9 +129,9 @@ namespace game_skyrimse
 
         // ---- task 0211 -----------------------------------------------------------------------------------------
         /// The location an exterior cell belongs to by the locations' own cell lists: the location that lists the grid
-        /// square of `world` with the FEWEST cells (the most specific), ties to the lower form id; kNullFormId when none
-        /// lists it (RECALLED-VERIFY: the game's rule is not in the data). The XLCN of the cell, when it has one, wins and
-        /// is the caller's business.
+        /// square of `world` with the FEWEST cells (the most specific), ties to the lower form id; kNullFormId when
+        /// none lists it (RECALLED-VERIFY: the game's rule is not in the data). The XLCN of the cell, when it has one,
+        /// wins and is the caller's business.
         [[nodiscard]] FormId locationOfGrid(FormId world, std::int32_t x, std::int32_t y) const;
         /// A cell of the location (the first listed): where to look for it. False when it lists none.
         [[nodiscard]] bool gridOf(FormId location, FormId& world, std::int32_t& x, std::int32_t& y) const;
@@ -144,12 +146,12 @@ namespace game_skyrimse
         /// The location itself or the first ancestor that carries `keyword` (the parent chain, at most 64 steps);
         /// kNullFormId when none does.
         [[nodiscard]] FormId ancestorWithKeyword(FormId location, FormId keyword) const;
-        /// The location below `location` (its descendants, not itself) that carries `keyword` and is nearest in the tree
-        /// (fewest parent steps), ties to the lower form id; kNullFormId when none.
+        /// The location below `location` (its descendants, not itself) that carries `keyword` and is nearest in the
+        /// tree (fewest parent steps), ties to the lower form id; kNullFormId when none.
         [[nodiscard]] FormId descendantWithKeyword(FormId location, FormId keyword) const;
         /// The "editor location" of a placed reference: the location whose special or persistent reference list names
-        /// it; the most deeply nested one when several do, ties to the lower form id (RECALLED-VERIFY: the reference's own
-        /// persistent-location field is not decoded). kNullFormId when no location lists it.
+        /// it; the most deeply nested one when several do, ties to the lower form id (RECALLED-VERIFY: the reference's
+        /// own persistent-location field is not decoded). kNullFormId when no location lists it.
         [[nodiscard]] FormId editorLocationOf(FormId reference) const;
         // ---- task 0230 ---------------------------------------------------------------------------------------------
         /// The location a unique-NPC list (LCUN, ACUN) gives an actor: the location the entry names (the owner of the

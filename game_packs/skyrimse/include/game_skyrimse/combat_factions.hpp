@@ -63,8 +63,8 @@ namespace game_skyrimse::Factions
     /// helper's relations. A guard protects its allies and friends (a faction in common is an alliance) and the
     /// player's side (unless the helper is an enemy of the player), whoever the attacker is. Anybody else with
     /// assistance 1 helps its allies, with 2 its friends too, and never against an ally or friend of its own.
-    [[nodiscard]] bool assists(const Party& helper, ActorRelation toVictim, ActorRelation toAttacker,
-        bool victimOnPlayerSide);
+    [[nodiscard]] bool assists(
+        const Party& helper, ActorRelation toVictim, ActorRelation toAttacker, bool victimOnPlayerSide);
 
     /// Friendly fire: a blow or arrow may not hurt an ally or friend of the attacker unless it is the attacker's
     /// current target.

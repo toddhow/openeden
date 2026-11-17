@@ -25,8 +25,8 @@
 #include <components/animation/controller.hpp>
 #include <components/animation/transform.hpp>
 #include <components/havokpack/idle.hpp>
-#include <openeden/game/paired_animation.hpp>
 #include <components/vfs/manager.hpp>
+#include <openeden/game/paired_animation.hpp>
 
 namespace MWRender::SkyrimIdle
 {

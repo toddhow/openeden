@@ -129,8 +129,8 @@ namespace MWWorld
         /// cell of that game (nothing is built or loaded here), or an empty Ptr. The cell id is tried first; a
         /// placement the pack holds in another cell (a persistent reference) is searched for in the other loaded cells.
         /// Main thread.
-        Ptr findLoadedNeutralObject(std::string_view gameId, openeden::sdk::game::WorldId cell,
-            openeden::sdk::game::WorldId placement) const;
+        Ptr findLoadedNeutralObject(
+            std::string_view gameId, openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const;
 
         /// Task 0202: the loaded neutral cell of a game that a placement hint names (the pack's cell id); a hint no
         /// loaded

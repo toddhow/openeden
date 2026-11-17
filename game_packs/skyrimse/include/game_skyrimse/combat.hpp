@@ -20,10 +20,10 @@
 
 #include <game_skyrimse/ability_numbers.hpp>
 #include <game_skyrimse/barks.hpp>
+#include <game_skyrimse/combat_ai.hpp>
+#include <game_skyrimse/combat_factions.hpp>
 #include <game_skyrimse/combat_gear.hpp>
 #include <game_skyrimse/combat_sound.hpp>
-#include <game_skyrimse/combat_factions.hpp>
-#include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/dragons.hpp>
@@ -112,10 +112,10 @@ namespace game_skyrimse
     /// player's attack control casts in place of a swing; `combat test player cast every` presses it automatically
     /// every N seconds (0: the real key only) and `combat test player cast hold` is how long an automatic press holds
     /// (a concentration spell lasts that long). `combat test cast` is a comma separated list of `actor:spell` (editor
-    /// ids): that actor casts the spell every `combat test cast every` seconds (default 4, first cast after one period),
-    /// a concentration spell for `combat test cast hold` seconds (default 3). `combat test spell conditions` applies
-    /// every effect whatever its conditions say; with it unset (task 0236) an effect applies when its conditions hold
-    /// (magic_conditions.hpp) and one whose conditions fail, or cannot be answered, does nothing.
+    /// ids): that actor casts the spell every `combat test cast every` seconds (default 4, first cast after one
+    /// period), a concentration spell for `combat test cast hold` seconds (default 3). `combat test spell conditions`
+    /// applies every effect whatever its conditions say; with it unset (task 0236) an effect applies when its
+    /// conditions hold (magic_conditions.hpp) and one whose conditions fail, or cannot be answered, does nothing.
     inline constexpr std::string_view kCombatTestPlayerSpellKey = "combat test player spell";
     inline constexpr std::string_view kCombatTestPlayerCastEveryKey = "combat test player cast every";
     inline constexpr std::string_view kCombatTestPlayerCastHoldKey = "combat test player cast hold";
@@ -217,10 +217,10 @@ namespace game_skyrimse
     /// Seconds between two attacks of a hostile test actor.
     inline constexpr float kHostileAttackPeriod = 2.5f;
     inline constexpr std::size_t kMaxCombatFighters = 4096;
-    /// Task 0192: the most swings (hit events, sweeps waiting for their result, results to resolve, bow events) the pack
-    /// keeps in one frame. It mirrors NeutralCombatBridge::kMaxPlaying (64): the bridge plays no more clips than that,
-    /// so no more hit events can come in one frame. It was 32, and a crowd of more than 32 fighters that reached their
-    /// HitFrame together lost the rest of the blows without a word.
+    /// Task 0192: the most swings (hit events, sweeps waiting for their result, results to resolve, bow events) the
+    /// pack keeps in one frame. It mirrors NeutralCombatBridge::kMaxPlaying (64): the bridge plays no more clips than
+    /// that, so no more hit events can come in one frame. It was 32, and a crowd of more than 32 fighters that reached
+    /// their HitFrame together lost the rest of the blows without a word.
     inline constexpr std::size_t kMaxConcurrentAttacks = 64;
     /// A sweep asked for and not answered after this many updates is forgotten (the engine answers in the next one; a
     /// result it dropped, for an attacker that had gone for instance, must not hold a table slot for ever).
@@ -270,8 +270,8 @@ namespace game_skyrimse
         /// Task 0212: the creature profile of the race (null for a person and with the setting off): its clips are the
         /// fighter's attack, reaction and death clips. Not owned (static).
         const CreatureProfile* mCreature = nullptr;
-        /// Task 0240: the spells the race's attacks carry (RACE ATKD +8, each once, in order): a creature's disease is one
-        /// of them. Empty for a person.
+        /// Task 0240: the spells the race's attacks carry (RACE ATKD +8, each once, in order): a creature's disease is
+        /// one of them. Empty for a person.
         std::vector<FormId> mAttackSpells;
         /// Task 0254: the NPC's own ACBS Unique and Essential flags. A unique actor stays dead for good; the others
         /// come back when their cell resets (iHoursToRespawnCell).
@@ -291,9 +291,9 @@ namespace game_skyrimse
         /// The numbers of the NPC with base record `base`. False for an unknown base (that actor never fights).
         virtual bool fighter(openeden::sdk::game::WorldId base, FighterProfile& out) = 0;
 
-        /// Task 0216: the same, for one placement. `variation` is the placement's own number (the low 32 bits of its id),
-        /// the number the appearance of the actor was described with, so that an NPC whose template is a leveled list
-        /// is the same creature in combat as on screen. The default ignores it.
+        /// Task 0216: the same, for one placement. `variation` is the placement's own number (the low 32 bits of its
+        /// id), the number the appearance of the actor was described with, so that an NPC whose template is a leveled
+        /// list is the same creature in combat as on screen. The default ignores it.
         virtual bool fighterFor(openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
         {
             (void)variation;
@@ -312,8 +312,8 @@ namespace game_skyrimse
             (void)b;
             return openeden::sdk::game::ActorRelation::Neutral;
         }
-        /// Task 0178: the AMMO with this editor id (case-insensitive), or null; and the PROJ of an ammunition (null when
-        /// it has none). Defaults: none.
+        /// Task 0178: the AMMO with this editor id (case-insensitive), or null; and the PROJ of an ammunition (null
+        /// when it has none). Defaults: none.
         virtual const AmmoRecord* ammoByEditorId(std::string_view editorId)
         {
             (void)editorId;
@@ -465,9 +465,9 @@ namespace game_skyrimse
         /// keeps its seven entries.
         [[nodiscard]] static SlotTable guard();
 
-        /// Task 0212: the wolf's clips (CreatureProfile of the wolf, animation type 0 = no weapon): Attack, PowerAttack,
-        /// Recoil, Stagger and Death. Clip names are the sidecar's generator names, which equal the files' (VERIFIED
-        /// for these five in animationdata/wolfproject.txt).
+        /// Task 0212: the wolf's clips (CreatureProfile of the wolf, animation type 0 = no weapon): Attack,
+        /// PowerAttack, Recoil, Stagger and Death. Clip names are the sidecar's generator names, which equal the files'
+        /// (VERIFIED for these five in animationdata/wolfproject.txt).
         [[nodiscard]] static SlotTable wolf();
         /// Task 0214: the melee clips of every weapon class (see combat_gear.hpp): the one-handed set (the seven of
         /// humanoid() plus the raised guard), the two-handed sword (2HM_*), the two-handed axe and hammer (2HW_*) and
@@ -572,8 +572,8 @@ namespace game_skyrimse
         /// Task 0238: the rate a vital of `subject` regenerates at now (percent of its maximum a second; 0 health, 1
         /// magicka, 2 stamina), with the Fortify and Damage Rate effects running on it. -1 for an unknown fighter.
         [[nodiscard]] float regenRatePercent(openeden::sdk::game::CombatSubject subject, int vital) const;
-        /// Task 0238: where the player stands (IsInInterior and GetInWorldspace in an effect's conditions: the actors that
-        /// are loaded stand in the player's cell or worldspace). Returns false when unknown. Without it those two
+        /// Task 0238: where the player stands (IsInInterior and GetInWorldspace in an effect's conditions: the actors
+        /// that are loaded stand in the player's cell or worldspace). Returns false when unknown. Without it those two
         /// functions leave the effect's list unanswered.
         void setPlaceSource(std::function<bool(effectconditions::Place&)> source) { mPlaceSource = std::move(source); }
         /// Task 0238: a source of GLOB values that comes before the data's own stored values (a script's SetValue).
@@ -587,8 +587,8 @@ namespace game_skyrimse
         void setSpellVisuals(bool on) { mSpellVisuals = on; }
         /// Task 0242, off by default (see kCombatSpellDeliveryKey).
         void setSpellDelivery(bool on) { mSpellDelivery = on; }
-        /// Task 0250 (combat_summons.cpp): Summon Creature and Reanimate effects. Needs the delivery setting (Reanimate is
-        /// target actor delivery) and the hooks; off by default.
+        /// Task 0250 (combat_summons.cpp): Summon Creature and Reanimate effects. Needs the delivery setting (Reanimate
+        /// is target actor delivery) and the hooks; off by default.
         void setSummons(bool on) { mSummonsOn = on; }
         void setSummonHooks(SummonHooks hooks) { mSummonHooks = std::move(hooks); }
         /// Task 0254 (combat_deaths.cpp): told the placement of a corpse a Reanimate spell hid (it is saved so that the
@@ -604,8 +604,8 @@ namespace game_skyrimse
         /// or the actor is unknown.
         bool restoreDead(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::ActorHandle handle);
         void setMaxSummons(std::size_t n) { mMaxSummons = n > 0 ? n : 1; }
-        /// A test aid (`summons test kill = <editor id>`): the named actor dies kSummonTestKillSeconds after the data was
-        /// read, so a scenario has a corpse to raise. Lower case is applied here.
+        /// A test aid (`summons test kill = <editor id>`): the named actor dies kSummonTestKillSeconds after the data
+        /// was read, so a scenario has a corpse to raise. Lower case is applied here.
         void setTestKill(std::string_view editorId);
         /// A test aid (`summons test magicka`): the stand-in player's maximum magicka (0: the stand-in's 100).
         void setTestPlayerMagicka(float magicka) { mTestPlayerMagicka = std::isfinite(magicka) ? magicka : 0.f; }
@@ -628,10 +628,11 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t castsWaiting() const { return mCasts.size(); }
         void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override;
         void onPlayerAttackEdge(bool pressed) override;
-        /// Task 0205 (M-S7): the player's shout. `state` (not owned; null: no shouts) holds the words, the souls and the
-        /// cooldown; the shout control is `onPlayerShoutEdge`. `setTestPlayerShout` equips the SHOU with this editor id
-        /// when the data are ready (false when the name is too long); `setTestShoutEvery` presses the control by itself
-        /// every N seconds (0, negative or not finite: the real key only) and holds it `setTestShoutHold` seconds.
+        /// Task 0205 (M-S7): the player's shout. `state` (not owned; null: no shouts) holds the words, the souls and
+        /// the cooldown; the shout control is `onPlayerShoutEdge`. `setTestPlayerShout` equips the SHOU with this
+        /// editor id when the data are ready (false when the name is too long); `setTestShoutEvery` presses the control
+        /// by itself every N seconds (0, negative or not finite: the real key only) and holds it `setTestShoutHold`
+        /// seconds.
         void setShoutState(shouts::ShoutState* state) { mShouts = state; }
         void onPlayerShoutEdge(bool pressed) override;
         bool setTestPlayerShout(std::string_view editorId);
@@ -649,9 +650,9 @@ namespace game_skyrimse
             std::vector<ArmourPiece> mPieces;
         };
         void setPlayerEquipment(PlayerEquipment equipment);
-        /// Task 0229: the poison on the player's wielded melee weapon. The next `charges` landed blows apply the spell's
-        /// effects to the target through the magic runtime; 0 charges clears it. The hook is told the charges left after
-        /// each blow.
+        /// Task 0229: the poison on the player's wielded melee weapon. The next `charges` landed blows apply the
+        /// spell's effects to the target through the magic runtime; 0 charges clears it. The hook is told the charges
+        /// left after each blow.
         void setPlayerPoison(SpellRecord spell, int charges);
         [[nodiscard]] int playerPoisonCharges() const { return mPoisonCharges; }
         void setPoisonSpentHook(std::function<void(int remaining)> hook) { mPoisonSpent = std::move(hook); }
@@ -661,7 +662,8 @@ namespace game_skyrimse
         /// The player's armour percent as the next hit sees it (0 until the player's data is read).
         [[nodiscard]] float playerMitigationPercent() const;
 
-        // ---- task 0200: the player's skills and levels (combat_skills.cpp) -------------------------------------------
+        // ---- task 0200: the player's skills and levels (combat_skills.cpp)
+        // -------------------------------------------
         /// Called once for each use of a skill the player makes in a fight (a weapon hit, a block, a hit taken in
         /// armour, a spell cast): the skill slot and what the use reports (damage, damage blocked, damage taken, the
         /// spell's magicka). Empty by default; nothing else of the combat changes.
@@ -683,10 +685,10 @@ namespace game_skyrimse
         /// With a progression the player's skills, level, vitals and perks in a fight are its own (read again when its
         /// revision moves); without one (null, the default) they are the stand-in's, as before.
         void setPlayerProgression(const progression::PlayerProgression* progression);
-        /// Task 0225 (character creation): the player's race abilities (RACE SPLO). `chosen` are the abilities of the race
-        /// he chose, `standIn` those of the race the stand-in player record already brought (the Nord's): the profile's
-        /// spell list loses the second and gains the first, and the ability sums (damage resist, weapon speed) are worked
-        /// out again. A copy; the call may come at any time.
+        /// Task 0225 (character creation): the player's race abilities (RACE SPLO). `chosen` are the abilities of the
+        /// race he chose, `standIn` those of the race the stand-in player record already brought (the Nord's): the
+        /// profile's spell list loses the second and gains the first, and the ability sums (damage resist, weapon
+        /// speed) are worked out again. A copy; the call may come at any time.
         void setPlayerRaceAbilities(std::vector<FormId> chosen, std::vector<FormId> standIn);
         /// Task 0237 (standing stones, shrine blessings): spells the player has beyond his record's, worked into his
         /// ability sums (damage resistance) and the resist lookups like the race's. A copy; replaces the last list.
@@ -713,7 +715,8 @@ namespace game_skyrimse
         /// An Invisibility effect (a stone's power) is running on the player: observers do not notice him.
         [[nodiscard]] bool playerInvisible() const;
 
-        // ---- task 0248 (combat_race_effects.cpp): the effects the older tasks left without a rule ----------------------
+        // ---- task 0248 (combat_race_effects.cpp): the effects the older tasks left without a rule
+        // ----------------------
         /// Skill points and percent skill modifiers the player holds (abilities and blessings, and the diseases'), for
         /// the progression's effective skill values; `skillModRevision` moves when either changes.
         struct SkillModifiers
@@ -741,8 +744,8 @@ namespace game_skyrimse
         [[nodiscard]] bool holdsPerk(openeden::sdk::game::CombatSubject subject, FormId perk) const;
 
         // ---- task 0240 (diseases; combat_disease.cpp) ---------------------------------------------------------------
-        /// Told once for each landed, unblocked, non-bash blow of a non-player fighter on the player: the spells its race's
-        /// attacks carry and its placement reference. Empty by default: nothing of the combat changes.
+        /// Told once for each landed, unblocked, non-bash blow of a non-player fighter on the player: the spells its
+        /// race's attacks carry and its placement reference. Empty by default: nothing of the combat changes.
         using PlayerHitHook = std::function<void(const std::vector<FormId>& attackSpells, std::uint32_t attacker)>;
         void setPlayerHitHook(PlayerHitHook hook) { mPlayerHitHook = std::move(hook); }
         /// What long-lasting effects (a disease's) change in the player's numbers: the maxima and regeneration rates of
@@ -754,12 +757,13 @@ namespace game_skyrimse
         /// The spells the player has now (his race's and extra abilities among them), a copy; empty before his profile.
         [[nodiscard]] std::vector<FormId> playerSpells() const;
 
-        // ---- task 0228: the powers of the player's race (RACE SPLO spells of type power or lesser power) ---------------
+        // ---- task 0228: the powers of the player's race (RACE SPLO spells of type power or lesser power)
+        // ---------------
         /// What the magic runtime does with a power: its effects change the player's health, magicka or stamina or
         /// stagger or demoralise (Works); a modifier of a value the pack does not track is kept as a status for its
-        /// duration and changes nothing else (StatusOnly); every other archetype does nothing (Unsupported). Effects with
-        /// conditions the pack cannot evaluate count as not there (unless the test setting applies them).
-        /// Spell areas are in feet: 21.33 units a foot (RECALLED-VERIFY: 64 units to 3 feet).
+        /// duration and changes nothing else (StatusOnly); every other archetype does nothing (Unsupported). Effects
+        /// with conditions the pack cannot evaluate count as not there (unless the test setting applies them). Spell
+        /// areas are in feet: 21.33 units a foot (RECALLED-VERIFY: 64 units to 3 feet).
         static constexpr float kUnitsPerFoot = 64.f / 3.f;
         enum class PowerSupport : std::uint8_t
         {
@@ -775,9 +779,9 @@ namespace game_skyrimse
         };
         /// The powers among `spells` (a race's SPLO list), in the list's order; empty until the combat data is read.
         [[nodiscard]] std::vector<RacePower> racePowers(const std::vector<FormId>& spells);
-        /// Queues the cast of the power `spell` by the player: it goes through the same cast clip and effect rules as any
-        /// spell, with no magicka cost taken beyond the record's own (0 for a power). False when the spell is not a known
-        /// power, or one is already waiting. The once-a-day rule is the caller's.
+        /// Queues the cast of the power `spell` by the player: it goes through the same cast clip and effect rules as
+        /// any spell, with no magicka cost taken beyond the record's own (0 for a power). False when the spell is not a
+        /// known power, or one is already waiting. The once-a-day rule is the caller's.
         bool castPlayerPower(FormId spell);
 
         // ---- task 0234 (scrolls; combat_scroll.cpp) --------------------------------------------------------
@@ -790,7 +794,8 @@ namespace game_skyrimse
         /// cast clip's timing (the caller gives the scroll back).
         void setScrollOutcome(std::function<void(FormId scroll, bool cast)> sink);
 
-        // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp) -----------------------------------
+        // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp)
+        // -----------------------------------
 
         /// What the AI asks of the actor hook (the combat writer has no movement): the cell source drains these once a
         /// frame, BEFORE the package brain runs, and turns them into goTo / cancelGoal and `onConversation`.
@@ -802,7 +807,8 @@ namespace game_skyrimse
                 Resume, ///< the fight is over: the brain takes its package up again
                 Stop, ///< cancel the goal
                 GoTo, ///< walk or run to (x, y, z)
-                Fly, ///< task 0253: a dragon in the air: put it at (x, y, z) facing mHeading (a new pose loop of mClip when mStart)
+                Fly, ///< task 0253: a dragon in the air: put it at (x, y, z) facing mHeading (a new pose loop of mClip
+                     ///< when mStart)
                 Land, ///< task 0253: take the dragon off its flight pose at (x, y, z)
             };
             Kind mKind = Kind::Stop;
@@ -827,8 +833,8 @@ namespace game_skyrimse
         [[nodiscard]] std::uint32_t dragonSouls() const { return mDragonSouls; }
 
         /// Switches the AI on (the pack setting `combat ai`). Off, nothing of it runs and the old test rules are the
-        /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every` and
-        /// `bash every` fix the attack kind and `combat test block` makes the named actors block always.
+        /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every`
+        /// and `bash every` fix the attack kind and `combat test block` makes the named actors block always.
         void setCombatAi(bool on);
         /// Task 0197: the target is chosen from relations, followers, guards and sight (needs the AI); off, the AI's
         /// target is the player as before.
@@ -851,11 +857,12 @@ namespace game_skyrimse
         void crimeHold(openeden::sdk::game::ActorHandle handle);
         void crimeRelease(openeden::sdk::game::ActorHandle handle);
         void crimeAttack(openeden::sdk::game::ActorHandle handle);
-        /// Task 0264 (companions): what the game's own scripts ask of the combat. `scriptStartCombat` makes the actor fight
-        /// the player (Actor.StartCombat), `scriptStopCombat` ends its fight (Actor.StopCombat) and `scriptResetHealth`
-        /// heals it to the maximum (ResetHealthAndLimbs) and ends a bleedout. `setEssentialBleedout(true)` makes an
-        /// ESSENTIAL actor (ACBS) that a blow would kill collapse into bleedout instead (health 1, no death report) and
-        /// tell the sink once; the sink's script event is OnEnterBleedout. All inert for an actor the combat does not know.
+        /// Task 0264 (companions): what the game's own scripts ask of the combat. `scriptStartCombat` makes the actor
+        /// fight the player (Actor.StartCombat), `scriptStopCombat` ends its fight (Actor.StopCombat) and
+        /// `scriptResetHealth` heals it to the maximum (ResetHealthAndLimbs) and ends a bleedout.
+        /// `setEssentialBleedout(true)` makes an ESSENTIAL actor (ACBS) that a blow would kill collapse into bleedout
+        /// instead (health 1, no death report) and tell the sink once; the sink's script event is OnEnterBleedout. All
+        /// inert for an actor the combat does not know.
         bool scriptStartCombat(openeden::sdk::game::ActorHandle handle);
         bool scriptStopCombat(openeden::sdk::game::ActorHandle handle);
         bool scriptResetHealth(openeden::sdk::game::ActorHandle handle);
@@ -929,13 +936,13 @@ namespace game_skyrimse
             bool mEssential = false; ///< task 0254: ACBS Essential
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
-        /// Task 0254: the same for one actor, reading its numbers now if they were not (an idle fighter is otherwise only
-        /// read when something happens to it). False while the records are still being read or for an unknown actor.
+        /// Task 0254: the same for one actor, reading its numbers now if they were not (an idle fighter is otherwise
+        /// only read when something happens to it). False while the records are still being read or for an unknown
+        /// actor.
         bool readView(openeden::sdk::game::ActorHandle handle, FighterView& out);
         /// Task 0244 (read only): calls `visit` for every actor fighter that is ready (the player is left out). The
         /// visitor must not call back into this object.
-        using FighterVisitor
-            = std::function<void(const openeden::sdk::game::CombatSubject&, const FighterView&)>;
+        using FighterVisitor = std::function<void(const openeden::sdk::game::CombatSubject&, const FighterView&)>;
         void forEachFighter(const FighterVisitor& visit) const;
 
         // ---- task 0210 (waiting and sleeping)
@@ -1097,7 +1104,8 @@ namespace game_skyrimse
         void syncPlayerTimingClass(const Fighter& player);
         void applyBeastToProfile(Fighter& player); ///< task 0259 (combat_werewolf.cpp)
         void applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit);
-        /// Task 0227 (combat_sneak.cpp): the sneak attack multiplier of the player's blow or shot on `victim` (1: none).
+        /// Task 0227 (combat_sneak.cpp): the sneak attack multiplier of the player's blow or shot on `victim` (1:
+        /// none).
         float sneakAttackFor(Fighter& attacker, Fighter& victim, const WeaponRecord* swung, bool ranged);
         [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
         [[nodiscard]] bool bowReady();
@@ -1110,7 +1118,8 @@ namespace game_skyrimse
         void runPlayerCast(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerPower(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerScroll(openeden::sdk::game::CombatRequestWriter& writer); // task 0234
-        void applyPowerEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
+        void applyPowerEffects(
+            openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
         // Task 0205: the player's shout (combat_shout.cpp).
         void runPlayerShout(openeden::sdk::game::CombatRequestWriter& writer, float step);
         bool beginShoutCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
@@ -1137,8 +1146,8 @@ namespace game_skyrimse
         /// two actors (magic_conditions.hpp) and a list that cannot be (a damaged one, an unanswered function) says no.
         /// `unlistedPasses` (task 0238, for race powers): an effect whose conditions were counted but never decoded (a
         /// hand-built record: every real one is listed) is taken as met instead of skipped, as task 0228 did for all.
-        [[nodiscard]] bool effectConditionsAllow(const Fighter& caster, const Fighter& target, const SpellEffect& effect,
-            const MagicEffectRecord& record, bool unlistedPasses = false);
+        [[nodiscard]] bool effectConditionsAllow(const Fighter& caster, const Fighter& target,
+            const SpellEffect& effect, const MagicEffectRecord& record, bool unlistedPasses = false);
         [[nodiscard]] effectconditions::Participant effectParticipant(
             const Fighter& fighter, std::vector<FormId>& active, std::vector<FormId>& worn) const;
         void notifyPlayerHit(const Fighter& attacker, const Fighter& victim); // task 0240 (combat_disease.cpp)
@@ -1160,8 +1169,8 @@ namespace game_skyrimse
         void cancelCastsOf(const openeden::sdk::game::CombatSubject& subject);
         void tickEffects(openeden::sdk::game::CombatRequestWriter& writer, float step);
         [[nodiscard]] float resistOf(const Fighter& fighter, std::int32_t resistValue);
-        // Task 0233 (combat_status.cpp): paralysis, frenzy, fear and weakness. Each hook call from the older files is one
-        // of these; with no such effect running none of them does anything.
+        // Task 0233 (combat_status.cpp): paralysis, frenzy, fear and weakness. Each hook call from the older files is
+        // one of these; with no such effect running none of them does anything.
         [[nodiscard]] bool isParalyzed(const Fighter& fighter) const;
         [[nodiscard]] bool isFeared(const Fighter& fighter) const;
         /// The weakness in percent that the effects running on `target` give to a hostile effect of resistance
@@ -1256,8 +1265,8 @@ namespace game_skyrimse
         void aiRelease(std::size_t index, const char* why);
         void aiProvoke(const Fighter& attacker, Fighter& victim);
         void aiRaiseGuard(openeden::sdk::game::CombatRequestWriter& writer, AiActor& actor, Fighter& fighter);
-        void aiMove(openeden::sdk::game::CombatRequestWriter& writer, AiActor& actor, Fighter& fighter,
-            AiMove move, const openeden::sdk::game::SubjectState& self, const openeden::sdk::game::SubjectState& target,
+        void aiMove(openeden::sdk::game::CombatRequestWriter& writer, AiActor& actor, Fighter& fighter, AiMove move,
+            const openeden::sdk::game::SubjectState& self, const openeden::sdk::game::SubjectState& target,
             float distance, float reach);
         void aiPushGoTo(AiActor& actor, double x, double y, double z, openeden::sdk::game::ActorSpeed speed);
         [[nodiscard]] bool aiGuardUp(openeden::sdk::game::ActorHandle handle) const;
@@ -1357,8 +1366,8 @@ namespace game_skyrimse
         void syncProgression(openeden::sdk::game::CombatRequestWriter& writer);
         void reportSkillUse(std::size_t slot, float amount);
         void reportSpellUse(const Fighter& caster, const SpellRecord& spell, float magicka);
-        void reportHitSkills(const Fighter& attacker, const Fighter& victim, const WeaponRecord* weapon,
-            float blow, float taken, bool blocked);
+        void reportHitSkills(const Fighter& attacker, const Fighter& victim, const WeaponRecord* weapon, float blow,
+            float taken, bool blocked);
         std::string mTestWeapon; ///< lower case
         std::string mTestHostile; ///< lower case
         std::string mTestSwing; ///< lower case
@@ -1477,8 +1486,8 @@ namespace game_skyrimse
         void tickSummons(openeden::sdk::game::CombatRequestWriter& writer);
         void summonArrived(const openeden::sdk::game::ActorInfo& info);
         void summonGone(openeden::sdk::game::ActorHandle handle);
-        void dismissSummon(openeden::sdk::game::CombatRequestWriter* writer, openeden::sdk::game::WorldId reference,
-            const char* why);
+        void dismissSummon(
+            openeden::sdk::game::CombatRequestWriter* writer, openeden::sdk::game::WorldId reference, const char* why);
         [[nodiscard]] const Fighter* summonMasterFighter(const Fighter& fighter) const;
         [[nodiscard]] bool spellReanimates(const SpellRecord& spell) const;
         [[nodiscard]] bool spellSummons(const SpellRecord& spell) const; ///< a Summon Creature effect, summons on
@@ -1531,7 +1540,8 @@ namespace game_skyrimse
         std::unique_ptr<effectconditions::Evaluator> mEffectConditions; ///< task 0236, made on first use
         std::vector<FormId> mActiveOfTarget; ///< task 0236: scratch, the effects running on the target
         std::vector<FormId> mActiveOfCaster;
-        std::vector<FormId> mWornOfTarget; ///< task 0238: scratch, the keywords of the worn pieces (WornApparelHasKeywordCount)
+        std::vector<FormId>
+            mWornOfTarget; ///< task 0238: scratch, the keywords of the worn pieces (WornApparelHasKeywordCount)
         std::vector<FormId> mWornOfCaster;
         std::vector<FormId> mWornOfPlayer;
         std::uint64_t mEffectConditionChecks = 0; ///< task 0236: lists evaluated (the seed of GetRandomPercent)

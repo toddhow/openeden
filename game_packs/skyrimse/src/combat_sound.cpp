@@ -215,8 +215,8 @@ namespace game_skyrimse
             mSounds.queueNamed(event.subject, name.substr(kPlay.size()));
     }
 
-    void SkyrimCombat::soundHit(sdkgame::CombatRequestWriter& writer, const Fighter& attacker, const Fighter& victim,
-        bool blocked, bool bash)
+    void SkyrimCombat::soundHit(
+        sdkgame::CombatRequestWriter& writer, const Fighter& attacker, const Fighter& victim, bool blocked, bool bash)
     {
         if (!mSounds.enabled())
             return;

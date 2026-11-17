@@ -1,6 +1,6 @@
-// Task 0211: how many vanilla quests with a story event or a find-matching location alias can start now, on the player's own
-// Skyrim SE masters. Prints counts and official editor ids only (lines starting SKYRIMSE-RADREAL). Skipped when
-// OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0211: how many vanilla quests with a story event or a find-matching location alias can start now, on the
+// player's own Skyrim SE masters. Prints counts and official editor ids only (lines starting SKYRIMSE-RADREAL). Skipped
+// when OPENEDEN_SKYRIMSE_DATA is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/neutral_world.hpp>
@@ -83,9 +83,10 @@ namespace
                 for (const QuestAlias& a : q->mAliases)
                 {
                     findLocation = findLocation || (a.mIsLocation && a.mFill == AliasFillKind::FindMatching);
-                    blockingKind = blockingKind || ((a.mFlags & AliasFlags::Optional) == 0
-                        && (a.mFill == AliasFillKind::FindMatching || a.mFill == AliasFillKind::FromEvent
-                            || a.mFill == AliasFillKind::InLocationAlias));
+                    blockingKind = blockingKind
+                        || ((a.mFlags & AliasFlags::Optional) == 0
+                            && (a.mFill == AliasFillKind::FindMatching || a.mFill == AliasFillKind::FromEvent
+                                || a.mFill == AliasFillKind::InLocationAlias));
                 }
                 if (q->mEvent.empty() && !findLocation)
                     continue;
@@ -120,8 +121,9 @@ namespace
                                             access.mQuests->resolverOf(*q).resolve(c.mParam2).value_or(0));
                                         keywords += buf;
                                     }
-                                std::cout << "SKYRIMSE-RADREAL   named: " << q->mCommon.mEditorId << " (" << std::hex << id << std::dec << ") event " << key
-                                          << " keyword" << keywords << " stages " << q->mStages.size() << "\n";
+                                std::cout << "SKYRIMSE-RADREAL   named: " << q->mCommon.mEditorId << " (" << std::hex
+                                          << id << std::dec << ") event " << key << " keyword" << keywords << " stages "
+                                          << q->mStages.size() << "\n";
                             }
                         }
                     }
@@ -132,19 +134,20 @@ namespace
                     ++blockedByEvent[key];
                 }
             }
-            const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now() - began).count();
-            std::cout << "SKYRIMSE-RADREAL site " << (withSite ? "Bannered Mare (interior)" : "unknown") << ": candidates "
-                      << candidates << ", with a blocking-kind required alias " << withBlocking << ", can start "
-                      << startable << ", blocked " << blocked << ", " << millis << " ms\n";
+            const auto millis
+                = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - began)
+                      .count();
+            std::cout << "SKYRIMSE-RADREAL site " << (withSite ? "Bannered Mare (interior)" : "unknown")
+                      << ": candidates " << candidates << ", with a blocking-kind required alias " << withBlocking
+                      << ", can start " << startable << ", blocked " << blocked << ", " << millis << " ms\n";
             for (const auto& [k, v] : startableByEvent)
                 std::cout << "SKYRIMSE-RADREAL   can start with event " << k << ": " << v << " (blocked "
                           << blockedByEvent[k] << ")\n";
             for (const std::string& n : startableNames)
                 std::cout << "SKYRIMSE-RADREAL   find-location quest that can start: " << n << "\n";
             const QuestAliasFiller::Stats& st = access.mAliases->stats();
-            std::cout << "SKYRIMSE-RADREAL   stats: plans " << st.mPlans << " blocked " << st.mStartsBlocked << " evaluated "
-                      << st.mEvaluated << "\n";
+            std::cout << "SKYRIMSE-RADREAL   stats: plans " << st.mPlans << " blocked " << st.mStartsBlocked
+                      << " evaluated " << st.mEvaluated << "\n";
         }
         for (const FormId id : { 0x020050B9u, 0x00095125u })
         {
@@ -157,7 +160,8 @@ namespace
             {
                 std::cout << "SKYRIMSE-RADREAL    stage " << st.mIndex << " flags " << int(st.mFlags) << ":";
                 for (const QuestLogEntry& e : st.mEntries)
-                    std::cout << " [" << access.mText(e.mText, q->mPlugin, StringTableKind::DlStrings).substr(0, 60) << "]";
+                    std::cout << " [" << access.mText(e.mText, q->mPlugin, StringTableKind::DlStrings).substr(0, 60)
+                              << "]";
                 std::cout << "\n";
             }
             for (const QuestObjective& o : q->mObjectives)
@@ -191,7 +195,8 @@ namespace
             event.mType = "CLOC";
             event.mLocation2 = l2;
             const std::vector<FormId> chosen = access.mStory(event);
-            std::cout << "SKYRIMSE-RADREAL CLOC to " << std::hex << l2 << std::dec << " chooses " << chosen.size() << ":";
+            std::cout << "SKYRIMSE-RADREAL CLOC to " << std::hex << l2 << std::dec << " chooses " << chosen.size()
+                      << ":";
             for (const FormId q : chosen)
                 std::cout << " " << access.mQuests->quest(q)->mCommon.mEditorId;
             std::cout << "\n";

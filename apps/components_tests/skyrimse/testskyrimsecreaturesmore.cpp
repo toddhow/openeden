@@ -48,30 +48,29 @@ namespace
         { "dog", "Actors\\Canine\\Character Assets Dog\\skeleton.nif", "dogproject", "mt_idle", "walkforward",
             "runforward", 89.448f, 1.2f, 300.081f, 0.533333f, 76.f, "attack1", "attackpowerstanding", "recoil",
             "staggerbacksmall", "death" },
-        { "bear", "Actors\\Bear\\Character Assets\\skeleton.nif", "bearproject", "mt_idle", "walkforward",
-            "runforward", 99.7136f, 1.666667f, 382.846f, 0.6f, 192.f, "attack1", "attackpowerstanding", "recoil",
-            "staggerbacksmall", "death" },
+        { "bear", "Actors\\Bear\\Character Assets\\skeleton.nif", "bearproject", "mt_idle", "walkforward", "runforward",
+            99.7136f, 1.666667f, 382.846f, 0.6f, 192.f, "attack1", "attackpowerstanding", "recoil", "staggerbacksmall",
+            "death" },
         { "skeever", "Actors\\Skeever\\Character Assets\\skeleton.nif", "skeeverproject", "mt_idle", "walkforward",
             "runforward", 37.3473f, 1.f, 260.128f, 0.533333f, 57.f, "attack1", "attackpowerforward", "recoil",
             "staggerbacksmall", "staggerbacklarge" },
-        { "horse", "Actors\\Horse\\Character Assets\\skeleton.nif", "horseproject", "idle", "walkforward",
-            "runforward", 137.624f, 1.1f, 212.32f, 0.466667f, 169.f, "attack2", "attack1", "recoil2",
-            "staggerbacksmall", "staggerbacklarge" },
-        { "sabrecat", "Actors\\SabreCat\\Character Assets\\Skeleton.nif", "sabrecatproject", "mt_idle",
-            "walkforward", "runforward", 162.094f, 1.433333f, 359.399f, 0.733333f, 117.f, "attack1",
-            "attackpowerforward", "recoil", "staggerbacksmall", "staggerbacklarge" },
-        { "deer", "Actors\\Deer\\Character Assets\\Skeleton.nif", "deerproject", "mt_idle", "walkforward",
-            "runforward", 169.802f, 1.f, 500.f, 0.6f, 214.f, "attack1", "attack2", "recoil", "staggerbacksmall",
+        { "horse", "Actors\\Horse\\Character Assets\\skeleton.nif", "horseproject", "idle", "walkforward", "runforward",
+            137.624f, 1.1f, 212.32f, 0.466667f, 169.f, "attack2", "attack1", "recoil2", "staggerbacksmall",
             "staggerbacklarge" },
-        { "goat", "Actors\\Goat\\Character Assets\\skeleton.nif", "goatproject", "mt_idle", "walkforward",
-            "runforward", 62.1303f, 1.f, 360.f, 1.f, 82.f, "attack1", "attackpowerstanding", "recoil",
+        { "sabrecat", "Actors\\SabreCat\\Character Assets\\Skeleton.nif", "sabrecatproject", "mt_idle", "walkforward",
+            "runforward", 162.094f, 1.433333f, 359.399f, 0.733333f, 117.f, "attack1", "attackpowerforward", "recoil",
             "staggerbacksmall", "staggerbacklarge" },
-        { "mammoth", "Actors\\Mammoth\\Character Assets\\skeleton.nif", "mammothproject", "mt_idle",
-            "walkforward", "runforward", 247.36f, 4.f, 400.f, 1.f, 376.f, "attack1", "attackpowerstanding",
-            "recoil", "staggerbacksmall", "deathpose" },
-        { "giant", "Actors\\Giant\\Character Assets\\skeleton.nif", "giantproject", "idle", "walkforward",
-            "runforward", 164.134f, 2.666667f, 415.f, 1.f, 267.f, "attack1x2", "attack_stomp", "stagger_small",
-            "stagger_large", "deathpose" },
+        { "deer", "Actors\\Deer\\Character Assets\\Skeleton.nif", "deerproject", "mt_idle", "walkforward", "runforward",
+            169.802f, 1.f, 500.f, 0.6f, 214.f, "attack1", "attack2", "recoil", "staggerbacksmall", "staggerbacklarge" },
+        { "goat", "Actors\\Goat\\Character Assets\\skeleton.nif", "goatproject", "mt_idle", "walkforward", "runforward",
+            62.1303f, 1.f, 360.f, 1.f, 82.f, "attack1", "attackpowerstanding", "recoil", "staggerbacksmall",
+            "staggerbacklarge" },
+        { "mammoth", "Actors\\Mammoth\\Character Assets\\skeleton.nif", "mammothproject", "mt_idle", "walkforward",
+            "runforward", 247.36f, 4.f, 400.f, 1.f, 376.f, "attack1", "attackpowerstanding", "recoil",
+            "staggerbacksmall", "deathpose" },
+        { "giant", "Actors\\Giant\\Character Assets\\skeleton.nif", "giantproject", "idle", "walkforward", "runforward",
+            164.134f, 2.666667f, 415.f, 1.f, 267.f, "attack1x2", "attack_stomp", "stagger_small", "stagger_large",
+            "deathpose" },
     };
 
     // ---- the table ------------------------------------------------------------------------------------------------
@@ -193,9 +192,8 @@ namespace
     TEST(SkyrimCreatureClips, aCreatureHasNoBlockBashCastOrBowClips)
     {
         for (const CreatureProfile& p : creatureProfiles())
-            for (const ClipSlot slot : { ClipSlot::None, ClipSlot::AttackLeft, ClipSlot::BlockStart,
-                     ClipSlot::BlockHit, ClipSlot::BlockStop, ClipSlot::Bash, ClipSlot::BowDraw, ClipSlot::BowRelease,
-                     ClipSlot::Cast })
+            for (const ClipSlot slot : { ClipSlot::None, ClipSlot::AttackLeft, ClipSlot::BlockStart, ClipSlot::BlockHit,
+                     ClipSlot::BlockStop, ClipSlot::Bash, ClipSlot::BowDraw, ClipSlot::BowRelease, ClipSlot::Cast })
                 EXPECT_TRUE(creatureClipFor(p, slot).empty()) << p.mName << " slot " << int(slot);
     }
 

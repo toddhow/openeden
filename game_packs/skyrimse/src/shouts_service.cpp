@@ -284,8 +284,8 @@ namespace game_skyrimse::shouts
         const WordRecord* record = index->word(word);
         if (m.mState.learn(word))
         {
-            // Task 0256: the message the game shows ("Word of Power learned: Fus"; the wording is ours). The name is the
-            // editor id without its "Word" prefix (the FULL string is not read, as for the shout names).
+            // Task 0256: the message the game shows ("Word of Power learned: Fus"; the wording is ours). The name is
+            // the editor id without its "Word" prefix (the FULL string is not read, as for the shout names).
             std::string name = record != nullptr ? record->mCommon.mEditorId : std::string();
             if (name.size() > 4 && name.compare(0, 4, "Word") == 0 && name[4] >= 'A' && name[4] <= 'Z')
                 name.erase(0, 4);
@@ -402,22 +402,21 @@ namespace game_skyrimse::shouts
     {
         Impl& m = *mImpl;
         ShoutService* self = this;
-        const auto add = [&](std::string_view name, std::span<const BindingType> params, bool hasResult,
-                             BindingType result, Fn::Body body,
-                             openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
-            m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
-            openeden::sdk::FunctionDescriptor f;
-            f.name = name;
-            f.params = params;
-            f.hasResult = hasResult;
-            f.result = result;
-            f.access = access;
-            f.handler = m.mHandlers.back().get();
-            m.mFunctions.push_back(f);
-        };
-        add("ready", {}, true, BindingType::Bool, [self](std::span<const BindingValue>) {
-            return resultOf(boolean(self->poll()));
-        });
+        const auto add
+            = [&](std::string_view name, std::span<const BindingType> params, bool hasResult, BindingType result,
+                  Fn::Body body, openeden::sdk::BindingAccess access = openeden::sdk::BindingAccess::Read) {
+                  m.mHandlers.push_back(std::make_unique<Fn>(std::move(body)));
+                  openeden::sdk::FunctionDescriptor f;
+                  f.name = name;
+                  f.params = params;
+                  f.hasResult = hasResult;
+                  f.result = result;
+                  f.access = access;
+                  f.handler = m.mHandlers.back().get();
+                  m.mFunctions.push_back(f);
+              };
+        add("ready", {}, true, BindingType::Bool,
+            [self](std::span<const BindingValue>) { return resultOf(boolean(self->poll())); });
         add("revision", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
             (void)self->poll();
             return resultOf(integer(static_cast<std::int64_t>(self->state().revision() & 0x7FFFFFFF)));
@@ -429,12 +428,10 @@ namespace game_skyrimse::shouts
             v.text = m.mNameScratch;
             return resultOf(v);
         });
-        add("cooldown", {}, true, BindingType::Double, [self](std::span<const BindingValue>) {
-            return resultOf(number(self->state().cooldown()));
-        });
-        add("cooldown_total", {}, true, BindingType::Double, [self](std::span<const BindingValue>) {
-            return resultOf(number(self->state().cooldownTotal()));
-        });
+        add("cooldown", {}, true, BindingType::Double,
+            [self](std::span<const BindingValue>) { return resultOf(number(self->state().cooldown())); });
+        add("cooldown_total", {}, true, BindingType::Double,
+            [self](std::span<const BindingValue>) { return resultOf(number(self->state().cooldownTotal())); });
         add("unlocked_count", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
             return resultOf(integer(static_cast<std::int64_t>(self->equippedWords())));
         });
@@ -443,9 +440,8 @@ namespace game_skyrimse::shouts
             const ShoutRecord* shout = index == nullptr ? nullptr : index->shout(self->state().equipped());
             return resultOf(integer(shout == nullptr ? 0 : static_cast<std::int64_t>(shout->mWordCount)));
         });
-        add("souls", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
-            return resultOf(integer(self->state().souls()));
-        });
+        add("souls", {}, true, BindingType::Int32,
+            [self](std::span<const BindingValue>) { return resultOf(integer(self->state().souls())); });
         // Task 0253: what the state announced ("Dragon soul absorbed"), numbered from 1 like diseases' messages.
         add("notification_count", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
             return resultOf(integer(static_cast<std::int64_t>(self->state().noticeCount() & 0x7FFFFFFF)));
@@ -459,7 +455,8 @@ namespace game_skyrimse::shouts
             v.text = m.mNameScratch;
             return resultOf(v);
         });
-        add("add_souls", m.mIntParam, false, BindingType::Bool,
+        add(
+            "add_souls", m.mIntParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].integer > 0)
                     self->state().addSouls(static_cast<std::uint32_t>(a[0].integer));
@@ -467,7 +464,8 @@ namespace game_skyrimse::shouts
             },
             openeden::sdk::BindingAccess::Mutate);
         // Task 0256: spends a dragon soul on a learned word (no shout menu exists yet to do it)
-        add("unlock_word", m.mStringParam, false, BindingType::Bool,
+        add(
+            "unlock_word", m.mStringParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].type == BindingType::String)
                     (void)self->unlockWithSoul(a[0].text);
@@ -536,14 +534,16 @@ namespace game_skyrimse::shouts
                 const MenuWord* w = wordAt(a[0].integer, a[1].integer);
                 return textResult(w != nullptr ? w->mState : std::string());
             });
-        add("menu_unlock", m.mStringParam, false, BindingType::Bool,
+        add(
+            "menu_unlock", m.mStringParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].type == BindingType::String)
                     (void)self->menuUnlockNext(a[0].text);
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);
-        add("menu_equip", m.mStringParam, false, BindingType::Bool,
+        add(
+            "menu_equip", m.mStringParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].type == BindingType::String)
                     (void)self->menuEquip(a[0].text);

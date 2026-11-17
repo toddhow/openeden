@@ -1,8 +1,9 @@
-// Task 0226: the bounty quests (BQ01 to BQ04) start. Their three location aliases need: the alias keyword (KNAM) read and
-// used, a location alias that searches by a REFERENCE alias (the Hold: the nearest ancestor of the reference's editor
-// location with the keyword), HasSameEditorLocAsRefAlias (fn_181) on a candidate location, and the filler waiting for the
-// alias a condition reads. Generated records; no game data. Written first: against the code before the task these tests do
-// not compile (no `mKeyword`, no `LocationIndex::editorLocationOf`, no `Environment::mSetAliasView`); mutations after.
+// Task 0226: the bounty quests (BQ01 to BQ04) start. Their three location aliases need: the alias keyword (KNAM) read
+// and used, a location alias that searches by a REFERENCE alias (the Hold: the nearest ancestor of the reference's
+// editor location with the keyword), HasSameEditorLocAsRefAlias (fn_181) on a candidate location, and the filler
+// waiting for the alias a condition reads. Generated records; no game data. Written first: against the code before the
+// task these tests do not compile (no `mKeyword`, no `LocationIndex::editorLocationOf`, no
+// `Environment::mSetAliasView`); mutations after.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
 #include <game_skyrimse/location_conditions.hpp>
@@ -106,7 +107,8 @@ namespace
     {
         Bytes b;
         b.append(sub4("ALFE", Bytes()));
-        b.append(sub4("ALFD", Bytes().u32(static_cast<std::uint32_t>(static_cast<unsigned char>(kind))
+        b.append(sub4("ALFD",
+            Bytes().u32(static_cast<std::uint32_t>(static_cast<unsigned char>(kind))
                 | (static_cast<std::uint32_t>(static_cast<unsigned char>(which)) << 8))));
         return b;
     }
@@ -280,8 +282,8 @@ namespace
 
     TEST(SkyrimBountyLocations, aPersistentReferenceCountsAndTheDeepestLocationWinsATieGoesToTheLowerId)
     {
-        // kLoose is persistent in the hold and in the room (deeper, so the room wins); kBoss is listed by the dungeon and, as
-        // persistent, by the city (same depth, and the city has the lower id, so the city wins the tie)
+        // kLoose is persistent in the hold and in the room (deeper, so the room wins); kBoss is listed by the dungeon
+        // and, as persistent, by the city (same depth, and the city has the lower id, so the city wins the tie)
         Bytes persistentLoose = Bytes().u32(kLoose).u32(kWorld).u16(0).u16(0);
         Bytes persistentBoss = Bytes().u32(kBoss).u32(kWorld).u16(0).u16(0);
         Bytes r = lctn(kHold, 0, { kKwHold }, Bytes(), persistentLoose);
@@ -375,7 +377,8 @@ namespace
         EXPECT_FALSE(rig.holds(cond181(9, kKwHold))); // alias 9 holds nothing
         rig.mWorld.setAliasView([](std::uint32_t) { return kLoose; }); // a reference no location lists
         EXPECT_FALSE(rig.holds(cond181(3, kKwHold)));
-        rig.mWorld.setReferenceLocation([](FormId) { return kCity; }); // ... until the fallback knows its cell's location
+        rig.mWorld.setReferenceLocation(
+            [](FormId) { return kCity; }); // ... until the fallback knows its cell's location
         EXPECT_TRUE(rig.holds(cond181(3, kKwHold)));
     }
 
@@ -393,7 +396,8 @@ namespace
 
     struct FillRig
     {
-        explicit FillRig(const Bytes& aliases, std::vector<PlacedEntry> refs = { placed(kMarker), placed(kBoss), placed(kBoss2) })
+        explicit FillRig(
+            const Bytes& aliases, std::vector<PlacedEntry> refs = { placed(kMarker), placed(kBoss), placed(kBoss2) })
         {
             Bytes plugin = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
             plugin.append(group4(Content::fourCC("QUST"), 0, questRecord(kQuest, aliases)));
@@ -415,15 +419,16 @@ namespace
             r.mRefs = std::move(refs);
             mRefs.add(std::move(r));
             mRefs.finish();
-            mFiller = std::make_unique<QuestAliasFiller>(mQuests, mRefs,
-                [](const QuestRecord&, const QuestAlias&, FormId, FormId) { return true; });
+            mFiller = std::make_unique<QuestAliasFiller>(
+                mQuests, mRefs, [](const QuestRecord&, const QuestAlias&, FormId, FormId) { return true; });
             QuestAliasFiller::Environment env;
             env.mLocations = &mLocations;
             env.mLocationMatcher = [this](const QuestRecord&, const QuestAlias& a, FormId location) {
                 mAskedLocations.push_back({ a.mId, location });
                 if (mView)
                     mViewDuring.push_back(mView(3));
-                // the stub stands for the conditions of the BountyLocation (alias 6) only; the other aliases take anything
+                // the stub stands for the conditions of the BountyLocation (alias 6) only; the other aliases take
+                // anything
                 return a.mId != 6 || mAcceptLocation.empty() || mAcceptLocation.count(location) != 0;
             };
             env.mSetAliasView = [this](const std::function<FormId(std::uint32_t)>& view) {
@@ -469,12 +474,14 @@ namespace
         std::vector<bool> mViewCalls;
     };
 
-    /// The BQ shape: Location (event L2), the centre marker found in it, the Hold found from the marker, the BountyLocation
-    /// found by conditions that read the marker, and the Bounty found in the BountyLocation. The aliases are in the
-    /// quest's order, which is NOT a dependency order: the Hold and the BountyLocation come before the marker.
+    /// The BQ shape: Location (event L2), the centre marker found in it, the Hold found from the marker, the
+    /// BountyLocation found by conditions that read the marker, and the Bounty found in the BountyLocation. The aliases
+    /// are in the quest's order, which is NOT a dependency order: the Hold and the BountyLocation come before the
+    /// marker.
     Bytes bountyAliases(std::uint32_t holdFlags = 0x300)
     {
-        return alias(true, 0, "Location", 0, fromEvent('L', '2')) + alias(true, 4, "Hold", holdFlags, inAlias(3, 0, kKwHold))
+        return alias(true, 0, "Location", 0, fromEvent('L', '2'))
+            + alias(true, 4, "Hold", holdFlags, inAlias(3, 0, kKwHold))
             + alias(true, 6, "BountyLocation", 0x101, Bytes(), ctda(181, 3, kKwHold) + ctda(562, kKwDungeon))
             + alias(false, 3, "LocationCenterMarker", 0, inAlias(0, kTypeMarker))
             + alias(false, 7, "Bounty", 0x101, inAlias(6, kTypeBoss));
@@ -496,7 +503,8 @@ namespace
     {
         // the marker's location is in no hold: a required Hold cannot be filled
         Bytes broken = lctn(kCity, 0, { kKwCity }, special(kTypeMarker, kMarker));
-        FillRig rig(alias(true, 0, "Location", 0, fromEvent('L', '2')) + alias(false, 3, "Marker", 0, inAlias(0, kTypeMarker))
+        FillRig rig(alias(true, 0, "Location", 0, fromEvent('L', '2'))
+            + alias(false, 3, "Marker", 0, inAlias(0, kTypeMarker))
             + alias(true, 4, "Hold", 0x300, inAlias(3, 0, kKwHold)));
         rig.mLocations = LocationIndex(); // replaced below
         rig.mLocations.add(parseLocations(broken));
@@ -509,10 +517,11 @@ namespace
 
     TEST(SkyrimBountyFill, whenNoAncestorHasTheKeywordTheNearestLocationBelowItDoes)
     {
-        // the marker's location is the hold itself... of the OTHER keyword: ask for Dungeon from the city, whose parent (the
-        // hold) has no Dungeon keyword, so the nearest descendant of the city: none; from the hold: the dungeon
+        // the marker's location is the hold itself... of the OTHER keyword: ask for Dungeon from the city, whose parent
+        // (the hold) has no Dungeon keyword, so the nearest descendant of the city: none; from the hold: the dungeon
         const Bytes aliases = alias(true, 0, "Location", 0, fromEvent('L', '2'))
-            + alias(false, 3, "Marker", 0, inAlias(0, kTypeMarker)) + alias(true, 4, "Dungeon", 0x2, inAlias(3, 0, kKwDungeon));
+            + alias(false, 3, "Marker", 0, inAlias(0, kTypeMarker))
+            + alias(true, 4, "Dungeon", 0x2, inAlias(3, 0, kKwDungeon));
         FillRig rig(aliases);
         rig.mLocations.add(parseLocations(lctn(kCity, kHold, { kKwCity }, special(kTypeMarker, kMarker))));
         rig.start(kCity);
@@ -529,14 +538,16 @@ namespace
     TEST(SkyrimBountyFill, aReferenceNoLocationListsIsLocatedByTheEnvironmentsFallback)
     {
         // a reference that no location lists: it is its cell's location that is meant
-        FillRig rig(alias(false, 3, "Self", 0, sub4("ALFR", Bytes().u32(kLoose))) + alias(true, 4, "Hold", 0, inAlias(3, 0, kKwHold)),
+        FillRig rig(alias(false, 3, "Self", 0, sub4("ALFR", Bytes().u32(kLoose)))
+                + alias(true, 4, "Hold", 0, inAlias(3, 0, kKwHold)),
             { placed(kLoose) });
         rig.mReferenceLocation = [](FormId reference) { return reference == kLoose ? kCity : kNullFormId; };
         QuestAliasFiller::Environment env;
         env.mLocations = &rig.mLocations;
         env.mReferenceLocation = rig.mReferenceLocation;
         rig.mFiller->setEnvironment(std::move(env));
-        EXPECT_EQ(rig.mFiller->fillQuest(kQuest, rig.mState, true), 1u); // the hold (the reference is in the initial state)
+        EXPECT_EQ(
+            rig.mFiller->fillQuest(kQuest, rig.mState, true), 1u); // the hold (the reference is in the initial state)
         EXPECT_EQ(rig.filled(4), kHold);
     }
 
@@ -546,7 +557,8 @@ namespace
         rig.mAcceptLocation = { kDungeon };
         rig.start(kCity);
         ASSERT_FALSE(rig.mAskedLocations.empty());
-        // every time the matcher was asked for the BountyLocation, the marker (alias 3) was already known to the condition
+        // every time the matcher was asked for the BountyLocation, the marker (alias 3) was already known to the
+        // condition
         for (const FormId seen : rig.mViewDuring)
             EXPECT_EQ(seen, kMarker);
         for (const auto& [aliasId, location] : rig.mAskedLocations)
@@ -571,7 +583,8 @@ namespace
 
     TEST(SkyrimBountyFill, theKeywordAlsoFiltersTheChildSearchOfALocationAlias)
     {
-        // ALFA naming a LOCATION alias (not in the data; the old child search): with a keyword only the children that have it
+        // ALFA naming a LOCATION alias (not in the data; the old child search): with a keyword only the children that
+        // have it
         const Bytes aliases = alias(true, 1, "Town", 0, sub4("ALFL", Bytes().u32(kHold)))
             + alias(true, 2, "Inside", 0, inAlias(1, 0, kKwDungeon));
         FillRig rig(aliases);
@@ -588,8 +601,8 @@ namespace
         FillRig rig(bountyAliases());
         rig.mAcceptLocation = { kDungeon2 }; // the matcher (the real conditions) would refuse this one: another hold
         const StoryEvent e = rig.event(kCity);
-        // with the stub matcher accepting only the other hold's dungeon the BountyLocation is filled by it: the fill code
-        // trusts the matcher, which is where fn_181 refuses it (SkyrimBountyCond above)
+        // with the stub matcher accepting only the other hold's dungeon the BountyLocation is filled by it: the fill
+        // code trusts the matcher, which is where fn_181 refuses it (SkyrimBountyCond above)
         rig.mFiller->fillEventAliases(kQuest, rig.mState, e);
         rig.mFiller->fillQuest(kQuest, rig.mState, true);
         EXPECT_EQ(rig.filled(6), kDungeon2);

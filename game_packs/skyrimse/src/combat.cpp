@@ -985,8 +985,8 @@ namespace game_skyrimse
             fighter.mReady = true;
             fighter.mHasProfile = fighter.mSubject.player
                 ? true
-                : mData->fighterFor(fighter.mBase, static_cast<std::uint32_t>(fighter.mSubject.actor.reference),
-                    fighter.mProfile);
+                : mData->fighterFor(
+                    fighter.mBase, static_cast<std::uint32_t>(fighter.mSubject.actor.reference), fighter.mProfile);
             if (mTrace && fighter.mHasProfile && fighter.mProfile.mCreature != nullptr)
                 trace("COMBAT creature " + name(fighter.mSubject) + " is a "
                     + std::string(fighter.mProfile.mCreature->mName));
@@ -1215,8 +1215,7 @@ namespace game_skyrimse
                     mCombatSettings.mCombatHealthRegenRateMult, inCombat, seconds));
             f.mStamina = std::min(f.mProfile.mStaminaMax,
                 f.mStamina
-                    + regenAmount(f.mProfile.mStaminaMax,
-                        regenRateFor(f, 2, f.mProfile.mStaminaRegenPercent, anyRate),
+                    + regenAmount(f.mProfile.mStaminaMax, regenRateFor(f, 2, f.mProfile.mStaminaRegenPercent, anyRate),
                         mCombatSettings.mCombatStaminaRegenRateMult, inCombat, seconds));
             // Task 0186: magicka waits after a spend and while a spell is held (fDamagedMagickaRegenDelay).
             if (f.mProfile.mMagickaMax > 0.f && mClock >= f.mMagickaRegenAt && !isBusyConcentrating(f.mSubject))
@@ -1659,8 +1658,7 @@ namespace game_skyrimse
         if (mTrace)
             trace("COMBAT hitframe " + name(attacker->mSubject) + " token " + std::to_string(hit.mToken) + " stamina "
                 + fmt(attacker->mStamina) + " of " + fmt(attacker->mProfile.mStaminaMax) + " reach "
-                + fmt(request.reach)
-                + (hit.mBash ? " bash" : ""));
+                + fmt(request.reach) + (hit.mBash ? " bash" : ""));
         if (writer.requestSweep(attacker->mSubject, request))
         {
             PendingHit asked = hit;
@@ -1747,8 +1745,8 @@ namespace game_skyrimse
         }
         float after = std::max(0.f, current - damage);
         // Task 0264: an essential actor collapses into bleedout (health 1) instead of dying
-        const bool collapsed = mEssentialBleedout && after <= 0.f && !victim.mSubject.player && victim.mProfile.mEssential
-            && !victim.mDead;
+        const bool collapsed = mEssentialBleedout && after <= 0.f && !victim.mSubject.player
+            && victim.mProfile.mEssential && !victim.mDead;
         if (collapsed)
             after = 1.f;
         victim.mHealth = after;
@@ -1953,8 +1951,8 @@ namespace game_skyrimse
             request.y = oy;
             request.z = oz;
             request.heading = static_cast<float>(std::atan2(ax, ay));
-            request.pitch = solveLaunchPitch(static_cast<float>(horizontal), static_cast<float>(rise), speed, gravity)
-                                .mPitch;
+            request.pitch
+                = solveLaunchPitch(static_cast<float>(horizontal), static_cast<float>(rise), speed, gravity).mPitch;
         }
         else
         {
@@ -1983,8 +1981,8 @@ namespace game_skyrimse
             trace("COMBAT arrow launch " + name(archer.mSubject) + " token " + std::to_string(request.token) + " from "
                 + fmt(static_cast<float>(request.x)) + " " + fmt(static_cast<float>(request.y)) + " "
                 + fmt(static_cast<float>(request.z)) + " heading " + fmt(request.heading) + " pitch "
-                + fmt(request.pitch)
-                + " speed " + fmt(request.speed) + " gravity " + fmt(request.gravity) + " draw " + fmt(fraction));
+                + fmt(request.pitch) + " speed " + fmt(request.speed) + " gravity " + fmt(request.gravity) + " draw "
+                + fmt(fraction));
         return true;
     }
 
@@ -2030,8 +2028,8 @@ namespace game_skyrimse
         preset.mDamageAfter = bow.mDamageAfter;
         preset.mStagger = bow.mStagger;
         SweepHit where;
-        where.target = result.fate == openeden::sdk::game::ProjectileFate::HitPlayer ? SweepTarget::Player
-                                                                                     : SweepTarget::Actor;
+        where.target
+            = result.fate == openeden::sdk::game::ProjectileFate::HitPlayer ? SweepTarget::Player : SweepTarget::Actor;
         where.actor = result.actor;
         where.x = result.x;
         where.y = result.y;

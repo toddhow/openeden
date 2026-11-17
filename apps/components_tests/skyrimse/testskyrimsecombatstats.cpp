@@ -419,8 +419,9 @@ namespace
     TEST(SkyrimCombatStatsArmour, theCapIsEightyPercent)
     {
         // four main pieces, ratings 141.75 each = 567 at skill 0: 567 * 0.12 + 12 = 68.04 + 12 = 80.04 -> capped at 80
-        const std::vector<ArmourPiece> set{ { 141.75f, ArmourSlot::Head, 1, 0, {} }, { 141.75f, ArmourSlot::Body, 1, 0, {} },
-            { 141.75f, ArmourSlot::Hands, 1, 0, {} }, { 141.75f, ArmourSlot::Feet, 1, 0, {} } };
+        const std::vector<ArmourPiece> set{ { 141.75f, ArmourSlot::Head, 1, 0, {} },
+            { 141.75f, ArmourSlot::Body, 1, 0, {} }, { 141.75f, ArmourSlot::Hands, 1, 0, {} },
+            { 141.75f, ArmourSlot::Feet, 1, 0, {} } };
         ArmourResult r = armourOf(set, skills(0, 0), CombatSettings());
         EXPECT_NEAR(r.mRating, 567.f, 1e-3);
         EXPECT_EQ(r.mMainPieces, 4);
@@ -431,8 +432,9 @@ namespace
         EXPECT_FLOAT_EQ(r.mMitigationPercent, 80.f);
         EXPECT_TRUE(std::isfinite(r.mRating));
         // below the cap: 4 pieces of 100 = 400 * 0.12 + 12 = 60
-        const std::vector<ArmourPiece> mid{ { 100.f, ArmourSlot::Head, 1, 0, {} }, { 100.f, ArmourSlot::Body, 1, 0, {} },
-            { 100.f, ArmourSlot::Hands, 1, 0, {} }, { 100.f, ArmourSlot::Feet, 1, 0, {} } };
+        const std::vector<ArmourPiece> mid{ { 100.f, ArmourSlot::Head, 1, 0, {} },
+            { 100.f, ArmourSlot::Body, 1, 0, {} }, { 100.f, ArmourSlot::Hands, 1, 0, {} },
+            { 100.f, ArmourSlot::Feet, 1, 0, {} } };
         r = armourOf(mid, skills(0, 0), CombatSettings());
         EXPECT_NEAR(r.mMitigationPercent, 60.f, 1e-3);
     }
@@ -440,7 +442,8 @@ namespace
     TEST(SkyrimCombatStatsArmour, aShieldAddsRatingButIsNotAMainPiece)
     {
         // shield 20 + body 30, skill 0: rating 50; main pieces 1; percent = 6 + 3 = 9
-        const std::vector<ArmourPiece> pieces{ { 20.f, ArmourSlot::Shield, 1, 0, {} }, { 30.f, ArmourSlot::Body, 1, 0, {} } };
+        const std::vector<ArmourPiece> pieces{ { 20.f, ArmourSlot::Shield, 1, 0, {} },
+            { 30.f, ArmourSlot::Body, 1, 0, {} } };
         const ArmourResult r = armourOf(pieces, skills(0, 0), CombatSettings());
         EXPECT_NEAR(r.mRating, 50.f, 1e-4);
         EXPECT_EQ(r.mMainPieces, 1);
@@ -450,8 +453,8 @@ namespace
     TEST(SkyrimCombatStatsArmour, twoPiecesOfOneSlotAndRatingZeroPiecesCountOnce)
     {
         // two body pieces (10 and 10) count as one main piece; a head piece of rating 0 counts as none: 20 * 0.12 + 3
-        const std::vector<ArmourPiece> pieces{ { 10.f, ArmourSlot::Body, 1, 0, {} }, { 10.f, ArmourSlot::Body, 1, 0, {} },
-            { 0.f, ArmourSlot::Head, 1, 0, {} } };
+        const std::vector<ArmourPiece> pieces{ { 10.f, ArmourSlot::Body, 1, 0, {} },
+            { 10.f, ArmourSlot::Body, 1, 0, {} }, { 0.f, ArmourSlot::Head, 1, 0, {} } };
         const ArmourResult r = armourOf(pieces, skills(0, 0), CombatSettings());
         EXPECT_EQ(r.mMainPieces, 1);
         EXPECT_NEAR(r.mMitigationPercent, 5.4f, 1e-4);
@@ -462,7 +465,8 @@ namespace
         ArmourResult r = armourOf({}, skills(100, 100), CombatSettings());
         EXPECT_FLOAT_EQ(r.mRating, 0.f);
         EXPECT_FLOAT_EQ(r.mMitigationPercent, 0.f);
-        const std::vector<ArmourPiece> bad{ { -5.f, ArmourSlot::Body, 1, 0, {} }, { std::nanf(""), ArmourSlot::Head, 1, 0, {} },
+        const std::vector<ArmourPiece> bad{ { -5.f, ArmourSlot::Body, 1, 0, {} },
+            { std::nanf(""), ArmourSlot::Head, 1, 0, {} },
             { std::numeric_limits<float>::infinity(), ArmourSlot::Feet, 0, 0, {} } };
         r = armourOf(bad, skills(100, 100), CombatSettings());
         EXPECT_FLOAT_EQ(r.mRating, 0.f);

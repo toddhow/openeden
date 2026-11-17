@@ -69,8 +69,8 @@ namespace OMW
                 // when the file is in the data); the trace line says which movie a session plays.
                 const MWGui::SessionPresentation::Policy& policy = MWGui::SessionPresentation::currentPolicy();
                 const std::string packLogo = "Video/" + std::string(MWGui::SessionPresentation::kPackLogoMovie);
-                const bool packLogoExists = policy.skipsMorrowindIntro()
-                    && mEngine.mVFS->exists(VFS::Path::Normalized(packLogo));
+                const bool packLogoExists
+                    = policy.skipsMorrowindIntro() && mEngine.mVFS->exists(VFS::Path::Normalized(packLogo));
                 const std::string morrowindLogo = std::string(Fallback::Map::getString("Movies_Company_Logo"));
                 const std::string logo(MWGui::SessionPresentation::companyLogo(
                     policy, morrowindLogo, MWGui::SessionPresentation::kPackLogoMovie, packLogoExists));

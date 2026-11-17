@@ -1,7 +1,7 @@
-// Task 0221: the harvest data of the five Skyrim SE masters (aggregates only: lines SKYRIMSE-HARVEST). Counts the FLOR and
-// TREE records that carry an ingredient, the form types the ingredient link points at, the seasonal chances, the verbs
-// and the placed references of those bases; with OPENEDEN_HARVEST_NEAR=<world editor id> it also lists the nearest
-// placements to Whiterun's gate for the in-game check. Skipped without OPENEDEN_SKYRIMSE_DATA.
+// Task 0221: the harvest data of the five Skyrim SE masters (aggregates only: lines SKYRIMSE-HARVEST). Counts the FLOR
+// and TREE records that carry an ingredient, the form types the ingredient link points at, the seasonal chances, the
+// verbs and the placed references of those bases; with OPENEDEN_HARVEST_NEAR=<world editor id> it also lists the
+// nearest placements to Whiterun's gate for the in-game check. Skipped without OPENEDEN_SKYRIMSE_DATA.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/inventory.hpp>
@@ -61,7 +61,7 @@ namespace
                     || key.find("RNAM") != std::string::npos)
                     oddHarvest += count;
         }
-                std::map<std::string, std::uint64_t> verbs;
+        std::map<std::string, std::uint64_t> verbs;
         std::uint64_t flor = 0, tree = 0, withIngredient = 0, nullIngredient = 0, noChances = 0, allZero = 0,
                       someZero = 0, ingr = 0, lvli = 0, otherForm = 0, withVerb = 0;
         inventory::ItemTable table;
@@ -110,8 +110,8 @@ namespace
                 }
             }
         std::cout << "SKYRIMSE-HARVEST FLOR " << flor << " TREE " << tree << " with ingredient " << withIngredient
-                  << " null ingredient " << nullIngredient << " ingredient is an item " << ingr << " leveled "
-                  << lvli << " other " << otherForm << " no chances " << noChances << " all four zero " << allZero
+                  << " null ingredient " << nullIngredient << " ingredient is an item " << ingr << " leveled " << lvli
+                  << " other " << otherForm << " no chances " << noChances << " all four zero " << allZero
                   << " some zero " << someZero << " verbs present " << withVerb << " odd " << odd << "\n";
         for (const auto& [verb, count] : verbs)
             std::cout << "SKYRIMSE-HARVEST verb [" << verb << "] " << count << "\n";
@@ -119,7 +119,8 @@ namespace
         EXPECT_GT(withIngredient, 50u);
         EXPECT_EQ(otherForm, 0u) << "every PFIG names an item or a leveled list";
 
-        // The placements of harvestable bases and the ones nearest to Whiterun's gate (Tamriel, world 0x3C, cells 4..8 by -4..0).
+        // The placements of harvestable bases and the ones nearest to Whiterun's gate (Tamriel, world 0x3C, cells 4..8
+        // by -4..0).
         std::uint64_t placed = 0, placedFlor = 0, placedTree = 0;
         struct Near
         {
@@ -144,8 +145,8 @@ namespace
                         continue;
                     ++placed;
                     (it->second->mType == Content::fourCC("FLOR") ? placedFlor : placedTree)++;
-                    if (ref->mHasTransform && cell.mWorld == 0x0000003C && cell.mGrid && cell.mGrid->x >= 4 && cell.mGrid->x <= 8
-                        && cell.mGrid->y >= -4 && cell.mGrid->y <= 0)
+                    if (ref->mHasTransform && cell.mWorld == 0x0000003C && cell.mGrid && cell.mGrid->x >= 4
+                        && cell.mGrid->x <= 8 && cell.mGrid->y >= -4 && cell.mGrid->y <= 0)
                     {
                         const double dx = ref->mPosition.x - 25000.0;
                         const double dy = ref->mPosition.y - (-8000.0);
@@ -158,9 +159,9 @@ namespace
                   << " in the Whiterun cells " << near.size() << "\n";
         std::sort(near.begin(), near.end(), [](const Near& a, const Near& b) { return a.mDistance < b.mDistance; });
         for (std::size_t i = 0; i < near.size() && i < 6; ++i)
-            std::cout << "SKYRIMSE-HARVEST near ref " << std::hex << near[i].mRef << " base " << near[i].mBase << std::dec
-                      << " " << near[i].mEditorId << " at " << near[i].x << "," << near[i].y << "," << near[i].z
-                      << " d " << near[i].mDistance << "\n";
+            std::cout << "SKYRIMSE-HARVEST near ref " << std::hex << near[i].mRef << " base " << near[i].mBase
+                      << std::dec << " " << near[i].mEditorId << " at " << near[i].x << "," << near[i].y << ","
+                      << near[i].z << " d " << near[i].mDistance << "\n";
         EXPECT_GT(placed, 100u);
     }
 }

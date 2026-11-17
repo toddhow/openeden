@@ -671,9 +671,8 @@ namespace MWPhysics
                 {
                     if (!mActorSlots[i].mUsed)
                         continue;
-                    const ActorRagdollHandle handle{
-                        mActorSlots[i].mEntry, mActorEntries[mActorSlots[i].mEntry].mGeneration
-                    };
+                    const ActorRagdollHandle handle{ mActorSlots[i].mEntry,
+                        mActorEntries[mActorSlots[i].mEntry].mGeneration };
                     const RagdollStatus current = actorStatus(handle);
                     Log(Debug::Info) << "Actor ragdoll " << i << ": lowest body " << current.lowestZ << " highest "
                                      << current.highestZ << " (units, spawn height " << mActorSlots[i].mSpawnZ

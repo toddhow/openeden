@@ -86,7 +86,8 @@ namespace
         return record4("INFO", 0, kSelf | s.mLocal, b);
     }
 
-    Bytes topic(std::uint32_t id, const std::string& editorId, const std::string& subtype, const std::vector<Spec>& infos)
+    Bytes topic(
+        std::uint32_t id, const std::string& editorId, const std::string& subtype, const std::vector<Spec>& infos)
     {
         Bytes children;
         for (const Spec& i : infos)

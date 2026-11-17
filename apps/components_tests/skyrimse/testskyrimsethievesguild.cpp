@@ -1,5 +1,5 @@
-// Task 0271 (docs/tasks/0271-skyrim-thieves-guild.md): what the Thieves Guild questline needed of the engine, with generated
-// plugins and fakes, no game data:
+// Task 0271 (docs/tasks/0271-skyrim-thieves-guild.md): what the Thieves Guild questline needed of the engine, with
+// generated plugins and fakes, no game data:
 //  * SkyrimThievesPackage:   a ForceGreet package names its topic (PDTO) through its template;
 //  * SkyrimThievesAlias:     a quest alias keeps the packages it gives (ALPC), in order;
 //  * SkyrimThievesBrain:     a chosen ForceGreet package asks for its conversation, again every few evaluations;
@@ -63,7 +63,8 @@ namespace
         return sub4("EDID", Bytes().zstring(s));
     }
 
-    // ---- packages ----------------------------------------------------------------------------------------------------
+    // ---- packages
+    // ----------------------------------------------------------------------------------------------------
 
     Bytes packRecord(
         FormId id, const std::string& editor, FormId templateId, const std::string& procedure, FormId topic)
@@ -146,7 +147,8 @@ namespace
         EXPECT_FALSE(index.forceGreetTopic(*index.package(kPackTemplateGreet), topic));
     }
 
-    // ---- quest aliases -----------------------------------------------------------------------------------------------
+    // ---- quest aliases
+    // -----------------------------------------------------------------------------------------------
 
     TEST(SkyrimThievesAlias, anAliasKeepsThePackagesItGivesInTheirOrderAndNothingElseDoes)
     {
@@ -186,7 +188,8 @@ namespace
         EXPECT_TRUE(quest.mAliases[1].mPackages.empty());
     }
 
-    // ---- the package brain ---------------------------------------------------------------------------------------------
+    // ---- the package brain
+    // ---------------------------------------------------------------------------------------------
 
     class FakeSource final : public PackageSource
     {
@@ -319,7 +322,8 @@ namespace
         EXPECT_TRUE(rig.mAsks.empty());
     }
 
-    // ---- the conversation ----------------------------------------------------------------------------------------------
+    // ---- the conversation
+    // ----------------------------------------------------------------------------------------------
 
     Bytes infoRecord(std::uint32_t id, const std::string& text, const std::vector<std::uint32_t>& links,
         const Bytes& conditions = Bytes())
@@ -483,7 +487,8 @@ namespace
         EXPECT_FALSE(talk.mRuntime->beginForcedTopic(Talk::speaker(), kSelf | 0x3FF, turn, error));
     }
 
-    // ---- the brain's asks in task 0264's ForceGreet ----------------------------------------------------------------------
+    // ---- the brain's asks in task 0264's ForceGreet
+    // ----------------------------------------------------------------------
 
     TEST(SkyrimThievesForceGreet, theBrainsAskMakesOneRequestWithItsBaseAndTopicAndSamesAreAsksNotRequests)
     {
@@ -525,7 +530,8 @@ namespace
         EXPECT_TRUE(fg.requestFromBrain(0x11, 0x21, kTopicIntro)) << "and the next ask is a new request";
     }
 
-    // ---- conditions -----------------------------------------------------------------------------------------------------
+    // ---- conditions
+    // -----------------------------------------------------------------------------------------------------
 
     survey::Ctda cond(std::uint16_t function, std::uint32_t p1 = 0, std::uint32_t runOn = 0, std::uint8_t compare = 0,
         float value = 1.f)

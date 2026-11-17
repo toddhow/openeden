@@ -67,15 +67,15 @@ namespace game_skyrimse
         return true;
     }
 
-    void TriggerTracker::update(const TriggerPlace& place, double x, double y, double z, std::vector<TriggerEdge>& edges)
+    void TriggerTracker::update(
+        const TriggerPlace& place, double x, double y, double z, std::vector<TriggerEdge>& edges)
     {
         if (!place.mKnown)
             return;
         for (auto& [reference, entry] : mVolumes) // a std::map: ascending reference order
         {
-            const bool placeMatches = entry.mVolume.mInterior
-                ? (place.mInterior && place.mCell == entry.mVolume.mCell)
-                : !place.mInterior;
+            const bool placeMatches
+                = entry.mVolume.mInterior ? (place.mInterior && place.mCell == entry.mVolume.mCell) : !place.mInterior;
             const bool now = placeMatches && volumeContains(entry.mVolume, x, y, z);
             if (now == entry.mInside)
                 continue;

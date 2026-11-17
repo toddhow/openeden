@@ -20,9 +20,10 @@
 // Version policy: DRAFT 0.5 (0.5, task 0220: the held weapon and shield at the end of ActorAppearance, empty unless the
 // pack makes them; 0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135:
 // ActorAppearance::heightScale, a trailing field the core only reads; 0.4, task 0212: the creature fields at the end of
-// ActorAppearance, which a consumer only reads and which are all empty or 0 for a person). Additive changes (a new trailing virtual with a
-// default meaning "not supported", a new trailing field of ActorPart or ActorAppearance that a consumer only reads)
-// raise the minor number; anything else raises the major number. Threading: main thread only, like WorldCellSource.
+// ActorAppearance, which a consumer only reads and which are all empty or 0 for a person). Additive changes (a new
+// trailing virtual with a default meaning "not supported", a new trailing field of ActorPart or ActorAppearance that a
+// consumer only reads) raise the minor number; anything else raises the major number. Threading: main thread only, like
+// WorldCellSource.
 
 namespace openeden::sdk::game
 {
@@ -66,7 +67,8 @@ namespace openeden::sdk::game
 
         // ---- Added in 0.4 (task 0212): the animation of a creature. All empty or 0 for a person, and the core then
         // plays what it always did (the `male` / `female` folder clips `mt_idle`, `mt_walkforward`, `mt_runforward` of
-        // the humanoid project). A creature's clips are in the actor folder's own animations folder, with no sex folder.
+        // the humanoid project). A creature's clips are in the actor folder's own animations folder, with no sex
+        // folder.
         /// The animation project that holds the clips' sidecar (events, root motion), the file stem under
         /// `animationdata/` (`wolfproject`). Empty: the humanoid `defaultmale` / `defaultfemale`.
         std::string animationProject;
@@ -86,16 +88,16 @@ namespace openeden::sdk::game
         /// The model of the melee weapon the actor carries, relative to the game's mesh root. The core shows it at the
         /// actor's sheath node while at peace and in the hand while the actor fights.
         std::string heldWeaponModel;
-        /// The weapon's animation type as the game numbers it (Skyrim SE: WEAP DNAM +0: 1 sword, 2 dagger, 3 axe, 4 mace,
-        /// 5 two-handed sword, 6 two-handed axe or hammer); chooses the sheath node. 0 when there is no weapon.
+        /// The weapon's animation type as the game numbers it (Skyrim SE: WEAP DNAM +0: 1 sword, 2 dagger, 3 axe, 4
+        /// mace, 5 two-handed sword, 6 two-handed axe or hammer); chooses the sheath node. 0 when there is no weapon.
         std::uint8_t heldWeaponType = 0;
         /// The model of the shield on the actor's arm; empty when it has none. Its part is not in `parts`.
         std::string heldShieldModel;
 
         // ---- Added in 0.6 (task 0246): the collision capsule's radius.
         /// The radius of the actor's collision capsule in game units. 0: the core's own (a person's). A creature's is
-        /// measured from its skin model (docs/tasks/0246-skyrim-creatures-third.md); the core caps it so that the capsule
-        /// stays a capsule.
+        /// measured from its skin model (docs/tasks/0246-skyrim-creatures-third.md); the core caps it so that the
+        /// capsule stays a capsule.
         float capsuleRadius = 0.f;
 
         friend bool operator==(const ActorAppearance&, const ActorAppearance&) = default;

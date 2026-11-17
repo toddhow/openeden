@@ -174,8 +174,8 @@ namespace MWClass
             }
 
         public:
-            TeleportWithFollowersAction(
-                std::string gameId, const ESM::RefId& cellId, MWWorld::CellStore& destination, const ESM::Position& arrival)
+            TeleportWithFollowersAction(std::string gameId, const ESM::RefId& cellId, MWWorld::CellStore& destination,
+                const ESM::Position& arrival)
                 : MWWorld::Action(true)
                 , mGameId(std::move(gameId))
                 , mCellId(cellId)
@@ -413,8 +413,8 @@ namespace MWClass
                 return std::make_unique<OpenInventoryAction>(
                     ptr, *placement, base.mBase, std::string(getName(ptr)), "actor");
         }
-        // Task 0208: a sneaking player picks a living actor's pockets (only with [Game] neutral inventory); a placed item
-        // is picked up by the pack's scripts.
+        // Task 0208: a sneaking player picks a living actor's pockets (only with [Game] neutral inventory); a placed
+        // item is picked up by the pack's scripts.
         if ((base.mKind == ObjectKind::Actor || base.mKind == ObjectKind::Item) && actor == MWMechanics::getPlayer())
         {
             const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
@@ -423,8 +423,8 @@ namespace MWClass
             {
                 const MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem();
                 const bool dead = physics != nullptr && physics->isNeutralActorDead(ptr);
-                const bool sneaking = actor.getClass().getCreatureStats(actor).getStance(
-                    MWMechanics::CreatureStats::Stance_Sneak);
+                const bool sneaking
+                    = actor.getClass().getCreatureStats(actor).getStance(MWMechanics::CreatureStats::Stance_Sneak);
                 if (MWWorld::decideNeutralPickpocket(base.mKind, true, inventoryOn, dead, sneaking)
                     == MWWorld::NeutralInventoryDecision::Open)
                     return std::make_unique<OpenInventoryAction>(
@@ -435,8 +435,8 @@ namespace MWClass
                         ptr, *placement, base.mBase, std::string(getName(ptr)), "item");
             }
         }
-        // Task 0221: a placed flora or tree the player activates is harvested (the pack's scripts decide whether the base
-        // names an ingredient; nothing happens when no script listens).
+        // Task 0221: a placed flora or tree the player activates is harvested (the pack's scripts decide whether the
+        // base names an ingredient; nothing happens when no script listens).
         if ((base.mKind == ObjectKind::Flora || base.mKind == ObjectKind::Tree) && actor == MWMechanics::getPlayer())
         {
             const auto plantPlacement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
@@ -446,8 +446,8 @@ namespace MWClass
                 return std::make_unique<OpenInventoryAction>(
                     ptr, *plantPlacement, base.mBase, std::string(getName(ptr)), "flora");
         }
-        // Task 0224: a placed Activator the player activates (an ore vein) tells the pack's scripts; nothing happens when
-        // none listens.
+        // Task 0224: a placed Activator the player activates (an ore vein) tells the pack's scripts; nothing happens
+        // when none listens.
         if (base.mKind == ObjectKind::Activator && actor == MWMechanics::getPlayer())
         {
             const auto resourcePlacement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
@@ -501,8 +501,8 @@ namespace MWClass
                         store != nullptr ? store->source(gameIdOf) : nullptr))
                     inventory = [items](openeden::sdk::game::WorldId item) { return items->playerHasItem(item); };
             }
-            return MWWorld::neutralKeyHeld(key,
-                [&](openeden::sdk::game::WorldId k) { return MWWorld::neutralLockState().hasKey(gameIdOf, k); },
+            return MWWorld::neutralKeyHeld(
+                key, [&](openeden::sdk::game::WorldId k) { return MWWorld::neutralLockState().hasKey(gameIdOf, k); },
                 inventory);
         };
         // Task 0128: a lock is opened by its key (the session's key ring) or refused; an opened lock stays open for the
@@ -523,9 +523,8 @@ namespace MWClass
                 = MWWorld::neutralLockAlreadyOpen(locks.isUnlocked(gameId, *placement), packPicked, *placement);
             if (alreadyOpen && !locks.isUnlocked(gameId, *placement))
                 locks.unlock(gameId, *placement);
-            const MWWorld::NeutralLockOutcome lockOutcome
-                = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(), alreadyOpen,
-                    [&](openeden::sdk::game::WorldId key) { return keyHeld(gameId, key); });
+            const MWWorld::NeutralLockOutcome lockOutcome = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(),
+                alreadyOpen, [&](openeden::sdk::game::WorldId key) { return keyHeld(gameId, key); });
             if (doorTraceWanted() && object->lock)
                 Log(Debug::Info) << "NLOCK " << *placement << " in " << cell->getCell()->getDescription()
                                  << ": locked=" << object->lock->locked << " key " << object->lock->key << " level "
@@ -555,8 +554,8 @@ namespace MWClass
         // scripts); otherwise a container has nothing more to do (as before).
         if (base.mKind == ObjectKind::Container)
         {
-            if (MWWorld::decideNeutralInventory(base.mKind, actor == MWMechanics::getPlayer(),
-                    Settings::game().mNeutralInventory.get())
+            if (MWWorld::decideNeutralInventory(
+                    base.mKind, actor == MWMechanics::getPlayer(), Settings::game().mNeutralInventory.get())
                 == MWWorld::NeutralInventoryDecision::Open)
                 return std::make_unique<OpenInventoryAction>(ptr, *placement, base.mBase, std::string(getName(ptr)));
             return MWWorld::Class::activate(ptr, actor);

@@ -1,6 +1,6 @@
-// Task 0189: the Skyrim SE barter window of files/data/openeden/skyrimse/barter_windows.lua over the headless UI backend
-// and fakes of the `core.skyrimse.inventory` and `core.skyrimse.barter` packages written in Lua. Written before the
-// module and run red with the module absent first.
+// Task 0189: the Skyrim SE barter window of files/data/openeden/skyrimse/barter_windows.lua over the headless UI
+// backend and fakes of the `core.skyrimse.inventory` and `core.skyrimse.barter` packages written in Lua. Written before
+// the module and run red with the module absent first.
 #include "uiluafixture.hpp"
 
 #include <algorithm>
@@ -146,7 +146,8 @@ namespace
 
     TEST_F(SkyrimBarterWindows, theAllButtonBuysTheWholeStack)
     {
-        ASSERT_TRUE(run("store.player = { [GOLD] = 100 }; store['700']['00000b02'] = nil; win.open('Hulda'); ui.update()"));
+        ASSERT_TRUE(
+            run("store.player = { [GOLD] = 100 }; store['700']['00000b02'] = nil; win.open('Hulda'); ui.update()"));
         const auto all = buttonsWith("All");
         ASSERT_EQ(all.size(), 1u);
         click(all.front());

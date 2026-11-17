@@ -86,8 +86,8 @@ namespace game_skyrimse
         public:
             void setRecords(const ImageModifierRecord* intro, const ImageModifierRecord* outro);
             [[nodiscard]] bool hasRecords() const { return mIntro != nullptr; }
-            /// True: the result never changes the contrast (multiply 1, add 0). The core pivots contrast on mid grey, the
-            /// game on the scene's average luma, so a contrast boost would only darken a night view.
+            /// True: the result never changes the contrast (multiply 1, add 0). The core pivots contrast on mid grey,
+            /// the game on the scene's average luma, so a contrast boost would only darken a night view.
             void setNeutralContrast(bool on) { mNeutralContrast = on; }
             /// The state to draw now. `active` false in the result means no change at all.
             [[nodiscard]] State update(bool running, float now);

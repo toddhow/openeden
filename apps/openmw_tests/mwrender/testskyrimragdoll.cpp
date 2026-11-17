@@ -19,11 +19,11 @@
 #include "apps/openmw/mwphysics/joltlayers.hpp"
 #include "apps/openmw/mwphysics/ragdollhost.hpp"
 #include "apps/openmw/mwphysics/ragdolltypes.hpp"
-#include "apps/openmw_tests/mwphysics/ragdolltestworld.hpp"
 #include "apps/openmw/mwrender/actorragdolldriver.hpp"
 #include "apps/openmw/mwrender/bonepose.hpp"
 #include "apps/openmw/mwrender/skyrimragdoll.hpp"
 #include "apps/openmw/mwrender/skyrimragdollmap.hpp"
+#include "apps/openmw_tests/mwphysics/ragdolltestworld.hpp"
 
 #include <components/animation/bones.hpp>
 #include <components/animation/transform.hpp>
@@ -406,8 +406,8 @@ namespace
             const vsg::dvec3 rb = rotate(b, axis);
             if (std::abs(ra.x - rb.x) > tolerance || std::abs(ra.y - rb.y) > tolerance
                 || std::abs(ra.z - rb.z) > tolerance)
-                return ::testing::AssertionFailure() << "rotations differ on axis (" << axis.x << ", " << axis.y << ", "
-                                                     << axis.z << ")";
+                return ::testing::AssertionFailure()
+                    << "rotations differ on axis (" << axis.x << ", " << axis.y << ", " << axis.z << ")";
         }
         return ::testing::AssertionSuccess();
     }
@@ -602,8 +602,8 @@ namespace
         ControllerFixture f;
         auto controller = f.controller();
         std::string reason;
-        EXPECT_FALSE(controller->arm(
-            f.mRagdoll.mNames, std::span<const RagdollBoneState>(f.mRagdoll.mStates).first(3), reason));
+        EXPECT_FALSE(
+            controller->arm(f.mRagdoll.mNames, std::span<const RagdollBoneState>(f.mRagdoll.mStates).first(3), reason));
         EXPECT_FALSE(reason.empty());
         EXPECT_FALSE(controller->armed());
     }

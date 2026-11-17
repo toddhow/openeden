@@ -21,7 +21,8 @@ namespace game_skyrimse
         using openeden::sdk::game::CombatSubject;
         using openeden::sdk::game::SubjectState;
 
-        /// The absorb rolls' seed (ours): a roll is rollPercent(kAbsorbSeed + counter), the counter running per session.
+        /// The absorb rolls' seed (ours): a roll is rollPercent(kAbsorbSeed + counter), the counter running per
+        /// session.
         constexpr std::uint64_t kAbsorbSeed = 0x0AB50B0ull;
         /// A spell that lands again on the same target within this many seconds is the same hit (a beam, the second
         /// effect of a spell): it keeps the first roll.
@@ -92,8 +93,8 @@ namespace game_skyrimse
             // in the VMAD); the held state is the last key of the intro (docs/tasks/0257-skyrim-night-eye.md).
             mNightEyeRecordsTried = true;
             mNightEyeTracker.setNeutralContrast(true); // see NightEyeTracker::setNeutralContrast
-            mNightEyeTracker.setRecords(
-                mData->imageModifierByEditorId("NightEyeImodIntro"), mData->imageModifierByEditorId("NightEyeImodOutro"));
+            mNightEyeTracker.setRecords(mData->imageModifierByEditorId("NightEyeImodIntro"),
+                mData->imageModifierByEditorId("NightEyeImodOutro"));
             if (!mNightEyeTracker.hasRecords())
                 trace("COMBAT night eye: the image space modifiers NightEyeImodIntro and Outro were not found");
         }
@@ -157,7 +158,8 @@ namespace game_skyrimse
         const float held = target.mSubject.player && target.mHasAbilities ? target.mAbilities.mAbsorb : 0.f;
         float timed = 0.f;
         for (const ActiveEffect& e : mEffects.effects())
-            if (e.mTiming == EffectTiming::Timed && e.mTarget == target.mSubject && e.mValue == race_effects::kAbsorbValue
+            if (e.mTiming == EffectTiming::Timed && e.mTarget == target.mSubject
+                && e.mValue == race_effects::kAbsorbValue
                 && (e.mArchetype == MagicArchetype::PeakValueModifier || e.mArchetype == MagicArchetype::ValueModifier))
                 timed += e.mPerSecond;
         return race_effects::absorbChancePercent(held, timed);
@@ -273,7 +275,7 @@ namespace game_skyrimse
                 target.mStatus.mNightEyeUntil = extendStatus(target.mStatus.mNightEyeUntil, mClock, seconds);
                 trace("COMBAT effect night eye on " + who(target.mSubject) + " for " + num(seconds)
                     + (mNightEyeView ? " s (the view: the image space modifier)"
-                                   : " s (a status only: nothing draws a brighter view)"));
+                                     : " s (a status only: nothing draws a brighter view)"));
                 return true;
             case race_effects::ScriptKind::CommandAnimal:
             {
@@ -336,12 +338,13 @@ namespace game_skyrimse
                 if (!effectConditionsAllow(*caster, other, held, *record, true))
                     continue;
                 const float signedMag = signedMagnitude(held.mMagnitude, record->mFlags);
-                const float shaped = weakened(resistedMagnitude(std::abs(signedMag), resistOf(other, record->mResistValue)),
-                    weaknessOf(other, record->mResistValue));
+                const float shaped
+                    = weakened(resistedMagnitude(std::abs(signedMag), resistOf(other, record->mResistValue)),
+                        weaknessOf(other, record->mResistValue));
                 const float amount = race_effects::cloakDamage(shaped, used);
                 if (amount > 0.f)
-                    (void)changeVital(writer, caster, other, record->mPrimaryValue, signedMag < 0.f ? -amount : amount,
-                        nullptr);
+                    (void)changeVital(
+                        writer, caster, other, record->mPrimaryValue, signedMag < 0.f ? -amount : amount, nullptr);
             }
         }
     }

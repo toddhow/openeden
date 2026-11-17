@@ -1,7 +1,7 @@
-// Task 0260 (vampirism): the real records. Gated: skipped unless OPENEDEN_SKYRIMSE_DATA names the game's Data folder. Checks
-// that the four sun damage abilities carry decodable per-effect conditions that the effect-condition evaluator answers, that
-// sunlight holds outdoors at noon and not at night or indoors, and that every stage spell the quest script adds is a known
-// spell (lines SKYRIMSE-VAMPIRE, game numbers only).
+// Task 0260 (vampirism): the real records. Gated: skipped unless OPENEDEN_SKYRIMSE_DATA names the game's Data folder.
+// Checks that the four sun damage abilities carry decodable per-effect conditions that the effect-condition evaluator
+// answers, that sunlight holds outdoors at noon and not at night or indoors, and that every stage spell the quest
+// script adds is a known spell (lines SKYRIMSE-VAMPIRE, game numbers only).
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/records.hpp>
@@ -73,8 +73,8 @@ namespace
                 EXPECT_EQ(e.mConditionList.size(), e.mConditions) << spell->mCommon.mEditorId;
                 withConditions += e.mConditions > 0 ? 1 : 0;
             }
-            std::cout << "SKYRIMSE-VAMPIRE sun spell " << spell->mCommon.mEditorId << " effects " << spell->mEffects.size()
-                      << " with conditions " << withConditions << "\n";
+            std::cout << "SKYRIMSE-VAMPIRE sun spell " << spell->mCommon.mEditorId << " effects "
+                      << spell->mEffects.size() << " with conditions " << withConditions << "\n";
             EXPECT_GT(withConditions, 0u);
         }
         const SpellRecord* first = index.spell(vampirism::kSunDamageSpells[0]);

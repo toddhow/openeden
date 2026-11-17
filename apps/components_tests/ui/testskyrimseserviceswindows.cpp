@@ -117,8 +117,9 @@ namespace
         ASSERT_TRUE(run("win.open(); ui.update()"));
         click(buttonsWith("Train").front());
         EXPECT_EQ(get<int>("trains"), 1);
-        ASSERT_TRUE(run("st.level = 16; st.cost = 160; st.gold = 850; st.left = 4; st.revision = 2; "
-                        "st.last = 'trained Block 15 -> 16'; win.update(); ui.update()"));
+        ASSERT_TRUE(
+            run("st.level = 16; st.cost = 160; st.gold = 850; st.left = 4; st.revision = 2; "
+                "st.last = 'trained Block 15 -> 16'; win.update(); ui.update()"));
         EXPECT_TRUE(textExists("Level 16 (this trainer teaches up to 75)"));
         EXPECT_TRUE(textExists("Cost 160 gold   Your gold 850"));
         EXPECT_TRUE(textExists("Trainings left at this level: 4"));

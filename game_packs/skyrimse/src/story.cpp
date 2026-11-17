@@ -91,7 +91,10 @@ namespace game_skyrimse
                     return true;
                 }
                 mWhy.clear();
-                if (readNode(record, bytes, smbn ? StoryNodeKind::Branch : smqn ? StoryNodeKind::Quest : StoryNodeKind::Event))
+                if (readNode(record, bytes,
+                        smbn       ? StoryNodeKind::Branch
+                            : smqn ? StoryNodeKind::Quest
+                                   : StoryNodeKind::Event))
                     ++count.mParsed;
                 else
                     fail(record, mWhy);
@@ -398,7 +401,8 @@ namespace game_skyrimse
         return n;
     }
 
-    // ---- fn_576 GetEventData -----------------------------------------------------------------------------------------
+    // ---- fn_576 GetEventData
+    // -----------------------------------------------------------------------------------------
 
     namespace
     {
@@ -485,7 +489,7 @@ namespace game_skyrimse
         if (mTrace)
         {
             std::string line = std::string("node ")
-                + (n->mKind == StoryNodeKind::Quest        ? "quest "
+                + (n->mKind == StoryNodeKind::Quest         ? "quest "
                         : n->mKind == StoryNodeKind::Branch ? "branch "
                                                             : "event ")
                 + hexOf(id) + " " + n->mCommon.mEditorId + (conditionsPass ? " passes" : " fails");
@@ -595,7 +599,8 @@ namespace game_skyrimse
             mCycle[node].insert(quests.begin(), quests.end());
     }
 
-    std::vector<FormId> StoryManager::raise(const StoryEvent& event, const Evaluate& evaluate, const Startable& startable)
+    std::vector<FormId> StoryManager::raise(
+        const StoryEvent& event, const Evaluate& evaluate, const Startable& startable)
     {
         ++mEventCounter;
         ++mStats.mEvents;

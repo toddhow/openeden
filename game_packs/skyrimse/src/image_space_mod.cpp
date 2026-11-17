@@ -54,7 +54,8 @@ namespace game_skyrimse
         bool readTintKeys(std::span<const std::byte> data, std::vector<imagespace::TintKey>& out)
         {
             if (data.empty() || data.size() % kTintKeyBytes != 0
-                || data.size() / kTintKeyBytes > imagespace::kMaxKeysPerTrack || !allFinite(data.data(), data.size() / 4))
+                || data.size() / kTintKeyBytes > imagespace::kMaxKeysPerTrack
+                || !allFinite(data.data(), data.size() / 4))
                 return false;
             std::vector<imagespace::TintKey> keys;
             keys.reserve(data.size() / kTintKeyBytes);

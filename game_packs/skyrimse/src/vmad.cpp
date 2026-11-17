@@ -434,8 +434,8 @@ namespace game_skyrimse::vmad
                 all.push_back(script);
                 continue;
             }
-            // Task 0256: a script both carry keeps the reference's values and gains the properties only the base sets (a
-            // word wall's trigger reference names its words and the base activator names the image space modifiers).
+            // Task 0256: a script both carry keeps the reference's values and gains the properties only the base sets
+            // (a word wall's trigger reference names its words and the base activator names the image space modifiers).
             for (Script& mine : all)
             {
                 if (lowerName(mine.mName) != lowerName(script.mName))

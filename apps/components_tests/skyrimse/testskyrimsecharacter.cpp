@@ -738,7 +738,8 @@ namespace
         }
         const auto races = playableRaces(index, TextFn());
         EXPECT_EQ(races.size(), 10u);
-        const auto nordIt = std::find_if(races.begin(), races.end(), [](const RaceOption& r) { return r.mId == kNord; });
+        const auto nordIt
+            = std::find_if(races.begin(), races.end(), [](const RaceOption& r) { return r.mId == kNord; });
         ASSERT_NE(nordIt, races.end());
         EXPECT_EQ(describeBoosts(nordIt->mBoosts),
             "Two-Handed +10, One-Handed +5, Block +5, Smithing +5, Speech +5, Light Armor +5");

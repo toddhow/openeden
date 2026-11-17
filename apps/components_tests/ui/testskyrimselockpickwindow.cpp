@@ -68,10 +68,7 @@ namespace
             return false;
         }
 
-        void frame(double dt)
-        {
-            ASSERT_TRUE(run("win.update(" + std::to_string(dt) + "); ui.update()"));
-        }
+        void frame(double dt) { ASSERT_TRUE(run("win.update(" + std::to_string(dt) + "); ui.update()")); }
 
         // The pack answers: attempt in progress on the window's lock.
         void picking() { ASSERT_TRUE(run("state = 'picking'; placement = '2d631'; serial = serial + 1")); }

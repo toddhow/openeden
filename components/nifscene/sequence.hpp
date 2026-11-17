@@ -8,7 +8,8 @@
 // whole parent chain.
 //
 // Matrices are column-major, translation in elements 12 to 14 (the layout vsg::mat4 and Jolt's Mat44 take).
-// No engine, renderer or NIF record type appears here. Threads: pure. Allocation: `sample` and `delta` allocate nothing.
+// No engine, renderer or NIF record type appears here. Threads: pure. Allocation: `sample` and `delta` allocate
+// nothing.
 
 #include <array>
 #include <cstdint>
@@ -48,8 +49,7 @@ namespace NifScene::Sequences
         std::size_t mSequence = sNoSequence;
         float mTime = 0.f;
     };
-    [[nodiscard]] Pose poseFor(
-        const Scene& scene, std::size_t open, std::size_t close, float progress, bool closing);
+    [[nodiscard]] Pose poseFor(const Scene& scene, std::size_t open, std::size_t close, float progress, bool closing);
 
     /// One step of a door or lid: `progress` (0 closed .. 1 open) moves toward open (true) or closed (false) at one
     /// full run per `seconds`. A bad dt changes nothing; a `seconds` that is not positive jumps to the target.

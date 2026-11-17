@@ -292,7 +292,8 @@ namespace game_skyrimse
     {
         float mWardPowerMaxBase = 1.3f; ///< fMagicWardPowerMaxBase: a ward holds this times its Peak magnitude at most
         float mWardPowerMaxMult = 0.f; ///< fMagicWardPowerMaxMult: the part that grows with the skill (0 in the data)
-        float mDamagedMagickaRegenDelay = 0.5f; ///< fDamagedMagickaRegenDelay: seconds after spending before regeneration
+        float mDamagedMagickaRegenDelay
+            = 0.5f; ///< fDamagedMagickaRegenDelay: seconds after spending before regeneration
         float mShoutTime1 = 0.2f; ///< task 0205, fShoutTime1
         float mShoutTime2 = 0.9f; ///< fShoutTime2
     };
@@ -343,7 +344,8 @@ namespace game_skyrimse
         [[nodiscard]] const SettingsTable& settings() const { return mSettings; }
         /// Task 0205: the shouts and words of the load order.
         [[nodiscard]] const ShoutIndex& shouts() const { return mShoutIndex; }
-        /// Task 0257: the IMAD with this editor id (case-insensitive; the highest form id when two share a name), or null.
+        /// Task 0257: the IMAD with this editor id (case-insensitive; the highest form id when two share a name), or
+        /// null.
         [[nodiscard]] const ImageModifierRecord* imageModifierByEditorId(const std::string& editorId) const;
         // PerkLibrary (task 0179)
         [[nodiscard]] const PerkRecord* perk(FormId id) const override;

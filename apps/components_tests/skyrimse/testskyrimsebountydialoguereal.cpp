@@ -1,6 +1,6 @@
 // Task 0230: GetIsEditorLocAlias (fn_567) on the player's own Skyrim SE masters. Fills the quests that call it with the
-// function unanswered (as before the task) and answered, and prints what changed (aggregates and official editor ids only,
-// lines starting SKYRIMSE-BQDLG). Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// function unanswered (as before the task) and answered, and prints what changed (aggregates and official editor ids
+// only, lines starting SKYRIMSE-BQDLG). Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/neutral_world.hpp>
@@ -118,8 +118,7 @@ namespace
                 const AliasFill f = state.aliasFill(id, a.mId);
                 out.mRefs[name][a.mName] = f.mKnown ? f.mReference : kNullFormId;
                 if (f.mKnown && f.mReference != kNullFormId)
-                    out.mFills[name][a.mName]
-                        = access.mAliasName ? access.mAliasName(id, a.mName) : std::string("?");
+                    out.mFills[name][a.mName] = access.mAliasName ? access.mAliasName(id, a.mName) : std::string("?");
             }
         }
         out.mFillTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin);
@@ -175,9 +174,8 @@ namespace
             }
             questsChanged += changed ? 1 : 0;
         }
-        std::cout << "SKYRIMSE-BQDLG fills changed: " << questsChanged << " of " << after.mQuestsWith567
-                  << " quests, " << aliasesChanged << " aliases (" << aliasesGained << " gained, " << aliasesLost
-                  << " lost)\n";
+        std::cout << "SKYRIMSE-BQDLG fills changed: " << questsChanged << " of " << after.mQuestsWith567 << " quests, "
+                  << aliasesChanged << " aliases (" << aliasesGained << " gained, " << aliasesLost << " lost)\n";
         std::size_t gateChanged = 0;
         for (const auto& [quest, can] : after.mCanStart)
             if (before.mCanStart[quest] != can)

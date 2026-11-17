@@ -1,6 +1,6 @@
 // Task 0268 (the main quest's opening at Helgen): a script's MoveTo that the world cannot do in place (an actor, an
-// object of another cell) near the player makes a NEW reference there (PapyrusWorldHooks::relocateObject), hides the old
-// one and points the quest's aliases at the new one; ObjectReference.Is3DLoaded asks the world; the alias cell-load
+// object of another cell) near the player makes a NEW reference there (PapyrusWorldHooks::relocateObject), hides the
+// old one and points the quest's aliases at the new one; ObjectReference.Is3DLoaded asks the world; the alias cell-load
 // replay reaches an alias script; a begin-on-quest-start scene waits for its actors when asked. Generated scripts, a
 // fake game and fake hooks; no game data. Written AFTER the code: mutation checks instead of a red run against stubs
 // (see docs/tasks/0268-skyrim-helgen.md).
@@ -152,7 +152,8 @@ namespace
         s.var("flag", "Bool");
         s.function("GoToMarker")
             .local("n", "None")
-            .callMethod("MoveTo", Id("self"), Id("n"), { Id("::Marker_var"), Flt(5.f), Flt(0.f), Flt(0.f), Bool(false) });
+            .callMethod(
+                "MoveTo", Id("self"), Id("n"), { Id("::Marker_var"), Flt(5.f), Flt(0.f), Flt(0.f), Bool(false) });
         s.function("AskLoaded")
             .local("v", "Bool")
             .callMethod("Is3DLoaded", Id("self"), Id("v"))
@@ -379,7 +380,10 @@ namespace
 
     // ---- the scene that begins on quest start waits for its actors -----------------------------------------------
 
-    Bytes empty(const char (&type)[5]) { return sub4(type, Bytes()); }
+    Bytes empty(const char (&type)[5])
+    {
+        return sub4(type, Bytes());
+    }
 
     Bytes sceneRecord(FormId id, FormId quest)
     {

@@ -84,13 +84,13 @@ namespace openeden::sdk::game
         }
 
         /// Version 1.2 (task 0181, Papyrus slice 2). Asks the host to enable or disable one placement of the neutral
-        /// world this `source` fed (a script's Enable and Disable). The host queues the change (bounded; the last change
-        /// of a placement wins) and the engine applies it on the main thread, to the placement if its cell is loaded;
-        /// a cell loaded later is built by the pack, which keeps its own override (this call only reaches cells that
-        /// exist). `cellHint` is the pack's cell id when the pack knows it; a host looks the placement up in the loaded
-        /// cells of the game and may ignore the hint (a persistent reference is held by a different cell than the one
-        /// it stands in). True when the change was queued; false for a source that is not registered, a full queue, or
-        /// a host built before 1.2 (the default). Main thread only.
+        /// world this `source` fed (a script's Enable and Disable). The host queues the change (bounded; the last
+        /// change of a placement wins) and the engine applies it on the main thread, to the placement if its cell is
+        /// loaded; a cell loaded later is built by the pack, which keeps its own override (this call only reaches cells
+        /// that exist). `cellHint` is the pack's cell id when the pack knows it; a host looks the placement up in the
+        /// loaded cells of the game and may ignore the hint (a persistent reference is held by a different cell than
+        /// the one it stands in). True when the change was queued; false for a source that is not registered, a full
+        /// queue, or a host built before 1.2 (the default). Main thread only.
         [[nodiscard]] virtual bool setObjectEnabled(
             WorldCellSource& source, WorldId cellHint, WorldId placement, bool enabled)
         {

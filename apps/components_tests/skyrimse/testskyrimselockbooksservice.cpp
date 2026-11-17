@@ -130,25 +130,22 @@ namespace
             else
             {
                 books.append(bookRecord(kPlain, "Plain", 0, 0, "A Plain Book", "<p>First</p><p>Second</p>"));
-                books.append(bookRecord(
-                    kSkillBook, "SkillBookAlchemy", BookFlags::TeachesSkill, 16, "Alchemy Book", "alch"));
-                books.append(bookRecord(
-                    kTomeA, "TomeA", BookFlags::TeachesSpell, kThunderbolt, "Tome of Thunderbolt", "a"));
-                books.append(bookRecord(
-                    kTomeB, "TomeB", BookFlags::TeachesSpell, kThunderbolt, "Other Thunderbolt", "b"));
+                books.append(
+                    bookRecord(kSkillBook, "SkillBookAlchemy", BookFlags::TeachesSkill, 16, "Alchemy Book", "alch"));
+                books.append(
+                    bookRecord(kTomeA, "TomeA", BookFlags::TeachesSpell, kThunderbolt, "Tome of Thunderbolt", "a"));
+                books.append(
+                    bookRecord(kTomeB, "TomeB", BookFlags::TeachesSpell, kThunderbolt, "Other Thunderbolt", "b"));
             }
             all.append(group4(Content::fourCC("BOOK"), 0, books));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, kLockpickItem, sub4("DATA", Bytes().u32(5).f32(0.f)))));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, kLockpickItem, sub4("DATA", Bytes().u32(5).f32(0.f)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
             return all;
         }
 
-        void SetUp() override
-        {
-            build();
-        }
+        void SetUp() override { build(); }
 
         void build()
         {
@@ -206,12 +203,10 @@ namespace
                 mRaised.push_back(slot);
                 return true;
             };
-            hooks.mSkillName = [](std::size_t slot) {
-                return slot == 10 ? std::string("Alchemy") : std::string("Skill");
-            };
-            hooks.mSpellName = [](FormId spell) {
-                return spell == kThunderbolt ? std::string("Thunderbolt") : std::string();
-            };
+            hooks.mSkillName
+                = [](std::size_t slot) { return slot == 10 ? std::string("Alchemy") : std::string("Skill"); };
+            hooks.mSpellName
+                = [](FormId spell) { return spell == kThunderbolt ? std::string("Thunderbolt") : std::string(); };
             hooks.mSpellLearned = [this](FormId spell) { mLearned.push_back(spell); };
             hooks.mLog = [this](const std::string& line) { mLog.push_back(line); };
             mService = std::make_unique<LockBooksService>(*mInventory, std::move(hooks));
@@ -461,14 +456,14 @@ namespace
         EXPECT_FALSE(mBindings.call("book_read", { str(formatId(kSkillBook)) }).value.boolean);
         (void)mBindings.call("read_book", { str(formatId(kSkillBook)) });
         EXPECT_EQ(mRaised, std::vector<std::size_t>{ 10 });
-        EXPECT_NE(mBindings.call("book_result", { str(formatId(kSkillBook)) }).value.text.find("Alchemy"),
-            std::string::npos);
+        EXPECT_NE(
+            mBindings.call("book_result", { str(formatId(kSkillBook)) }).value.text.find("Alchemy"), std::string::npos);
         EXPECT_TRUE(mBindings.call("book_read", { str(formatId(kSkillBook)) }).value.boolean);
         EXPECT_EQ(held(kSkillBook), 1); // the book is kept
         (void)mBindings.call("read_book", { str(formatId(kSkillBook)) });
         EXPECT_EQ(mRaised.size(), 1u); // once
-        EXPECT_NE(mBindings.call("book_result", { str(formatId(kSkillBook)) }).value.text.find("already"),
-            std::string::npos);
+        EXPECT_NE(
+            mBindings.call("book_result", { str(formatId(kSkillBook)) }).value.text.find("already"), std::string::npos);
     }
 
     TEST_F(LockBooksFixture, aSkillBookDoesNotCountAsReadWhenTheSkillCannotRise)
@@ -496,15 +491,15 @@ namespace
         EXPECT_EQ(mLearned, std::vector<FormId>{ kThunderbolt });
         EXPECT_EQ(held(kTomeA), 0);
         EXPECT_TRUE(mService->model().knowsSpell(kThunderbolt));
-        EXPECT_NE(mBindings.call("book_result", { str(formatId(kTomeA)) }).value.text.find("Thunderbolt"),
-            std::string::npos);
+        EXPECT_NE(
+            mBindings.call("book_result", { str(formatId(kTomeA)) }).value.text.find("Thunderbolt"), std::string::npos);
         EXPECT_EQ(strings("spells"), std::vector<std::string>{ formatId(kThunderbolt) });
         // another tome of the same spell: read, nothing learned, kept
         (void)mBindings.call("read_book", { str(formatId(kTomeB)) });
         EXPECT_EQ(mLearned.size(), 1u);
         EXPECT_EQ(held(kTomeB), 1);
-        EXPECT_NE(mBindings.call("book_result", { str(formatId(kTomeB)) }).value.text.find("already"),
-            std::string::npos);
+        EXPECT_NE(
+            mBindings.call("book_result", { str(formatId(kTomeB)) }).value.text.find("already"), std::string::npos);
     }
 
     TEST_F(LockBooksFixture, readingNeedsTheBookInTheInventoryAndABookRecord)
@@ -550,7 +545,10 @@ namespace
         EXPECT_FALSE(mService->lockPicked(185905));
         struct R final : openeden::sdk::ChunkReader
         {
-            explicit R(const std::vector<unsigned char>& b) : bytes(b) {}
+            explicit R(const std::vector<unsigned char>& b)
+                : bytes(b)
+            {
+            }
             bool read(void* d, std::size_t n) override
             {
                 if (n > remaining())
@@ -580,7 +578,7 @@ namespace
         waitReady();
         give(kLocalised, 1);
         EXPECT_EQ(mBindings.call("book_title", { str(formatId(kLocalised)) }).value.text, "Localised Title");
-        EXPECT_EQ(strings("book_pages", { str(formatId(kLocalised)) }),
-            std::vector<std::string>{ "Localised\n\ntext" });
+        EXPECT_EQ(
+            strings("book_pages", { str(formatId(kLocalised)) }), std::vector<std::string>{ "Localised\n\ntext" });
     }
 }

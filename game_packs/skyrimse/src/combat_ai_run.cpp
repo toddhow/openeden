@@ -175,7 +175,8 @@ namespace game_skyrimse
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
-    void SkyrimCombat::crimeGoTo(ActorHandle handle, double x, double y, double z, openeden::sdk::game::ActorSpeed speed)
+    void SkyrimCombat::crimeGoTo(
+        ActorHandle handle, double x, double y, double z, openeden::sdk::game::ActorSpeed speed)
     {
         AiMoveIntent intent;
         intent.mKind = AiMoveIntent::Kind::GoTo;
@@ -498,8 +499,8 @@ namespace game_skyrimse
         if (!writer.playClip(fighter.mSubject, request))
             return;
         openeden::sdk::game::ClipTiming timing;
-        const float length = (writer.clipTiming(clip, false, timing) && timing.length > 0.f) ? timing.length
-                                                                                            : kAiGuardClipFallback;
+        const float length
+            = (writer.clipTiming(clip, false, timing) && timing.length > 0.f) ? timing.length : kAiGuardClipFallback;
         actor.mGuardToken = request.token;
         actor.mGuardClipEnds = mClock + length;
     }
@@ -538,8 +539,8 @@ namespace game_skyrimse
                 const double standOff = std::max<double>(kAiMinStandOff, kAiStandOffFraction * reach);
                 const AiPoint p = aiApproachPoint(s, t, standOff);
                 if (due(p))
-                    aiPushGoTo(actor, p.x, p.y, target.z,
-                        distance > kAiRunDistance ? ActorSpeed::Run : ActorSpeed::Walk);
+                    aiPushGoTo(
+                        actor, p.x, p.y, target.z, distance > kAiRunDistance ? ActorSpeed::Run : ActorSpeed::Walk);
                 break;
             }
             case AiMove::Circle:
@@ -735,8 +736,7 @@ namespace game_skyrimse
             view.mTargetSwinging = a.mTarget.player ? mPlayerSwingActive : targetFighter->mSwinging;
             // the player has no block input
             view.mTargetBlocking = a.mTarget.player ? false : isBlocking(*targetFighter);
-            view.mBusy = f->mSwinging || f->mStaggered || f->mBow != Fighter::Bow::None
-                || isBusyCasting(f->mSubject);
+            view.mBusy = f->mSwinging || f->mStaggered || f->mBow != Fighter::Bow::None || isBusyCasting(f->mSubject);
             aiPickSpell(*f, a);
             view.mCanCast = a.mSpell != nullptr && f->mMagicka >= static_cast<float>(a.mSpell->mCost);
             const AiMode before = a.mState.mMode;
@@ -747,8 +747,8 @@ namespace game_skyrimse
                 trace("COMBAT ai recovered " + subjectName(f->mSubject) + " health " + fmtf(view.mHealthFraction));
             if (out.mModeChanged && mTrace)
                 trace("COMBAT ai mode " + subjectName(f->mSubject) + " " + modeName(before) + " -> "
-                    + modeName(a.mState.mMode) + " distance " + fmtf(distance) + " health "
-                    + fmtf(view.mHealthFraction) + " stamina " + fmtf(view.mStaminaFraction));
+                    + modeName(a.mState.mMode) + " distance " + fmtf(distance) + " health " + fmtf(view.mHealthFraction)
+                    + " stamina " + fmtf(view.mStaminaFraction));
 
             switch (out.mAction)
             {
@@ -791,11 +791,11 @@ namespace game_skyrimse
                     }
                     if (mTrace)
                         trace("COMBAT ai attack " + subjectName(f->mSubject)
-                            + (kind == AttackKind::Bash        ? " bash"
+                            + (kind == AttackKind::Bash         ? " bash"
                                     : kind == AttackKind::Power ? " power"
                                                                 : " normal"));
-                    (void)writer.faceHeading(f->mSubject,
-                        static_cast<float>(std::atan2(targetState.x - self.x, targetState.y - self.y)));
+                    (void)writer.faceHeading(
+                        f->mSubject, static_cast<float>(std::atan2(targetState.x - self.x, targetState.y - self.y)));
                     if (bow)
                         beginBowDraw(writer, *f);
                     else
@@ -1087,8 +1087,8 @@ namespace game_skyrimse
             Fighter* helper = find(snap.mSubject);
             if (helper == nullptr || helper->mDead || aiFind(snap.mSubject.actor) != nullptr)
                 continue;
-            if (!Factions::assists(partyOf(*helper), relationOf(*helper, *victim), relationOf(*helper, *attacker),
-                    victimOnSide))
+            if (!Factions::assists(
+                    partyOf(*helper), relationOf(*helper, *victim), relationOf(*helper, *attacker), victimOnSide))
                 continue;
             if (!aiHasSight(writer, helper->mSubject, *attackerSnap))
                 continue;

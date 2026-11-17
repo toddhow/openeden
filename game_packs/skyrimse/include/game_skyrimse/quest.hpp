@@ -175,7 +175,8 @@ namespace game_skyrimse
         FormId mKeyword = kNullFormId; ///< KNAM (task 0226): a location alias's search keyword (LocTypeHold ...)
         std::vector<FormId> mFactions; ///< ALFC (task 0239): the factions the alias fill is added to
         std::vector<FormId> mPackages; ///< ALPC (task 0271): the packages the alias fill runs, most important first
-        std::uint32_t mEventData = 0; ///< ALFD (task 0194): the event member that fills a FromEvent alias, two characters like 'R1' 
+        std::uint32_t mEventData
+            = 0; ///< ALFD (task 0194): the event member that fills a FromEvent alias, two characters like 'R1'
         std::vector<survey::Ctda> mConditions;
         /// The data alone says who fills it: a specific reference or a unique actor.
         [[nodiscard]] bool dataFillable() const

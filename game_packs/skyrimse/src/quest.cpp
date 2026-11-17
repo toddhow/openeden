@@ -567,7 +567,8 @@ namespace game_skyrimse
                                 alias->mFactions.push_back(faction);
                             return;
                         }
-                        case Content::fourCC("ALPC"): // task 0271: a package the alias fill runs (first = most important)
+                        case Content::fourCC(
+                            "ALPC"): // task 0271: a package the alias fill runs (first = most important)
                         {
                             FormId package = kNullFormId;
                             constexpr std::size_t kMaxAliasPackages = 32;

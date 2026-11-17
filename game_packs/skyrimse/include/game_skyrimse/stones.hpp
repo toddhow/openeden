@@ -22,8 +22,8 @@
 //
 // Threading: main thread only. No engine, renderer or script-language type.
 
-#include <game_skyrimse/perks.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
+#include <game_skyrimse/perks.hpp>
 
 #include <openeden/game/bindings.hpp>
 #include <openeden/game/save_chunks.hpp>
@@ -38,8 +38,9 @@
 
 namespace game_skyrimse::stones
 {
-    /// PERK entry point ModSkillUse (VERIFIED: PRKE entry point byte 0x16 in doomWarriorPerk) and the condition function
-    /// that tests the skill being used (CTDA function 681; the name EPModSkillUsage_IsAdvanceSkill is RECALLED-VERIFY).
+    /// PERK entry point ModSkillUse (VERIFIED: PRKE entry point byte 0x16 in doomWarriorPerk) and the condition
+    /// function that tests the skill being used (CTDA function 681; the name EPModSkillUsage_IsAdvanceSkill is
+    /// RECALLED-VERIFY).
     inline constexpr std::uint8_t kEntryModSkillUse = 22;
     inline constexpr std::uint16_t kFunctionIsAdvanceSkill = 681;
     inline constexpr std::uint32_t kFirstSkillValue = 6; ///< the actor value of skill slot 0 (One-handed)
@@ -86,7 +87,8 @@ namespace game_skyrimse::stones
             /// when it is a stone or shrine and its script was told.
             std::function<bool(FormId placement, FormId base)> mActivate;
             std::function<void(const std::string&)> mLog;
-            /// Task 0240: a spell cast on the player has a Cure Disease effect (a shrine's): the diseases go. May be empty.
+            /// Task 0240: a spell cast on the player has a Cure Disease effect (a shrine's): the diseases go. May be
+            /// empty.
             std::function<void()> mCure;
         };
 

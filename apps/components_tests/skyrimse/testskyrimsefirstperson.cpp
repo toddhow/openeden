@@ -41,8 +41,8 @@ namespace
     constexpr std::uint32_t kFeet = 0x80;
     constexpr std::uint32_t kShieldSlot = 0x200;
 
-    ArmatureRecord armature(FormId id, FormId race, std::uint32_t slots, const std::string& thirdPerson,
-        const std::string& firstPerson)
+    ArmatureRecord armature(
+        FormId id, FormId race, std::uint32_t slots, const std::string& thirdPerson, const std::string& firstPerson)
     {
         ArmatureRecord a;
         a.mCommon.mId = id;
@@ -94,7 +94,8 @@ namespace
         r.mRaces.push_back(other);
 
         // the skin: a body (arms) and hands with first-person models, feet with none (nothing of feet is seen)
-        r.mArmatures.push_back(armature(0x500, kRace, kBody, "skin_body.nif", withFirstPersonSkin ? "fp_body.nif" : ""));
+        r.mArmatures.push_back(
+            armature(0x500, kRace, kBody, "skin_body.nif", withFirstPersonSkin ? "fp_body.nif" : ""));
         r.mArmatures.push_back(
             armature(0x501, kRace, kHands, "skin_hands.nif", withFirstPersonSkin ? "fp_hands.nif" : ""));
         r.mArmatures.push_back(armature(0x502, kRace, kFeet, "skin_feet.nif", ""));
@@ -262,7 +263,8 @@ namespace
         const ActorAppearance a = make(index, request, limits);
         EXPECT_EQ(a.heldWeaponModel, "sword.nif");
         EXPECT_EQ(a.heldWeaponType, 1);
-        EXPECT_EQ(a.heldShieldModel, "shield.nif"); // the shield has no first-person model: the third-person one is held
+        EXPECT_EQ(
+            a.heldShieldModel, "shield.nif"); // the shield has no first-person model: the third-person one is held
     }
 
     TEST(SkyrimFirstPerson, aTwoHandedWeaponGivesNoShieldAndABowIsNotHeld)

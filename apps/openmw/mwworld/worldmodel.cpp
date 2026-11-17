@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
-#include <unordered_map>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
@@ -976,8 +976,8 @@ namespace MWWorld
                     now.mPosition = original.mPos;
                     now.mScale = original.mScale;
                 }
-                if (auto diff = diffNeutralObject(static_cast<std::uint32_t>(placement), original,
-                        !object->initiallyDisabled, now))
+                if (auto diff = diffNeutralObject(
+                        static_cast<std::uint32_t>(placement), original, !object->initiallyDisabled, now))
                     saved.mObjects.push_back(*diff);
             });
             if (!saved.mObjects.empty())
@@ -988,8 +988,8 @@ namespace MWWorld
         canonicaliseNeutralSave(out);
     }
 
-    CellStore* WorldModel::findLoadedNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId cell,
-        const openeden::sdk::game::Vec3d& position) const
+    CellStore* WorldModel::findLoadedNeutralCell(
+        std::string_view gameId, openeden::sdk::game::WorldId cell, const openeden::sdk::game::Vec3d& position) const
     {
         CellStore* byPosition = nullptr;
         for (auto& [id, store] : mCells)
@@ -1009,8 +1009,8 @@ namespace MWWorld
         return byPosition;
     }
 
-    LiveCellRef<NeutralBase>* WorldModel::addNeutralCreated(CellStore& cell,
-        const openeden::sdk::game::WorldObject& object, bool startDisabled, std::string& error) const
+    LiveCellRef<NeutralBase>* WorldModel::addNeutralCreated(
+        CellStore& cell, const openeden::sdk::game::WorldObject& object, bool startDisabled, std::string& error) const
     {
         error.clear();
         if (!cell.isNeutral())
@@ -1134,9 +1134,8 @@ namespace MWWorld
                 cell->load();
             ++result.mCells;
             std::map<std::uint32_t, LiveCellRef<NeutralBase>*> byPlacement;
-            cell->forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
-                byPlacement.emplace(live.mRef.getRefNum().mIndex, &live);
-            });
+            cell->forEachNeutralRefMutable(
+                [&](LiveCellRef<NeutralBase>& live) { byPlacement.emplace(live.mRef.getRefNum().mIndex, &live); });
             for (const NeutralSavedObject& object : saved.mObjects)
             {
                 LiveCellRef<NeutralBase>* created = nullptr;
@@ -1144,8 +1143,8 @@ namespace MWWorld
                 {
                     // Task 0202: an object a script created is made again from what the save says of its base
                     std::string createError;
-                    created = addNeutralCreated(
-                        *cell, createdObjectOf(cell->neutralGameId(), object), false, createError);
+                    created
+                        = addNeutralCreated(*cell, createdObjectOf(cell->neutralGameId(), object), false, createError);
                     if (created == nullptr)
                     {
                         result.mWarnings.push_back("Dropping a created object: " + createError);

@@ -55,8 +55,8 @@ namespace game_skyrimse::travel
         if (!std::isfinite(distance) || distance <= 0.0)
             return kMinTravelHours;
         const double hours = std::ceil(distance / kUnitsPerGameHour);
-        return static_cast<int>(std::clamp(hours, static_cast<double>(kMinTravelHours),
-            static_cast<double>(kMaxTravelHours)));
+        return static_cast<int>(
+            std::clamp(hours, static_cast<double>(kMinTravelHours), static_cast<double>(kMaxTravelHours)));
     }
 
     double yawToward(double fromX, double fromY, double toX, double toY)
@@ -203,9 +203,8 @@ namespace game_skyrimse::travel
         const map::Marker* m = marker != kNullFormId ? access.mMarkers->find(marker) : nullptr;
         if (m == nullptr || !contains(mMap.markerWorlds(world), m->mWorld))
             return false;
-        const PlacedEntry* link = (m->mLinked != kNullFormId && access.mPlaced != nullptr)
-            ? access.mPlaced->find(m->mLinked)
-            : nullptr;
+        const PlacedEntry* link
+            = (m->mLinked != kNullFormId && access.mPlaced != nullptr) ? access.mPlaced->find(m->mLinked) : nullptr;
         bool usable = false;
         if (link != nullptr && !link->mDeleted && access.mCellWorld)
         {
@@ -266,8 +265,8 @@ namespace game_skyrimse::travel
             const std::size_t followers = mHooks.mFollowerCount ? mHooks.mFollowerCount() : 0;
             mHooks.mLog("TRAVEL to " + name + " at (" + std::to_string(static_cast<long>(plan.mWhere.mX)) + ", "
                 + std::to_string(static_cast<long>(plan.mWhere.mY)) + ", "
-                + std::to_string(static_cast<long>(plan.mWhere.mZ)) + ") in " + std::to_string(plan.mHours)
-                + " hours, " + std::to_string(followers) + " followers" + (plan.mWhere.mFromLink ? ", from the link" : ""));
+                + std::to_string(static_cast<long>(plan.mWhere.mZ)) + ") in " + std::to_string(plan.mHours) + " hours, "
+                + std::to_string(followers) + " followers" + (plan.mWhere.mFromLink ? ", from the link" : ""));
         }
         return true;
     }
@@ -309,9 +308,8 @@ namespace game_skyrimse::travel
         if (in.mReady)
         {
             const map::Access& access = mMap.access();
-            const PlacedEntry* ref = destination != kNullFormId && access.mPlaced != nullptr
-                ? access.mPlaced->find(destination)
-                : nullptr;
+            const PlacedEntry* ref
+                = destination != kNullFormId && access.mPlaced != nullptr ? access.mPlaced->find(destination) : nullptr;
             in.mKnown = ref != nullptr && !ref->mDeleted;
             in.mDiscovered = in.mKnown; // a carriage goes to a place whether or not the map knows it
             in.mInCombat = mHooks.mInCombat && mHooks.mInCombat();
@@ -342,8 +340,8 @@ namespace game_skyrimse::travel
             const std::size_t followers = mHooks.mFollowerCount ? mHooks.mFollowerCount() : 0;
             mHooks.mLog("TRAVEL to " + hex8(destination) + " at (" + std::to_string(static_cast<long>(plan.mWhere.mX))
                 + ", " + std::to_string(static_cast<long>(plan.mWhere.mY)) + ", "
-                + std::to_string(static_cast<long>(plan.mWhere.mZ)) + ") in " + std::to_string(plan.mHours)
-                + " hours, " + std::to_string(followers) + " followers");
+                + std::to_string(static_cast<long>(plan.mWhere.mZ)) + ") in " + std::to_string(plan.mHours) + " hours, "
+                + std::to_string(followers) + " followers");
         }
         return true;
     }
@@ -365,8 +363,8 @@ namespace game_skyrimse::travel
         static const BindingType queryParams[] = { BindingType::Int32, BindingType::Double, BindingType::Double,
             BindingType::Double, BindingType::Double, BindingType::Int32 };
         // (world, interior, marker, x, y)
-        static const BindingType refusalParams[] = { BindingType::Int32, BindingType::Bool, BindingType::String,
-            BindingType::Double, BindingType::Double };
+        static const BindingType refusalParams[]
+            = { BindingType::Int32, BindingType::Bool, BindingType::String, BindingType::Double, BindingType::Double };
         // (world, marker, x, y)
         static const BindingType planParams[]
             = { BindingType::Int32, BindingType::String, BindingType::Double, BindingType::Double };
@@ -402,7 +400,8 @@ namespace game_skyrimse::travel
             r.value = boolean(self->mMap.poll() && self->mHooks.mReady && self->mHooks.mReady());
             return r;
         });
-        add("marker_ref", queryParams, true, BindingType::String,
+        add(
+            "marker_ref", queryParams, true, BindingType::String,
             [self, &m, arrayResult](std::span<const BindingValue> a) {
                 m.mViews.clear();
                 m.mStrings.clear();
@@ -424,13 +423,14 @@ namespace game_skyrimse::travel
             },
             BindingShape::Array);
         add("refusal", refusalParams, true, BindingType::String, [self, &m, markerOf](std::span<const BindingValue> a) {
-            m.mText = std::string(refusalName(self->refusal(static_cast<FormId>(a[0].integer), a[1].boolean,
-                markerOf(a[2]), a[3].number, a[4].number)));
+            m.mText = std::string(refusalName(self->refusal(
+                static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number, a[4].number)));
             BindingResult r;
             r.value = text(m.mText);
             return r;
         });
-        add("plan", planParams, true, BindingType::Double,
+        add(
+            "plan", planParams, true, BindingType::Double,
             [self, &m, markerOf, arrayResult](std::span<const BindingValue> a) {
                 m.mElements.clear();
                 Plan p;
@@ -450,16 +450,17 @@ namespace game_skyrimse::travel
             r.value = integer(static_cast<std::int32_t>(std::min<std::size_t>(n, 0x7FFFFFFF)));
             return r;
         });
-        add("commit", refusalParams, false, BindingType::Bool,
+        add(
+            "commit", refusalParams, false, BindingType::Bool,
             [self, markerOf](std::span<const BindingValue> a) {
-                (void)self->commit(static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number,
-                    a[4].number);
+                (void)self->commit(
+                    static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number, a[4].number);
                 return BindingResult();
             },
             BindingShape::Single, openeden::sdk::BindingAccess::Mutate);
 
-        // task 0223: the carriage's Game.FastTravel(reference). The global script reads `request_seq` and `request_ref`,
-        // asks `refusal_ref` and `plan_ref`, and calls `commit_ref`.
+        // task 0223: the carriage's Game.FastTravel(reference). The global script reads `request_seq` and
+        // `request_ref`, asks `refusal_ref` and `plan_ref`, and calls `commit_ref`.
         add("request_seq", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
             BindingResult r;
             r.value = integer(static_cast<std::int32_t>(std::min<std::uint32_t>(self->mRequestSeq, 0x7FFFFFFF)));
@@ -473,13 +474,14 @@ namespace game_skyrimse::travel
         });
         add("refusal_ref", refusalParams, true, BindingType::String,
             [self, &m, markerOf](std::span<const BindingValue> a) {
-                m.mText = std::string(refusalName(self->refusalToRef(static_cast<FormId>(a[0].integer), a[1].boolean,
-                    markerOf(a[2]), a[3].number, a[4].number)));
+                m.mText = std::string(refusalName(self->refusalToRef(
+                    static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number, a[4].number)));
                 BindingResult r;
                 r.value = text(m.mText);
                 return r;
             });
-        add("plan_ref", planParams, true, BindingType::Double,
+        add(
+            "plan_ref", planParams, true, BindingType::Double,
             [self, &m, markerOf, arrayResult](std::span<const BindingValue> a) {
                 m.mElements.clear();
                 Plan p;
@@ -493,10 +495,11 @@ namespace game_skyrimse::travel
                 return arrayResult(BindingType::Double);
             },
             BindingShape::Array);
-        add("commit_ref", refusalParams, false, BindingType::Bool,
+        add(
+            "commit_ref", refusalParams, false, BindingType::Bool,
             [self, markerOf](std::span<const BindingValue> a) {
-                (void)self->commitToRef(static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number,
-                    a[4].number);
+                (void)self->commitToRef(
+                    static_cast<FormId>(a[0].integer), a[1].boolean, markerOf(a[2]), a[3].number, a[4].number);
                 return BindingResult();
             },
             BindingShape::Single, openeden::sdk::BindingAccess::Mutate);

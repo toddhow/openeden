@@ -4,9 +4,11 @@
 // Task 0249 (the player's first-person hands, third slice): the pure rules of what the hands do with a bow, a held
 // spell and a weapon that appears at its equip clip's own event. Nothing here reads a file or touches the renderer.
 //
-//   * handsIdleClip: the loop the hands play: the weapon's idle (a bow's, drawn back or not), a spell hand's idle or the
+//   * handsIdleClip: the loop the hands play: the weapon's idle (a bow's, drawn back or not), a spell hand's idle or
+//   the
 //     hold loop the pack named while a spell is held.
-//   * weaponShown: whether the weapon model is in the hand during the equip or unequip clip: the game switches it at the
+//   * weaponShown: whether the weapon model is in the hand during the equip or unequip clip: the game switches it at
+//   the
 //     clip's `weaponDraw` / `weaponSheathe` event (animationdata/firstperson.txt: 1HM_Equip weaponDraw 0.5667,
 //     1HM_Unequip weaponSheathe 1.0, Bow_Equip weaponDraw 0.5333, Bow_Unequip weaponSheathe 0.6667, H2H_Equip
 //     weaponDraw 0), not at the start or the end of the clip.
@@ -94,10 +96,10 @@ namespace MWRender::SkyrimFirstPerson
     }
 
     /// Whether the weapon model is in the hand. `clipPlaying`: the equip or unequip clip has started; `elapsed` is the
-    /// seconds into it; `event` when its switching event falls. Equipping: hidden until the event (and while the clip has
-    /// not started or the event is not known yet), shown from it, shown from the start when the clip has no such event.
-    /// Unequipping: shown until the event, hidden after it (shown to the end when there is none, and while the clip has
-    /// not started). None: the stance's.
+    /// seconds into it; `event` when its switching event falls. Equipping: hidden until the event (and while the clip
+    /// has not started or the event is not known yet), shown from it, shown from the start when the clip has no such
+    /// event. Unequipping: shown until the event, hidden after it (shown to the end when there is none, and while the
+    /// clip has not started). None: the stance's.
     [[nodiscard]] inline bool weaponShown(
         Stance stance, GearPhase phase, bool clipPlaying, float elapsed, const EventTime& event)
     {

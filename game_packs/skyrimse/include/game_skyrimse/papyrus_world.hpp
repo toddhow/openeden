@@ -30,7 +30,8 @@ namespace game_skyrimse
 {
     inline constexpr FormId kPapyrusPlayerReference = 0x14;
 
-    /// What PackWorldHooks needs besides the inventory model. Every function may be empty (the hook then says "cannot").
+    /// What PackWorldHooks needs besides the inventory model. Every function may be empty (the hook then says
+    /// "cannot").
     struct PackWorldEnv
     {
         /// The model, or null while the inventory is off.
@@ -120,7 +121,10 @@ namespace game_skyrimse
             return mEnv.relocateObject ? mEnv.relocateObject(reference, base, request, destinationCell)
                                        : ObjectPlaceResult{};
         }
-        bool setCellOwner(FormId cell, FormId owner) override { return mEnv.setCellOwner && mEnv.setCellOwner(cell, owner); }
+        bool setCellOwner(FormId cell, FormId owner) override
+        {
+            return mEnv.setCellOwner && mEnv.setCellOwner(cell, owner);
+        }
         bool startCombat(FormId actor) override { return mEnv.startCombat && mEnv.startCombat(actor); }
         bool stopCombat(FormId actor) override { return mEnv.stopCombat && mEnv.stopCombat(actor); }
         bool resetHealth(FormId actor) override { return mEnv.resetHealth && mEnv.resetHealth(actor); }
@@ -149,7 +153,8 @@ namespace game_skyrimse
     /// The script namespace `skyrimse.papyrus` 1.0 (Read): what Debug.Notification said, for the HUD script
     /// (`files/data/scripts/openeden/skyrimse/papyrus_player.lua`).
     ///   notification_count() -> int     how many notifications there have been (a script shows the new ones)
-    ///   notification(n) -> string       the n-th (1-based), empty when it left the ring of PapyrusHost::kMaxNotifications
+    ///   notification(n) -> string       the n-th (1-based), empty when it left the ring of
+    ///   PapyrusHost::kMaxNotifications
     class PapyrusNotificationBindings
     {
     public:
@@ -203,8 +208,8 @@ namespace game_skyrimse
         std::map<FormId, FormId> mLastAttacker; ///< victim -> the attacker of the last damage (0: the player is 0x14)
     };
 
-    /// Passes every request on and tells the bridge about each damage and death report that went through. A wrapper that
-    /// does not forward a virtual gives the pack the refusing default, so every function of the contract is here.
+    /// Passes every request on and tells the bridge about each damage and death report that went through. A wrapper
+    /// that does not forward a virtual gives the pack the refusing default, so every function of the contract is here.
     class ScriptEventWriter final : public openeden::sdk::game::CombatRequestWriter
     {
     public:

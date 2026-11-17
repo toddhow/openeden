@@ -127,8 +127,8 @@ namespace
         DecodeFixture f;
         std::string why;
         SpellRecord s;
-        ASSERT_TRUE(decodeScroll(
-            view(scrollBytes(25, kScrollCastType, 2, 20)), raw("SCRL", 0x01000B02), f.context(), s, why));
+        ASSERT_TRUE(
+            decodeScroll(view(scrollBytes(25, kScrollCastType, 2, 20)), raw("SCRL", 0x01000B02), f.context(), s, why));
         EXPECT_FALSE(s.mHasData);
         EXPECT_TRUE(s.mScroll);
         EXPECT_EQ(f.mNotes.mOddSubrecords, 1u) << "the odd size is counted, never guessed at";
@@ -147,10 +147,9 @@ namespace
 
     TEST(SkyrimScrollSupport, theArchetypesTheRuntimeAppliesAreTheOnesItsEffectSwitchHas)
     {
-        for (const std::uint32_t archetype :
-            { MagicArchetype::ValueModifier, MagicArchetype::PeakValueModifier, MagicArchetype::Dual,
-                MagicArchetype::Absorb, MagicArchetype::Stagger, MagicArchetype::Demoralize,
-                MagicArchetype::AccumulateMagnitude })
+        for (const std::uint32_t archetype : { MagicArchetype::ValueModifier, MagicArchetype::PeakValueModifier,
+                 MagicArchetype::Dual, MagicArchetype::Absorb, MagicArchetype::Stagger, MagicArchetype::Demoralize,
+                 MagicArchetype::AccumulateMagnitude })
         {
             EXPECT_TRUE(scrollArchetypeApplied(archetype)) << archetype;
         }

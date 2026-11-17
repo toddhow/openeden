@@ -32,10 +32,10 @@
 // service (task 0210) and the bed trespass (task 0213) both allow it. Not reproduced: Variable09, `WI.ShowPlayerRoom`
 // (an immersion message), the innkeeper's death clearing the room.
 //
-// GIFTS and CARRY. `ShowGiftMenu` opens a transfer of items to the NPC. The pack registers the NPC's inventory as an owner of the
-// inventory model (task 0182) and the Lua window moves items to it; what Skyrim does with a gift (disposition, the
-// follower's use of it) is not built. A follower's `OpenInventory` lines ("carry") reuse the container window of task
-// 0182 on the NPC's owner (services_global.lua), with no state here.
+// GIFTS and CARRY. `ShowGiftMenu` opens a transfer of items to the NPC. The pack registers the NPC's inventory as an
+// owner of the inventory model (task 0182) and the Lua window moves items to it; what Skyrim does with a gift
+// (disposition, the follower's use of it) is not built. A follower's `OpenInventory` lines ("carry") reuse the
+// container window of task 0182 on the NPC's owner (services_global.lua), with no state here.
 //
 // Namespace skyrimse.services 1.0 (Read unless marked), all text ids are hex:
 //   state() -> string                 "none", "pending", "training", "rent", "gift" or "refused"

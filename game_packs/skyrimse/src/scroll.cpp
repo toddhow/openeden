@@ -6,8 +6,8 @@
 
 namespace game_skyrimse
 {
-    bool decodeScroll(std::span<const std::byte> bytes, const Content::RawRecord& record,
-        const DecodeContext& context, SpellRecord& out, std::string& why)
+    bool decodeScroll(std::span<const std::byte> bytes, const Content::RawRecord& record, const DecodeContext& context,
+        SpellRecord& out, std::string& why)
     {
         // decodeSpell skips the subrecords a SCRL has and a SPEL has not (DATA, MODL, DESC, YNAM, ZNAM, KWDA ...),
         // and a

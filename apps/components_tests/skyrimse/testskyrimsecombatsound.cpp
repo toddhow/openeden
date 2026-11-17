@@ -382,7 +382,8 @@ namespace
     class FakeData final : public CombatData
     {
     public:
-        FakeData() : mLibrary(makeLibrary())
+        FakeData()
+            : mLibrary(makeLibrary())
         {
             mSword.mCommon.mEditorId = "IronSword";
             mSword.mHasData = true;

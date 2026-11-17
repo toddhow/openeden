@@ -176,8 +176,8 @@ namespace game_skyrimse::barks
         /// A combat event, queued and handled by the next update (which has the player's place). Safe to call from
         /// inside the combat update. `kind` is one of Engage, EngageAlerted, Hit, Flee, Death, Lost, Calm, or a
         /// reaction (Assault, Steal, Trespass); the periodic kinds (Attack, Taunt) and Hello and Idle come from update.
-        /// Task 0243: `subjectIsVictim`: the actor is the victim of the crime it remarks on; `speakerIsVictim()` says so
-        /// while the line is being chosen (IsActorAVictim).
+        /// Task 0243: `subjectIsVictim`: the actor is the victim of the crime it remarks on; `speakerIsVictim()` says
+        /// so while the line is being chosen (IsActorAVictim).
         void onEvent(Kind kind, std::uint64_t reference, bool subjectIsVictim = false);
 
         /// Advances the clock by `seconds`, handles the queued events and starts at most one calm bark and, for

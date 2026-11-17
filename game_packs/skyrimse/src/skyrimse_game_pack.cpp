@@ -1,48 +1,47 @@
 #include "game_skyrimse/skyrimse_game_pack.hpp"
 #include "game_skyrimse/speech.hpp"
 
-#include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/actor_mechanics.hpp"
+#include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/character_service.hpp"
-#include "game_skyrimse/services.hpp"
-#include "game_skyrimse/crime_service.hpp"
-#include "game_skyrimse/sneak.hpp"
-#include "game_skyrimse/pickup_service.hpp"
-#include "game_skyrimse/inventory_service.hpp"
-#include "game_skyrimse/player_body.hpp"
 #include "game_skyrimse/crafting_service.hpp"
+#include "game_skyrimse/crime_service.hpp"
+#include "game_skyrimse/diseases.hpp"
+#include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/harvest_service.hpp"
-#include "game_skyrimse/mining_service.hpp"
+#include "game_skyrimse/houses.hpp"
+#include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
-#include "game_skyrimse/map.hpp"
 #include "game_skyrimse/lockbooks_service.hpp"
-#include "game_skyrimse/worldbooks.hpp"
-#include "game_skyrimse/rest.hpp"
-#include "game_skyrimse/stones.hpp"
-#include "game_skyrimse/diseases.hpp"
-#include "game_skyrimse/vampirism.hpp" // task 0260
-#include "game_skyrimse/forcegreet.hpp"
-#include "game_skyrimse/houses.hpp"
-#include <game_skyrimse/main_quest.hpp>
+#include "game_skyrimse/map.hpp"
 #include "game_skyrimse/marriage.hpp"
-#include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
-#include "game_skyrimse/presentation.hpp"
+#include "game_skyrimse/mining_service.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
+#include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/placed_refs.hpp"
+#include "game_skyrimse/player_body.hpp"
+#include "game_skyrimse/presentation.hpp"
 #include "game_skyrimse/progression_service.hpp"
-#include "game_skyrimse/story_events.hpp"
+#include "game_skyrimse/rest.hpp"
+#include "game_skyrimse/services.hpp"
 #include "game_skyrimse/shouts_service.hpp"
+#include "game_skyrimse/sneak.hpp"
+#include "game_skyrimse/stones.hpp"
+#include "game_skyrimse/story_events.hpp"
+#include "game_skyrimse/travel.hpp"
+#include "game_skyrimse/vampirism.hpp" // task 0260
 #include "game_skyrimse/werewolf.hpp"
 #include "game_skyrimse/werewolf_service.hpp"
 #include "game_skyrimse/world_view.hpp"
+#include "game_skyrimse/worldbooks.hpp"
+#include <game_skyrimse/main_quest.hpp>
 
 #include <functional>
-#include <set>
 #include <openeden/extension.hpp>
 #include <openeden/game/content.hpp>
 #include <openeden/game/player_place.hpp>
@@ -50,6 +49,7 @@
 #include <openeden/game/world_view.hpp>
 #include <openeden/host.hpp>
 #include <openeden/logging.hpp>
+#include <set>
 
 #include <openeden/settings.hpp>
 #include <openeden/vfs.hpp>
@@ -227,8 +227,8 @@ namespace game_skyrimse
         };
 
         // Task 0194: the scene runner's environment over the pack's own parts: the quest state and alias filler, the
-        // condition evaluator and dialogue runtime of the view, the cell source (speech queue, holding actors, packages)
-        // and the Papyrus host (fragments). Main thread only.
+        // condition evaluator and dialogue runtime of the view, the cell source (speech queue, holding actors,
+        // packages) and the Papyrus host (fragments). Main thread only.
         class SceneGlue final : public SceneEnvironment, public SceneControl
         {
         public:
@@ -327,7 +327,8 @@ namespace game_skyrimse
             {
                 if (mForce != nullptr && mForce->stateOf(actor) != ForceGreet::State::Done)
                     return mForce->finished(actor); // task 0264: the conversation is the package
-                return mCells != nullptr && ++mPackageChecks[actor] > kTrustAfterChecks && mCells->scenePackageDone(actor);
+                return mCells != nullptr && ++mPackageChecks[actor] > kTrustAfterChecks
+                    && mCells->scenePackageDone(actor);
             }
             void runFragment(FormId scene, const std::string& script, const std::string& function) override
             {
@@ -504,10 +505,10 @@ namespace game_skyrimse
                         + std::to_string(c.mStageSets) + ", fragments " + std::to_string(c.mFragmentsRun)
                         + ", dialogue fragments " + std::to_string(c.mInfoFragmentsRun) + ", story events "
                         + std::to_string(c.mStoryEvents) + " (quests started " + std::to_string(c.mStoryQuestsStarted)
-                        + "), aliases filled " + std::to_string(c.mAliasesFilled) + ", updates " + std::to_string(c.mUpdatesFired) + ", script errors "
-                        + std::to_string(c.mScriptErrors) + "; native calls answered " + std::to_string(answered)
-                        + ", tolerant natives " + std::to_string(names.size()) + ", tolerant calls "
-                        + std::to_string(mHost.tolerantCalls()));
+                        + "), aliases filled " + std::to_string(c.mAliasesFilled) + ", updates "
+                        + std::to_string(c.mUpdatesFired) + ", script errors " + std::to_string(c.mScriptErrors)
+                        + "; native calls answered " + std::to_string(answered) + ", tolerant natives "
+                        + std::to_string(names.size()) + ", tolerant calls " + std::to_string(mHost.tolerantCalls()));
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS events " + events);
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS natives " + natives);
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS tolerant " + tolerant);
@@ -528,14 +529,14 @@ namespace game_skyrimse
             [[nodiscard]] bool companionsOn() const { return mCompanionsOn; }
             [[nodiscard]] ForceGreet& forceGreet() { return mForce; }
 
-            // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold (HousePurchase:
-            // the player is in the hold), a quest variable a script holds wins in the conversation's conditions (the
-            // steward stops offering what the player owns), and the quest of the offers is started (no script does).
-            // `permission` is the test aid: the Whiterun jarls like the player.
-            // Task 0268: `main quest start`. The game's own quest MQ101 ("Unbound") is started once when the host runs; its
-            // start-up stage, scenes and fragments then do the opening (nothing is hand-written here but the start).
-            // Task 0268, a developer aid: `main quest test stage = <stage>[,<script seconds>]` sets that stage of MQ101 once
-            // the host's script time reaches the seconds (default 0), so the journal and what follows can be seen without
+            // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold
+            // (HousePurchase: the player is in the hold), a quest variable a script holds wins in the conversation's
+            // conditions (the steward stops offering what the player owns), and the quest of the offers is started (no
+            // script does). `permission` is the test aid: the Whiterun jarls like the player. Task 0268: `main quest
+            // start`. The game's own quest MQ101 ("Unbound") is started once when the host runs; its start-up stage,
+            // scenes and fragments then do the opening (nothing is hand-written here but the start). Task 0268, a
+            // developer aid: `main quest test stage = <stage>[,<script seconds>]` sets that stage of MQ101 once the
+            // host's script time reaches the seconds (default 0), so the journal and what follows can be seen without
             // playing the whole opening (nothing before stage 160 shows in the journal: no objective is displayed)
             void setMainQuestTestStage(const std::string& text)
             {
@@ -581,7 +582,8 @@ namespace game_skyrimse
                 mMainQuestReplay = false;
                 say(openeden::sdk::LogLevel::Info,
                     "MAINQUEST the starting cells are loaded: "
-                        + std::to_string(mHost.replayAliasCellLoad(mainquest::kUnboundQuest)) + " cell-load events sent");
+                        + std::to_string(mHost.replayAliasCellLoad(mainquest::kUnboundQuest))
+                        + " cell-load events sent");
             }
 
             void enableHouses(bool permission, FollowerState* ranks)
@@ -618,16 +620,17 @@ namespace game_skyrimse
                 {
                     const QuestIndex* quests = access.mQuests;
                     const auto conditions = access.mQuestConditions;
-                    mHost.setStageEntryCheck([quests, conditions](FormId quest, std::uint32_t stage, std::int32_t entry) {
-                        const QuestRecord* record = quests->quest(quest);
-                        if (record == nullptr || entry < 0)
+                    mHost.setStageEntryCheck(
+                        [quests, conditions](FormId quest, std::uint32_t stage, std::int32_t entry) {
+                            const QuestRecord* record = quests->quest(quest);
+                            if (record == nullptr || entry < 0)
+                                return true;
+                            for (const QuestStage& s : record->mStages)
+                                if (s.mIndex == stage)
+                                    return static_cast<std::size_t>(entry) >= s.mEntries.size()
+                                        || conditions(s.mEntries[static_cast<std::size_t>(entry)].mConditions, quest);
                             return true;
-                        for (const QuestStage& s : record->mStages)
-                            if (s.mIndex == stage)
-                                return static_cast<std::size_t>(entry) >= s.mEntries.size()
-                                    || conditions(s.mEntries[static_cast<std::size_t>(entry)].mConditions, quest);
-                        return true;
-                    });
+                        });
                 }
                 if ((mHouses || mMainQuest || mView.aliasPackagesOn()) && access.mSetLiveQuestVariable)
                     access.mSetLiveQuestVariable([this](FormId quest, const std::string& name) -> std::optional<float> {
@@ -694,8 +697,8 @@ namespace game_skyrimse
                         return true; // the state replaces startGame()
                 }
                 mHost.startGame();
-                const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - began);
+                const auto millis
+                    = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - began);
                 say(openeden::sdk::LogLevel::Info,
                     "PAPYRUS started: " + std::to_string(access.mQuests->questCount()) + " quests, "
                         + std::to_string(mHost.instanceCount()) + " script instances attached");
@@ -738,9 +741,9 @@ namespace game_skyrimse
                 return buffer;
             }
 
-            // Task 0187: a built cell is logged. Task 0211: the story manager's "change location" event is raised from the
-            // place the core reports (`playerPlace`, an interior or an exterior grid square), not from a built cell: the
-            // store builds an exterior cell once, so a visit does not build it again.
+            // Task 0187: a built cell is logged. Task 0211: the story manager's "change location" event is raised from
+            // the place the core reports (`playerPlace`, an interior or an exterior grid square), not from a built
+            // cell: the store builds an exterior cell once, so a visit does not build it again.
             void raiseLocationChange(openeden::sdk::game::WorldId cell)
             {
                 FormId location = kNullFormId;
@@ -752,8 +755,8 @@ namespace game_skyrimse
             }
 
         public:
-            // Task 0211: the core tells where the player stands when it changes. Kept until frame() (never worked out inside
-            // the core's physics step).
+            // Task 0211: the core tells where the player stands when it changes. Kept until frame() (never worked out
+            // inside the core's physics step).
             void playerPlace(const openeden::sdk::game::PlayerPlace& place) { mPendingPlace = place; }
 
             [[nodiscard]] QuestAliasFiller::PlayerSite playerSite() const { return mSite; }
@@ -769,8 +772,7 @@ namespace game_skyrimse
                 mSite.mKnown = true;
                 mSite.mInterior = place.interior;
                 // task 0271: the place, for the package conditions that run on the player
-                mView.setPlayerPlace(
-                    place.interior, static_cast<FormId>(place.cell), static_cast<FormId>(place.world));
+                mView.setPlayerPlace(place.interior, static_cast<FormId>(place.cell), static_cast<FormId>(place.world));
                 if (place.interior)
                 {
                     mSite.mCell = static_cast<FormId>(place.cell);
@@ -797,8 +799,8 @@ namespace game_skyrimse
                         + " quests");
             }
 
-            // Task 0211: a story event raised later in frame(): a death is reported inside the combat update, and starting
-            // a quest runs scripts, which must not happen there. Bounded: the oldest is dropped.
+            // Task 0211: a story event raised later in frame(): a death is reported inside the combat update, and
+            // starting a quest runs scripts, which must not happen there. Bounded: the oldest is dropped.
             void queueStoryEvent(StoryEvent event)
             {
                 if (mPendingStory.size() >= kMaxPendingStory)
@@ -830,7 +832,8 @@ namespace game_skyrimse
                 }
             }
 
-            // A developer aid, [extension.skyrimse] story test event = TYPE[:K1=hex][:L1=hex][:L2=hex][:R1=hex][:R2=hex]
+            // A developer aid, [extension.skyrimse] story test event =
+            // TYPE[:K1=hex][:L1=hex][:L2=hex][:R1=hex][:R2=hex]
             // [:V1=n][:V2=n]: one event, raised `delay` script seconds after the host started.
             void setTestEvent(const std::string& text, double delay)
             {
@@ -891,10 +894,10 @@ namespace game_skyrimse
                     mTestEventDelay = std::isfinite(delay) && delay >= 0.0 ? delay : 0.0;
             }
 
-            // Task 0264: `companions test training`. The game walks the player to the training yard (outside) with Vilkas
-            // and Vilkas' topic there starts the training quest. Neither actors going through doors nor the exterior walk
-            // is built, so the aid starts the quest (C00VilkasTrainingQuest, whose own scripts begin the fight) when C00
-            // reaches stage 20.
+            // Task 0264: `companions test training`. The game walks the player to the training yard (outside) with
+            // Vilkas and Vilkas' topic there starts the training quest. Neither actors going through doors nor the
+            // exterior walk is built, so the aid starts the quest (C00VilkasTrainingQuest, whose own scripts begin the
+            // fight) when C00 reaches stage 20.
             void enableCompanionsTraining() { mCompanionsTraining = true; }
             void applyTraining()
             {
@@ -906,11 +909,12 @@ namespace game_skyrimse
                 mTrainingPending = false;
                 say(openeden::sdk::LogLevel::Info,
                     std::string("COMPANIONS training quest ")
-                        + (mHost.startQuestForTest(kCompanionsTrainingQuest) ? "started by the test aid" : "was refused"));
+                        + (mHost.startQuestForTest(kCompanionsTrainingQuest) ? "started by the test aid"
+                                                                             : "was refused"));
             }
 
-            // Task 0270: the test aid of marriage: the listed NPCs are the player's friends (rank 2), once, when the host
-            // runs. The real rank comes from favour and follower quests this build does not run.
+            // Task 0270: the test aid of marriage: the listed NPCs are the player's friends (rank 2), once, when the
+            // host runs. The real rank comes from favour and follower quests this build does not run.
             void enableMarriage(std::vector<FormId> friends, FollowerState* ranks)
             {
                 mMarriageFriends = std::move(friends);
@@ -947,8 +951,8 @@ namespace game_skyrimse
                 say(openeden::sdk::LogLevel::Info,
                     std::string("HOUSES the quest of the house offers ")
                         + (mHost.startQuestForTest(houses::kHousePurchaseQuest) ? "started" : "was refused"));
-                // Task 0269: a hold's steward alias puts the steward into JobStewardFaction while its dialogue quest runs (ALFC);
-                // Falk Firebeard has the faction no other way, and the offers test GetInFaction
+                // Task 0269: a hold's steward alias puts the steward into JobStewardFaction while its dialogue quest
+                // runs (ALFC); Falk Firebeard has the faction no other way, and the offers test GetInFaction
                 if (mHouseQuests != nullptr)
                 {
                     std::size_t granted = 0;
@@ -1021,8 +1025,8 @@ namespace game_skyrimse
                 mLoadedStory.reset();
             }
 
-            // Task 0211: what a save keeps of the scenes that play, and the load's side of it. A saved state waits for the
-            // host's own restore (the chunks are read in any order) and is applied in the next frame.
+            // Task 0211: what a save keeps of the scenes that play, and the load's side of it. A saved state waits for
+            // the host's own restore (the chunks are read in any order) and is applied in the next frame.
             [[nodiscard]] std::vector<SceneSaveEntry> sceneState() const
             {
                 return mScenes != nullptr ? mScenes->runner().saveState() : std::vector<SceneSaveEntry>();
@@ -1043,8 +1047,8 @@ namespace game_skyrimse
         private:
             // Task 0194: the story manager's ambient dialogue event (ADIA). The engine raises it now and then for two
             // actors that stand together; ours: from `kAmbientFirstSeconds` after the actors of a cell exist, every
-            // `kAmbientSeconds` of script time, over the actors the core told the pack about, pairs of the same cell in a
-            // seeded order, until one pair starts a quest (at most `kAmbientPairs` events a time). RECALLED-VERIFY, a
+            // `kAmbientSeconds` of script time, over the actors the core told the pack about, pairs of the same cell in
+            // a seeded order, until one pair starts a quest (at most `kAmbientPairs` events a time). RECALLED-VERIFY, a
             // decision for toddhow: the timing and the pairing.
             void raiseAmbient(float dt)
             {
@@ -1092,8 +1096,7 @@ namespace game_skyrimse
                     if (mHost.raiseStoryEvent(event) != 0)
                     {
                         say(openeden::sdk::LogLevel::Info,
-                            "SCENE ambient dialogue event started a quest after " + std::to_string(i + 1)
-                                + " pairs");
+                            "SCENE ambient dialogue event started a quest after " + std::to_string(i + 1) + " pairs");
                         break;
                     }
                 }
@@ -1248,11 +1251,13 @@ namespace game_skyrimse
                 if (!toNeutral(placed, object, problem))
                     return none;
                 const FormId hint = destinationCell != 0 && mData.cellIsInterior(destinationCell) ? destinationCell : 0;
-                const openeden::sdk::game::WorldId id = actor ? mSources->placeActor(mCells, hint, object)
-                                                              : mSources->placeObject(mCells, hint, object);
+                const openeden::sdk::game::WorldId id
+                    = actor ? mSources->placeActor(mCells, hint, object) : mSources->placeObject(mCells, hint, object);
                 say(openeden::sdk::LogLevel::Info,
                     "PAPYRUS relocate " + hexId(reference) + " (" + hexId(base) + (actor ? ", an actor" : "")
-                        + ") near the player: " + (id == openeden::sdk::game::kNoWorldId ? "the world did not take it" : "made " + hexId(static_cast<FormId>(id))));
+                        + ") near the player: "
+                        + (id == openeden::sdk::game::kNoWorldId ? "the world did not take it"
+                                                                 : "made " + hexId(static_cast<FormId>(id))));
                 if (id == openeden::sdk::game::kNoWorldId)
                     return none;
                 if (actor)
@@ -1285,7 +1290,6 @@ namespace game_skyrimse
             }
 
         private:
-
             void flushPending()
             {
                 while (!mPendingCells.empty())
@@ -1315,8 +1319,8 @@ namespace game_skyrimse
                     mHost.onCellLoaded(cell, references);
                     raiseLocationChange(cell);
                     say(openeden::sdk::LogLevel::Info,
-                        std::string("PAPYRUS") + " cell " + std::to_string(cell) + " loaded: "
-                            + std::to_string(references.size()) + " references with scripts");
+                        std::string("PAPYRUS") + " cell " + std::to_string(cell)
+                            + " loaded: " + std::to_string(references.size()) + " references with scripts");
                 }
                 for (const openeden::sdk::game::WorldId reference : mPendingActivations)
                     mHost.onActivate(reference, 0x14);
@@ -1404,8 +1408,8 @@ namespace game_skyrimse
 
             void write(openeden::sdk::ChunkWriter& writer) override
             {
-                const std::vector<std::uint8_t> bytes = mDriver != nullptr ? mDriver->saveState()
-                                                                           : std::vector<std::uint8_t>();
+                const std::vector<std::uint8_t> bytes
+                    = mDriver != nullptr ? mDriver->saveState() : std::vector<std::uint8_t>();
                 writer.writeValue(static_cast<std::uint8_t>(bytes.empty() ? 0 : 1));
                 if (bytes.empty())
                     return;
@@ -1447,9 +1451,9 @@ namespace game_skyrimse
             std::function<void(const std::string&)> mSink;
         };
 
-        // Task 0211: the scenes that play at a save, a chunk of their own (the Papyrus chunk refuses any other version and
-        // size, so adding to it would refuse every old save). Written whenever the driver exists (a zero count when no
-        // scene plays); a load hands the entries to the driver, which applies them after the host's own restore.
+        // Task 0211: the scenes that play at a save, a chunk of their own (the Papyrus chunk refuses any other version
+        // and size, so adding to it would refuse every old save). Written whenever the driver exists (a zero count when
+        // no scene plays); a load hands the entries to the driver, which applies them after the host's own restore.
         class SceneSaveChunk final : public openeden::sdk::SaveChunkHandler
         {
         public:
@@ -1467,8 +1471,8 @@ namespace game_skyrimse
 
             void write(openeden::sdk::ChunkWriter& writer) override
             {
-                const std::vector<std::uint8_t> bytes = encodeSceneState(mDriver != nullptr ? mDriver->sceneState()
-                                                                                         : std::vector<SceneSaveEntry>());
+                const std::vector<std::uint8_t> bytes
+                    = encodeSceneState(mDriver != nullptr ? mDriver->sceneState() : std::vector<SceneSaveEntry>());
                 writer.writeValue(static_cast<std::uint32_t>(bytes.size()));
                 writer.write(bytes.data(), bytes.size());
             }
@@ -1576,7 +1580,8 @@ namespace game_skyrimse
             }
             bool change() override
             {
-                const PapyrusHost::CallArgument args[] = { PapyrusHost::CallArgument::form(vampirism::kPlayerReference) };
+                const PapyrusHost::CallArgument args[]
+                    = { PapyrusHost::CallArgument::form(vampirism::kPlayerReference) };
                 return mHost.callFunctionWith(vampirism::kQuest, vampirism::kQuestScript, "VampireChange", args);
             }
             bool feed() override
@@ -1601,7 +1606,8 @@ namespace game_skyrimse
             bool setStage(int stage, double lastFeedDays) override
             {
                 return mHost.setNumberVariable(vampirism::kQuest, vampirism::kQuestScript, "VampireStatus", stage)
-                    && mHost.setNumberVariable(vampirism::kQuest, vampirism::kQuestScript, "LastFeedTime", lastFeedDays);
+                    && mHost.setNumberVariable(
+                        vampirism::kQuest, vampirism::kQuestScript, "LastFeedTime", lastFeedDays);
             }
             void setDays(double days) override
             {
@@ -1750,11 +1756,13 @@ namespace game_skyrimse
                             if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
                             {
                                 mPapyrus->enableMainQuest();
-                                mPapyrus->setMainQuestTestStage(settings->getString(kPackId, "main quest test stage", ""));
+                                mPapyrus->setMainQuestTestStage(
+                                    settings->getString(kPackId, "main quest test stage", ""));
                                 mCellSource.setNewGameStart(mainquest::kHelgenStart);
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info,
-                                        std::string("MAINQUEST a new game starts at the cart: ") + mainquest::kHelgenStart);
+                                        std::string("MAINQUEST a new game starts at the cart: ")
+                                            + mainquest::kHelgenStart);
                             }
                             if (settings->getBool(kPackId, marriage::kMarriageKey, false)) // task 0270
                             {
@@ -1771,9 +1779,9 @@ namespace game_skyrimse
                                 mHousesOn = true;
                                 mWorldView.setRankMinusOneMembers({ houses::kJobStewardFaction });
                                 mPapyrus->enableHouses(
-                                    settings->getBool(kPackId, houses::kHousesTestPermissionKey, false), &mFollowerState);
-                                mHousesChunk = std::make_unique<houses::HousesChunk>(
-                                    [this] { return mHouses.data(); },
+                                    settings->getBool(kPackId, houses::kHousesTestPermissionKey, false),
+                                    &mFollowerState);
+                                mHousesChunk = std::make_unique<houses::HousesChunk>([this] { return mHouses.data(); },
                                     [this, logger](const std::map<FormId, FormId>& data) {
                                         const bool ok = mHouses.restore(data);
                                         if (ok && logger != nullptr)
@@ -1783,7 +1791,8 @@ namespace game_skyrimse
                                     });
                                 if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                                     if (!chunks->registerHandler(*mHousesChunk) && logger != nullptr)
-                                        logger->log(openeden::sdk::LogLevel::Warning, "the houses chunk was not registered");
+                                        logger->log(
+                                            openeden::sdk::LogLevel::Warning, "the houses chunk was not registered");
                                 if (logger != nullptr)
                                     logger->log(openeden::sdk::LogLevel::Info, "HOUSES bought houses are on");
                             }
@@ -1800,7 +1809,8 @@ namespace game_skyrimse
                                 driver->enableForceGreet();
                                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                                 {
-                                    const openeden::sdk::DeclareResult declared = driver->forceGreet().declare(*bindings);
+                                    const openeden::sdk::DeclareResult declared
+                                        = driver->forceGreet().declare(*bindings);
                                     if (!declared.ok && logger != nullptr)
                                         logger->log(openeden::sdk::LogLevel::Warning,
                                             "the forced greeting bindings were refused: " + declared.message);
@@ -1814,7 +1824,8 @@ namespace game_skyrimse
                                         = driver->host().enableOverride(static_cast<FormId>(reference)))
                                         return own;
                                     // Task 0261: the furnishings of a house are enabled by their enable parent (XESP),
-                                    // a marker the purchase's script enables: a cell built after follows its parent's state
+                                    // a marker the purchase's script enables: a cell built after follows its parent's
+                                    // state
                                     if (!mHousesOn)
                                         return std::nullopt;
                                     const PlacedRefIndex* placed = mWorldView.placedRefs();
@@ -1822,34 +1833,34 @@ namespace game_skyrimse
                                         = placed != nullptr ? placed->find(static_cast<FormId>(reference)) : nullptr;
                                     if (entry == nullptr || entry->mEnableParent == kNullFormId)
                                         return std::nullopt;
-                                    const std::optional<bool> parent = driver->host().enableOverride(entry->mEnableParent);
+                                    const std::optional<bool> parent
+                                        = driver->host().enableOverride(entry->mEnableParent);
                                     if (!parent)
                                         return std::nullopt;
                                     return (entry->mFlags & PlacedFlags::EnableOpposite) != 0 ? !*parent : *parent;
                                 });
                             // Task 0202: a cell built after a script moved one of its objects has it already there
-                            mCellSource.setMoveOverrideLookup(
-                                [driver](openeden::sdk::game::WorldId reference)
-                                    -> std::optional<openeden::sdk::game::ObjectMove> {
-                                    const FormId ref = static_cast<FormId>(reference);
-                                    const auto position = driver->host().positionOverride(ref);
-                                    const auto angles = driver->host().angleOverride(ref);
-                                    if (!position && !angles)
-                                        return std::nullopt;
-                                    openeden::sdk::game::ObjectMove move;
-                                    if (position)
-                                    {
-                                        move.hasPosition = true;
-                                        move.position = { (*position)[0], (*position)[1], (*position)[2] };
-                                    }
-                                    if (angles)
-                                    {
-                                        move.hasRotation = true;
-                                        move.rotation = eulerToQuat({ static_cast<float>((*angles)[0]),
-                                            static_cast<float>((*angles)[1]), static_cast<float>((*angles)[2]) });
-                                    }
-                                    return move;
-                                });
+                            mCellSource.setMoveOverrideLookup([driver](openeden::sdk::game::WorldId reference)
+                                                                  -> std::optional<openeden::sdk::game::ObjectMove> {
+                                const FormId ref = static_cast<FormId>(reference);
+                                const auto position = driver->host().positionOverride(ref);
+                                const auto angles = driver->host().angleOverride(ref);
+                                if (!position && !angles)
+                                    return std::nullopt;
+                                openeden::sdk::game::ObjectMove move;
+                                if (position)
+                                {
+                                    move.hasPosition = true;
+                                    move.position = { (*position)[0], (*position)[1], (*position)[2] };
+                                }
+                                if (angles)
+                                {
+                                    move.hasRotation = true;
+                                    move.rotation = eulerToQuat({ static_cast<float>((*angles)[0]),
+                                        static_cast<float>((*angles)[1]), static_cast<float>((*angles)[2]) });
+                                }
+                                return move;
+                            });
                             if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                             {
                                 mPapyrusChunk = std::make_unique<PapyrusSaveChunk>(mPapyrus);
@@ -1858,14 +1869,16 @@ namespace game_skyrimse
                                         logger->log(openeden::sdk::LogLevel::Error, "the load is refused: " + reason);
                                 });
                                 if (!chunks->registerHandler(*mPapyrusChunk) && logger != nullptr)
-                                    logger->log(openeden::sdk::LogLevel::Warning, "the Papyrus chunk was not registered");
+                                    logger->log(
+                                        openeden::sdk::LogLevel::Warning, "the Papyrus chunk was not registered");
                                 mSceneChunk = std::make_unique<SceneSaveChunk>(mPapyrus);
                                 mSceneChunk->setRefusalSink([logger](const std::string& reason) {
                                     if (logger != nullptr)
                                         logger->log(openeden::sdk::LogLevel::Error, "the load is refused: " + reason);
                                 });
                                 if (!chunks->registerHandler(*mSceneChunk) && logger != nullptr)
-                                    logger->log(openeden::sdk::LogLevel::Warning, "the scenes chunk was not registered");
+                                    logger->log(
+                                        openeden::sdk::LogLevel::Warning, "the scenes chunk was not registered");
                                 mStoryChunk = std::make_unique<StorySaveChunk>(mPapyrus);
                                 mStoryChunk->setRefusalSink([logger](const std::string& reason) {
                                     if (logger != nullptr)
@@ -1875,11 +1888,13 @@ namespace game_skyrimse
                                     logger->log(openeden::sdk::LogLevel::Warning, "the story chunk was not registered");
                             }
                             // Task 0211: where the player stands, and a developer aid for one story event
-                            mCellSource.setPlayerPlaceSink(
-                                [driver](const openeden::sdk::game::PlayerPlace& place) { driver->playerPlace(place); });
+                            mCellSource.setPlayerPlaceSink([driver](const openeden::sdk::game::PlayerPlace& place) {
+                                driver->playerPlace(place);
+                            });
                             mWorldView.setPlayerSite([driver] { return driver->playerSite(); });
-                            mCellSource.setPlayerStateSink(
-                                [driver](const openeden::sdk::game::SubjectState& state) { driver->playerState(state); });
+                            mCellSource.setPlayerStateSink([driver](const openeden::sdk::game::SubjectState& state) {
+                                driver->playerState(state);
+                            });
                             driver->setTestEvent(settings->getString(kPackId, "story test event", ""),
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
                             driver->setTestQuests(settings->getString(kPackId, "story test quest", ""),
@@ -1909,7 +1924,8 @@ namespace game_skyrimse
                             logger->log(openeden::sdk::LogLevel::Warning,
                                 "the combat HUD package was refused: " + declared.message);
                     }
-                    // Task 0182: the inventory state and its script bindings, off unless [extension.skyrimse] inventory.
+                    // Task 0182: the inventory state and its script bindings, off unless [extension.skyrimse]
+                    // inventory.
                     startInventory(host, logger);
                     // Task 0200: the player's skills and levels (the namespace skyrimse.progression).
                     startProgression(host, logger);
@@ -2030,8 +2046,9 @@ namespace game_skyrimse
             }
 
         private:
-            // Task 0198: the Papyrus host's reach into the inventory and combat (see papyrus_world.hpp). Needs the host;
-            // the inventory natives need the inventory (setting `inventory`), the combat events need combat to run.
+            // Task 0198: the Papyrus host's reach into the inventory and combat (see papyrus_world.hpp). Needs the
+            // host; the inventory natives need the inventory (setting `inventory`), the combat events need combat to
+            // run.
             void wirePapyrusWorld(openeden::sdk::Host& sdkHost, openeden::sdk::Logger* logger)
             {
                 if (mPapyrus == nullptr)
@@ -2128,7 +2145,9 @@ namespace game_skyrimse
                     const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
                     return h.valid() && mCellSource.combat().scriptInCombat(h);
                 };
-                env.isItem = [this](FormId form) { return mInventory != nullptr && mInventory->table().item(form) != nullptr; };
+                env.isItem = [this](FormId form) {
+                    return mInventory != nullptr && mInventory->table().item(form) != nullptr;
+                };
                 // Task 0202: moves, fades and creations reach the engine through the world source service
                 env.setObjectEnabled = [this](FormId reference, bool enabled, float fade) {
                     return mPapyrus != nullptr && mPapyrus->pushEnabled(reference, enabled, fade);
@@ -2141,10 +2160,11 @@ namespace game_skyrimse
                     return mPapyrus == nullptr || !mPapyrus->isActor(reference)
                         || mCellSource.sceneActorLoaded(reference);
                 };
-                env.relocateObject = [this](FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell) {
-                    return mPapyrus != nullptr ? mPapyrus->relocateObject(reference, base, request, cell)
-                                               : ObjectPlaceResult{};
-                };
+                env.relocateObject
+                    = [this](FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell) {
+                          return mPapyrus != nullptr ? mPapyrus->relocateObject(reference, base, request, cell)
+                                                     : ObjectPlaceResult{};
+                      };
                 env.placeObject = [this](const ObjectPlaceRequest& request) {
                     return mPapyrus != nullptr ? mPapyrus->placeObject(request) : ObjectPlaceResult{};
                 };
@@ -2182,13 +2202,15 @@ namespace game_skyrimse
                                     "PAPYRUS item " + hexOf(item) + " x" + std::to_string(count) + " from "
                                         + hexOf(PackWorldHooks::referenceOf(from)) + " to "
                                         + hexOf(PackWorldHooks::referenceOf(to)));
-                            host.onItemMoved(PackWorldHooks::referenceOf(from), PackWorldHooks::referenceOf(to), item, count);
+                            host.onItemMoved(
+                                PackWorldHooks::referenceOf(from), PackWorldHooks::referenceOf(to), item, count);
                         });
                 mCellSource.scriptBridge().setSinks(
                     [&host, logger](FormId victim, FormId attacker, bool blocked, bool bash) {
                         if (logger != nullptr)
                             logger->log(openeden::sdk::LogLevel::Info,
-                                "PAPYRUS hit on " + hexOf(victim) + " by " + hexOf(attacker) + (blocked ? " (blocked)" : ""));
+                                "PAPYRUS hit on " + hexOf(victim) + " by " + hexOf(attacker)
+                                    + (blocked ? " (blocked)" : ""));
                         host.onActorHit(victim, attacker, blocked, bash);
                     },
                     [this, &host, logger](FormId victim, FormId killer) {
@@ -2197,7 +2219,8 @@ namespace game_skyrimse
                                 "PAPYRUS death of " + hexOf(victim) + " killer " + hexOf(killer));
                         host.onActorDied(victim, killer);
                         if (mPapyrus != nullptr)
-                            mPapyrus->queueKill(victim, killer); // task 0211: the story manager's KILL, raised in frame()
+                            mPapyrus->queueKill(
+                                victim, killer); // task 0211: the story manager's KILL, raised in frame()
                     },
                     [this](FormId actor, openeden::sdk::game::CombatRequestWriter& writer) {
                         const openeden::sdk::game::ActorHandle handle = mCellSource.actorTable().handleOf(actor);
@@ -2231,8 +2254,8 @@ namespace game_skyrimse
                             + (mInventory != nullptr ? "on" : "off") + ")");
             }
 
-            // Task 0237: the spells and messages of the stones and shrines. Needs the Papyrus host; the experience effect
-            // needs `player progression`, the damage effect `neutral combat`.
+            // Task 0237: the spells and messages of the stones and shrines. Needs the Papyrus host; the experience
+            // effect needs `player progression`, the damage effect `neutral combat`.
             void startStones(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 if (mPapyrus == nullptr)
@@ -2287,7 +2310,8 @@ namespace game_skyrimse
                 mPapyrus->host().setMessageSink(
                     [stonesPtr](FormId message, const PapyrusMessageInfo& info) { stonesPtr->ask(message, info); });
                 if (mProgression != nullptr)
-                    mProgression->setSkillUseScale([stonesPtr](std::size_t slot) { return stonesPtr->skillScale(slot); });
+                    mProgression->setSkillUseScale(
+                        [stonesPtr](std::size_t slot) { return stonesPtr->skillScale(slot); });
                 // a stone or shrine shows its name (and so can be activated with the real key) like an ore vein does
                 mCellSource.setPlacementNameLookup(
                     [this](openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base) {
@@ -2395,7 +2419,8 @@ namespace game_skyrimse
                 if (mPapyrus == nullptr || mStones == nullptr)
                 {
                     if (logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning, "vampirism needs the Papyrus host (papyrus = true)");
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "vampirism needs the Papyrus host (papyrus = true)");
                     return;
                 }
                 mVampireLog = logger;
@@ -2416,9 +2441,8 @@ namespace game_skyrimse
                 if (const int stage = settings->getInt(kPackId, "vampirism test stage", 0); stage > 0)
                     mVampirism->startAs(stage);
                 // a sleeper activated by a vampire is fed on, not woken for a talk
-                mCellSource.setFeedHook([this](openeden::sdk::game::WorldId) {
-                    return mVampirism != nullptr && mVampirism->feed();
-                });
+                mCellSource.setFeedHook(
+                    [this](openeden::sdk::game::WorldId) { return mVampirism != nullptr && mVampirism->feed(); });
                 if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                     if (!chunks->registerHandler(mVampirism->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the vampirism chunk was not registered");
@@ -2439,7 +2463,8 @@ namespace game_skyrimse
                 {
                     const double clock = vampireClockSeconds();
                     const std::int64_t minute = static_cast<std::int64_t>(clock / 60.0);
-                    const std::uint64_t placeKey = (place.mInterior ? 1ull : 0ull) | (static_cast<std::uint64_t>(place.mWorld) << 1);
+                    const std::uint64_t placeKey
+                        = (place.mInterior ? 1ull : 0ull) | (static_cast<std::uint64_t>(place.mWorld) << 1);
                     if (minute != mVampireSunMinute || placeKey != mVampireSunPlace)
                     {
                         mVampireSunMinute = minute;
@@ -2464,7 +2489,8 @@ namespace game_skyrimse
             void mLogVampireSun(bool sun) const
             {
                 if (mVampireLog != nullptr)
-                    mVampireLog->log(openeden::sdk::LogLevel::Info, sun ? "VAMPIRE sunlight burns" : "VAMPIRE out of the sun");
+                    mVampireLog->log(
+                        openeden::sdk::LogLevel::Info, sun ? "VAMPIRE sunlight burns" : "VAMPIRE out of the sun");
             }
 
             void syncStones()
@@ -2537,7 +2563,8 @@ namespace game_skyrimse
                         if (logger != nullptr)
                         {
                             logger->log(openeden::sdk::LogLevel::Info,
-                                "JOURNAL test quests: " + std::to_string(set) + " quests moved to a stage with a log text");
+                                "JOURNAL test quests: " + std::to_string(set)
+                                    + " quests moved to a stage with a log text");
                             for (const FormId id : moved)
                             {
                                 const QuestRecord* q = access.mQuests->quest(id);
@@ -2602,7 +2629,7 @@ namespace game_skyrimse
                         const SkyrimTerrainIndex* terrain = mWorldView.terrainIndex();
                         openeden::sdk::game::WorldSpaceInfo info;
                         return terrain != nullptr && terrain->worldInfo(world, info) ? static_cast<FormId>(info.parent)
-                                                                                    : kNullFormId;
+                                                                                     : kNullFormId;
                     };
                     out.mLandBounds = [this](FormId world, std::int32_t& minX, std::int32_t& minY, std::int32_t& width,
                                           std::int32_t& height) {
@@ -2623,8 +2650,7 @@ namespace game_skyrimse
                             || row < 0 || row > maxY - minY)
                             return false;
                         return terrain->mapRow(landWorld, minY + row, minX,
-                            std::min<std::int32_t>(maxX - minX + 1, static_cast<std::int32_t>(map::kPageSize)),
-                            pixels);
+                            std::min<std::int32_t>(maxX - minX + 1, static_cast<std::int32_t>(map::kPageSize)), pixels);
                     };
                     return true;
                 };
@@ -2691,11 +2717,12 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
                 mTravel = std::make_unique<travel::TravelService>(*mMap, std::move(hooks));
-                // Task 0223: the carriage drivers' Game.FastTravel (the Papyrus host, when it runs) leaves a request that the
-                // global travel script reads
+                // Task 0223: the carriage drivers' Game.FastTravel (the Papyrus host, when it runs) leaves a request
+                // that the global travel script reads
                 if (mPapyrus != nullptr)
-                    mPapyrus->host().setFastTravelSink(
-                        [this](FormId destination) { return mTravel != nullptr && mTravel->queueRequest(destination); });
+                    mPapyrus->host().setFastTravelSink([this](FormId destination) {
+                        return mTravel != nullptr && mTravel->queueRequest(destination);
+                    });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
                     const openeden::sdk::DeclareResult declared = mTravel->declare(*bindings);
@@ -2734,8 +2761,8 @@ namespace game_skyrimse
             }
 
             // Task 0225: the character creation. The body follows the working choice at once (the world is paused while
-            // the window is open, so nothing here may wait for a game phase), the saved choice is a chunk, and the race's
-            // abilities reach the combat rules and its starting skills the progression.
+            // the window is open, so nothing here may wait for a game phase), the saved choice is a chunk, and the
+            // race's abilities reach the combat rules and its starting skills the progression.
             void startCharacter(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
@@ -2901,9 +2928,8 @@ namespace game_skyrimse
                             openeden::sdk::LogLevel::Warning, "the rest bindings were refused: " + declared.message);
                 }
                 if (mProgression != nullptr)
-                    mProgression->setGainMultiplier([this] {
-                        return mRest != nullptr ? mRest->rested().skillGain(mRest->now()) : 1.f;
-                    });
+                    mProgression->setGainMultiplier(
+                        [this] { return mRest != nullptr ? mRest->rested().skillGain(mRest->now()) : 1.f; });
                 mRestChunk = std::make_unique<rest::RestChunk>(mRest->rested());
                 mRestChunk->setRefusalSink([logger](const std::string& reason) {
                     if (logger != nullptr)
@@ -2946,8 +2972,8 @@ namespace game_skyrimse
                     std::vector<InventoryEntry> entries(1);
                     entries[0].mItem = ingredient;
                     entries[0].mCount = 1;
-                    const std::vector<inventory::Stack> stacks = inventory::resolveContents(
-                        entries, mInventory->table(), seed, harvest::kListLevel);
+                    const std::vector<inventory::Stack> stacks
+                        = inventory::resolveContents(entries, mInventory->table(), seed, harvest::kListLevel);
                     if (stacks.empty())
                         return false;
                     item = stacks.front().mItem;
@@ -2988,8 +3014,8 @@ namespace game_skyrimse
                 {
                     const openeden::sdk::DeclareResult declared = mHarvest->declare(*bindings);
                     if (!declared.ok && logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning,
-                            "the harvest bindings were refused: " + declared.message);
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the harvest bindings were refused: " + declared.message);
                 }
                 if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                 {
@@ -3071,8 +3097,8 @@ namespace game_skyrimse
                 {
                     const openeden::sdk::DeclareResult declared = mMining->declare(*bindings);
                     if (!declared.ok && logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning,
-                            "the mining bindings were refused: " + declared.message);
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the mining bindings were refused: " + declared.message);
                 }
                 if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                 {
@@ -3082,24 +3108,24 @@ namespace game_skyrimse
                     });
                     mMining->chunk().setRestoredSink([logger](std::size_t veins) {
                         if (logger != nullptr)
-                            logger->log(openeden::sdk::LogLevel::Info,
-                                "MINING restored " + std::to_string(veins) + " veins");
+                            logger->log(
+                                openeden::sdk::LogLevel::Info, "MINING restored " + std::to_string(veins) + " veins");
                     });
                     if (!chunks->registerHandler(mMining->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the mining chunk was not registered");
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MINING mining and woodcutting are on");
-        }
+            }
 
             // Task 0205: the player's shouts: the state (words, souls, cooldown), its save chunk, the namespace
             // skyrimse.shouts and the test settings. The combat rules cast the shout (combat_shout.cpp).
-            // Task 0259: the werewolf beast form. The power Beast Form (SPEL WerewolfChange 0x92C48, an effect of archetype
-            // 36) is cast from the character service's power list with the P key; the combat calls beastStart() instead
-            // of casting it. The form lasts 150 s (the quest script's own number), is third person with the beast's body
-            // and clips, fights with the race's claws, ignores gear and menus, and feeding on a corpse (the activate key)
-            // adds time and heals. HAND-WRITTEN: the shipped scripts are not run (they need SetRace,
-            // OnRaceSwitchComplete, UnequipAll, ForceThirdPerson and the Companions quest's own scripts).
+            // Task 0259: the werewolf beast form. The power Beast Form (SPEL WerewolfChange 0x92C48, an effect of
+            // archetype 36) is cast from the character service's power list with the P key; the combat calls
+            // beastStart() instead of casting it. The form lasts 150 s (the quest script's own number), is third person
+            // with the beast's body and clips, fights with the race's claws, ignores gear and menus, and feeding on a
+            // corpse (the activate key) adds time and heals. HAND-WRITTEN: the shipped scripts are not run (they need
+            // SetRace, OnRaceSwitchComplete, UnequipAll, ForceThirdPerson and the Companions quest's own scripts).
             void startWerewolf(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
@@ -3157,8 +3183,7 @@ namespace game_skyrimse
             /// saved ones). False (nothing changed) when the race's numbers are not read yet.
             bool beastBegin(float seconds, const std::set<std::uint64_t>& fed, bool warn = true)
             {
-                const std::uint32_t level
-                    = mProgression != nullptr && mProgression->progression() != nullptr
+                const std::uint32_t level = mProgression != nullptr && mProgression->progression() != nullptr
                     ? mProgression->progression()->level()
                     : 1u;
                 werewolf::BeastNumbers numbers;
@@ -3226,7 +3251,7 @@ namespace game_skyrimse
                     std::string("WEREWOLF restored: ")
                         + (saved.mActive ? "the beast form, " + std::to_string(static_cast<int>(saved.mRemaining))
                                     + " s left, " + std::to_string(saved.mFed.size()) + " corpses fed on"
-                                           : std::string("human"))
+                                         : std::string("human"))
                         + (saved.mGranted ? ", Beast Form granted" : ""));
             }
 
@@ -3299,7 +3324,8 @@ namespace game_skyrimse
                     return mWorldView.combatReady() ? mWorldView.shoutIndex() : nullptr;
                 };
                 hooks.mLog = [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); };
-                // Task 0266: the shout menu shows the words (WOOP FULL) and their translations (TNAM) from the string tables.
+                // Task 0266: the shout menu shows the words (WOOP FULL) and their translations (TNAM) from the string
+                // tables.
                 const std::string language = settings->getString(kPackId, "string table language", "english");
                 if (language.size() >= 2 && language.size() <= 32
                     && std::all_of(
@@ -3538,7 +3564,8 @@ namespace game_skyrimse
                 for (std::size_t s = 0; s < progression::kSkillCount; ++s)
                 {
                     float value = 0.f;
-                    if (!mProgression->effectiveActorValue(progression::kFirstSkillValue + static_cast<std::uint32_t>(s), value))
+                    if (!mProgression->effectiveActorValue(
+                            progression::kFirstSkillValue + static_cast<std::uint32_t>(s), value))
                         value = p.skill(s);
                     skills[s] = static_cast<std::uint8_t>(std::clamp(value, 0.f, 255.f));
                 }
@@ -3609,10 +3636,9 @@ namespace game_skyrimse
                 hooks.mItemCount = [this](FormId item) -> std::int32_t {
                     return mInventory != nullptr ? mInventory->model().count(inventory::kPlayerOwner, item) : 0;
                 };
-                hooks.mGoTo = [this](openeden::sdk::game::ActorHandle h, double x, double y, double z,
-                                  openeden::sdk::game::ActorSpeed speed) {
-                    mCellSource.combat().crimeGoTo(h, x, y, z, speed);
-                };
+                hooks.mGoTo
+                    = [this](openeden::sdk::game::ActorHandle h, double x, double y, double z,
+                          openeden::sdk::game::ActorSpeed speed) { mCellSource.combat().crimeGoTo(h, x, y, z, speed); };
                 hooks.mHold = [this](openeden::sdk::game::ActorHandle h) { mCellSource.combat().crimeHold(h); };
                 hooks.mRelease = [this](openeden::sdk::game::ActorHandle h) { mCellSource.combat().crimeRelease(h); };
                 hooks.mAttack = [this](openeden::sdk::game::ActorHandle h) { mCellSource.combat().crimeAttack(h); };
@@ -3636,8 +3662,8 @@ namespace game_skyrimse
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
-                // Task 0258: the arrest conversation runs only with the Papyrus host (its fragments make the choice) and
-                // when a forced greeting passes for the guard; else the window offers
+                // Task 0258: the arrest conversation runs only with the Papyrus host (its fragments make the choice)
+                // and when a forced greeting passes for the guard; else the window offers
                 hooks.mDialogueAvailable = [this, logger](const crime::CrimeActor& guard) {
                     if (mPapyrus == nullptr)
                     {
@@ -3683,8 +3709,8 @@ namespace game_skyrimse
                 {
                     const openeden::sdk::DeclareResult declared = mCrime->declare(*bindings);
                     if (!declared.ok && logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning,
-                            "the crime bindings were refused: " + declared.message);
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the crime bindings were refused: " + declared.message);
                 }
                 if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                 {
@@ -3707,15 +3733,13 @@ namespace game_skyrimse
                 if (settings == nullptr || !settings->getBool(kPackId, "hud style", false))
                     return;
                 hudstyle::StyleHud::Source source;
-                source.mFighters = [this](const SkyrimCombat::FighterVisitor& visit) {
-                    mCellSource.combat().forEachFighter(visit);
-                };
+                source.mFighters
+                    = [this](const SkyrimCombat::FighterVisitor& visit) { mCellSource.combat().forEachFighter(visit); };
                 source.mLookup = [this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
                     return mCellSource.combat().fighterView(subject, out);
                 };
-                source.mIsAlly = [this](openeden::sdk::game::WorldId reference) {
-                    return mCellSource.isFollower(reference);
-                };
+                source.mIsAlly
+                    = [this](openeden::sdk::game::WorldId reference) { return mCellSource.isFollower(reference); };
                 mStyleHud = std::make_unique<hudstyle::StyleHud>(mCellSource.hud(), std::move(source));
                 mCellSource.setStyleHud(mStyleHud.get());
                 mStyleBindings = std::make_unique<hudstyle::StyleBindings>(*mStyleHud);
@@ -3781,8 +3805,8 @@ namespace game_skyrimse
                 {
                     const openeden::sdk::DeclareResult declared = mSneakBindings->declareTo(*bindings);
                     if (!declared.ok && logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning,
-                            "the sneak bindings were refused: " + declared.message);
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the sneak bindings were refused: " + declared.message);
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "SNEAK sneaking and detection are on");
@@ -3795,10 +3819,10 @@ namespace game_skyrimse
                         });
             }
 
-            // Task 0231: barks. Off unless [extension.skyrimse] barks. The rules are barks.* (pure); this wires them to the
-            // dialogue runtime (which line), the scene speech path of task 0194 (voice and subtitle) and the cell source
-            // (the roster and the combat's moments). Needs the dialogue data (about 25 s after start): until then no
-            // line is found and the actors try again.
+            // Task 0231: barks. Off unless [extension.skyrimse] barks. The rules are barks.* (pure); this wires them to
+            // the dialogue runtime (which line), the scene speech path of task 0194 (voice and subtitle) and the cell
+            // source (the roster and the combat's moments). Needs the dialogue data (about 25 s after start): until
+            // then no line is found and the actors try again.
             void startBarks(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
@@ -3816,30 +3840,31 @@ namespace game_skyrimse
                     mBarkLine = access.mBark;
                     return true;
                 };
-                hooks.mChoose = [this](barks::Kind kind, std::uint64_t reference, std::uint32_t pick, barks::Line& out) {
-                    if (!mBarkConfigured)
-                        if (const SettingsTable* table = mWorldView.gameSettings())
-                        {
-                            mBarkConfigured = true;
-                            barks::Settings configured = barks::fromGameSettings(table);
-                            configured.mStartAt = mBarkStartAt;
-                            mBarks->configure(std::move(configured));
-                        }
-                    if (!mBarkLine)
-                    {
-                        SkyrimWorldView::PapyrusAccess access;
-                        if (!mWorldView.papyrusAccess(access) || !access.mBark)
-                            return false;
-                        mBarkLine = access.mBark;
-                    }
-                    SceneLine line;
-                    if (!mBarkLine(barks::subtypeOf(kind), static_cast<FormId>(reference), pick,
-                            mBarks->speakerIsVictim(), line))
-                        return false;
-                    out.mText = std::move(line.mText);
-                    out.mVoice = std::move(line.mVoice);
-                    return true;
-                };
+                hooks.mChoose
+                    = [this](barks::Kind kind, std::uint64_t reference, std::uint32_t pick, barks::Line& out) {
+                          if (!mBarkConfigured)
+                              if (const SettingsTable* table = mWorldView.gameSettings())
+                              {
+                                  mBarkConfigured = true;
+                                  barks::Settings configured = barks::fromGameSettings(table);
+                                  configured.mStartAt = mBarkStartAt;
+                                  mBarks->configure(std::move(configured));
+                              }
+                          if (!mBarkLine)
+                          {
+                              SkyrimWorldView::PapyrusAccess access;
+                              if (!mWorldView.papyrusAccess(access) || !access.mBark)
+                                  return false;
+                              mBarkLine = access.mBark;
+                          }
+                          SceneLine line;
+                          if (!mBarkLine(barks::subtypeOf(kind), static_cast<FormId>(reference), pick,
+                                  mBarks->speakerIsVictim(), line))
+                              return false;
+                          out.mText = std::move(line.mText);
+                          out.mVoice = std::move(line.mVoice);
+                          return true;
+                      };
                 hooks.mSpeak = [this](std::uint64_t reference, const barks::Line& line) {
                     // Skyrim's unsubtitled barks have a text of one space: no box for those.
                     const bool blank = line.mText.find_first_not_of(" \t\r\n") == std::string::npos;
@@ -3914,9 +3939,8 @@ namespace game_skyrimse
                 hooks.mTaken = [this](FormId placement, FormId item, std::int32_t count) {
                     onContainerTaken(placement, item, count);
                 };
-                hooks.mHeldBy = [this](std::uint64_t owner, FormId item) {
-                    return mInventory->model().count(owner, item);
-                };
+                hooks.mHeldBy
+                    = [this](std::uint64_t owner, FormId item) { return mInventory->model().count(owner, item); };
                 hooks.mMoveToPlayer = [this](std::uint64_t owner, FormId item, std::int32_t count) {
                     return mInventory->model().transfer(owner, inventory::kPlayerOwner, item, count)
                         == inventory::TransferStatus::Ok;
@@ -3954,8 +3978,8 @@ namespace game_skyrimse
                 {
                     const openeden::sdk::DeclareResult declared = mPickup->declare(*bindings);
                     if (!declared.ok && logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning,
-                            "the pickup bindings were refused: " + declared.message);
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the pickup bindings were refused: " + declared.message);
                 }
                 if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                 {
@@ -3993,7 +4017,8 @@ namespace game_skyrimse
                 hooks.mVendorOf = [this](FormId npc, barter::VendorInfo& out) { return mWorldView.vendorOf(npc, out); };
                 hooks.mSpeech = [this]() {
                     float speech = 0.f; // task 0200: the real skill with the progression on
-                    constexpr std::uint32_t kSpeechValue = progression::kFirstSkillValue + progression::Slot::Speechcraft;
+                    constexpr std::uint32_t kSpeechValue
+                        = progression::kFirstSkillValue + progression::Slot::Speechcraft;
                     if (mProgression != nullptr && mProgression->effectiveActorValue(kSpeechValue, speech))
                         return speech;
                     return static_cast<float>(mWorldView.standInPlayerSpeech());
@@ -4023,8 +4048,8 @@ namespace game_skyrimse
                 {
                     const openeden::sdk::DeclareResult declared = mBarter->declare(*bindings);
                     if (!declared.ok && logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Warning,
-                            "the barter bindings were refused: " + declared.message);
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the barter bindings were refused: " + declared.message);
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "BARTER the barter service is on");
@@ -4536,7 +4561,8 @@ namespace game_skyrimse
                 bool melee = false;
                 bool known = true;
                 const FormId weapon = wieldedWeapon(melee, known);
-                const crafting::WeaponPoison* coat = weapon != kNullFormId && melee ? mCrafting->coating(weapon) : nullptr;
+                const crafting::WeaponPoison* coat
+                    = weapon != kNullFormId && melee ? mCrafting->coating(weapon) : nullptr;
                 mPoisonedWeapon = coat != nullptr ? weapon : kNullFormId;
                 if (coat == nullptr)
                     mCellSource.combat().setPlayerPoison(SpellRecord(), 0);
@@ -4581,9 +4607,11 @@ namespace game_skyrimse
                 hooks.resolveBase = [this](SummonFormId associated, std::uint16_t level, std::uint32_t pick) {
                     return static_cast<SummonFormId>(mWorldView.summonBase(associated, level, pick));
                 };
-                hooks.place = [this, sources](SummonFormId base, double x, double y, double z, float heading) -> WorldId {
+                hooks.place
+                    = [this, sources](SummonFormId base, double x, double y, double z, float heading) -> WorldId {
                     openeden::sdk::game::PlacedObject placed;
-                    if (!mWorldView.describeBase(base, placed) || placed.baseKind != openeden::sdk::game::BaseKind::Actor)
+                    if (!mWorldView.describeBase(base, placed)
+                        || placed.baseKind != openeden::sdk::game::BaseKind::Actor)
                         return openeden::sdk::game::kNoWorldId;
                     placed.position = { static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) };
                     placed.rotation = { 0.f, 0.f, heading };
@@ -4731,8 +4759,7 @@ namespace game_skyrimse
                     const float bowBonus = settings->getFloat(kPackId, kCombatTestBowSpeedBonusKey, 0.f);
                     mCellSource.combat().setTestBowSpeedBonus(bowBonus);
                     if (bowBonus != 0.f)
-                        say(openeden::sdk::LogLevel::Info,
-                            "combat test bow speed bonus: " + std::to_string(bowBonus));
+                        say(openeden::sdk::LogLevel::Info, "combat test bow speed bonus: " + std::to_string(bowBonus));
                     // Task 0186 (stage S5-8): the spell test rules, all off by default.
                     const std::string playerSpell = settings->getString(kPackId, kCombatTestPlayerSpellKey, "");
                     mPlayerSpellFromSetting = !playerSpell.empty(); // task 0203
@@ -4803,8 +4830,8 @@ namespace game_skyrimse
                         say(openeden::sdk::LogLevel::Info,
                             "creatures: on (" + std::to_string(creatureProfilesAll().size()) + " creatures)");
                     }
-                    // Task 0254: dead stays dead across a load (a fix of the neutral saves: no setting). Hooks only; the
-                    // keeper does nothing until an actor of the ledger appears.
+                    // Task 0254: dead stays dead across a load (a fix of the neutral saves: no setting). Hooks only;
+                    // the keeper does nothing until an actor of the ledger appears.
                     {
                         DeathHooks deathHooks;
                         deathHooks.handleOf = [this](openeden::sdk::game::WorldId reference) {
@@ -4828,8 +4855,7 @@ namespace game_skyrimse
                                 [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                         mCellSource.combat().setCorpseRaisedSink(
                             [this](openeden::sdk::game::WorldId corpse) { mDeathKeeper->corpseRaised(corpse); });
-                        mDeathsChunk = std::make_unique<DeathsChunk>(
-                            [this] { return mDeathLedger.data(); },
+                        mDeathsChunk = std::make_unique<DeathsChunk>([this] { return mDeathLedger.data(); },
                             [this](const std::map<FormId, DeathEntry>& saved) {
                                 if (!mDeathLedger.restore(saved))
                                     return false;
@@ -4845,8 +4871,8 @@ namespace game_skyrimse
                     {
                         mCellSource.combat().setSummons(true);
                         mCellSource.combat().setSummonHooks(makeSummonHooks(&sources));
-                        mCellSource.combat().setMaxSummons(static_cast<std::size_t>(
-                            std::max(1, settings->getInt(kPackId, kSummonsMaxKey, static_cast<int>(kDefaultMaxSummons)))));
+                        mCellSource.combat().setMaxSummons(static_cast<std::size_t>(std::max(
+                            1, settings->getInt(kPackId, kSummonsMaxKey, static_cast<int>(kDefaultMaxSummons)))));
                         mCellSource.combat().setTestKill(settings->getString(kPackId, kSummonsTestKillKey, ""));
                         mCellSource.combat().setTestPlayerMagicka(
                             settings->getFloat(kPackId, kSummonsTestMagickaKey, 0.f));
@@ -4873,9 +4899,9 @@ namespace game_skyrimse
                                 say(openeden::sdk::LogLevel::Warning,
                                     "the riding bindings were refused: " + declared.message);
                         }
-                        mRidingChunk = std::make_unique<RidingChunk>(
-                            [this] { return mCellSource.riding().savedState(); },
-                            [this](const RidingState& state) { mCellSource.riding().restoreState(state); });
+                        mRidingChunk
+                            = std::make_unique<RidingChunk>([this] { return mCellSource.riding().savedState(); },
+                                [this](const RidingState& state) { mCellSource.riding().restoreState(state); });
                         if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                             if (!chunks->registerHandler(*mRidingChunk))
                                 say(openeden::sdk::LogLevel::Warning, "the riding chunk was not registered");
@@ -4906,15 +4932,15 @@ namespace game_skyrimse
                         if (std::isfinite(killAt) && killAt > 0.f && killAt < 1.0e6f)
                             dragonSettings.mTestKillAt = killAt;
                         mCellSource.combat().setDragons(dragonSettings);
-                        mCellSource.setTestDragon(
-                            settings->getString(kPackId, std::string(dragons::kTestPlaceKey), ""),
+                        mCellSource.setTestDragon(settings->getString(kPackId, std::string(dragons::kTestPlaceKey), ""),
                             settings->getString(kPackId, std::string(dragons::kTestReplaceKey), ""));
                         say(openeden::sdk::LogLevel::Info,
                             std::string("dragons: on, flight ") + (dragonSettings.mFlight.mEnabled ? "on" : "off")
                                 + ", " + std::to_string(dragonSettings.mFlight.mGroundSeconds) + " s on the ground, "
                                 + std::to_string(dragonSettings.mFlight.mAirSeconds) + " s in the air");
                     }
-                    // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral player body).
+                    // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral
+                    // player body).
                     if (settings->getBool(kPackId, kPlayerBodyKey, false))
                     {
                         mWorldView.setPlayerBody(true);
@@ -4985,8 +5011,8 @@ namespace game_skyrimse
                                         && mPapyrus->forceGreet().requestFromBrain(
                                             static_cast<FormId>(reference), base, topic))
                                         say(openeden::sdk::LogLevel::Info,
-                                            "FORCEGREET the actor placed as " + std::to_string(reference)
-                                                + " (base " + std::to_string(base) + ") wants to say topic "
+                                            "FORCEGREET the actor placed as " + std::to_string(reference) + " (base "
+                                                + std::to_string(base) + ") wants to say topic "
                                                 + std::to_string(topic));
                                 });
                             say(openeden::sdk::LogLevel::Info,
@@ -5015,9 +5041,9 @@ namespace game_skyrimse
                                 return mCellSource.actorTable().restoreFollowers(entries);
                             });
                         // Task 0239: what the follower scripts changed (factions, globals, ranks), read by the dialogue
-                        mFollowerStateChunk = std::make_unique<FollowerStateChunk>(
-                            [this] { return mFollowerState.data(); },
-                            [this](const FollowerStateData& data) { return mFollowerState.restore(data); });
+                        mFollowerStateChunk
+                            = std::make_unique<FollowerStateChunk>([this] { return mFollowerState.data(); },
+                                [this](const FollowerStateData& data) { return mFollowerState.restore(data); });
                         mWorldView.setFollowerOverlay(&mFollowerState);
                         if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                         {
@@ -5122,7 +5148,8 @@ namespace game_skyrimse
             CombatHudBindings mHudBindings{ mCellSource.hud() }; // task 0180; refers to the cell source's HUD
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
-            std::map<openeden::sdk::game::WorldId, openeden::sdk::game::WorldId> mSummonCells; ///< task 0250: made actor -> hint
+            std::map<openeden::sdk::game::WorldId, openeden::sdk::game::WorldId>
+                mSummonCells; ///< task 0250: made actor -> hint
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<services::ServicesService> mServices; // task 0219; the lambdas refer to the pack
@@ -5150,7 +5177,8 @@ namespace game_skyrimse
             std::unique_ptr<sneak::SneakSystem> mSneak; // task 0227; refers to the cell source, inventory, progression
             std::unique_ptr<sneak::SneakBindings> mSneakBindings;
             std::unique_ptr<barks::BarkSystem> mBarks; // task 0231; refers to the cell source and the world view
-            std::function<bool(std::string_view, FormId, std::uint32_t, bool, SceneLine&)> mBarkLine; // from papyrusAccess
+            std::function<bool(std::string_view, FormId, std::uint32_t, bool, SceneLine&)>
+                mBarkLine; // from papyrusAccess
             std::function<void(bool, std::uint8_t)> mBarkStance; // task 0235, from papyrusAccess
             bool mBarkSubtitles = true;
             bool mBarkConfigured = false;
@@ -5168,12 +5196,14 @@ namespace game_skyrimse
             std::set<std::uint64_t> mBeastFed; // task 0259: the corpses fed on in this form
             std::unique_ptr<openeden::sdk::SaveChunkHandler> mBeastChunk; // task 0265
             bool mBeastPendingWarned = false; // task 0265
-            std::optional<werewolf::BeastSaved> mBeastPending; // task 0265: a loaded form waiting for the race's numbers
+            std::optional<werewolf::BeastSaved>
+                mBeastPending; // task 0265: a loaded form waiting for the race's numbers
             std::function<void(openeden::sdk::LogLevel, const std::string&)> mWerewolfLog;
             float mWerewolfTestSeconds = 0.f;
             bool mWerewolfGrant = false;
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
-            std::unique_ptr<travel::TravelService> mTravel; // task 0218; refers to mMap and the combat; declared after mMap
+            std::unique_ptr<travel::TravelService>
+                mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<RidingBindings> mRidingBindings; // task 0255; refers to the cell source's riding rules
             std::unique_ptr<RidingChunk> mRidingChunk; // task 0255
@@ -5183,7 +5213,8 @@ namespace game_skyrimse
             std::unique_ptr<diseases::DiseaseService> mDiseases; // task 0240; refers to the combat and the view
             FormId mDiseaseTestInfect = kNullFormId; // task 0240: a test aid
             std::unique_ptr<VampireQuestPort> mVampirePort; // task 0260; outlives mVampirism
-            std::unique_ptr<vampirism::VampirismService> mVampirism; // task 0260; refers to the host, the diseases, the combat
+            std::unique_ptr<vampirism::VampirismService>
+                mVampirism; // task 0260; refers to the host, the diseases, the combat
             bool mVampireSun = false; // task 0260: the sun damage abilities count now
             bool mVampireSunValue = false;
             std::int64_t mVampireSunMinute = -1;

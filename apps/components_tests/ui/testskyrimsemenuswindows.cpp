@@ -1,5 +1,6 @@
 // Task 0207: the Skyrim SE main menu and pause menu (files/data/openeden/skyrimse/menus.lua) over the headless UI
-// backend and fakes of the engine's `openmw.menu` package, the engine-side switches and the pack's `core.skyrimse.menus`.
+// backend and fakes of the engine's `openmw.menu` package, the engine-side switches and the pack's
+// `core.skyrimse.menus`.
 #include "uiluafixture.hpp"
 
 #include <string>
@@ -172,8 +173,7 @@ namespace
         openMenu(0);
         EXPECT_EQ(documents(), 1u);
         EXPECT_EQ(get<std::string>("view.page()"), "main");
-        EXPECT_EQ(buttonTexts(),
-            (std::vector<std::string>{ "Continue", "New Game", "Load Game", "Settings", "Quit" }));
+        EXPECT_EQ(buttonTexts(), (std::vector<std::string>{ "Continue", "New Game", "Load Game", "Settings", "Quit" }));
     }
 
     TEST_F(SkyrimMenusLua, theMainMenuCoversTheScreenOpaquelyAndThePauseMenuDoesNot)
@@ -251,8 +251,7 @@ namespace
     {
         openMenu(1);
         EXPECT_EQ(get<std::string>("view.page()"), "pause");
-        EXPECT_EQ(buttonTexts(),
-            (std::vector<std::string>{ "Resume", "Save Game", "Load Game", "Settings", "Quit" }));
+        EXPECT_EQ(buttonTexts(), (std::vector<std::string>{ "Resume", "Save Game", "Load Game", "Settings", "Quit" }));
     }
 
     TEST_F(SkyrimMenusLua, resumeClosesTheEnginesMainMenu)

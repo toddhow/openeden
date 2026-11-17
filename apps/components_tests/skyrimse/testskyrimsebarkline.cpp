@@ -222,7 +222,6 @@ namespace
 
     // ---- the conversation ----------------------------------------------------------------------------------------
 
-
     constexpr FormId kTopicAttack = kSelf | 0x320;
     constexpr FormId kTopicAttackHigh = kSelf | 0x321;
     constexpr FormId kTopicTaunt = kSelf | 0x322;

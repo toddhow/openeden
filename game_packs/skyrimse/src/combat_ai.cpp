@@ -267,8 +267,7 @@ namespace game_skyrimse
         const float wBlock = (v.mCanBlock && stamina > kAiNoBlockStamina)
             ? std::max(0.f, finiteOr(style.mDefensive, 0.24f)) * (v.mTargetSwinging ? 2.f : 0.5f)
             : 0.f;
-        const float wCircle = ranged ? 0.f
-                                     : std::max(0.f, finiteOr(style.mCircle, 0.22f)) * (dueling ? 1.f : 0.5f);
+        const float wCircle = ranged ? 0.f : std::max(0.f, finiteOr(style.mCircle, 0.22f)) * (dueling ? 1.f : 0.5f);
         const float wFallback = (dueling && !ranged)
             ? std::max(0.f, finiteOr(style.mFallback, 0.11f)) * (stamina < kAiTiredStamina ? 2.f : 0.5f)
             : 0.f;

@@ -1,5 +1,5 @@
-// Task 0232: the sequence model and driver of a Skyrim door or chest (apps/openmw/mwrender/skyrimsequence.*). Scenes are
-// built by hand; no game asset is read and no GPU object is made (the parts are plain Anim::Transform nodes).
+// Task 0232: the sequence model and driver of a Skyrim door or chest (apps/openmw/mwrender/skyrimsequence.*). Scenes
+// are built by hand; no game asset is read and no GPU object is made (the parts are plain Anim::Transform nodes).
 
 #include <apps/openmw/mwrender/skyrimsequence.hpp>
 #include <components/animation/transform.hpp>

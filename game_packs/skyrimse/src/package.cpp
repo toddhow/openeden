@@ -296,9 +296,9 @@ namespace game_skyrimse
                             return;
                         case Content::fourCC("PDTO"):
                             // Task 0264: package data (type u32, value u32); type 0 names a topic (VERIFIED on
-                            // C00KodlakForceGreetPlayer: PDTO 0, 0xA3E50, the dialogue topic its force greet says). Task
-                            // 0271: the first one of type 0 with a topic is the package's own (the ones inside OnBegin and
-                            // OnEnd are all zero).
+                            // C00KodlakForceGreetPlayer: PDTO 0, 0xA3E50, the dialogue topic its force greet says).
+                            // Task 0271: the first one of type 0 with a topic is the package's own (the ones inside
+                            // OnBegin and OnEnd are all zero).
                             if (data.size() != 8)
                             {
                                 odd(type);

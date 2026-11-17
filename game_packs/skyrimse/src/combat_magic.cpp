@@ -100,7 +100,8 @@ namespace game_skyrimse
     {
         constexpr std::uint32_t kSpellTypePower = 2;
         constexpr std::uint32_t kSpellTypeLesserPower = 3;
-        /// How long a queued power waits for the cast clip's timing before it is dropped (the sidecar is read on a worker).
+        /// How long a queued power waits for the cast clip's timing before it is dropped (the sidecar is read on a
+        /// worker).
         constexpr float kPowerWaitSeconds = 5.f;
 
         bool isPowerType(const SpellRecord& spell)
@@ -135,8 +136,10 @@ namespace game_skyrimse
                     case MagicArchetype::Demoralize:
                     case StatusArchetype::Invisibility: // task 0241: the Shadow stone's power
                     case StatusArchetype::Paralysis: // task 0241: the Serpent stone's power
-                    case werewolf::kArchetypeWerewolf: // task 0259: Beast Form (the pack turns the player into the beast)
-                    case StatusArchetype::Calm: // task 0260: Vampire's Seduction (applyOneEffect has run Calm since task 0248)
+                    case werewolf::kArchetypeWerewolf: // task 0259: Beast Form (the pack turns the player into the
+                                                       // beast)
+                    case StatusArchetype::Calm: // task 0260: Vampire's Seduction (applyOneEffect has run Calm since
+                                                // task 0248)
                         works = true;
                         break;
                     case SummonArchetype::SummonCreature: // task 0260: Vampire's Servant; only when the summons run
@@ -166,7 +169,8 @@ namespace game_skyrimse
             RacePower power;
             power.mId = id;
             power.mName = spellName(*spell);
-            power.mSupport = powerSupportOf(*mData, *spell, true, mSummonsOn); // a power applies its effects' conditions
+            power.mSupport
+                = powerSupportOf(*mData, *spell, true, mSummonsOn); // a power applies its effects' conditions
             out.push_back(std::move(power));
         }
         return out;
@@ -175,8 +179,8 @@ namespace game_skyrimse
     void SkyrimCombat::applyPowerEffects(CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell)
     {
         // A power's effects: one with an area goes to everyone else within that many feet of the caster, one without to
-        // the caster. The effects' own conditions (the records gate a Battle Cry on its targets) are not evaluated: OURS,
-        // a power applies them all.
+        // the caster. The effects' own conditions (the records gate a Battle Cry on its targets) are not evaluated:
+        // OURS, a power applies them all.
         SubjectState me;
         bool haveMe = false;
         bool meAsked = false;
@@ -238,8 +242,8 @@ namespace game_skyrimse
         const SpellRecord* record = mData->spellById(spell);
         if (record == nullptr || !isPowerType(*record))
             return false;
-        // Task 0259: Beast Form is a power whose effect is of the werewolf archetype: the pack's glue changes the player
-        // (body, claws, clock) instead of the magic runtime casting it.
+        // Task 0259: Beast Form is a power whose effect is of the werewolf archetype: the pack's glue changes the
+        // player (body, claws, clock) instead of the magic runtime casting it.
         for (const SpellEffect& effect : record->mEffects)
         {
             const MagicEffectRecord* magic = mData->effectById(effect.mEffect);
@@ -546,7 +550,8 @@ namespace game_skyrimse
             blocked = true;
             return;
         }
-        if (applyRaceEffect(writer, caster, target, spell, effect, record, static_cast<float>(effect.mDuration), timing))
+        if (applyRaceEffect(
+                writer, caster, target, spell, effect, record, static_cast<float>(effect.mDuration), timing))
             return; // task 0248: Script effects, Calm, Cloak
         // The ward takes what it can of a hostile spell's magnitude; a spell it holds entirely does nothing at all.
         if (hostile && target.mWardPower > 0.f)
@@ -605,9 +610,10 @@ namespace game_skyrimse
                     {
                         // task 0233: a modifier on a resistance keeps its signed size (a weakness is negative): the
                         // damage path reads it back through weaknessOf
-                        // task 0238: so does a regeneration rate (27 to 29, 155 to 157): its sum is read by regenRateFor
+                        // task 0238: so does a regeneration rate (27 to 29, 155 to 157): its sum is read by
+                        // regenRateFor
                         (void)active(isResistValue(record.mPrimaryValue) || isRegenRateValue(record.mPrimaryValue)
-                                || record.mPrimaryValue == race_effects::kAbsorbValue
+                                    || record.mPrimaryValue == race_effects::kAbsorbValue
                                 ? magnitude
                                 : 0.f,
                             0.f, false);
@@ -615,9 +621,9 @@ namespace game_skyrimse
                     }
                     trace("COMBAT effect " + record.mCommon.mEditorId + " on value "
                         + std::to_string(record.mPrimaryValue)
-                        + (isRegenRateValue(record.mPrimaryValue) ? " changes the regeneration rate by "
-                                    + num(magnitude) + " for " + num(seconds) + " s"
-                                                                  : std::string(" is a status only")));
+                        + (isRegenRateValue(record.mPrimaryValue)
+                                ? " changes the regeneration rate by " + num(magnitude) + " for " + num(seconds) + " s"
+                                : std::string(" is a status only")));
                     return;
                 }
                 const float second = dual ? magnitude * secondWeight : 0.f;
@@ -639,8 +645,9 @@ namespace game_skyrimse
                 ++mEffectsApplied;
                 trace("COMBAT effect " + record.mCommon.mEditorId + " " + who(caster.mSubject) + " -> "
                     + who(target.mSubject) + " magnitude " + num(magnitude)
-                    + (timing == EffectTiming::Instant ? " instant"
-                                                       : timing == EffectTiming::PerSecond ? " a second for " : " for ")
+                    + (timing == EffectTiming::Instant          ? " instant"
+                            : timing == EffectTiming::PerSecond ? " a second for "
+                                                                : " for ")
                     + (timing == EffectTiming::Instant ? std::string() : num(seconds) + " s"));
                 return;
             }
@@ -956,8 +963,8 @@ namespace game_skyrimse
             request.y = oy;
             request.z = oz;
             request.heading = static_cast<float>(std::atan2(ax, ay));
-            request.pitch = solveLaunchPitch(static_cast<float>(horizontal), static_cast<float>(rise), speed, gravity)
-                                .mPitch;
+            request.pitch
+                = solveLaunchPitch(static_cast<float>(horizontal), static_cast<float>(rise), speed, gravity).mPitch;
         }
         else
         {
@@ -1033,8 +1040,8 @@ namespace game_skyrimse
         const float cost = cast.mShout ? 0.f : static_cast<float>(spell.mCost); // task 0205: a shout is free
         if (f->mMagicka < cost)
         {
-            trace("COMBAT cast " + name + " refused: not enough magicka (" + num(f->mMagicka) + " of " + num(cost)
-                + ")");
+            trace(
+                "COMBAT cast " + name + " refused: not enough magicka (" + num(f->mMagicka) + " of " + num(cost) + ")");
             return;
         }
         if (cast.mShout)
@@ -1062,8 +1069,8 @@ namespace game_skyrimse
             applySpellEffects(writer, *f, *f, spell, nullptr);
             return;
         }
-        // Task 0250: Raise Zombie and the others are aimed (delivery 2) or target actor (3) in the data, but their target
-        // is a corpse the ray of a living-actor spell never finds: the pack picks the nearest one in front.
+        // Task 0250: Raise Zombie and the others are aimed (delivery 2) or target actor (3) in the data, but their
+        // target is a corpse the ray of a living-actor spell never finds: the pack picks the nearest one in front.
         if (spellReanimates(spell) && reanimateInSights(writer, *f, spell))
             return;
         if (spell.mDelivery == MagicDelivery::Self)
@@ -1144,8 +1151,8 @@ namespace game_skyrimse
         if (caster == nullptr || victim == nullptr || caster == victim || victim->mDead || !ready(*victim))
             return true;
         SweepHit where;
-        where.target = result.fate == openeden::sdk::game::ProjectileFate::HitPlayer ? SweepTarget::Player
-                                                                                     : SweepTarget::Actor;
+        where.target
+            = result.fate == openeden::sdk::game::ProjectileFate::HitPlayer ? SweepTarget::Player : SweepTarget::Actor;
         where.actor = result.actor;
         where.x = result.x;
         where.y = result.y;
@@ -1386,8 +1393,8 @@ namespace game_skyrimse
         {
             mPlayerSpellLooked = true;
             mPlayerSpell = mData->spellByEditorId(mTestPlayerSpell);
-            trace("COMBAT player spell '" + mTestPlayerSpell + "' "
-                + (mPlayerSpell != nullptr ? "found" : "NOT found"));
+            trace(
+                "COMBAT player spell '" + mTestPlayerSpell + "' " + (mPlayerSpell != nullptr ? "found" : "NOT found"));
         }
         if (mPlayerSpell == nullptr)
         {

@@ -2,8 +2,8 @@
 
 // Task 0259 (werewolf): the beast form in the combat rules. While it lasts the player fights with the race's claws (his
 // profile's bare-hand numbers and sounds are the beast's, his creature row is `werewolf::playerProfile()`, so the swing
-// and its timing are the werewolf's clips), and an equipped weapon is ignored (`weaponFor`). The form itself (the clock,
-// the body, feeding) is the pack's glue; this file only changes how he fights.
+// and its timing are the werewolf's clips), and an equipped weapon is ignored (`weaponFor`). The form itself (the
+// clock, the body, feeding) is the pack's glue; this file only changes how he fights.
 
 namespace game_skyrimse
 {

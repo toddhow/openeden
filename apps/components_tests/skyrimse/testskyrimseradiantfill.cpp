@@ -1,7 +1,7 @@
 // Task 0211: the alias filler for radiant quests: location aliases (from the data, from an event, find-matching, inside
 // another alias), references found in a location's lists, external aliases, closest-first and loaded-area matching, the
-// event gate for every event type, and the story manager's start gate (canStart). Generated records; no game data. Written
-// first and run red against stubs.
+// event gate for every event type, and the story manager's start gate (canStart). Generated records; no game data.
+// Written first and run red against stubs.
 #include <game_skyrimse/location.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -102,12 +102,14 @@ namespace
     {
         Bytes b;
         b.append(sub4("ALFE", Bytes()));
-        b.append(sub4("ALFD", Bytes().u32(static_cast<std::uint32_t>(static_cast<unsigned char>(kind))
+        b.append(sub4("ALFD",
+            Bytes().u32(static_cast<std::uint32_t>(static_cast<unsigned char>(kind))
                 | (static_cast<std::uint32_t>(static_cast<unsigned char>(which)) << 8))));
         return b;
     }
 
-    Bytes lctn(FormId id, FormId parent, const Bytes& cells, const Bytes& special = Bytes(), const Bytes& persistent = Bytes())
+    Bytes lctn(
+        FormId id, FormId parent, const Bytes& cells, const Bytes& special = Bytes(), const Bytes& persistent = Bytes())
     {
         Bytes b;
         b.append(sub4("EDID", Bytes().zstring("L" + std::to_string(id & 0xFFF))));
@@ -122,7 +124,10 @@ namespace
         return record4("LCTN", 0u, id, b);
     }
 
-    Bytes gridCell(int y, int x) { return Bytes().u32(kWorld).u16(static_cast<std::uint16_t>(y)).u16(static_cast<std::uint16_t>(x)); }
+    Bytes gridCell(int y, int x)
+    {
+        return Bytes().u32(kWorld).u16(static_cast<std::uint16_t>(y)).u16(static_cast<std::uint16_t>(x));
+    }
 
     Bytes special(FormId type, FormId ref)
     {
@@ -132,7 +137,8 @@ namespace
     constexpr std::uint32_t kOptional = 0x2;
     constexpr std::uint32_t kLoadedArea = 0x20;
 
-    PlacedEntry placedRef(FormId id, FormId base, FormId cell, float x, float y, std::uint8_t flags = PlacedFlags::IsActor)
+    PlacedEntry placedRef(
+        FormId id, FormId base, FormId cell, float x, float y, std::uint8_t flags = PlacedFlags::IsActor)
     {
         PlacedEntry r;
         r.mId = id;
@@ -171,8 +177,8 @@ namespace
             r.mRefs = std::move(refs);
             mRefs.add(std::move(r));
             mRefs.finish();
-            mFiller = std::make_unique<QuestAliasFiller>(mQuests, mRefs,
-                [this](const QuestRecord&, const QuestAlias&, FormId reference, FormId) {
+            mFiller = std::make_unique<QuestAliasFiller>(
+                mQuests, mRefs, [this](const QuestRecord&, const QuestAlias&, FormId reference, FormId) {
                     mAsked.push_back(reference);
                     return mAccept.empty() || mAccept.count(reference) != 0;
                 });
@@ -269,12 +275,13 @@ namespace
 
     TEST(RadiantLocation, aLocationAnotherAliasHoldsIsNotTakenAgain)
     {
-        const Bytes aliases = alias(true, 1, "One", 0, sub4("ALFL", Bytes().u32(kCityA)))
-            + alias(true, 2, "Two", 0, Bytes());
+        const Bytes aliases
+            = alias(true, 1, "One", 0, sub4("ALFL", Bytes().u32(kCityA))) + alias(true, 2, "Two", 0, Bytes());
         Rig rig({ questRecord(kQuestA, aliases) }, cities(), {});
         rig.mSite = exteriorAt(100, 100);
         EXPECT_EQ(rig.mFiller->fillQuest(kQuestA, rig.mState, true), 2u);
-        EXPECT_EQ(rig.filled(kQuestA, 2), kCityB); // A is held by alias 1: the next closest to (100, 100) is B, not the cave
+        EXPECT_EQ(
+            rig.filled(kQuestA, 2), kCityB); // A is held by alias 1: the next closest to (100, 100) is B, not the cave
     }
 
     TEST(RadiantLocation, anInteriorPlayerIsPlacedAtTheFirstCellOfTheNearestLocationUpItsChain)
@@ -311,7 +318,8 @@ namespace
 
     TEST(RadiantEvent, aLocationAliasTakesTheEventsLocation)
     {
-        const Bytes aliases = alias(true, 1, "Left", 0, fromEvent('L', '1')) + alias(true, 2, "Came", 0, fromEvent('L', '2'));
+        const Bytes aliases
+            = alias(true, 1, "Left", 0, fromEvent('L', '1')) + alias(true, 2, "Came", 0, fromEvent('L', '2'));
         Rig rig({ questRecord(kQuestA, aliases) }, cities(), {});
         StoryEvent e;
         e.mType = "CLOC";
@@ -391,7 +399,8 @@ namespace
 
     TEST(RadiantReference, withNoReferenceTypeAnyListedReferenceOfTheLocationCounts)
     {
-        const Bytes recs = lctn(kCityB, 0, gridCell(0, 10), special(kRefType, kRef2), Bytes().u32(kRef1).u32(kWorld).u16(0).u16(0));
+        const Bytes recs
+            = lctn(kCityB, 0, gridCell(0, 10), special(kRefType, kRef2), Bytes().u32(kRef1).u32(kWorld).u16(0).u16(0));
         const Bytes aliases = alias(true, 1, "Town", 0, sub4("ALFL", Bytes().u32(kCityB)))
             + alias(false, 2, "Any", 0, sub4("ALFA", Bytes().u32(1)));
         Rig rig({ questRecord(kQuestA, aliases) }, recs,
@@ -403,8 +412,8 @@ namespace
 
     TEST(RadiantReference, aListedReferenceTheDataDoesNotPlaceOrADisabledOneIsSkipped)
     {
-        const Bytes recs = lctn(kCityB, 0, gridCell(0, 10),
-            special(kRefType, kRef4) + special(kRefType, kRef1) + special(kRefType, kRef2));
+        const Bytes recs = lctn(
+            kCityB, 0, gridCell(0, 10), special(kRefType, kRef4) + special(kRefType, kRef1) + special(kRefType, kRef2));
         const Bytes aliases = alias(true, 1, "Town", 0, sub4("ALFL", Bytes().u32(kCityB)))
             + alias(false, 2, "Boss", 0, sub4("ALFA", Bytes().u32(1)) + sub4("ALRT", Bytes().u32(kRefType)));
         Rig rig({ questRecord(kQuestA, aliases) }, recs,
@@ -416,8 +425,10 @@ namespace
 
     TEST(RadiantReference, anExternalAliasTakesWhatTheOtherQuestsAliasHolds)
     {
-        Rig rig({ questRecord(kQuestA, alias(false, 5, "Boss", 0, sub4("ALFR", Bytes().u32(kRef2)))),
-                    questRecord(kQuestB, alias(false, 1, "Same", 0, sub4("ALEQ", Bytes().u32(kQuestA)) + sub4("ALEA", Bytes().u32(5)))) },
+        Rig rig(
+            { questRecord(kQuestA, alias(false, 5, "Boss", 0, sub4("ALFR", Bytes().u32(kRef2)))),
+                questRecord(kQuestB,
+                    alias(false, 1, "Same", 0, sub4("ALEQ", Bytes().u32(kQuestA)) + sub4("ALEA", Bytes().u32(5)))) },
             cities(), { placedRef(kRef2, kBaseA, kCellB, 0, 0) });
         EXPECT_EQ(rig.mFiller->fillQuest(kQuestB, rig.mState, true), 1u);
         EXPECT_EQ(rig.filled(kQuestB, 1), kRef2);
@@ -426,7 +437,8 @@ namespace
 
     TEST(RadiantReference, anExternalAliasWhoseOtherAliasIsEmptyStaysEmpty)
     {
-        Rig rig({ questRecord(kQuestB, alias(false, 1, "Same", 0, sub4("ALEQ", Bytes().u32(kQuestA)) + sub4("ALEA", Bytes().u32(5)))) },
+        Rig rig({ questRecord(kQuestB,
+                    alias(false, 1, "Same", 0, sub4("ALEQ", Bytes().u32(kQuestA)) + sub4("ALEA", Bytes().u32(5)))) },
             cities(), {});
         EXPECT_EQ(rig.mFiller->fillQuest(kQuestB, rig.mState, true), 0u);
     }
@@ -499,7 +511,8 @@ namespace
 
     TEST(RadiantStart, aFindMatchingReferenceNeverBlocksAndAStartDoesNotLookForIt)
     {
-        Rig rig({ questRecord(kQuestA, alias(false, 1, "Any", 0, Bytes())) }, cities(), { placedRef(kRef1, kBaseA, kCellA, 0, 0) });
+        Rig rig({ questRecord(kQuestA, alias(false, 1, "Any", 0, Bytes())) }, cities(),
+            { placedRef(kRef1, kBaseA, kCellA, 0, 0) });
         rig.mAccept = { kRef4 };
         EXPECT_TRUE(rig.mFiller->canStart(kQuestA, rig.mState, nullptr));
         EXPECT_TRUE(rig.mAsked.empty());
@@ -534,7 +547,8 @@ namespace
     {
         // the reference alias is listed BEFORE its location alias: the plan fills locations first
         const Bytes recs = lctn(kCityB, 0, gridCell(0, 10), special(kRefType, kRef2));
-        const Bytes aliases = alias(false, 2, "Boss", 0, sub4("ALFA", Bytes().u32(1)) + sub4("ALRT", Bytes().u32(kRefType)))
+        const Bytes aliases
+            = alias(false, 2, "Boss", 0, sub4("ALFA", Bytes().u32(1)) + sub4("ALRT", Bytes().u32(kRefType)))
             + alias(true, 1, "Town", 0, sub4("ALFL", Bytes().u32(kCityB)));
         Rig rig({ questRecord(kQuestA, aliases) }, recs, { placedRef(kRef2, kBaseA, kCellB, 0, 0) });
         EXPECT_TRUE(rig.mFiller->canStart(kQuestA, rig.mState, nullptr));
@@ -548,7 +562,8 @@ namespace
         FormId result[2] = {};
         for (int run = 0; run < 2; ++run)
         {
-            Rig rig({ questRecord(kQuestA, alias(false, 1, "Any", 0, Bytes()) + alias(true, 2, "Where", 0, Bytes())) }, cities(),
+            Rig rig({ questRecord(kQuestA, alias(false, 1, "Any", 0, Bytes()) + alias(true, 2, "Where", 0, Bytes())) },
+                cities(),
                 { placedRef(kRef1, kBaseA, kCellA, 300, 0), placedRef(kRef2, kBaseA, kCellA, 200, 0),
                     placedRef(kRef3, kBaseA, kCellA, 200, 0) });
             rig.mCellFacts[kCellA] = QuestAliasFiller::CellFacts{ true, false, kWorld, true };

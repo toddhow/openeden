@@ -212,7 +212,8 @@ namespace
         EXPECT_FLOAT_EQ(hiddenTraining(s, true, std::numeric_limits<float>::quiet_NaN(), 2, 0.5f), 0.f);
     }
 
-    // ---- the system over a fake world --------------------------------------------------------------------------------
+    // ---- the system over a fake world
+    // --------------------------------------------------------------------------------
 
     class SneakWriter final : public CombatRequestWriter
     {

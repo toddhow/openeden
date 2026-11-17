@@ -92,8 +92,8 @@ namespace game_skyrimse::pickup
 
     /// The chance in percent. A non-finite skill, value or weight (or a negative value, weight or count) reads as 0 for
     /// that term; the result is always in [min, max].
-    [[nodiscard]] float pickpocketChance(const PickpocketSettings& settings, float skill, std::int32_t value,
-        float weight, std::int32_t count);
+    [[nodiscard]] float pickpocketChance(
+        const PickpocketSettings& settings, float skill, std::int32_t value, float weight, std::int32_t count);
 
     /// The seeded roll: a hash of (owner, item, attempt) mapped to [0, 100); true when it is below `chancePercent`.
     /// 0 or below never succeeds, 100 or above always does.

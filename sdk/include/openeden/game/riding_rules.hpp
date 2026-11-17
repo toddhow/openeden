@@ -34,7 +34,8 @@ namespace openeden::sdk::game
         float turn = 0.f; ///< [-1, 1]: positive turns to the right (clockwise seen from above)
         bool run = false; ///< the run control is on
         bool jump = false; ///< the jump control is down this frame (the core reports the level, not the edge)
-        float heading = 0.f; ///< the player's own yaw (the view's), radians about Z as the engine stores it (0 faces +Y)
+        float heading
+            = 0.f; ///< the player's own yaw (the view's), radians about Z as the engine stores it (0 faces +Y)
     };
 
     /// Implemented by the core's ActorRequestWriter (found by dynamic_cast on the writer update() gets).
@@ -88,13 +89,13 @@ namespace openeden::sdk::game
         virtual void onMountRequested(ActorHandle handle) = 0;
 
         /// (0.2, task 0255) The core is about to move the player through a load door: a rider gets off NOW (the player
-        /// is released beside the horse through `player`, outside update()), so that the door takes a man on his feet. A
-        /// no-op for a player who is not riding. The default does nothing.
+        /// is released beside the horse through `player`, outside update()), so that the door takes a man on his feet.
+        /// A no-op for a player who is not riding. The default does nothing.
         virtual void dismountNow(RidingWriter& player) { (void)player; }
 
         /// (0.2, task 0255) The actor the player sits on now; an invalid handle on foot. The core gives that actor the
-        /// climb and drop limits of a mount (NeutralMover::limitsForHeight) and every other actor its own. Called once a
-        /// frame. The default says nobody is ridden.
+        /// climb and drop limits of a mount (NeutralMover::limitsForHeight) and every other actor its own. Called once
+        /// a frame. The default says nobody is ridden.
         [[nodiscard]] virtual ActorHandle mountedHorse() const { return ActorHandle(); }
     };
 }

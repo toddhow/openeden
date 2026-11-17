@@ -99,12 +99,11 @@ namespace
             books.append(bookRecord(kNote, "Note", 0, 0, "A Note", "<p>Meet me at dawn.</p>"));
             books.append(
                 bookRecord(kSkillBook, "SkillBookAlchemy", BookFlags::TeachesSkill, 16, "Alchemy Book", "alch"));
-            books.append(
-                bookRecord(kTome, "Tome", BookFlags::TeachesSpell, kThunderbolt, "Tome of Thunderbolt", "t"));
+            books.append(bookRecord(kTome, "Tome", BookFlags::TeachesSpell, kThunderbolt, "Tome of Thunderbolt", "t"));
             books.append(bookRecord(kBlackBook, "BlackBook", 0x02, 0, "Black Book", "dark"));
             all.append(group4(Content::fourCC("BOOK"), 0, books));
-            all.append(group4(Content::fourCC("MISC"), 0,
-                record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
+            all.append(group4(
+                Content::fourCC("MISC"), 0, record4("MISC", 0, 0x0000000F, sub4("DATA", Bytes().u32(1).f32(0.f)))));
             mDir = std::filesystem::temp_directory_path()
                 / (std::string("oe_wb_") + testing::UnitTest::GetInstance()->current_test_info()->name());
             std::filesystem::create_directories(mDir);
@@ -129,9 +128,8 @@ namespace
             };
             hooks.mSkillName
                 = [](std::size_t slot) { return slot == 10 ? std::string("Alchemy") : std::string("Skill"); };
-            hooks.mSpellName = [](FormId spell) {
-                return spell == kThunderbolt ? std::string("Thunderbolt") : std::string();
-            };
+            hooks.mSpellName
+                = [](FormId spell) { return spell == kThunderbolt ? std::string("Thunderbolt") : std::string(); };
             hooks.mSpellLearned = [this](FormId spell) { mLearned.push_back(spell); };
             hooks.mLog = [this](const std::string& line) { mLog.push_back(line); };
             mBooks = std::make_unique<LockBooksService>(*mInventory, std::move(hooks));

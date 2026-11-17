@@ -337,8 +337,8 @@ namespace
         {
             if (first.mRagdoll.indexOf(mapping.mRigBone) == first.mRagdoll.mNames.size())
                 continue;
-            EXPECT_TRUE(sameRotation(worldRotationOf(second.mPose, mapping.mEngineBone),
-                worldRotationOf(first.mPose, mapping.mEngineBone)))
+            EXPECT_TRUE(sameRotation(
+                worldRotationOf(second.mPose, mapping.mEngineBone), worldRotationOf(first.mPose, mapping.mEngineBone)))
                 << mapping.mRigBone;
         }
         const vsg::dvec3 a = worldPositionOf(first.mPose, "bip01 pelvis");

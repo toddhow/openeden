@@ -7,8 +7,8 @@
 
 // Where the player stands in a game's world, told to the game (task 0211, milestone M-S6 "story events"). The game's
 // story manager raises "change location" events when the player moves into another location; for an exterior the pack
-// is not told which cell the player is in (the core owns the player), so the core reports the player's PLACE whenever it
-// changes: an interior cell, or a grid square of a worldspace.
+// is not told which cell the player is in (the core owns the player), so the core reports the player's PLACE whenever
+// it changes: an interior cell, or a grid square of a worldspace.
 //
 // ABI choice: like SceneSpeechSource, a NEW interface found by dynamic_cast on the game's registered ActorRules, so the
 // frozen ActorRules / ActorRequestWriter are untouched. A pack that does not implement it is never told.

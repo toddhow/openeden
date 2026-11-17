@@ -38,8 +38,8 @@ namespace MWWorld
     /// ignored; coordinates beyond +-10,000,000 units are refused.
     [[nodiscard]] NeutralStartTarget parseNeutralStart(std::string_view text);
 
-    /// Task 0268: where a new game starts. A game with an opening of its own (`NewGameStartSource::newGameStart`, Skyrim's
-    /// cart at Helgen) wins over `--start`; an empty answer leaves `--start`.
+    /// Task 0268: where a new game starts. A game with an opening of its own (`NewGameStartSource::newGameStart`,
+    /// Skyrim's cart at Helgen) wins over `--start`; an empty answer leaves `--start`.
     [[nodiscard]] inline std::string chooseNeutralStart(std::string_view fromArguments, std::string_view fromGame)
     {
         return std::string(fromGame.empty() ? fromArguments : fromGame);

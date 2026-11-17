@@ -1,8 +1,8 @@
 // Task 0186 (milestone M-S5, stage S5-8): the Skyrim pack's magic runtime (game_skyrimse/combat.hpp, magic.hpp), tested
 // through the combat contract 0.4 with a fake data source and a recording writer. Every number is derived by hand:
 //  - Firebolt: cost 41, fire and forget, aimed, one damage effect of 25 on health (fire resistance 41) with a
-//    projectile of speed 2500, gravity 0, range 10000, a Stagger effect and a Demoralize effect of 15 seconds that carry
-//    conditions (so they are skipped unless the test setting says otherwise);
+//    projectile of speed 2500, gravity 0, range 10000, a Stagger effect and a Demoralize effect of 15 seconds that
+//    carry conditions (so they are skipped unless the test setting says otherwise);
 //  - Healing: cost 12 a second, concentration, self, 10 health a second;
 //  - FastHealing: cost 73, self, 50 health at once;
 //  - WardLesser: cost 34 a second, concentration, self: Accumulate 40 (the charge a second) and Peak 40 (the ward's

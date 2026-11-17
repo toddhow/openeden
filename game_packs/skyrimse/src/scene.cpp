@@ -314,7 +314,8 @@ namespace game_skyrimse
                             {
                                 if (s.mActions.back().mPackages.size() >= mLimits.mMaxPackages)
                                 {
-                                    mWhy = "more than " + std::to_string(mLimits.mMaxPackages) + " packages in one action";
+                                    mWhy = "more than " + std::to_string(mLimits.mMaxPackages)
+                                        + " packages in one action";
                                     return;
                                 }
                                 s.mActions.back().mPackages.push_back(resolved(v));
@@ -453,7 +454,8 @@ namespace game_skyrimse
 
     namespace
     {
-        float getSceneActionComplete(const survey::Ctda& c, conditions::Subject, const conditions::ConditionWorld& world)
+        float getSceneActionComplete(
+            const survey::Ctda& c, conditions::Subject, const conditions::ConditionWorld& world)
         {
             const SceneStateSource* state = dynamic_cast<const SceneStateSource*>(&world);
             const StoryEventSource* forms = dynamic_cast<const StoryEventSource*>(&world);

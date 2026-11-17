@@ -11,10 +11,13 @@
 //     any record whose size differs; the rest are RECALLED-VERIFY and listed as such there):
 //       ARMO, MISC, INGR, KEYM, SLGM, APPA, SCRL  DATA  8 bytes: value u32, weight f32
 //       WEAP                                       DATA  value u32, weight f32, damage u16 (10 bytes in SSE)
-//       BOOK                                       DATA  16 bytes: flags u8, type u8, u16 unused, teaches u32, value u32,
+//       BOOK                                       DATA  16 bytes: flags u8, type u8, u16 unused, teaches u32, value
+//       u32,
 //                                                        weight f32
-//       AMMO                                       DATA  16 bytes: projectile u32, flags u32, damage f32, value u32; the
-//                                                        record has no weight (arrows weigh 0 in Skyrim: RECALLED-VERIFY)
+//       AMMO                                       DATA  16 bytes: projectile u32, flags u32, damage f32, value u32;
+//       the
+//                                                        record has no weight (arrows weigh 0 in Skyrim:
+//                                                        RECALLED-VERIFY)
 //       ALCH                                       DATA  4 bytes: weight f32; ENIT 20 bytes, value i32 first
 //  2. Container contents: CONT / CNTO (8 bytes: form id, count i32), with leveled lists (LVLI) resolved ONCE, at the
 //     first time a container is looked at, by a pick seeded from the container's own identity (no clock, no `rand`).
@@ -253,13 +256,15 @@ namespace game_skyrimse
             [[nodiscard]] std::int32_t count(std::uint64_t owner, FormId item) const;
             [[nodiscard]] float weightOf(std::uint64_t owner, const ItemTable& table) const;
 
-            [[nodiscard]] TransferStatus transfer(std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count);
+            [[nodiscard]] TransferStatus transfer(
+                std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count);
 
-            /// Task 0198 (the one hook of the Papyrus natives): items that appear from nowhere (a script's AddItem), and a
-            /// sink that is told of every change of any list: the owner it left (kNoOwner: none), the owner it joined
-            /// (kNoOwner: none), the item and the count. Main thread; a sink must not change the model.
+            /// Task 0198 (the one hook of the Papyrus natives): items that appear from nowhere (a script's AddItem),
+            /// and a sink that is told of every change of any list: the owner it left (kNoOwner: none), the owner it
+            /// joined (kNoOwner: none), the item and the count. Main thread; a sink must not change the model.
             static constexpr std::uint64_t kNoOwner = ~std::uint64_t(0);
-            using ChangeSink = std::function<void(std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count)>;
+            using ChangeSink
+                = std::function<void(std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count)>;
             void setChangeSink(ChangeSink sink) { mSink = std::move(sink); }
             [[nodiscard]] TransferStatus add(std::uint64_t owner, FormId item, std::int32_t count);
             /// Moves every stack; `moved` is how many items (the sum of counts). SameOwner and UnknownOwner as above.
