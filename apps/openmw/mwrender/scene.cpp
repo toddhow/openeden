@@ -731,6 +731,26 @@ namespace MWRender
             }
     }
 
+    void Scene::playNeutralObjectPaired(MWAnim::Object& object, std::string_view clip)
+    {
+        for (const vsg::ref_ptr<vsg::Object>& kept : object.keepAlive)
+            if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
+            {
+                pose->playOnce(clip, false);
+                return;
+            }
+    }
+
+    openeden::sdk::game::PairedStatus Scene::neutralPairedClipInfo(
+        std::string_view clip, openeden::sdk::game::PairedClipInfo& out)
+    {
+        out = {};
+        Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+        if (resources == nullptr || resources->getVFS() == nullptr)
+            return openeden::sdk::game::PairedStatus::Failed;
+        return SkyrimIdle::pairedClipInfo(*resources->getVFS(), clip, out);
+    }
+
     void Scene::playNeutralObjectClip(MWAnim::Object& object, std::string_view clip, bool perSex)
     {
         if (!clip.empty())

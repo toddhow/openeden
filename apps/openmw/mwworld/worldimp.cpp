@@ -504,6 +504,13 @@ namespace MWWorld
                 mPhysics->setPlayerCollisionMode(true);
                 return true;
             };
+            // Task 0267: the paired clips (the rider's mount and dismount).
+            riding.mPairedInfo = [this](std::string_view clip, openeden::sdk::game::PairedClipInfo& out) {
+                return mRendering->getObjects().neutralPairedClipInfo(clip, out);
+            };
+            riding.mPairedPlay = [this](const void* key, std::string_view clip) {
+                return mPhysics->queueNeutralPairedClip(key, clip);
+            };
             mPhysics->setNeutralRidingHooks(std::move(riding));
         }
 

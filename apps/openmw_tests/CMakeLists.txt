@@ -105,6 +105,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimfirstperson2.cpp
     mwrender/testskyrimfirstperson3.cpp
     mwrender/testskyrimidle.cpp
+    mwrender/testskyrimpaired.cpp
     mwrender/testskyrimlocomotion.cpp
     mwrender/testskyrimlip.cpp
     mwrender/testragdollbonemath.cpp
@@ -217,6 +218,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorriding.cpp
     mwphysics/testneutralplacecorpse.cpp
     mwphysics/testneutralactorriding2.cpp
+    mwphysics/testneutralactorpaired.cpp
     mwphysics/testneutralcombatbridge.cpp
     mwphysics/testneutralspellfire.cpp
     mwphysics/testneutralsweep.cpp

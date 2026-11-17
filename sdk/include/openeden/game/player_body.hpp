@@ -66,6 +66,13 @@ namespace openeden::sdk::game
         /// The placement id of the horse the player sits on (0 on foot). The core finds that horse's drawn object and
         /// moves the player's body by how far its `SaddleBone` node has moved since the ride began (the gait's bob).
         std::uint32_t ridingMount = 0;
+        // ---- Also 0.3 (task 0267, paired animations). A field the core only reads.
+        /// Where the body is drawn relative to the stub player (world units, added to his position): zero except
+        /// while a paired clip plays, when the pack keeps the player (his camera, his collision) on the saddle and
+        /// the clip is in the horse's frame, so the body is drawn at the horse's origin.
+        float bodyOffsetX = 0.f;
+        float bodyOffsetY = 0.f;
+        float bodyOffsetZ = 0.f;
     };
 
     class PlayerBodySource

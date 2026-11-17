@@ -157,6 +157,28 @@ namespace MWPhysics
         return mBridge.mRidingHooks->mRelease(x, y, z);
     }
 
+    openeden::sdk::game::PairedStatus NeutralActorBridge::Writer::pairedClipInfo(
+        std::string_view clipName, openeden::sdk::game::PairedClipInfo& out)
+    {
+        out = {};
+        if ((mSink == nullptr && !mSyncRiding) || mBridge.mRidingHooks == nullptr || !mBridge.mRidingHooks->mPairedInfo)
+            return openeden::sdk::game::PairedStatus::Failed;
+        return mBridge.mRidingHooks->mPairedInfo(clipName, out);
+    }
+
+    bool NeutralActorBridge::Writer::playPairedClip(openeden::sdk::game::ActorHandle actor, std::string_view clipName)
+    {
+        if ((mSink == nullptr && !mSyncRiding) || mBridge.mRidingHooks == nullptr || !mBridge.mRidingHooks->mPairedPlay)
+            return false;
+        const void* key = mBridge.keyOfHandle(actor);
+        if (key == nullptr)
+        {
+            ++mBridge.mStats.mStale;
+            return false;
+        }
+        return mBridge.mRidingHooks->mPairedPlay(key, clipName);
+    }
+
     void NeutralActorBridge::dismountRider(openeden::sdk::game::RidingRules& rules)
     {
         struct SyncScope

@@ -6,6 +6,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/havokpack/packfile.hpp>
+#include <components/havokpack/paired.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
@@ -108,9 +109,72 @@ namespace MWRender::SkyrimIdle
         return decodeIdle(vfs, report);
     }
 
+    ClipFuture loadPairedAsync(const VFS::Manager& vfs, std::string_view clipName)
+    {
+        const auto ref = HavokPack::Paired::parseClipName(clipName);
+        if (!ref)
+        {
+            std::promise<std::shared_ptr<const HavokPack::BoundClip>> none;
+            none.set_value(nullptr);
+            return none.get_future().share();
+        }
+        const std::string key = "paired|" + ref->mPath + "#" + std::to_string(static_cast<int>(ref->mSide));
+        const std::lock_guard lock(sFutureMutex);
+        const auto it = futures().find(key);
+        if (it != futures().end())
+            return it->second;
+        ClipFuture future = std::async(std::launch::async, [&vfs, path = ref->mPath, side = ref->mSide]() {
+            std::shared_ptr<const HavokPack::BoundClip> out;
+            try
+            {
+                const HavokPack::Packfile file = HavokPack::Packfile::parse(readAll(vfs, path));
+                std::vector<HavokPack::Clip> clips = HavokPack::readClips(file);
+                if (clips.empty())
+                    throw HavokPack::Error("'" + path + "' holds no spline clip");
+                out = std::make_shared<const HavokPack::BoundClip>(
+                    HavokPack::Paired::bindSide(std::move(clips.front()), side));
+                Log(Debug::Info) << "Skyrim paired clip '" << path << "' decoded: "
+                                 << out->mClip.mNumTransformTracks << " tracks, " << out->mClip.mDuration << " s";
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "Skyrim paired clip '" << path << "' cannot be used: " << e.what();
+            }
+            return out;
+        }).share();
+        futures().emplace(key, future);
+        return future;
+    }
+
+    openeden::sdk::game::PairedStatus pairedClipInfo(
+        const VFS::Manager& vfs, std::string_view clipName, openeden::sdk::game::PairedClipInfo& out)
+    {
+        using openeden::sdk::game::PairedStatus;
+        out = {};
+        const ClipFuture future = loadPairedAsync(vfs, clipName);
+        if (!future.valid())
+            return PairedStatus::Failed;
+        if (future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return PairedStatus::NotReady;
+        const std::shared_ptr<const HavokPack::BoundClip> clip = future.get();
+        if (!clip)
+            return PairedStatus::Failed;
+        const auto description = HavokPack::Paired::describe(clip->mClip);
+        if (!description)
+            return PairedStatus::Failed;
+        out.duration = description->mDuration;
+        const HavokPack::Paired::RootPose& start = description->mStart;
+        const HavokPack::Paired::RootPose& end = description->mEnd;
+        out.start = { start.mX, start.mY, start.mZ, start.mYaw };
+        out.end = { end.mX, end.mY, end.mZ, end.mYaw };
+        return PairedStatus::Ready;
+    }
+
     ClipFuture loadIdleAsync(const VFS::Manager& vfs, const std::string& skeletonNifPath, std::string_view sexFolder,
         std::string_view clipName)
     {
+        if (!clipName.empty() && clipName.front() == '~')
+            return loadPairedAsync(vfs, clipName); // task 0267: a side of a paired clip
         return loadClipAsync(vfs, HavokPack::skeletonHkxPath(skeletonNifPath),
             HavokPack::clipHkxPath(skeletonNifPath, clipName, sexFolder));
     }

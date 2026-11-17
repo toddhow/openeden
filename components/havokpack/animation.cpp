@@ -13,6 +13,8 @@ namespace HavokPack
         constexpr std::uint32_t DurationOffset = 20;
         constexpr std::uint32_t TransformTracksOffset = 24;
         constexpr std::uint32_t FloatTracksOffset = 28;
+        constexpr std::uint32_t AnnotationTracksOffset = 40; // task 0267, provenance F54
+        constexpr std::uint32_t AnnotationTrackSize = 24;
         constexpr std::uint32_t NumFramesOffset = 56;
         constexpr std::uint32_t NumBlocksOffset = 60;
         constexpr std::uint32_t MaxFramesPerBlockOffset = 64;
@@ -309,6 +311,21 @@ namespace HavokPack
                 fail("mask and quantisation size is smaller than the track masks");
             if (static_cast<std::uint64_t>(numBlocks) * (clip.mMaxFramesPerBlock - 1) + 1 < clip.mNumFrames)
                 fail("the blocks cannot hold all the frames");
+
+            // Task 0267 (provenance F54): the animation's annotation tracks carry the name of the bone of each
+            // transform track, one entry (name pointer, then the annotation array) per track. Kept only when there is
+            // exactly one per track; a clip with none (most) keeps its tracks unnamed and binds by index.
+            {
+                const ArrayRef notes = file.arrayAt(at(AnnotationTracksOffset));
+                if (notes.mData && notes.mSize != 0 && notes.mSize == clip.mNumTransformTracks)
+                {
+                    clip.mTrackNames.resize(notes.mSize);
+                    for (std::uint32_t k = 0; k < notes.mSize; ++k)
+                        if (const auto name = file.pointerAt(
+                                { notes.mData->mSection, notes.mData->mOffset + AnnotationTrackSize * k }))
+                            clip.mTrackNames[k] = std::string(file.cstring(*name));
+                }
+            }
 
             const ArrayRef offsets = file.arrayAt(at(BlockOffsetsOffset));
             const ArrayRef floatOffsets = file.arrayAt(at(FloatBlockOffsetsOffset));

@@ -359,6 +359,9 @@ namespace MWPhysics
             bool mPerSex = false;
         };
         const std::vector<NeutralClipOp>& getNeutralClipOps() const { return mNeutralClipOps; }
+        /// Task 0267: queues a paired clip (or, with an empty name, its end) for the neutral actor behind `key`; the
+        /// caller hands it to the renderer with the other clip ops. False when no such actor is drawn.
+        bool queueNeutralPairedClip(const void* key, std::string_view clip);
         /// Task 0178 (combat stage S5-6): the clips whose speed the pack set in the last updateNeutralActors (applied
         /// by the caller after the clip ops: a new clip resets its speed).
         struct NeutralClipSpeedOp

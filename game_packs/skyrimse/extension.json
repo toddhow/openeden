@@ -271,6 +271,11 @@
       "default": false
     },
     {
+      "key": "paired animations",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "horse test owned",
       "type": "string",
       "default": ""

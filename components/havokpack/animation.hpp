@@ -95,6 +95,9 @@ namespace HavokPack
         std::vector<std::vector<FloatTrackBlock>> mFloatBlocks;
         // Float slot of each float track (the skeleton's mFloatSlots index); empty means track i drives slot i.
         std::vector<std::int16_t> mFloatTrackToSlot;
+        // Task 0267 (provenance F54): the name each transform track carries in the animation's annotation tracks;
+        // empty when the clip has none for every track. A paired clip (two actors) names its tracks this way.
+        std::vector<std::string> mTrackNames;
 
         // The bone each track drives.
         std::uint32_t boneOfTrack(std::uint32_t track) const

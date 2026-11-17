@@ -15,6 +15,7 @@
 // in Stats::mRulesFailures.
 
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/paired_animation.hpp>
 #include <openeden/game/riding_rules.hpp>
 
 #include <cstddef>
@@ -93,6 +94,11 @@ namespace MWPhysics
         std::function<bool(openeden::sdk::game::RiderControls&)> mControls;
         std::function<bool(double, double, double, float)> mCarry;
         std::function<bool(double, double, double)> mRelease;
+        /// Task 0267: the paired clips (sdk/include/openeden/game/paired_animation.hpp): what a clip holds, and
+        /// playing a side of one (an empty name clears it) on the actor behind a key.
+        std::function<openeden::sdk::game::PairedStatus(std::string_view, openeden::sdk::game::PairedClipInfo&)>
+            mPairedInfo;
+        std::function<bool(const void*, std::string_view)> mPairedPlay;
     };
 
     class NeutralActorBridge
@@ -183,7 +189,9 @@ namespace MWPhysics
             const void* mKey;
         };
 
-        class Writer final : public openeden::sdk::game::ActorRequestWriter, public openeden::sdk::game::RidingWriter
+        class Writer final : public openeden::sdk::game::ActorRequestWriter,
+                             public openeden::sdk::game::RidingWriter,
+                             public openeden::sdk::game::PairedWriter
         {
         public:
             explicit Writer(NeutralActorBridge& bridge)
@@ -208,6 +216,10 @@ namespace MWPhysics
             bool riderControls(openeden::sdk::game::RiderControls& out) const override;
             bool carryPlayer(double x, double y, double z, float heading) override;
             bool releasePlayer(double x, double y, double z) override;
+            // Task 0267 (PairedWriter): valid during update() and during dismountRider().
+            openeden::sdk::game::PairedStatus pairedClipInfo(
+                std::string_view clipName, openeden::sdk::game::PairedClipInfo& out) override;
+            bool playPairedClip(openeden::sdk::game::ActorHandle actor, std::string_view clipName) override;
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
             bool mSyncRiding = false; ///< true only while dismountRider() runs (task 0255)
 

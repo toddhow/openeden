@@ -21,6 +21,7 @@
 
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/bindings.hpp>
+#include <openeden/game/paired_animation.hpp>
 #include <openeden/game/riding_rules.hpp>
 #include <openeden/game/save_chunks.hpp>
 
@@ -69,6 +70,27 @@ namespace game_skyrimse
     inline constexpr float kSaddleZ = 134.92f;
     inline constexpr float kRiderLift = 0.f;
 
+    /// Task 0267: the pack setting (bool, default false; needs `riding`). On, mounting and dismounting play the
+    /// game's own paired clips (the rider's side on the player's body, the horse's side on the horse) instead of
+    /// putting the player on the saddle and on the ground at once.
+    inline constexpr std::string_view kPairedAnimationsKey = "paired animations";
+    /// The clips (sdk/include/openeden/game/paired_animation.hpp names the "~1/" and "~2/" convention). MEASURED:
+    /// docs/tasks/0267-skyrim-paired-animations.md section 1.
+    inline constexpr std::string_view kPairedMountClip = "~1/actors/sharedkillmoves/human&horse/paired_mount";
+    inline constexpr std::string_view kPairedMountHorseClip = "~2/actors/sharedkillmoves/human&horse/paired_mount";
+    inline constexpr std::string_view kPairedDismountClip = "~1/actors/sharedkillmoves/human&horse/paired_dismount";
+    inline constexpr std::string_view kPairedDismountHorseClip
+        = "~2/actors/sharedkillmoves/human&horse/paired_dismount";
+    /// How long a mount waits for a clip that is still being read before it mounts without the animation. OURS.
+    inline constexpr float kPairedWaitSeconds = 3.f;
+
+    enum class RidePhase : std::uint8_t
+    {
+        Ride = 0, ///< on the saddle (or on foot)
+        Mounting = 1, ///< the paired mount clip is playing
+        Dismounting = 2, ///< the paired dismount clip is playing
+    };
+
     enum class Gait : std::uint8_t
     {
         Stand = 0,
@@ -103,6 +125,16 @@ namespace game_skyrimse
     /// Where the player is put down: to the right of the horse (at its heading), at the horse's height.
     [[nodiscard]] Point dismountPoint(double horseX, double horseY, double horseZ, float heading);
 
+    /// Where a point given in the horse's frame (x to its right, y forward, z up, the unit of the clip) is in the
+    /// world.
+    [[nodiscard]] Point horseFramePoint(
+        double horseX, double horseY, double horseZ, float heading, double x, double y, double z);
+
+    /// The heading the horse must have for a rider standing at (riderX, riderY) to be at its left flank (the paired
+    /// mount clip starts there). `fallback` when the two are (nearly) at the same place or a value is not finite.
+    [[nodiscard]] float headingForLeftFlank(
+        double horseX, double horseY, double riderX, double riderY, float fallback);
+
     /// The rider clip of a gait: a path under the actor's animations folder (`horse_rider/idle`, ...), with no
     /// extension. The files are in Skyrim - Animations.bsa under actors/character/animations/horse_rider.
     [[nodiscard]] std::string_view riderClipFor(Gait gait);
@@ -132,6 +164,20 @@ namespace game_skyrimse
         {
             mBrainControl = std::move(control);
         }
+        /// Task 0267 (kPairedAnimationsKey). Off (the default): mounts and dismounts are instant, as in task 0251.
+        void setPairedAnimations(bool on) { mPaired = on; }
+        [[nodiscard]] bool pairedAnimations() const { return mPaired; }
+        [[nodiscard]] RidePhase phase() const { return mPhase; }
+        /// The horse's placement id while the player sits on the saddle, 0 during a paired mount or dismount (his
+        /// body is drawn at the horse's origin then, not following the saddle) and on foot.
+        [[nodiscard]] std::uint32_t bodyMountReference() const
+        {
+            return mMounted && mPhase == RidePhase::Ride ? static_cast<std::uint32_t>(mHorse.reference) : 0u;
+        }
+        /// Where the player's body is drawn relative to the player (the world offset to add): zero on foot and on the
+        /// saddle, the horse's origin minus the saddle while a paired clip plays (the player himself stays on the
+        /// saddle, where his camera is; the clip is in the horse's frame).
+        [[nodiscard]] Point bodyOffset() const { return mMounted && mPhase != RidePhase::Ride ? mBodyOffset : Point(); }
         /// Called with a line for the log when the rider mounts or dismounts.
         void setLog(std::function<void(const std::string&)> log) { mLog = std::move(log); }
 
@@ -161,7 +207,7 @@ namespace game_skyrimse
         /// True while the player sits on a horse.
         [[nodiscard]] bool riding() const { return mMounted; }
         /// The rider clip of the current gait (empty when not riding): what the player's body plays.
-        [[nodiscard]] std::string_view clip() const { return mMounted ? riderClipFor(mGait) : std::string_view(); }
+        [[nodiscard]] std::string_view clip() const;
         [[nodiscard]] Gait gait() const { return mGait; }
         [[nodiscard]] openeden::sdk::game::ActorHandle mount() const { return mHorse; }
         [[nodiscard]] std::uint32_t mounts() const { return mMountCount; }
@@ -187,7 +233,20 @@ namespace game_skyrimse
         void dismount(openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player,
             const std::string& why);
 
+        // Task 0267: a paired clip is playing.
+        void beginDismount(openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player,
+            const openeden::sdk::game::PairedClipInfo& info);
+        void updatePaired(float seconds, openeden::sdk::game::ActorRequestWriter& writer,
+            openeden::sdk::game::RidingWriter& player);
+        void clearHorseClip(openeden::sdk::game::RidingWriter* anyWriter);
+
         bool mEnabled = false;
+        bool mPaired = false; ///< task 0267
+        RidePhase mPhase = RidePhase::Ride;
+        float mPhaseTime = 0.f; ///< seconds into the paired clip that plays
+        Point mBodyOffset; ///< task 0267: see bodyOffset()
+        float mPairedWait = 0.f; ///< seconds a mount has waited for its clip
+        openeden::sdk::game::PairedClipInfo mPairedInfo; ///< of the clip that plays
         std::string mTestOwned; ///< lower case
         HorseLookup mLookup;
         std::function<void(openeden::sdk::game::WorldId, bool)> mBrainControl;
@@ -198,6 +257,8 @@ namespace game_skyrimse
         openeden::sdk::game::ActorHandle mRequest;
         bool mHasRequest = false;
 
+        /// task 0267: a load ended a paired clip: the horse's is cleared at the next update
+        bool mClearHorseClip = false;
         bool mStopHorse = false; ///< dismountNow left the horse's movement request for the next update to clear
         bool mRestorePending = false; ///< a load said he was riding: put him on his feet at the next update
         bool mMounted = false;

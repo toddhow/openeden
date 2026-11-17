@@ -4770,6 +4770,9 @@ namespace game_skyrimse
                     {
                         mCellSource.riding().setEnabled(true);
                         mCellSource.riding().setTestOwned(settings->getString(kPackId, kHorseTestOwnedKey, ""));
+                        // Task 0267: the game's paired mount and dismount clips.
+                        mCellSource.riding().setPairedAnimations(
+                            settings->getBool(kPackId, kPairedAnimationsKey, false));
                         mCellSource.riding().setLog(
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                         say(openeden::sdk::LogLevel::Info, "riding: on");

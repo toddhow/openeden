@@ -11,6 +11,7 @@
 #include <components/havokpack/clipevents.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/paired_animation.hpp>
 
 #include "../mwphysics/ragdolltypes.hpp"
 #include "../mwworld/ptr.hpp"
@@ -74,6 +75,15 @@ namespace MWRender
         virtual std::shared_ptr<const HavokPack::ClipMeta> neutralClipMeta(std::string_view /*clip*/, bool /*perSex*/)
         {
             return {};
+        }
+
+        /// Task 0267: what a paired clip ("~1/<path>", "~2/<path>") holds, read on a worker; the first ask starts the
+        /// read. Main thread. The default has no paired clips.
+        virtual openeden::sdk::game::PairedStatus neutralPairedClipInfo(
+            std::string_view /*clip*/, openeden::sdk::game::PairedClipInfo& out)
+        {
+            out = {};
+            return openeden::sdk::game::PairedStatus::Failed;
         }
 
         // Task 0174 (S5-5, death ragdolls). All main thread. The defaults do nothing, so an implementation with no

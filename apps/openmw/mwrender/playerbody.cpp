@@ -129,6 +129,10 @@ namespace MWRender
         Anim::Transform& transform = *mBody->transform();
         transform.translation = playerTransform.translation;
         transform.rotation = playerTransform.rotation;
+        // Task 0267: while a paired clip plays the body is drawn at the horse's origin, the player on the saddle.
+        if (state.bodyOffsetX != 0.f || state.bodyOffsetY != 0.f || state.bodyOffsetZ != 0.f)
+            transform.translation = vsg::vec3(playerTransform.translation.x + state.bodyOffsetX,
+                playerTransform.translation.y + state.bodyOffsetY, playerTransform.translation.z + state.bodyOffsetZ);
 
         // Task 0255 (riding): the body is drawn where the saddle bone really is. The pack carries the player to the
         // saddle's REST place; the gait moves the bone a few units, and the body follows (the player's own position,
@@ -192,7 +196,12 @@ namespace MWRender
         // loops it (and does not walk). It stays where the stub player is, which the pack carries to the saddle.
         if (state.ridingClip != mRidingClip)
         {
-            Scene::setNeutralObjectPose(*mBody, state.ridingClip, false);
+            // Task 0267: a name that starts with '~' is one side of a paired clip: it plays once and holds its last
+            // pose.
+            if (!state.ridingClip.empty() && state.ridingClip.front() == '~')
+                Scene::playNeutralObjectPaired(*mBody, state.ridingClip);
+            else
+                Scene::setNeutralObjectPose(*mBody, state.ridingClip, false);
             Log(Debug::Info) << "PLAYERBODY riding clip '" << mRidingClip << "' -> '" << state.ridingClip << "'";
             mRidingClip = state.ridingClip;
         }

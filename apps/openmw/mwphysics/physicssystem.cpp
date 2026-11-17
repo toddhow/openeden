@@ -1287,6 +1287,18 @@ namespace MWPhysics
             });
     }
 
+    bool PhysicsSystem::queueNeutralPairedClip(const void* key, std::string_view clip)
+    {
+        NeutralActorEntry* entry = findNeutralActor(key);
+        if (entry == nullptr)
+            return false;
+        const auto found = mObjects.find(entry->mRef);
+        if (found == mObjects.end())
+            return false;
+        mNeutralClipOps.push_back({ found->second->getPtr(), std::string(clip), false });
+        return true;
+    }
+
     void PhysicsSystem::NeutralClipApplier::playClip(const void* key, std::string_view clip, bool perSex)
     {
         NeutralActorEntry* entry = mPhysics.findNeutralActor(key);

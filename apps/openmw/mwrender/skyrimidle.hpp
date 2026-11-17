@@ -25,6 +25,7 @@
 #include <components/animation/controller.hpp>
 #include <components/animation/transform.hpp>
 #include <components/havokpack/idle.hpp>
+#include <openeden/game/paired_animation.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender::SkyrimIdle
@@ -61,6 +62,16 @@ namespace MWRender::SkyrimIdle
     /// future that holds null. Shared and cached by the pair like loadIdleAsync.
     [[nodiscard]] ClipFuture loadClipAsync(
         const VFS::Manager& vfs, const std::string& skeletonHkxPath, const std::string& clipHkxPath);
+
+    /// Task 0267: a PAIRED clip named "~1/<path>" or "~2/<path>" (components/havokpack/paired.hpp): the same worker
+    /// load, the clip file bound to one side's bone names. loadIdleAsync and loadClipAsync's callers reach it by
+    /// giving such a clip name. A future holding null: a bad name, a missing file, a clip that is not paired.
+    [[nodiscard]] ClipFuture loadPairedAsync(const VFS::Manager& vfs, std::string_view clipName);
+
+    /// Task 0267: what a game needs of a paired clip, without waiting: NotReady while the worker reads it (the read is
+    /// started by the first ask), Failed for a clip that cannot be used. Main thread.
+    [[nodiscard]] openeden::sdk::game::PairedStatus pairedClipInfo(
+        const VFS::Manager& vfs, std::string_view clipName, openeden::sdk::game::PairedClipInfo& out);
 
     /// Writes one Havok transform into a scene graph transform (translation, rotation, scale). The scene transform
     /// stores the transposed rotation matrix; Anim::Transform::setAttitude takes care of it.

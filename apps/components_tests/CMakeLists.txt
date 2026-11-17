@@ -281,6 +281,8 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testexportmotion.cpp
     havokpack/testidle.cpp
     havokpack/testlocomotion.cpp
+    havokpack/testpairedsurvey.cpp
+    havokpack/testpaired.cpp
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp
@@ -733,6 +735,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimseridingstables.cpp
     skyrimse/testskyrimseriding2.cpp
+    skyrimse/testskyrimseriding3.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsevmad.cpp

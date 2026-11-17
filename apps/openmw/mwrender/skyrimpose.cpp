@@ -108,11 +108,45 @@ namespace MWRender::SkyrimPose
         return mActive && mClip != nullptr && !mPending;
     }
 
+    std::size_t Controller::drivenBones() const
+    {
+        const std::lock_guard lock(mMutex);
+        return mDriven.size();
+    }
+
+    void Controller::captureDriven() const
+    {
+        for (const vsg::ref_ptr<Anim::Transform>& node : mTargets)
+        {
+            if (!node)
+                continue;
+            const bool known = std::any_of(
+                mDriven.begin(), mDriven.end(), [&](const DrivenBone& bone) { return bone.mNode == node; });
+            if (!known)
+                mDriven.push_back({ node, node->translation, node->rotation, node->scale });
+        }
+    }
+
+    void Controller::restoreDriven() const
+    {
+        for (const DrivenBone& bone : mDriven)
+        {
+            bone.mNode->translation = bone.mTranslation;
+            bone.mNode->rotation = bone.mRotation;
+            bone.mNode->scale = bone.mScale;
+        }
+        mDriven.clear();
+    }
+
     void Controller::run(vsg::Object&, float time) const
     {
         const std::lock_guard lock(mMutex);
         if (!mActive)
+        {
+            if (!mDriven.empty())
+                restoreDriven(); // task 0267: a paired clip ended
             return;
+        }
         if (mPending)
         {
             if (!mFuture.valid())
@@ -128,6 +162,8 @@ namespace MWRender::SkyrimPose
             else
             {
                 mPending = false;
+                if (!mDriven.empty())
+                    restoreDriven(); // task 0267: the clip this one replaces was a paired one
                 mClip = mFuture.get();
                 mFuture = {};
                 if (mClip)
@@ -146,6 +182,8 @@ namespace MWRender::SkyrimPose
                     mScratch.resize(mTargets.size());
                     if (bound == 0)
                         mClip.reset();
+                    else if (!mClip->mClip.mTrackNames.empty())
+                        captureDriven(); // task 0267
                     static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
                     if (trace && mClip)
                     {

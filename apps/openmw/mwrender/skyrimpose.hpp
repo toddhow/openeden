@@ -67,7 +67,25 @@ namespace MWRender::SkyrimPose
 
         void run(vsg::Object& target, float time) const override;
 
+        /// Task 0267: how many bones a paired clip has driven and not given back yet (see run()).
+        [[nodiscard]] std::size_t drivenBones() const;
+
     private:
+        // Task 0267: a paired clip drives bones no other clip of the actor does (the NIF's top node `NPC` carries the
+        // placement of the rider in the horse's frame). Nothing else would ever write them back, so the values the
+        // nodes had before such a clip are kept and given back when the clip is replaced or ended. Only paired clips
+        // fill this list: every other clip behaves as it did.
+        struct DrivenBone
+        {
+            vsg::ref_ptr<Anim::Transform> mNode;
+            vsg::vec3 mTranslation;
+            vsg::mat3 mRotation;
+            vsg::vec3 mScale;
+        };
+        void captureDriven() const;
+        void restoreDriven() const;
+        mutable std::vector<DrivenBone> mDriven;
+
         const VFS::Manager& mVfs;
         std::string mSkeleton;
         std::string mProject; ///< task 0212

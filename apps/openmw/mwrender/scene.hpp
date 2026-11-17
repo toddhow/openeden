@@ -111,6 +111,9 @@ namespace MWRender
         /// Task 0251 (riding): loops `clip` on a neutral object (its SkyrimPose controller, as a seated actor does); an
         /// empty name gives the idle and the gait back.
         static void setNeutralObjectPose(MWAnim::Object& object, std::string_view clip, bool perSex);
+        /// Task 0267: plays one side of a paired clip ("~1/<path>") once on a neutral object and holds its last pose;
+        /// an empty name gives the idle and the gait back. Unlike playNeutralObjectClip it does not draw the weapon.
+        static void playNeutralObjectPaired(MWAnim::Object& object, std::string_view clip);
         /// Task 0255 (riding): the drawn neutral object of the placement with this id (empty when none is drawn). Walks
         /// every cell: call it when the id changes, not every frame.
         MWWorld::Ptr findNeutralObject(std::uint32_t placement);
@@ -127,6 +130,8 @@ namespace MWRender
         HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& ptr) override;
         HavokPack::ClipProgress neutralActorClipProgressWaiting(const MWWorld::Ptr& ptr, int waitMilliseconds) override;
         std::shared_ptr<const HavokPack::ClipMeta> neutralClipMeta(std::string_view clip, bool perSex) override;
+        openeden::sdk::game::PairedStatus neutralPairedClipInfo(
+            std::string_view clip, openeden::sdk::game::PairedClipInfo& out) override;
         bool neutralRagdollStartPose(const MWWorld::Ptr& ptr, MWPhysics::ActorStartPose& out) override;
         bool beginNeutralRagdoll(const MWWorld::Ptr& ptr, std::span<const std::string> names,
             std::span<const MWPhysics::RagdollBoneState> initial, std::string& reason) override;

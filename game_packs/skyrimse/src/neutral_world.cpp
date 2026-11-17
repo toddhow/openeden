@@ -498,7 +498,13 @@ namespace game_skyrimse
             out.castHoldClip = hands.castHoldClip;
         }
         out.ridingClip = std::string(mRiding.clip()); // task 0251
-        out.ridingMount = mRiding.mountReference(); // task 0255
+        out.ridingMount = mRiding.bodyMountReference(); // task 0255 (0267: 0 while a paired clip plays)
+        {
+            const Point offset = mRiding.bodyOffset(); // task 0267
+            out.bodyOffsetX = static_cast<float>(offset.mX);
+            out.bodyOffsetY = static_cast<float>(offset.mY);
+            out.bodyOffsetZ = static_cast<float>(offset.mZ);
+        }
         return true;
     }
 
