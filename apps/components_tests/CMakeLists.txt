@@ -591,6 +591,10 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemagic.cpp
     skyrimse/testskyrimsecombatbeams.cpp
     skyrimse/testskyrimsecombatmagic.cpp
+    skyrimse/testskyrimsespellevents.cpp
+    skyrimse/testskyrimsepersistentscripts.cpp
+    skyrimse/testskyrimsescriptvariable.cpp
+    skyrimse/testskyrimsepapyrusspellevents.cpp
     skyrimse/testskyrimsecombatprojrecords.cpp
     skyrimse/testskyrimseperks.cpp
     skyrimse/testskyrimseperksreal.cpp

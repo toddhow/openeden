@@ -2464,7 +2464,57 @@ namespace game_skyrimse
         if (!awaitIndex())
             return {};
         const std::shared_ptr<const Materialised> content = materialise(cell, error);
-        return content != nullptr ? content->mScripts : std::vector<ReferenceScripts>();
+        if (content == nullptr)
+            return {};
+        std::vector<ReferenceScripts> result = content->mScripts;
+        // Task 0292: the world's persistent placements that stand in this exterior square are part of its content
+        // (loadCell adds them) and so are their scripts: the Winterhold bridge's trigger box (0x50785) is persistent.
+        const auto entryIt = mCells.find(cell);
+        if (entryIt == mCells.end())
+            return result;
+        const CellEntry& entry = entryIt->second;
+        if (entry.mInfo.interior || !entry.mInfo.hasGrid || entry.mWorldPersistent)
+            return result;
+        const auto world = mWorlds.find(entry.mInfo.world);
+        if (world == mWorlds.end() || world->second.mPersistentCell == kNullFormId
+            || world->second.mPersistentCell == cell)
+            return result;
+        const std::shared_ptr<const Materialised> persistent = materialise(world->second.mPersistentCell, error);
+        if (persistent == nullptr)
+            return result;
+        std::set<FormId> own;
+        for (const sdkgame::PlacedObject& placed : content->mObjects)
+            own.insert(static_cast<FormId>(placed.id));
+        for (const ReferenceScripts& s : persistent->mScripts)
+        {
+            if (own.count(s.mReference) != 0 || !std::isfinite(s.mPosition.x) || !std::isfinite(s.mPosition.y))
+                continue;
+            // scripts without a primitive carry no position: look the placement up among the persistent objects
+            double px = s.mPosition.x;
+            double py = s.mPosition.y;
+            if (!s.mHasPrimitive)
+            {
+                bool found = false;
+                for (const sdkgame::PlacedObject& o : persistent->mObjects)
+                    if (static_cast<FormId>(o.id) == s.mReference)
+                    {
+                        px = o.position.x;
+                        py = o.position.y;
+                        found = true;
+                        break;
+                    }
+                if (!found)
+                    continue;
+            }
+            if (static_cast<std::int32_t>(std::floor(px / kCellSize)) == entry.mInfo.gridX
+                && static_cast<std::int32_t>(std::floor(py / kCellSize)) == entry.mInfo.gridY)
+            {
+                ReferenceScripts copy = s;
+                copy.mCell = cell; // it belongs to the square that holds it now
+                result.push_back(std::move(copy));
+            }
+        }
+        return result;
     }
 
     const std::vector<vmad::Script>* SkyrimWorldView::baseScriptsOf(FormId base) const

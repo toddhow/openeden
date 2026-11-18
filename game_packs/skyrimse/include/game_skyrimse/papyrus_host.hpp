@@ -638,6 +638,15 @@ namespace game_skyrimse
         void onItemMoved(FormId from, FormId to, FormId item, std::int32_t count);
         /// OnHit goes to the victim's scripts (and alias scripts that hold it). `attacker` 0: unknown.
         void onActorHit(FormId victim, FormId attacker, bool blocked, bool bash);
+        /// Task 0292 (the College of Winterhold's tests): what a spell did. OnHit(akAggressor = caster, akSource = the
+        /// spell) goes to the scripts that hold `target`; with `target` 0 (the shot ended on the world at x, y, z) to the
+        /// scripts of every reference or alias reference within kSpellHitRadius of that point.
+        static constexpr double kSpellHitRadius = 256.0;
+        void onSpellHit(FormId caster, FormId spell, FormId target, double x, double y, double z);
+        /// OnMagicEffectApply(akCaster, akEffect) goes to the scripts that hold `target`.
+        void onMagicEffectApplied(FormId caster, FormId target, FormId effect);
+        /// OnSpellCast(akSpell) goes to the scripts that hold `caster`.
+        void onSpellCast(FormId caster, FormId spell);
         /// OnDying and OnDeath go to the victim's scripts; the actor counts as dead for IsDead.
         void onActorDied(FormId victim, FormId killer);
         /// Task 0264: an essential actor collapsed (OnEnterBleedout on the scripts that hold it).

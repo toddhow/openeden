@@ -694,6 +694,11 @@
       "key": "actor cell moves",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "college",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

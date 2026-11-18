@@ -1148,6 +1148,14 @@ namespace game_skyrimse
         return isKnownActor(subject) && actorValueIndex >= kAvHealth && actorValueIndex <= kAvStamina ? 1.f : 0.f;
     }
 
+    float SkyrimConditionWorld::scriptVariable(std::uint32_t object, const std::string& name) const
+    {
+        if (mLiveQuestVariable) // task 0292: the live source answers for any form a script holds a variable on
+            if (const std::optional<float> live = mLiveQuestVariable(resolve(object), name))
+                return *live;
+        return 0.f;
+    }
+
     float SkyrimConditionWorld::questVariable(std::uint32_t quest, const std::string& name) const
     {
         if (mLiveQuestVariable) // task 0261: what the running script holds wins
@@ -1280,6 +1288,9 @@ namespace game_skyrimse
             case 131: // GetPCIsSex
             case 130: // GetPCIsRace
                 return mPlayer != nullptr;
+            case 630: // task 0292: GetVMScriptVariable of a reference's script (the bridge trigger of Winterhold)
+                return static_cast<bool>(mLiveQuestVariable)
+                    && mLiveQuestVariable(resolve(c.mParam1), c.mString2).has_value();
             case 629:
             { // GetVMQuestVariable: the script's value before any script ran
                 if (mLiveQuestVariable && mLiveQuestVariable(resolve(c.mParam1), c.mString2))

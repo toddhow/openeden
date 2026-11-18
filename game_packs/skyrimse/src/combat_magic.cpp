@@ -752,6 +752,17 @@ namespace game_skyrimse
             }
             if (!effectConditionsAllow(caster, target, effect, *record)) // task 0236
                 continue;
+            if (mSpellEventSink) // task 0292: OnMagicEffectApply
+            {
+                SpellEvent event;
+                event.mKind = SpellEvent::Kind::EffectApplied;
+                event.mCaster = caster.mSubject;
+                event.mTarget = target.mSubject;
+                event.mHasTarget = true;
+                event.mSpell = spell.mCommon.mId;
+                event.mEffect = effect.mEffect;
+                emitSpellEvent(event);
+            }
             applyOneEffect(writer, caster, target, spell, effect, *record, blocked, where);
             if (target.mDead)
                 break;
@@ -1059,6 +1070,7 @@ namespace game_skyrimse
             mConcentrations.push_back(c);
             ++mSpellsCast;
             trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " (held) magicka " + num(f->mMagicka));
+            emitCastEvent(cast.mCaster, spell);
             return;
         }
         const float cost = cast.mShout ? 0.f : static_cast<float>(spell.mCost); // task 0205: a shout is free
@@ -1085,6 +1097,7 @@ namespace game_skyrimse
             ++mSpellsCast;
             trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " cost " + num(cost) + " magicka "
                 + num(f->mMagicka) + " of " + num(f->mProfile.mMagickaMax));
+            emitCastEvent(cast.mCaster, spell);
         }
         if (spellSummons(spell))
         {
@@ -1164,6 +1177,30 @@ namespace game_skyrimse
             if (Fighter* owner = find(result.owner))
                 if (deliverAtEnd(writer, result, *owner, *launched.mSpell))
                     return true;
+        }
+        if (mSpellEventSink) // task 0292: OnHit with the spell as its source (on an actor, or where it ended)
+        {
+            SpellEvent event;
+            event.mKind = SpellEvent::Kind::Hit;
+            event.mCaster = result.owner;
+            event.mSpell = launched.mSpell->mCommon.mId;
+            event.mX = result.x;
+            event.mY = result.y;
+            event.mZ = result.z;
+            if (result.fate == openeden::sdk::game::ProjectileFate::HitActor)
+            {
+                event.mHasTarget = true;
+                event.mTarget = CombatSubject::of(result.actor);
+                emitSpellEvent(event);
+            }
+            else if (result.fate == openeden::sdk::game::ProjectileFate::HitPlayer)
+            {
+                event.mHasTarget = true;
+                event.mTarget = CombatSubject::ofPlayer();
+                emitSpellEvent(event);
+            }
+            else if (result.fate == openeden::sdk::game::ProjectileFate::HitWorld)
+                emitSpellEvent(event);
         }
         if (result.fate != openeden::sdk::game::ProjectileFate::HitActor
             && result.fate != openeden::sdk::game::ProjectileFate::HitPlayer)

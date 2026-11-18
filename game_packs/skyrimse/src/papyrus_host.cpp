@@ -3293,6 +3293,58 @@ namespace game_skyrimse
                 ++m.mCounters.mCombatEvents;
     }
 
+    // Task 0292: what a spell did reaches the scripts that hold the target (or the references near where it ended).
+    void PapyrusHost::onSpellHit(FormId caster, FormId spell, FormId target, double x, double y, double z)
+    {
+        Impl& m = *mImpl;
+        const std::vector<PapyrusValue> args = { m.formValue(caster), m.formValue(spell), PapyrusValue::makeNone(),
+            PapyrusValue::makeBool(false), PapyrusValue::makeBool(false), PapyrusValue::makeBool(false),
+            PapyrusValue::makeBool(false) };
+        std::vector<InstanceId> instances;
+        if (target != 0)
+            instances = m.instancesHolding(target);
+        else
+        {
+            const auto nearPoint = [&](FormId reference) {
+                double rx = 0.0, ry = 0.0, rz = 0.0;
+                if (reference == 0 || !m.mData.referencePosition(reference, rx, ry, rz))
+                    return false;
+                const double dx = rx - x, dy = ry - y, dz = rz - z;
+                return dx * dx + dy * dy + dz * dz <= kSpellHitRadius * kSpellHitRadius;
+            };
+            std::set<FormId> seen;
+            for (const auto& entry : m.mByForm)
+                if (seen.insert(entry.first).second && nearPoint(entry.first))
+                    for (const InstanceId instance : m.instancesOf(entry.first))
+                        instances.push_back(instance);
+            for (const auto& [key, ids] : m.mByAlias)
+            {
+                const FormId held = m.aliasReferenceOf(key.first, key.second);
+                if (held != 0 && seen.insert(held).second && nearPoint(held))
+                    instances.insert(instances.end(), ids.begin(), ids.end());
+            }
+        }
+        for (const InstanceId instance : instances)
+            if (m.sendEvent(instance, "OnHit", args))
+                ++m.mCounters.mCombatEvents;
+    }
+
+    void PapyrusHost::onMagicEffectApplied(FormId caster, FormId target, FormId effect)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(target))
+            if (m.sendEvent(instance, "OnMagicEffectApply", { m.formValue(caster), m.formValue(effect) }))
+                ++m.mCounters.mCombatEvents;
+    }
+
+    void PapyrusHost::onSpellCast(FormId caster, FormId spell)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(caster))
+            if (m.sendEvent(instance, "OnSpellCast", { m.formValue(spell) }))
+                ++m.mCounters.mCombatEvents;
+    }
+
     void PapyrusHost::onActorDied(FormId victim, FormId killer)
     {
         Impl& m = *mImpl;

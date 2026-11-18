@@ -538,6 +538,8 @@ namespace game_skyrimse
         bool talkedToPlayer(conditions::Subject subject) const override;
         float actorValuePercent(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float questVariable(std::uint32_t quest, const std::string& name) const override;
+        /// Task 0292: fn_630 GetVMScriptVariable reads what the running scripts of the object hold (the live source)
+        float scriptVariable(std::uint32_t object, const std::string& name) const override;
         /// fn_47 GetItemCount for the stand-in player: his gold for Gold001 (Skyrim.esm 0x0000000F), nothing else.
         float itemCount(conditions::Subject subject, std::uint32_t item) const override;
         bool playerCanIntimidate(conditions::Subject subject) const override;

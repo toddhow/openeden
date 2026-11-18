@@ -934,6 +934,31 @@ namespace game_skyrimse
         void aiNoteDamage(const openeden::sdk::game::DamageReport& report);
         /// Task 0231 (barks): told of the fight's moments (an engagement, a flight, the end of a fight, a hurt actor, a
         /// death). Hook calls only; empty (the default) and nothing is looked at.
+        /// Task 0292 (the College of Winterhold's tests): what a spell did, for the Papyrus host's OnHit,
+        /// OnMagicEffectApply and OnSpellCast events. `mCaster` is who cast it; `mTarget` is who it reached (`mHasTarget`
+        /// false for a hit on the world, where `mX`, `mY`, `mZ` is where it ended). Cast: a non-held spell went off.
+        /// Hit: a shot ended on something. EffectApplied: one effect of the spell reached a target (its conditions
+        /// held), the caster itself for a self spell.
+        struct SpellEvent
+        {
+            enum class Kind : std::uint8_t
+            {
+                Cast,
+                Hit,
+                EffectApplied,
+            };
+            Kind mKind = Kind::Cast;
+            openeden::sdk::game::CombatSubject mCaster;
+            openeden::sdk::game::CombatSubject mTarget;
+            bool mHasTarget = false;
+            FormId mSpell = kNullFormId;
+            FormId mEffect = kNullFormId;
+            double mX = 0.0;
+            double mY = 0.0;
+            double mZ = 0.0;
+        };
+        using SpellEventSink = std::function<void(const SpellEvent&)>;
+        void setSpellEventSink(SpellEventSink sink) { mSpellEventSink = std::move(sink); }
         using BarkSink = std::function<void(barks::Kind, openeden::sdk::game::ActorHandle)>;
         void setBarkSink(BarkSink sink) { mBarkSink = std::move(sink); }
         /// A damage report as it went to the core: a living actor that lost health says a hurt line.
@@ -1367,6 +1392,22 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, float> mAiCooldown; ///< the combat clock before which it does not engage
         std::vector<AiMoveIntent> mAiMoves;
         BarkSink mBarkSink; ///< task 0231
+        SpellEventSink mSpellEventSink; ///< task 0292
+        void emitCastEvent(openeden::sdk::game::CombatSubject caster, const SpellRecord& spell) const
+        {
+            if (!mSpellEventSink)
+                return;
+            SpellEvent event;
+            event.mKind = SpellEvent::Kind::Cast;
+            event.mCaster = caster;
+            event.mSpell = spell.mCommon.mId;
+            mSpellEventSink(event);
+        }
+        void emitSpellEvent(const SpellEvent& event) const
+        {
+            if (mSpellEventSink)
+                mSpellEventSink(event);
+        }
         BleedoutSink mBleedoutSink; ///< task 0264
         bool mEssentialBleedout = false; ///< task 0264
         KillMoveHook mKillMoveHook; ///< task 0278

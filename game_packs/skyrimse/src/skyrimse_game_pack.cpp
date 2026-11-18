@@ -592,6 +592,11 @@ namespace game_skyrimse
                         + (mHost.startQuestForTest(mainquest::kUnboundQuest, stage) ? "set" : "refused"));
             }
 
+            void enableCollege() // task 0292: quests move actors near the player, box triggers fire
+            {
+                mCollege = true;
+                mHost.setRelocation(true, mainquest::kRelocateRange);
+            }
             [[nodiscard]] bool mainQuestOn() const { return mMainQuest; } // task 0274
             [[nodiscard]] std::string formName(FormId form) const { return mData.nameOf(form); } // task 0274
             void setSceneParkSeconds(float seconds) { mSceneParkSeconds = seconds; } // task 0287
@@ -724,7 +729,10 @@ namespace game_skyrimse
                 }
                 if ((mHouses || mMainQuest || mView.aliasPackagesOn()) && access.mSetLiveQuestVariable)
                     access.mSetLiveQuestVariable([this](FormId quest, const std::string& name) -> std::optional<float> {
-                        const std::optional<double> live = mHost.anyNumberVariable(quest, name);
+                        std::optional<double> live = mHost.anyNumberVariable(quest, name);
+                        if (!live && name.size() > 6 && name.compare(0, 2, "::") == 0
+                            && name.compare(name.size() - 4, 4, "_var") == 0) // task 0292: "::X_var" is X
+                            live = mHost.anyNumberVariable(quest, name.substr(2, name.size() - 6));
                         return live ? std::optional<float>(static_cast<float>(*live)) : std::nullopt;
                     });
                 if (mLogStoryFills) // task 0217: the aliases of every quest the story manager started, with their names
@@ -1528,9 +1536,10 @@ namespace game_skyrimse
                             volume.mPosition[2] = static_cast<double>(s.mPosition.z);
                             volume.mCell = s.mCell;
                             volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
-                            volume.mAcceptBox = mMainQuest; // task 0274: the cart ride's slabs
+                            // tasks 0274 and 0292: the cart ride's slabs and the College bridge's box
+                            volume.mAcceptBox = mMainQuest || mCollege;
                             volume.mInterior = mData.cellIsInterior(s.mCell);
-                            if (mMainQuest && volume.mType == kPrimitiveBox)
+                            if ((mMainQuest || mCollege) && volume.mType == kPrimitiveBox)
                                 say(openeden::sdk::LogLevel::Info,
                                     std::string("PAPYRUS box trigger ") + hexOf(s.mReference) + " "
                                         + (s.mScripts.empty() ? std::string("-") : s.mScripts.front().mName) + " rot "
@@ -1578,6 +1587,7 @@ namespace game_skyrimse
             bool mMainQuest = false; ///< task 0268
             float mSceneParkSeconds = 0.f; ///< task 0287: 0 keeps the runner's default
             std::map<FormId, FormId> mMovedCells; ///< task 0286: a reference the world moved -> the cell it stands in
+            bool mCollege = false; ///< task 0292
             bool mMainQuestApplied = false;
             double mNextCartLog = 0.0; ///< task 0274
             bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
@@ -2587,6 +2597,36 @@ namespace game_skyrimse
                         (void)mCellSource.combat().setFighterHealth(
                             openeden::sdk::game::CombatSubject::of(handle), 0.f);
                     });
+                const openeden::sdk::SettingsService* const spellSettings = sdkHost.getSettingsService(); // task 0292
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
+                {
+                    mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
+                    mCellSource.combat().setSpellEventSink([&host, logger](const SkyrimCombat::SpellEvent& e) {
+                        const auto reference = [](openeden::sdk::game::CombatSubject who) -> FormId {
+                            return who.player ? kPapyrusPlayerReference : static_cast<FormId>(who.actor.reference);
+                        };
+                        switch (e.mKind)
+                        {
+                            case SkyrimCombat::SpellEvent::Kind::Cast:
+                                host.onSpellCast(reference(e.mCaster), e.mSpell);
+                                break;
+                            case SkyrimCombat::SpellEvent::Kind::Hit:
+                                if (logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Info,
+                                        "PAPYRUS spell " + hexOf(e.mSpell) + " hit "
+                                            + (e.mHasTarget ? hexOf(reference(e.mTarget)) : std::string("the world")));
+                                host.onSpellHit(reference(e.mCaster), e.mSpell,
+                                    e.mHasTarget ? reference(e.mTarget) : FormId(0), e.mX, e.mY, e.mZ);
+                                break;
+                            case SkyrimCombat::SpellEvent::Kind::EffectApplied:
+                                host.onMagicEffectApplied(reference(e.mCaster), reference(e.mTarget), e.mEffect);
+                                break;
+                        }
+                    });
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "college: spell casts, hits and effects reach the scripts; quests may move actors near the player");
+                }
                 if (mPapyrus != nullptr && mPapyrus->companionsOn()) // task 0264
                 {
                     mCellSource.combat().setEssentialBleedout(true);
@@ -2889,6 +2929,7 @@ namespace game_skyrimse
                 if (mInventory != nullptr)
                     mInventory->model().setChangeSink({});
                 mCellSource.scriptBridge().setSinks({}, {}, {});
+                mCellSource.combat().setSpellEventSink({}); // task 0292
                 if (mProgression != nullptr)
                     mProgression->setSkillUseScale({});
                 mCellSource.setFeedHook({}); // task 0260
