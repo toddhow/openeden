@@ -715,6 +715,8 @@ namespace game_skyrimse
         /// answer may have changed (the package lists of DLC1VQ00's Messenger).
         [[nodiscard]] FormId aliasReference(FormId quest, std::uint32_t alias) const;
         [[nodiscard]] std::uint32_t aliasRevision() const;
+        /// Task 0314: the reference a script forced into the alias (ForceRefTo), 0 when none did.
+        [[nodiscard]] FormId forcedAliasReference(FormId quest, std::uint32_t alias) const;
         /// Task 0261: the live value of a number or bool variable of a script attached to `form` (by the name the
         /// condition's CIS2 string gives); nullopt when no instance of it has one.
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;

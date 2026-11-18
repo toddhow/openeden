@@ -797,6 +797,14 @@ namespace game_skyrimse
             mAliasLookup = std::move(lookup);
             mAliasRevision = std::move(revision);
         }
+        /// Task 0314: what a script FORCED into an alias (ForceRefTo) only. An alias with no fill data and no
+        /// conditions (BYOH's Orphan01..07) is filled by nothing but a script, so the packages it lists go only to what
+        /// a script forced into it: the filler's "any reference" fill of such an alias gave a Riften orphan's packages
+        /// to Brynjolf. Without this lookup `AliasLookup` is used for them too (the older behaviour).
+        void setForcedAliasLookup(AliasLookup lookup)
+        {
+            mForcedAliasLookup = std::move(lookup);
+        }
         /// Task 0306: a quest started with no stage (the story manager's start): the package brain's copy runs it.
         void startPackageQuest(FormId quest);
         /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
@@ -1025,6 +1033,7 @@ namespace game_skyrimse
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         std::function<bool(FormId, double&, double&, double&)> mLiveActorPlace; ///< task 0277
         AliasLookup mAliasLookup; ///< task 0305
+        AliasLookup mForcedAliasLookup; ///< task 0314
         std::function<std::uint32_t()> mAliasRevision;
         std::uint32_t mPackagesRevision = 0; ///< task 0277: moves when a quest's stage may change the alias packages
         ArrestDialogueHooks mArrest; ///< task 0258

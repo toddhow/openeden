@@ -472,6 +472,8 @@ namespace game_skyrimse
                 mView.setAliasLookup(
                     [this](FormId quest, std::uint32_t alias) { return mHost.aliasReference(quest, alias); },
                     [this] { return mHost.aliasRevision(); });
+                mView.setForcedAliasLookup( // task 0314
+                    [this](FormId quest, std::uint32_t alias) { return mHost.forcedAliasReference(quest, alias); });
             }
 
             void frame(float dt)
@@ -729,6 +731,13 @@ namespace game_skyrimse
             {
                 mDawnguard = true;
                 enableDaedric();
+            }
+            void enableThieves() // task 0314: the Ragged Flagon's scene trigger box fires for the player, and the
+                                 // player's location change reaches the scripts on him (TG01PlayerAliasScript)
+            {
+                mThieves = true;
+                mView.setPrimitiveTriggers(true);
+                enablePlayerEvents(); // task 0318's OnLocationChange
             }
             [[nodiscard]] bool mainQuestOn() const { return mMainQuest; } // task 0274
             [[nodiscard]] std::string formName(FormId form) const { return mData.nameOf(form); } // task 0274
@@ -1071,6 +1080,9 @@ namespace game_skyrimse
                     mSite.mY = (static_cast<double>(place.gridY) + 0.5) * QuestAliasFiller::kCellSize;
                     location = mView.locationOfGridSquare(mSite.mWorld, place.gridX, place.gridY);
                 }
+                say(openeden::sdk::LogLevel::Info,
+                    std::string("PAPYRUS player place ") + (place.interior ? "interior cell " : "exterior cell ")
+                        + hexId(static_cast<FormId>(place.cell)) + " location " + hexId(location)); // task 0314
                 const std::optional<LocationChange::Change> change = mLocationChange.arrive(location);
                 if (!change)
                     return;
@@ -1733,8 +1745,8 @@ namespace game_skyrimse
                             volume.mCell = s.mCell;
                             volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
                             // tasks 0274 and 0292: the cart ride's slabs and the College bridge's box
-                            volume.mAcceptBox
-                                = acceptsBoxTriggers(mMainQuest, mCollege, mDaedric, mDragonborn) || mDawnguard;
+                            volume.mAcceptBox = acceptsBoxTriggers(mMainQuest, mCollege, mDaedric, mDragonborn)
+                                || mDawnguard || mThieves;
                             volume.mInterior = mData.cellIsInterior(s.mCell);
                             if (volume.mAcceptBox && volume.mType == kPrimitiveBox)
                                 say(openeden::sdk::LogLevel::Info,
@@ -1799,6 +1811,7 @@ namespace game_skyrimse
             bool mCollege = false; ///< task 0292
             bool mDaedric = false; ///< task 0310
             bool mDawnguard = false; ///< task 0319
+            bool mThieves = false; ///< task 0314
             bool mMainQuestApplied = false;
             double mNextCartLog = 0.0; ///< task 0274
             bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
@@ -2963,6 +2976,16 @@ namespace game_skyrimse
                     mCellSource.combat().setDragonSoulByScript([this](openeden::sdk::game::WorldId reference) {
                         return mPapyrus != nullptr
                             && mPapyrus->host().hasScript(static_cast<FormId>(reference), "dragonactorscript");
+                    });
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "thieves guild", false))
+                {
+                    mPapyrus->enableThieves(); // task 0314: TG01SceneTrig's box (the Flagon's intro) fires for the player
+                    // the fragments of a response (`pTG01QS.pTG01Dia01 = 1`) run before the linked topics are judged
+                    // (they test that variable), as task 0304 does for the College
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
                     });
                 }
                 const bool dawnguardOn = spellSettings != nullptr && spellSettings->getBool(kPackId, "dawnguard", false);

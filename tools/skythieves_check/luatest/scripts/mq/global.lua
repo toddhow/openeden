@@ -72,6 +72,11 @@ local function stepTo(s)
         core.sendGlobalEvent(s[3], s[4])
         return
     end
+    if s[2] == 'talk' then
+        -- task 0314: { update, 'talk', base }: the player talks to the actor of that base (several talks in one run)
+        activateActor(s[3])
+        return
+    end
     if s[2] == 'back' then
         -- { update, 'back', x, y, z, yawDegrees }: back into the exterior cell the game started in
         if startCell ~= nil then

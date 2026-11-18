@@ -3678,6 +3678,12 @@ namespace game_skyrimse
         return mImpl->aliasReferenceOf(quest, alias);
     }
 
+    FormId PapyrusHost::forcedAliasReference(FormId quest, std::uint32_t alias) const
+    {
+        const auto it = mImpl->mAliasForced.find({ quest, alias });
+        return it != mImpl->mAliasForced.end() ? it->second : 0;
+    }
+
     std::uint32_t PapyrusHost::aliasRevision() const
     {
         return mImpl->mAliasRevision;

@@ -1692,11 +1692,17 @@ namespace MWWorld
         else
         {
             const openeden::sdk::game::WorldCell* neutral = store->neutralCell();
+            static const bool placeTrace0 = std::getenv("OPENEDEN_PLACE_TRACE") != nullptr;
+            if (placeTrace0 && neutral == nullptr)
+                Log(Debug::Info) << "NPLACE interior store without a neutral cell: " << store->getCell()->getNameId();
             if (neutral == nullptr)
                 return;
             place.interior = true;
             place.cell = neutral->id;
         }
+        static const bool placeTrace = std::getenv("OPENEDEN_PLACE_TRACE") != nullptr;
+        if (placeTrace)
+            Log(Debug::Info) << "NPLACE interior " << place.interior << " cell " << place.cell << " world " << place.world;
         mPhysics->notifyNeutralPlayerPlace(place);
     }
 

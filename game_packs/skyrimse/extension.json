@@ -774,6 +774,11 @@
       "key": "dawnguard",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "thieves guild",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

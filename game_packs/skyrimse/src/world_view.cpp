@@ -239,6 +239,7 @@ namespace game_skyrimse
             std::uint32_t mAlias = 0;
             std::uint8_t mPriority = 0;
             std::vector<FormId> mPackages;
+            bool mScriptOnly = false; ///< task 0314: no fill data and no conditions: only a script's ForceRefTo fills it
         };
         std::vector<DynamicAliasPackages> mDynamicAliasPackages;
         mutable std::map<FormId, FormId> mPackageOwner; ///< task 0274: package -> the quest whose alias lists it
@@ -1733,7 +1734,8 @@ namespace game_skyrimse
                                 { questId, alias.mPackages });
                         else if (!alias.mPackages.empty() && !alias.mIsLocation)
                             mDialogue->mDynamicAliasPackages.push_back(
-                                { questId, alias.mId, quest->mPriority, alias.mPackages });
+                                { questId, alias.mId, quest->mPriority, alias.mPackages,
+                                    alias.mFill == AliasFillKind::FindMatching && alias.mConditions.empty() });
                     }
         }
         if (!mDialogue->mDynamicAliasPackagesSorted)
@@ -1794,7 +1796,9 @@ namespace game_skyrimse
             for (const auto& entry : mDialogue->mDynamicAliasPackages)
             {
                 if (!mDialogue->mPackageQuests.running(entry.mQuest)
-                    || mAliasLookup(entry.mQuest, entry.mAlias) != reference)
+                    || (entry.mScriptOnly && mForcedAliasLookup ? mForcedAliasLookup : mAliasLookup)(
+                           entry.mQuest, entry.mAlias)
+                        != reference)
                     continue;
                 for (const FormId id : entry.mPackages)
                     if (const PackageRecord* p = mDialogue->mData->mPackages.package(id))
