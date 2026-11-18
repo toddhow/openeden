@@ -30,6 +30,19 @@ steps; the chained INFO's fragments run). "Excellent." (`MG01FaraldaEntryTakeTes
 the script work queued by the line just shown is run first (`setFragmentFlush`, `PapyrusHost::tick(0)` through the glue).
 The flush also makes a response's fragment effects (FaraldaProgress = 1) visible to the next topic list at once.
 
+### The greeting order (after the merge with task 0298)
+
+`DialogueRuntime::begin` has ONE ordered greeting step; the first rule that gives an INFO that passes speaks, each behind its
+own setting:
+
+1. task 0298, `civil war` (`setBlockingBranches`, which also turns on `setCountRefTypes`): the starts of the Blocking branches
+   (`DialogueIndex::blockingStarts()`, DLBR DNAM bit 2), the lowest start-topic id first;
+2. task 0304, `college` (`setQuestGreetings`): the quest greeting topics above, then;
+3. the Hello pick (HELO, by priority) as before.
+
+Both rules use the same `SelectionOptions` (the placement as the random pick number). With neither setting on the step is the
+Hello pick alone.
+
 ## 2. Results (Windows, test game off-screen, real clicks on the conversation box, frames viewed)
 
 Start `@Tamriel,110000,105500,-8300`, a harness step stands the player on the bridge (as in 0292), `tools/skycollege_check` and
