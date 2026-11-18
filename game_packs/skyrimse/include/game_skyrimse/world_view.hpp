@@ -458,6 +458,10 @@ namespace game_skyrimse
         void setStandInPlayerLevel(std::uint16_t level) { mStandInPlayerLevel = level; }
         void setHostileFactions(bool on) { mHostileFactions = on; } ///< task 0316
         [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
+        /// Task 0321: the level and the race of an actor base (NPC_) as the effective record gives them (templates
+        /// followed; a template that is a leveled list is resolved with pick 0). False when the id is no NPC_.
+        [[nodiscard]] bool actorLevelOf(FormId base, std::int32_t& level);
+        [[nodiscard]] bool actorRaceOf(FormId base, FormId& race);
         /// Task 0212 (`creatures`): creature races are described and fight as creatures. Set before the first actor.
         void setCreatures(bool on) { mCreatures = on; }
         /// Task 0253: the dragon race is described and fights as a dragon (needs setCreatures).

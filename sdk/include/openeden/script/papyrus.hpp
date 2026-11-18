@@ -238,6 +238,50 @@ namespace openeden::script
         virtual bool attachKeyExists(const AttachKey& key) const = 0;
     };
 
+    /// An OPTIONAL capability of a PapyrusWorld (task 0321): the read-only questions that natives shared by several
+    /// games ask of the game's own records, so that the common library can answer Actor.GetLevel, FormList.GetAt and
+    /// their kin once for every game pack. A game pack that can answer derives its world from this class as well; the
+    /// common natives ask `dynamic_cast<const PapyrusFormQueries*>(&world)` when they are registered, and register the
+    /// ones that need it only when it is there. Every function has a default body that refuses (false), so a pack
+    /// implements only what its records can answer and an answer of false leaves the native at its zero value. All
+    /// calls come from the main thread and must not throw. PapyrusWorld and PapyrusContract are unchanged by it.
+    class PapyrusFormQueries
+    {
+    public:
+        virtual ~PapyrusFormQueries() = default;
+
+        /// The form a native's receiver or argument names: a form value is its id; an attached script instance is the
+        /// form the instance is attached to (a game pack knows the mapping). 0: none.
+        virtual FormId formIdOf(const PapyrusValue& value) const
+        {
+            return value.kind == PapyrusKind::Object && !value.attached ? static_cast<FormId>(value.handle) : 0;
+        }
+        /// The level of an actor reference or an actor base (Actor.GetLevel).
+        virtual bool actorLevel(FormId actor, std::int32_t& level) const
+        {
+            (void)actor, (void)level;
+            return false;
+        }
+        /// The race of an actor reference or an actor base (Actor.GetRace, ActorBase.GetRace).
+        virtual bool raceOf(FormId actorOrBase, FormId& race) const
+        {
+            (void)actorOrBase, (void)race;
+            return false;
+        }
+        /// The members of a form list, in order (FormList.GetSize, GetAt, HasForm).
+        virtual bool formListEntries(FormId list, std::vector<FormId>& entries) const
+        {
+            (void)list, (void)entries;
+            return false;
+        }
+        /// The rotation of a reference about X, Y and Z in RADIANS, as it is now (ObjectReference.GetAngleX/Y/Z).
+        virtual bool referenceRotation(FormId reference, double (&xyz)[3]) const
+        {
+            (void)reference, (void)xyz;
+            return false;
+        }
+    };
+
     class PapyrusContract
     {
     public:

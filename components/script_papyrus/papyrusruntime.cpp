@@ -212,6 +212,14 @@ namespace ScriptPapyrus
             return result;
         }
 
+        std::map<std::string, std::map<std::string, std::uint64_t>> Runtime::nativeCallers() const
+        {
+            std::map<std::string, std::uint64_t> counts;
+            std::map<std::string, std::map<std::string, std::uint64_t>> callers;
+            buildLinkReport(&counts, &callers);
+            return callers;
+        }
+
         LoadResult Runtime::load(std::span<const std::uint8_t> bytes, std::string_view name)
         {
             LoadResult result;
@@ -317,7 +325,8 @@ namespace ScriptPapyrus
 
         // link(): the targets that can be known statically. A receiver's class comes from the declared type of a local,
         // a parameter or a variable (or "self"); a function is looked for in that class and then up its parent chain.
-        LinkReport Runtime::buildLinkReport(std::map<std::string, std::uint64_t>* natives) const
+        LinkReport Runtime::buildLinkReport(std::map<std::string, std::uint64_t>* natives,
+            std::map<std::string, std::map<std::string, std::uint64_t>>* callers) const
         {
             LinkReport report;
             auto note = [&report](const Script& script, const std::string& where, const std::string& text) {
@@ -477,6 +486,9 @@ namespace ScriptPapyrus
                                     if (natives != nullptr && declaring != nullptr)
                                     {
                                         ++(*natives)[Pex::lowered(declaring->mClass) + "." + lowerFunction];
+                                        if (callers != nullptr)
+                                            ++(*callers)[Pex::lowered(declaring->mClass) + "." + lowerFunction]
+                                                        [Pex::lowered(script.mClass)];
                                     }
                                 }
                                 else

@@ -119,6 +119,25 @@ namespace game_skyrimse
             return false;
         }
 
+        /// Task 0321 (the common natives Actor.GetLevel, Actor.GetRace, ActorBase.GetRace): the level and the race of
+        /// an actor, given as a placed reference or as an actor base. False when the pack has no answer.
+        [[nodiscard]] virtual bool actorLevel(FormId actor, std::int32_t& level) const
+        {
+            (void)actor, (void)level;
+            return false;
+        }
+        [[nodiscard]] virtual bool actorRace(FormId actor, FormId& race) const
+        {
+            (void)actor, (void)race;
+            return false;
+        }
+        /// Task 0321 (FormList.GetSize, GetAt, HasForm): the members of a form list in order. False: not a list.
+        [[nodiscard]] virtual bool formListEntries(FormId list, std::vector<FormId>& out) const
+        {
+            (void)list, (void)out;
+            return false;
+        }
+
         /// The base form of a placed reference, 0 for any other form.
         [[nodiscard]] virtual FormId baseOf(FormId reference) const
         {
@@ -955,6 +974,9 @@ namespace game_skyrimse
         [[nodiscard]] std::uint64_t tolerantCalls() const;
         /// Natives a script called that nobody answered ("class.function", lower case, sorted).
         [[nodiscard]] std::vector<std::string> tolerantNatives() const;
+        /// Task 0321: every native this host registers (its own and the library's pure ones) as "class.function" (lower
+        /// case, sorted) with true when the handler does nothing on purpose (a fade, a camera effect).
+        [[nodiscard]] std::vector<std::pair<std::string, bool>> registeredNatives() const;
         /// Task 0198: tolerant calls of this run by "class.function" (lower case), most calls first, ties by name.
         [[nodiscard]] std::vector<std::pair<std::string, std::uint64_t>> tolerantRanking() const;
         /// The enabled state of a reference as scripts left it (true when no script changed it).

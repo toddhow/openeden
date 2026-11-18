@@ -149,6 +149,10 @@ namespace ScriptPapyrus
         /// the natives a game pack would implement first.
         virtual std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const = 0;
 
+        /// Task 0321: the same call sites split by the calling script: native "class.function" to (calling script's
+        /// class, lower case) to count. Empty by default.
+        virtual std::map<std::string, std::map<std::string, std::uint64_t>> nativeCallers() const { return {}; }
+
         // ---- the scheduler (task 0093 stage d; not in the contract header) -----------------------------------------
 
         /// Stacks parked on a latent call right now (timed or waiting for the host).

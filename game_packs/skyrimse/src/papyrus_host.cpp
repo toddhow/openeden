@@ -1,5 +1,6 @@
 #include "game_skyrimse/papyrus_host.hpp"
 
+#include <components/script_papyrus/papyrusformnatives.hpp>
 #include <components/script_papyrus/papyrusnatives.hpp>
 #include <components/script_papyrus/pexfile.hpp>
 #include <openeden/game/world_source_service.hpp>
@@ -73,7 +74,8 @@ namespace game_skyrimse
     }
 
     struct PapyrusHost::Impl final : public openeden::script::PapyrusWorld,
-                                     public openeden::script::PapyrusAttachKeyCheck
+                                     public openeden::script::PapyrusAttachKeyCheck,
+                                     public openeden::script::PapyrusFormQueries
     {
         struct InstanceInfo
         {
@@ -102,6 +104,32 @@ namespace game_skyrimse
             });
             registerWorldNatives();
             registerStoneNatives();
+            // Task 0321: what Skyrim SE and Fallout 4 share is answered by the common library, after the pack's own
+            // registrations (a pair the pack registered stays the pack's), through the queries below
+            mForm = std::make_unique<ScriptPapyrus::FormNatives>(*this);
+            // a developer's A/B switch (task 0321): the run of before this task, in the same executable
+            if (std::getenv("OPENEDEN_PAPYRUS_NO_COMMON_NATIVES") == nullptr)
+                (void)mForm->registerAll(*mRuntime);
+        }
+
+        // ---- PapyrusFormQueries (task 0321) ------------------------------------------------------------------------
+
+        openeden::script::FormId formIdOf(const PapyrusValue& value) const override { return formOf(value); }
+        bool actorLevel(FormId actor, std::int32_t& level) const override { return mData.actorLevel(actor, level); }
+        bool raceOf(FormId actor, FormId& race) const override { return mData.actorRace(actor, race); }
+        bool formListEntries(FormId list, std::vector<FormId>& entries) const override
+        {
+            return mData.formListEntries(list, entries);
+        }
+        bool referenceRotation(FormId reference, double (&xyz)[3]) const override
+        {
+            std::array<double, 3> angles{};
+            if (anglesOf(reference, angles))
+            {
+                std::copy(angles.begin(), angles.end(), xyz);
+                return true;
+            }
+            return mData.referenceRotation(reference, xyz);
         }
 
         // ---- PapyrusWorld ------------------------------------------------------------------------------------------
@@ -1390,6 +1418,7 @@ namespace game_skyrimse
             descriptor.functionName = function;
             descriptor.global = global;
             const std::string key = lower(std::string(className) + "." + function);
+            mRegisteredNatives.insert(key); // task 0321
             openeden::script::ErrorReport error;
             const bool ok = mRuntime->registerNative(
                 descriptor,
@@ -1415,6 +1444,14 @@ namespace game_skyrimse
                 error);
             if (!ok)
                 say(true, "Papyrus: native " + key + " was refused: " + error.format());
+        }
+
+        /// Task 0321: a native that is registered and does nothing on purpose (a fade, a camera or HUD effect, a flag
+        /// the neutral world has no use for); the coverage survey lists it apart from the natives that do work.
+        void regNoop(const char* className, const char* function, bool global)
+        {
+            mNoopNatives.insert(lower(std::string(className) + "." + function));
+            reg(className, function, global, [](const NativeCall&) { return NativeResult{}; });
         }
 
         static double argNumber(const NativeCall& call, std::size_t i)
@@ -1469,7 +1506,7 @@ namespace game_skyrimse
             });
             reg("Message", "Show", false,
                 [this](const NativeCall& c) { return result(PapyrusValue::makeInt(showMessage(formOf(c.self)))); });
-            reg("Game", "AddAchievement", true, [](const NativeCall&) { return NativeResult{}; });
+            regNoop("Game", "AddAchievement", true);
             // Task 0294: Utility.WaitGameTime(hours) parks the script for that many game hours (the time scale is the
             // game's; the host counts script seconds). Unregistered it returned at once, and the game's
             // WIDeadBodyCleanupScript loops on it and used up the whole instruction budget.
@@ -1510,7 +1547,7 @@ namespace game_skyrimse
                 const auto found = mOpenStates.find(formOf(c.self));
                 return result(PapyrusValue::makeInt(found != mOpenStates.end() ? found->second : kOpenStateClosed));
             });
-            reg("ObjectReference", "SetNoFavorAllowed", false, [](const NativeCall&) { return NativeResult{}; });
+            regNoop("ObjectReference", "SetNoFavorAllowed", false);
             // Task 0289: a dart trap's shot (Weapon.Fire(source, ammo), the `DartTrap` script). No projectile flies and
             // nothing is hurt in this slice: the shot is counted and the first of each trap port is logged.
             // Task 0299: the shot reaches the world (the combat's trap shot) from the source's place along its facing.
@@ -1861,7 +1898,7 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(!was));
             });
             // Task 0306: the journal's active quest (the DLC's quest sets it at stage 5): no journal marker is kept
-            reg("Quest", "SetActive", false, [](const NativeCall&) { return NativeResult{}; });
+            regNoop("Quest", "SetActive", false);
             reg("Quest", "Stop", false, [this](const NativeCall& c) {
                 if (mState != nullptr)
                     mState->stop(formOf(c.self));
@@ -2272,13 +2309,12 @@ namespace game_skyrimse
                     (void)mFollowers->setGlobal(global, static_cast<float>(argNumber(c, 0))); // task 0239
                 return NativeResult{};
             });
-            const auto nothing = [](const NativeCall&) { return NativeResult{}; };
             for (const char* name : { "DisablePlayerControls", "EnablePlayerControls", "FadeOutGame",
                      "ForceFirstPerson", "ShowFirstPersonGeometry", "SetInChargen" })
-                reg("Game", name, true, nothing);
+                regNoop("Game", name, true);
             for (const char* name : { "Apply", "PopTo", "Remove", "ApplyCrossFade" })
-                reg("ImageSpaceModifier", name, false, nothing);
-            reg("ImageSpaceModifier", "RemoveCrossFade", true, nothing); // task 0256: a static
+                regNoop("ImageSpaceModifier", name, false);
+            regNoop("ImageSpaceModifier", "RemoveCrossFade", true); // task 0256: a static
             // Task 0312 (Gjalund's ship, DLC2DialogueRRQuestScript.SetSail): the player's world, the end of a talk (the
             // world is paused while the box is open, so a script that waits for it to end already runs after it),
             // the combat alarm, a follower's AI and the autosave are no-ops; the boat ride waits for an animation
@@ -2289,9 +2325,9 @@ namespace game_skyrimse
             });
             reg("ObjectReference", "IsInDialogueWithPlayer", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(false)); });
-            reg("Actor", "StopCombatAlarm", false, nothing);
-            reg("Actor", "EnableAI", false, nothing);
-            reg("Game", "RequestAutoSave", true, nothing);
+            regNoop("Actor", "StopCombatAlarm", false);
+            regNoop("Actor", "EnableAI", false);
+            regNoop("Game", "RequestAutoSave", true);
             reg("ObjectReference", "WaitForAnimationEvent", false,
                 [](const NativeCall&) {
                     NativeResult r;
@@ -2317,7 +2353,7 @@ namespace game_skyrimse
             });
 
             for (const char* name : { "SetRestrained", "Say", "EvaluatePackage" })
-                reg("Actor", name, false, nothing);
+                regNoop("Actor", name, false);
             // Task 0274 (the Helgen cart ride): the quest's stage 12 fragment tethers each cart to its horse and puts
             // the riders (the player too) on it; the pack makes the cart trail the horse and carries the riders
             reg("Actor", "SetVehicle", false, [this](const NativeCall& c) {
@@ -2337,7 +2373,7 @@ namespace game_skyrimse
             });
             for (const char* name :
                 { "SetHudCartMode", "StartTitleSequence", "ShowTitleSequenceMenu", "HideTitleSequenceMenu" })
-                reg("Game", name, true, nothing);
+                regNoop("Game", name, true);
             // Task 0289: SetOpen(true) plays the object's Open animation, SetOpen(false) its Close
             reg("ObjectReference", "SetOpen", false, [this](const NativeCall& c) {
                 const FormId reference = formOf(c.self);
@@ -2358,7 +2394,7 @@ namespace game_skyrimse
                 }
                 return NativeResult{};
             });
-            reg("ObjectReference", "Say", false, nothing); // the declaring class of Say in the game's scripts
+            regNoop("ObjectReference", "Say", false); // the declaring class of Say in the game's scripts
             // Task 0274: an idle the game's script waits for ends with an animation event (the cart's exit idles)
             reg("Actor", "PlayIdle", false, [this](const NativeCall& c) {
                 const FormId actor = liveReference(formOf(c.self));
@@ -2479,10 +2515,10 @@ namespace game_skyrimse
                         (void)mHooks->setCellOwner(cell, owner);
                     return NativeResult{};
                 });
-            reg("Game", "IncrementStat", true, [](const NativeCall&) { return NativeResult{}; });
+            regNoop("Game", "IncrementStat", true);
             // Task 0278: TIF__00068CF1 (the stablemaster's sale) calls SetFactionOwner on the horse; riding reads the
             // faction rank it also sets, so the owner of a placed actor is not kept.
-            reg("ObjectReference", "SetFactionOwner", false, [](const NativeCall&) { return NativeResult{}; });
+            regNoop("ObjectReference", "SetFactionOwner", false);
             reg("ObjectReference", "GetItemCount", false, [this](const NativeCall& c) {
                 const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 const std::int32_t held = mHooks != nullptr ? mHooks->itemCount(formOf(c.self), item) : -1;
@@ -2632,7 +2668,7 @@ namespace game_skyrimse
                 return result(
                     PapyrusValue::makeInt(mHooks != nullptr && actor != 0 && mHooks->inCombat(actor) ? 1 : 0));
             });
-            reg("Actor", "EvaluatePackage", false, [](const NativeCall&) { return NativeResult{}; });
+            regNoop("Actor", "EvaluatePackage", false);
             reg("Actor", "Kill", false, [this](const NativeCall& c) {
                 const FormId actor = formOf(c.self);
                 if (actor != 0 && actor != kPlayerReference && !actorDead(actor) && mHooks != nullptr
@@ -2736,6 +2772,7 @@ namespace game_skyrimse
         PapyrusHostOptions mOptions;
         std::unique_ptr<ScriptPapyrus::PapyrusRuntime> mRuntime;
         std::unique_ptr<ScriptPapyrus::PureNatives> mPure;
+        std::unique_ptr<ScriptPapyrus::FormNatives> mForm; ///< task 0321
         PapyrusHostCounters mCounters;
         LogFunction mLog;
         QuestChanged mQuestChanged;
@@ -2767,6 +2804,8 @@ namespace game_skyrimse
         std::set<std::string> mNotFile;
         std::set<std::string> mNames;
         std::set<std::string> mTolerant;
+        std::set<std::string> mRegisteredNatives; ///< task 0321: every "class.function" a reg() call registered
+        std::set<std::string> mNoopNatives; ///< task 0321: the ones registered by regNoop
         std::map<InstanceId, InstanceInfo> mInstances;
         std::multimap<FormId, InstanceId> mByForm;
         std::map<std::pair<FormId, std::uint32_t>, std::vector<InstanceId>> mByAlias;
@@ -4463,6 +4502,20 @@ namespace game_skyrimse
     const ScriptPapyrus::Stats& PapyrusHost::runtimeStats() const
     {
         return mImpl->mRuntime->stats();
+    }
+
+    std::vector<std::pair<std::string, bool>> PapyrusHost::registeredNatives() const
+    {
+        std::map<std::string, bool> all; // "class.function" -> does nothing on purpose
+        for (const std::string& key : mImpl->mRegisteredNatives)
+            all[key] = mImpl->mNoopNatives.count(key) != 0;
+        for (const std::string_view name : ScriptPapyrus::PureNatives::names())
+            all.emplace(std::string(name), false);
+        for (const std::string_view name : ScriptPapyrus::FormNatives::queryNames())
+            all.emplace(std::string(name), false);
+        for (const std::string_view name : ScriptPapyrus::FormNatives::cosmeticNames())
+            all.emplace(std::string(name), true);
+        return std::vector<std::pair<std::string, bool>>(all.begin(), all.end());
     }
 
     std::vector<std::string> PapyrusHost::tolerantNatives() const

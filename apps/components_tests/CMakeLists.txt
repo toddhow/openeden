@@ -217,6 +217,7 @@ file(GLOB UNITTEST_SRC_FILES
     papyrus/testpapyrusreview2.cpp
     papyrus/testpapyrussched.cpp
     papyrus/testpapyrussave.cpp
+    papyrus/testpapyrusformnatives.cpp
     papyrus/testpapyrusnatives.cpp
     papyrus/testrestoreresultabi.cpp
     papyrus/testpapyrusgamepack.cpp
@@ -888,6 +889,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsearchives.cpp
     skyrimse/testskyrimserealdata.cpp
     skyrimse/testskyrimsesurvey.cpp
+    skyrimse/testskyrimsenativecoverage.cpp
+    skyrimse/testskyrimsepapyrusformnatives.cpp
     skyrimse/testskyrimsesurveyreal.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/scene_options.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp

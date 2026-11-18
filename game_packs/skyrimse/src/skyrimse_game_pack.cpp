@@ -180,6 +180,29 @@ namespace game_skyrimse
                 return mView.cellLocation(cell, location, interior) && interior;
             }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
+            // Task 0321: the common natives' questions. An actor is a placed reference (its base is asked for) or a base.
+            FormId actorBaseOf(FormId actor) const
+            {
+                const FormId base = baseOf(actor);
+                return base != 0 ? base : actor;
+            }
+            bool actorLevel(FormId actor, std::int32_t& level) const override
+            {
+                if (actor == kPapyrusPlayerReference) // the stand-in player: his level is the pack's setting (decision)
+                {
+                    level = mView.standInPlayerLevel();
+                    return true;
+                }
+                return mView.actorLevelOf(actorBaseOf(actor), level);
+            }
+            bool actorRace(FormId actor, FormId& race) const override
+            {
+                return actor != kPapyrusPlayerReference && mView.actorRaceOf(actorBaseOf(actor), race);
+            }
+            bool formListEntries(FormId list, std::vector<FormId>& out) const override
+            {
+                return mView.formListEntries(list, out);
+            }
             // Task 0217: the location of a placed reference (its cell's) and of the player
             FormId locationOf(FormId reference) const override
             {

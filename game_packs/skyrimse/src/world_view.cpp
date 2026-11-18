@@ -1086,6 +1086,28 @@ namespace game_skyrimse
             playerLevel != 0 ? playerLevel : mStandInPlayerLevel, out, error);
     }
 
+    bool SkyrimWorldView::actorLevelOf(FormId base, std::int32_t& level)
+    {
+        openeden::sdk::game::ActorStats stats;
+        std::string error;
+        if (!actorStats(base, 0, 0, stats, error))
+            return false;
+        level = stats.level;
+        return true;
+    }
+
+    bool SkyrimWorldView::actorRaceOf(FormId base, FormId& race)
+    {
+        if (!awaitIndex() || !ensureActorIndex())
+            return false;
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(base, mStandInPlayerLevel, 0, resolved) != ActorIndex::ResolveStatus::Ok
+            || resolved.mRace == kNullFormId)
+            return false;
+        race = resolved.mRace;
+        return true;
+    }
+
     bool SkyrimWorldView::actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
         openeden::sdk::game::ActorDisposition& out, std::string& error)
     {

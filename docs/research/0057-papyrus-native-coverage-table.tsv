@@ -1,0 +1,505 @@
+native	call_sites	scripts	status_before	status_after	category	main_callers
+topicinfo.getowningquest	6413	5721	implemented	implemented	world read	tif:4991,dlc:1001,byoh:420
+game.getplayer	5746	2533	implemented	implemented	world read	dlc:1344,tif:562,tg0:153
+referencealias.getreference	4522	859	implemented	implemented	world read	dlc:708,qf_cwsiege:234,tif:103
+objectreference.disable	2139	861	implemented	implemented	world mutation	dlc:482,qf_cwsiege:76,qf_db02:44
+quest.setobjectivedisplayed	2089	595	implemented	implemented	world mutation	dlc:480,ffr:27,qf_da16:26
+utility.wait	2008	819	implemented	implemented	pure	dlc:697,tg0:32,da1:31
+objectreference.enable	1979	746	implemented	implemented	world mutation	dlc:393,tif:63,qf_db10:37
+quest.setobjectivecompleted	1900	559	implemented	implemented	world mutation	dlc:444,qf_da14:31,qf_da16:25
+objectreference.getlinkedref	1509	395	implemented	implemented	world read	dlc:841,portalgemsocket:40,da1:26
+objectreference.additem	1304	737	implemented	implemented	world mutation	tif:250,dlc:221,qf_tgstatus:36
+objectreference.moveto	1262	414	implemented	implemented	world mutation	dlc:247,qf_ms04:82,qf_mq101:25
+actor.evaluatepackage	1241	504	noop	noop	world mutation	dlc:242,tif:66,byoh:42
+alias.getowningquest	1130	473	implemented	implemented	world read	dlc:152,mq1:105,da0:68
+quest.stop	1056	734	implemented	implemented	world mutation	dlc:185,companionshousekeepingscript:43,tif:37
+scene.getowningquest	1006	516	implemented	implemented	world read	dlc:164,sf_cw00windhelmmaptablescenea:33,sf_mq206battlescene:19
+scene.start	941	478	implemented	implemented	world mutation	dlc:231,tif:50,tg0:23
+objectreference.activate	857	365	implemented	implemented	world mutation	dlc:334,dundustmanscairnendcontroller:19,tg0:19
+objectreference.removeitem	806	484	implemented	implemented	world mutation	tif:172,dlc:142,defaultonloadremoveweapons:25
+globalvariable.setvalue	802	394	implemented	implemented	world mutation	dlc:396,qf_cwsiege:114,cwthreatcombatbarksscript:37
+referencealias.forcerefto	737	240	implemented	implemented	world mutation	dlc:87,qf_cwfortsungardqst:80,tif:52
+objectreference.playanimation	645	256	implemented	implemented	world mutation	dlc:219,tif:34,da0:26
+objectreference.placeatme	569	229	implemented	implemented	world mutation	dlc:158,dunbluepalacewabbajackscript:27,qf_cwattackcity:24
+actor.removefromfaction	535	270	implemented	implemented	world mutation	tif:99,dlc:79,qf_dunbloatedmansgrottoqst:22
+scene.stop	486	137	implemented	implemented	world mutation	dlc:122,qf_ms05:89,qf_mq101:28
+actor.isdead	412	192	implemented	implemented	world read	dlc:108,cwmission:11,qf_mq103a:11
+debug.trace	399	94	implemented	implemented	pure	dlc:89,playerpotionrackcontainerscript:50,weaponrackactivatescript:30
+objectreference.getitemcount	389	206	implemented	implemented	world read	dlc:89,ffr:15,da0:13
+message.show	387	207	implemented	implemented	world mutation	dlc:135,powershrinescript:39,tg0:15
+sound.play	378	183	missing	noop	cosmetic	dlc:140,da1:20,norrotatingdoorleverscript:10
+globalvariable.getvalue	364	169	implemented	implemented	world read	dlc:194,wiskillincrease:15,byohhousebuildingscript:9
+locationalias.getlocation	334	111	implemented	implemented	world read	cwcampaignscript:35,qf_cwsiege:34,byohrelationshipadoptionscript:17
+objectreference.blockactivation	326	123	missing	missing	needs an engine feature	dlc:58,playerbookshelfcontainerscript:37,dunharmugstahlleverscript:36
+objectreference.getdistance	324	134	implemented	implemented	world read	dlc:68,cwfortsiegescript:20,dunreachwaterrockjyrikbossbattle:18
+actor.startcombat	319	204	implemented	implemented	world mutation	tif:58,dlc:49,qf_mq101dragonattack:17
+objectreference.playanimationandwait	309	135	implemented	implemented	world mutation	dlc:106,portalgemsocket:15,da0:11
+actor.playidle	303	123	implemented	implemented	world mutation	dlc:61,sf_bardsongsinstrumentalflut:27,sf_bardsongsinstrumentalwedd:26
+actor.removespell	302	72	implemented	implemented	world mutation	dlc:135,playervampirequestscript:87,powershrinescript:17
+actor.setactorvalue	300	144	implemented	implemented	world mutation	dlc:110,byohrelationshipadoptionscript:18,rpdefault:12
+objectreference.disablenowait	288	64	implemented	implemented	world mutation	dlc:115,qf_mq101dragonattack:40,byohhousescript:15
+objectreference.addtomap	286	218	implemented	implemented	world mutation	dlc:66,tif:55,cwscript:14
+actor.isinfaction	285	122	implemented	implemented	world read	byohrelationshipadoptableorphanagesc:44,dlc:36,tif:18
+actor.kill	284	116	implemented	implemented	world mutation	dlc:90,qf_dunansilvundqst:25,qf_mq103a:17
+effectshader.play	280	129	missing	noop	cosmetic	dlc:110,dunazurasmalyndeatheffect:24,mqkilldragonscript:12
+referencealias.clear	279	101	implemented	implemented	world mutation	dlc:40,cwthreatcombatbarksscript:35,relationshipmarriagespousehousescript:29
+quest.isrunning	276	153	implemented	implemented	world read	dlc:72,byohrelationshipadoptionscript:18,qf_cwfunctions:10
+actor.setrelationshiprank	271	179	implemented	implemented	world mutation	tif:37,dlc:24,byohrelationshipadoptableorphanagesc:11
+actor.addspell	267	119	implemented	implemented	world mutation	dlc:129,playervampirequestscript:24,tif:17
+spell.cast	267	139	implemented	implemented	world mutation	dlc:120,byoh:14,dunpotemasms:14
+objectreference.delete	242	144	missing	missing	needs an engine feature	dlc:53,byohdivertprefabsscript:18,playerpotionrackcontainerscript:18
+quest.start	222	150	implemented	implemented	world mutation	dlc:92,tif:14,arenascript:3
+actor.setghost	219	97	missing	missing	needs an engine feature	dlc:77,c01:12,qf_dialoguemarkarthintroworld:10
+form.unregisterforupdate	218	159	implemented	implemented	world mutation	dlc:34,qf_mq203:5,sovngardestatuescript:5
+quest.isobjectivedisplayed	217	93	implemented	implemented	world read	dlc:64,qf_db01misc:25,favorjarlsmakefriendsscript:9
+utility.randomfloat	217	64	implemented	implemented	pure	dlc:65,da1:17,firefly:16
+visualeffect.play	214	98	missing	noop	cosmetic	dlc:81,mqkilldragonscript:12,da1:6
+objectreference.lock	210	120	missing	missing	needs an engine feature	dlc:29,qf_mq201:10,tif:9
+form.registerforsingleupdate	205	131	implemented	implemented	world mutation	dlc:76,mq2:7,tg0:7
+objectreference.enablenowait	187	49	implemented	implemented	world mutation	dlc:95,qf_mq101dragonattack:34,byohhousescript:15
+utility.randomint	177	91	implemented	implemented	pure	dlc:36,byohrelationshipadoptionscript:18,bardsongsscript:14
+quest.completeallobjectives	171	157	missing	missing	world mutation	dlc:53,byoh:4,qf_da16:3
+package.getowningquest	164	145	implemented	implemented	world read	dlc:58,pf_mq304alduinflightgrablosts:6,pf_derkeethusheadhomepackage:4
+objectreference.is3dloaded	155	92	implemented	implemented	world read	dlc:41,critter:12,qf_mq101:9
+effectshader.stop	145	83	missing	noop	cosmetic	dlc:46,mqkilldragonscript:14,dunreachwaterrockpedestalmanager:6
+location.setkeyworddata	144	22	implemented	implemented	world mutation	cwscript:95,qf_cwmissionquickstart:11,wifunctionsscript:5
+objectreference.isdisabled	144	74	implemented	implemented	world read	dlc:57,highgateruinsleverpuzzle:8,byohhousebuildingscript:5
+actor.setalpha	143	67	missing	noop	world mutation	dlc:58,ms0:7,bwcnightingaleghostscript:5
+form.haskeyword	141	72	implemented	implemented	world read	dlc:28,weaponrackactivatescript:15,cwscript:8
+actor.setfactionrank	134	58	implemented	implemented	world mutation	byohrelationshipadoptableorphanagesc:36,byoh:13,tif:12
+visualeffect.stop	132	55	missing	noop	cosmetic	dlc:60,fxdwarvencenturionscript:6,fxcameraattachscript:4
+faction.setenemy	131	70	missing	missing	world mutation	dlc:43,qf_dunstonehillbarrowqst:7,mq3:6
+actorbase.setessential	129	66	missing	missing	world mutation	dlc:37,qf_db02:14,qf_dbdestroy:6
+actor.equipitem	125	66	missing	missing	needs an engine feature	dlc:22,qf_mq101:13,mannequinactivatorscript:11
+actor.addperk	124	43	implemented	implemented	world mutation	dlc:105,mgr:2,bladesalchpotionscript:1
+game.shakecamera	121	54	missing	noop	world mutation	dlc:70,dunustengravrumblescript:6,helgenrandomsoundscript:6
+objectreference.getcurrentlocation	121	62	implemented	implemented	world read	byohrelationshipadoptionscript:27,dlc:13,playersleepquestscript:5
+game.enableplayercontrols	120	95	noop	noop	world mutation	dlc:32,tif:17,qf_mq101:6
+form.registerforanimationevent	117	56	implemented	implemented	world mutation	dlc:38,dragonactorscript:10,cwcatapultscript:6
+quest.failallobjectives	117	104	missing	missing	world mutation	dlc:12,qf_tgrbe:3,qf_tgrdu:3
+objectreference.setopen	113	63	implemented	implemented	world mutation	dlc:18,qf_mq105:5,qf_mq201:5
+actor.showbartermenu	109	109	missing	missing	needs an engine feature	dlc:63,tif:44,byoh:2
+imagespacemodifier.apply	109	67	noop	noop	cosmetic	dlc:28,e3d:5,dunlabyrinthianwoodenmaskscript:4
+formlist.getat	108	41	missing	implemented	world read	dlc:40,byohhousebuildingscript:12,byohrelationshipadoptionscript:10
+actor.setplayerteammate	104	51	implemented	implemented	world mutation	dlc:31,tif:13,qf_tg08:8
+objectreference.getparentcell	104	52	implemented	implemented	world read	qf_mq103a:16,qf_mq103b:16,dlc:12
+actor.setsubgraphfloatvariable	100	21	missing	noop	world mutation	dlc:100
+objectreference.setanimationvariablefloat	99	33	missing	noop	world mutation	dlc:42,magicanomalyspawnerscript:7,tif:6
+game.disableplayercontrols	98	77	noop	noop	world mutation	dlc:28,qf_mq101:9,carriagesystemscript:3
+form.registerforupdate	97	91	implemented	implemented	world mutation	cwcatapultoffscreenfirecontrolscript:2,dlc:2,qf_dgintimidatequest:2
+game.addachievement	97	55	noop	noop	world mutation	achievementsscript:28,dlc:21,byoh:6
+objectreference.getanglez	97	26	missing	implemented	world read	cwartilleryaimingmenuscript:18,cwcatapultscript:18,dlc:15
+actor.getactorvalue	96	51	implemented	implemented	world read	dlc:41,rpdefault:8,cartdriverscript:3
+quest.setobjectivefailed	94	47	missing	missing	world mutation	dlc:11,qf_ms02:8,qf_cwsiege:7
+actor.stopcombat	91	61	implemented	implemented	world mutation	dlc:28,da1:8,qf_mq103a:4
+actor.getcrimefaction	89	41	implemented	implemented	world read	tif:47,favorjarlsmakefriendsscript:18,crimeguardsscript:10
+actor.getlevel	89	32	missing	implemented	world read	dlc:73,byohhousebuildingscript:2,dunclearpinepondeventmanager:2
+actor.isincombat	88	62	implemented	implemented	world read	dlc:36,tg0:14,mg0:5
+utility.getcurrentrealtime	85	21	implemented	implemented	pure	dlc:23,da1:22,tg0:21
+actor.stopcombatalarm	84	58	noop	noop	world mutation	tif:18,dlc:17,qf_mq303:6
+objectreference.getbaseobject	84	52	implemented	implemented	world read	dlc:19,tif:6,qf_tgrgf:4
+objectreference.translateto	83	23	missing	missing	needs an engine feature	dlc:16,dunmiddenhandsculpturescript:12,cwartilleryaimingmenuscript:11
+objectreference.setmotiontype	81	44	missing	missing	needs an engine feature	dlc:8,dunlabyrinthianmazestaffaltarscript:4,dunraldbtharpuzzlegearblockerscript:4
+actor.playsubgraphanimation	77	28	missing	noop	world mutation	dlc:39,fxdragonblooddamagescript:8,mqkilldragonscript:6
+form.unregisterforanimationevent	77	35	missing	missing	world mutation	dlc:26,cwcatapultscript:6,da0:5
+keyword.sendstoryevent	77	36	implemented	implemented	world mutation	qf_tgrshell:7,cwcampaignscript:6,cwscript:6
+actor.setoutfit	75	41	missing	missing	needs an engine feature	dlc:13,qf_ms02escapescene01:6,byohrelationshipadoptionchildscript:5
+actor.setrestrained	75	44	noop	noop	world mutation	dlc:8,tif:8,byoh:4
+formlist.getsize	74	41	missing	implemented	world read	dlc:25,byohrelationshipadoptionscript:12,playerwerewolfchangescript:4
+debug.messagebox	73	32	implemented	implemented	pure	bpwmatchcardscript:16,qf_cwfunctions:13,sightlesspitcarving:7
+leveleditem.addform	73	23	missing	missing	world mutation	dlc:22,byohrelationshipadoptablescript:19,rpdefault:19
+game.shakecontroller	72	42	missing	noop	world mutation	dlc:32,helgenrandomsoundscript:6,qf_dunansilvundqst:6
+actor.hasspell	71	20	implemented	implemented	world read	dlc:37,powershrinescript:26,cchorsearmorchangescript:1
+objectreference.damageobject	70	31	missing	missing	needs an engine feature	qf_cwfortsiegefort:12,qf_cwsiege:11,dlc:10
+objectreference.getpositionz	69	18	implemented	implemented	world read	tg0:33,dlc:14,da1:4
+quest.updatecurrentinstanceglobal	69	36	missing	missing	world mutation	dlc:18,favorjarlsmakefriendsscript:9,ffr:9
+faction.setally	66	37	missing	missing	world mutation	dlc:30,qf_mgritual03:7,tif:4
+formlist.addform	66	17	missing	missing	world mutation	dlc:43,byohhousebuildingscript:11,rpdefault:4
+objectreference.getnthlinkedref	66	21	implemented	implemented	world read	dlc:36,da1:4,dunforelhostghostambushscript:4
+objectreference.getanglex	65	18	missing	implemented	world read	dlc:12,cwartilleryaimingmenuscript:11,cwcatapultscript:11
+objectreference.movetomyeditorlocation	65	25	implemented	implemented	world mutation	dlc:13,qf_cwsiegequickstart:12,c03:8
+actorbase.setinvulnerable	64	32	missing	missing	world mutation	dlc:24,c00:6,da1:4
+objectreference.getangley	64	18	missing	implemented	world read	dlc:12,cwartilleryaimingmenuscript:11,cwcatapultscript:11
+imagespacemodifier.applycrossfade	62	35	noop	noop	cosmetic	dlc:13,qf_mq206:7,playervampirequestscript:5
+sound.stopinstance	62	31	missing	noop	cosmetic	dlc:23,norrotatingdoorleverscript:10,portalgemsocket:5
+actor.unequipitem	60	37	missing	missing	needs an engine feature	dlc:19,mqkilldragonscript:8,pf_thievesguildtrainingarche:8
+objectreference.reset	59	36	missing	missing	world mutation	dlc:15,qf_dunmarkarthwizardsquarters:7,cwfortsiegescript:5
+objectreference.setnofavorallowed	59	42	noop	noop	world mutation	dlc:25,da0:5,tg0:5
+game.incrementstat	58	33	noop	noop	world mutation	dlc:26,tif:11,favordialoguescript:4
+game.showtrainingmenu	57	57	missing	missing	needs an engine feature	tif:48,dlc:9
+objectreference.gettriggerobjectcount	57	17	missing	missing	needs an engine feature	trapfireplate:9,dlc:7,pressurereleaseplate:6
+quest.isobjectivecompleted	57	26	implemented	implemented	world read	dlc:21,ms1:7,qf_cr08:4
+actor.movetopackagelocation	55	20	missing	missing	needs an engine feature	cwfortsiegescript:21,dunriftenjailloadcheck:6,qf_dbdestroy:6
+game.incrementskill	53	25	missing	missing	world mutation	tif:22,qf_bardscollegedrum:6,qf_bardscollegeflute:6
+imagespacemodifier.removecrossfade	51	32	noop	noop	cosmetic	dlc:15,playervampirequestscript:5,qf_dunansilvundqst:5
+objectreference.placeactoratme	51	19	missing	missing	needs an engine feature	dlc:15,qf_cwmission04:8,dunpoisoldiersraidonstart:4
+scene.isplaying	51	37	implemented	implemented	world read	dlc:14,da0:6,ms1:6
+objectreference.ignorefriendlyhits	50	13	missing	missing	world mutation	qf_mq302:26,dlc:8,qf_cwfinale:4
+actor.haslos	49	24	implemented	implemented	world read	cwreinforcementcontrollerscript:10,qf_duntalkingstoneqst:8,dlc:6
+game.enablefasttravel	49	25	missing	missing	needs an engine feature	dlc:25,da0:5,qf_db09:3
+objectreference.setlocklevel	49	23	missing	missing	needs an engine feature	dlc:11,qf_db09:6,qf_mq201:4
+objectreference.createdetectionevent	46	41	missing	missing	needs an engine feature	tif:21,dlc:11,db0:2
+actor.setcriticalstage	45	22	missing	missing	needs an engine feature	dlc:25,bwcnightingaleghostscript:2,da1:2
+actor.setrace	45	17	missing	missing	needs an engine feature	playervampirequestscript:20,dlc:14,c03:3
+location.getkeyworddata	45	21	implemented	implemented	world read	cwscript:8,cwcampaignscript:5,wifunctionsscript:4
+objectreference.getpositionx	45	18	implemented	implemented	world read	dlc:13,da1:4,dunhaltedstreamcampghostdebris:4
+actor.getcurrentpackage	44	11	missing	missing	world read	dlc:28,riftenbrynjolftriggerscript:4,c00:3
+actor.getrace	44	27	missing	implemented	world read	dlc:20,playervampirequestscript:10,lvlpredatorscript:2
+actor.getrelationshiprank	44	27	implemented	implemented	world read	byohhousebuildingscript:9,favorjobsgatherwheatscript:6,dlc:5
+actor.openinventory	44	44	missing	missing	needs an engine feature	tif:22,dlc:14,byoh:5
+imagespacemodifier.popto	44	21	noop	noop	cosmetic	dlc:19,rpdefault:4,c03:3
+alias.unregisterforupdate	43	24	implemented	implemented	world mutation	qf_cwmission04:8,dlc:6,cwsiegegeneralscript:5
+faction.setplayerenemy	43	16	missing	missing	world mutation	qf_dbrecurring:20,dlc:8,qf_db09:3
+form.registerforsingleupdategametime	43	32	implemented	implemented	world mutation	dlc:12,caravanscript:3,mgcollegelecturesquestscript:3
+game.getformfromfile	43	9	implemented	implemented	world read	dlc:16,petframework:8,byohhousebuildingscript:5
+locationalias.forcelocationto	43	10	implemented	implemented	world mutation	qf_mq302fillaliases:12,tgrqueuequestscript:10,cwcampaignscript:7
+actor.getactorvaluepercentage	42	22	implemented	implemented	world read	dundustmanscairnendcontroller:8,dunbluepalacearenascript:6,dlc:4
+alias.registerforsingleupdate	42	24	implemented	implemented	world mutation	dlc:25,cwmission:5,mq1:5
+actor.setdoingfavor	41	41	missing	missing	world mutation	tif:26,dlc:13,byoh:1
+game.fasttravel	41	5	implemented	implemented	world mutation	carriagesystemscript:28,ferrysystemscript:8,dlc:3
+weather.setactive	41	16	missing	missing	needs an engine feature	qf_cwsiege:20,qf_mq106:3,fxalduinscript:2
+actor.getdialoguetarget	40	40	missing	missing	needs an engine feature	tif:36,dlc:4
+actor.getequippedspell	40	12	missing	missing	world read	playervampirequestscript:18,dlc:12,playerwerewolfchangescript:3
+alias.registerforupdate	40	30	implemented	implemented	world mutation	byoh:6,qf_mq301:4,cwmissionscript:3
+objectreference.getopenstate	40	19	implemented	implemented	world read	dunrebelscairnswordinstonemanager:6,doorbar:4,dunalftandflamedoorcontroller:4
+quest.setactive	40	31	noop	noop	world mutation	dlc:14,qf_mq301:5,qf_mq106:3
+referencealias.addinventoryeventfilter	40	26	implemented	implemented	world mutation	dlc:11,ffr:6,ms0:6
+actor.isequipped	39	16	missing	missing	world read	dlc:16,mqkilldragonscript:8,briarheartingredientscript:3
+actor.setcrimefaction	39	24	missing	missing	world mutation	dlc:6,qf_da11:6,ms1:5
+objectreference.removeallitems	39	27	implemented	implemented	world mutation	qf_mq201:4,dlc:3,mgrarniel:3
+actor.setalert	38	33	missing	missing	world mutation	tif:26,c00:6,dlc:4
+actorbase.getrace	38	17	missing	implemented	world read	da0:10,playervampirequestscript:10,dlc:5
+locationalias.clear	38	21	implemented	implemented	world mutation	dlc:17,qf_ms08:3,qf_da06:2
+actor.equipspell	37	13	missing	missing	needs an engine feature	dlc:20,playervampirequestscript:8,pf_mg07estormoambushplayer:2
+imagespacemodifier.remove	37	22	noop	noop	cosmetic	dlc:9,magicimodbeginloopend:4,mgrappb:3
+game.teachword	36	17	implemented	implemented	world mutation	dlc:13,qf_mq204:4,qf_mq305:4
+objectreference.getpositiony	36	15	implemented	implemented	world read	dlc:10,da1:4,dunhaltedstreamcampghostdebris:4
+formlist.hasform	35	20	missing	implemented	world read	dlc:13,trapexplosivegas:5,defaultghostscript:3
+actor.resurrect	34	23	missing	missing	needs an engine feature	tif:10,qf_mq201:8,dlc:5
+musictype.add	34	24	missing	missing	world mutation	dlc:13,qf_mq101:4,qf_cwsiege:3
+objectreference.applyhavokimpulse	34	20	missing	missing	needs an engine feature	dlc:6,dunyngolglow:5,testphilslotmachineleverscript:5
+objectreference.setdestroyed	34	18	missing	missing	world mutation	dlc:14,dunraldbtharpuzzlegearblockerscript:4,mineorescript:3
+game.querystat	33	5	missing	missing	world mutation	achievementsscript:21,favordialoguescript:8,dlc:2
+game.setinchargen	33	13	noop	noop	world mutation	dlc:10,qf_mq101:7,carriagesystemscript:2
+location.ischild	33	7	missing	missing	world read	cwscript:18,byohrelationshipadoptionscript:8,dlc:2
+actor.removeperk	32	20	missing	missing	world mutation	dlc:23,mgr:2,da1:1
+musictype.remove	32	26	missing	missing	world mutation	dlc:5,qf_mq101:5,sf_bardsongsinstrumentalflut:3
+quest.isstagedone	31	13	implemented	implemented	world read	dlc:13,qf_dunangarvundeqst:7,dunkilkreathbeamshooterscript:2
+actor.removeshout	30	5	missing	missing	world mutation	dlc:28,c03:1,playerwerewolfchangescript:1
+game.unlockword	30	10	implemented	implemented	world mutation	qf_mq204:6,qf_mq105:5,qf_mq305:4
+objectreference.setactorowner	30	15	missing	missing	world mutation	tgrbequestscript:7,tgrhcquestscript:7,qf_ms03:3
+objectreference.setposition	30	13	implemented	implemented	world mutation	dunpotemasms:9,da1:5,dlc:4
+weapon.fire	30	19	implemented	implemented	world mutation	dlc:8,trapdweballista:6,defaultfireweaponscript:2
+actor.setallowflying	29	18	missing	missing	world mutation	dlc:6,fxdragonmoundscript:3,mq3:3
+objectreference.playgamebryoanimation	29	12	missing	missing	world mutation	dunvolunruuddoorscript:12,dlc:4,fxcobwebwallscript:2
+actor.iscommandedactor	28	9	missing	missing	world read	dlc:19,byohrelationshipadoptablescript:4,da1:1
+objectreference.say	28	21	noop	noop	world mutation	dlc:4,rpdefault:4,carriagesystemscript:3
+actor.dispelspell	27	14	missing	missing	world mutation	dlc:21,magicdispelspellonhitscript:3,playerwerewolfchangescript:2
+actor.enableai	27	12	noop	noop	world mutation	dlc:20,mg0:4,mannequinactivatorscript:3
+actor.hasmagiceffect	27	15	missing	missing	world read	dlc:13,freeformhighhrothgarbscript:9,dragonpriestultramaskeffect:2
+actorbase.setprotected	27	16	missing	missing	world mutation	dlc:9,qf_dunbloatedmansgrottoqst:3,qf_mg02:3
+math.abs	27	15	implemented	implemented	pure	rpdefault:4,hazardbase:3,qf_dgintimidatequest:3
+objectreference.knockareaeffect	27	17	missing	missing	world mutation	dlc:6,dragonactorscript:3,fxalduinscript:3
+actor.docombatspellapply	26	13	missing	missing	world mutation	dlc:24,applymagicdamageonenter:1,vampireabsorbhealthscript:1
+actor.modactorvalue	26	15	implemented	implemented	world mutation	dlc:11,rpdefault:4,voiceiceformscript:4
+debug.notification	26	13	implemented	implemented	pure	dlc:6,dunharmugstahlpressureplatecontrol:6,movementtestrig:3
+weather.releaseoverride	26	21	missing	missing	world mutation	dlc:4,fxdragonmoundscript:3,dlcweatherswapzonescript:2
+actor.attachashpile	25	25	missing	missing	world mutation	dlc:12,bwcnightingaleghostscript:1,da1:1
+quest.iscompleted	25	17	implemented	implemented	world read	dlc:14,byohrelationshipadoptableorphanagesc:3,c01:1
+objectreference.setscale	24	19	missing	missing	world mutation	dlc:4,dunreachwaterrockpedestalmanager:3,magicanomalyspawnerscript:3
+scene.forcestart	24	2	implemented	implemented	world mutation	qf_mq302:22,mq3:2
+utility.getcurrentgametime	24	8	implemented	implemented	pure	byohrelationshipadoptionscript:9,dlc:7,dunhillgrundstombboss:4
+faction.setcrimegold	23	23	missing	missing	world mutation	tif:18,arenascript:1,companionsdialoguescript:1
+faction.setcrimegoldviolent	23	23	missing	missing	world mutation	tif:18,arenascript:1,companionsdialoguescript:1
+actor.setnobleedoutrecovery	21	14	missing	missing	world mutation	dlc:10,qf_mq206:3,arenascript:2
+actor.unequipspell	21	7	missing	missing	world mutation	dlc:13,playerwerewolfchangescript:3,qf_da15:3
+cell.reset	21	19	missing	missing	world mutation	cr0:5,cr1:4,qf_mg03:3
+form.registerforupdategametime	20	15	implemented	implemented	world mutation	dlc:2,favorquestscript:2,mgr:2
+math.cos	20	7	implemented	implemented	pure	rpdefault:7,cwartilleryaimingmenuscript:4,cwcatapultscript:4
+objectreference.getcurrentdestructionstage	20	4	implemented	implemented	world read	qf_cwsiege:12,cwfortsiegescript:5,tg0:2
+objectreference.movetonode	20	5	missing	missing	world mutation	weaponrackactivatescript:10,dlc:3,fxfakecritterscript:3
+quest.isstopped	20	8	missing	missing	world read	cwscript:11,cwlockduringsiegescript:3,dlc:2
+activemagiceffect.registerforsingleupdate	19	12	missing	missing	world mutation	dlc:9,magicplaceactivatorscript:2,magicprojectilestormscript:2
+actor.clearlookat	19	7	missing	missing	world mutation	qf_mq206:6,c01:5,pf_c00trainergetbacktotrainin:2
+actor.setlookat	19	9	missing	missing	world mutation	qf_mq206:6,c01:5,pf_dgintimidatespectatorpacka:2
+game.incrementskillby	19	2	missing	missing	world mutation	oghmainfiniumscript:18,qf_dunbardsleapsummitqst:1
+objectreference.calculateencounterlevel	19	19	missing	missing	world mutation	dlc:4,da1:1,darttrap:1
+objectreference.isfurnitureinuse	19	8	implemented	implemented	world read	dlc:5,rpdefault:5,ferrysystemscript:4
+objectreference.setfactionowner	19	19	noop	noop	world mutation	tif:10,dlc:2,playerhorsescript:1
+activemagiceffect.registerforanimationevent	18	11	missing	missing	world mutation	dlc:15,icewraithparticlesscript:2,werewolftransformvisual:1
+actor.getcombattarget	18	7	missing	missing	world read	qf_mq103a:4,qf_mq103b:4,spriggancallanimalsscript:3
+actor.hasperk	18	7	missing	missing	world read	dlc:13,traptriggerbase:2,dunkarthspireplatepuzzlescript:1
+alias.registerforanimationevent	18	8	implemented	implemented	world mutation	dlc:11,carriagesystemscript:2,altarofmolagbalscript:1
+alias.unregisterforupdategametime	18	12	implemented	implemented	world mutation	dlc:8,followeraliasscript:2,qf_tutorialalchemy:2
+faction.playerpaycrimegold	18	8	implemented	implemented	world mutation	crimeguardsscript:10,tif:5,dlc:3
+math.sin	18	6	implemented	implemented	pure	rpdefault:7,cwartilleryaimingmenuscript:4,cwcatapultscript:4
+objectreference.splinetranslateto	18	9	missing	missing	world mutation	critter:5,critterbird:4,critterdragonfly:2
+objectreference.waitforanimationevent	18	8	implemented	implemented	world mutation	dlc:12,trapdweballista:4,trapbear:1
+weather.forceactive	18	11	missing	missing	needs an engine feature	qf_cwsiege:5,qf_mq101:3,dlc:2
+actor.showgiftmenu	17	17	missing	missing	world mutation	tif:13,byohhousefishhatcheryscript:1,byohplantersoilscript:1
+form.unregisterforupdategametime	17	12	implemented	implemented	world mutation	dlc:3,playervampirequestscript:3,favorchangelocationquestscript:2
+message.showashelpmessage	17	7	missing	missing	world mutation	qf_mq101:11,dlc:3,qf_mq101dragonattack:1
+objectreference.islocked	17	14	missing	missing	world read	tg0:3,cidhnaminedoorbscript:2,favor:2
+actor.dispelallspells	16	12	missing	missing	world mutation	dlc:9,defaultmoveactortriggerscript:1,dunfellglowbossbattle:1
+game.forcefirstperson	16	13	noop	noop	world mutation	dlc:4,carriagesystemscript:2,elderscrollscript:2
+actor.damageactorvalue	15	9	implemented	implemented	world mutation	mqgreybeardabsorbscript:4,da0:2,dlc:2
+actor.isdetectedby	15	7	missing	missing	world read	da0:4,dunriftenjailsetstageonopen:4,dlc:2
+actor.restoreactorvalue	15	10	implemented	implemented	world mutation	dlc:7,qf_dgintimidatequest:3,qf_mqskyhavensparring:2
+actor.setforcedlandingmarker	15	10	missing	missing	world mutation	dlc:6,qf_mq206:3,actor:1
+actor.setplayerresistingarrest	15	15	implemented	implemented	world mutation	tif:10,dlc:4,qf_ms01guardambushquest:1
+cell.isattached	15	12	implemented	implemented	world read	dlc:9,cwcatapultstrikescript:1,festivalendscript:1
+objectreference.geteditorlocation	15	13	implemented	implemented	world read	byohhousebardscript:2,cwscript:2,byohhousebuildingscript:1
+utility.waitmenumode	15	8	implemented	implemented	pure	byohplantercontainerscript:3,dlc:3,oghmainfiniumscript:3
+activemagiceffect.dispel	14	9	missing	missing	world mutation	dlc:10,magicnighteyescript:2,boundboweffectscript:1
+actor.addshout	14	5	missing	missing	world mutation	dlc:12,c03:1,playerwerewolfchangescript:1
+actor.setnotshowonstealthmeter	14	5	missing	missing	world mutation	qf_mq201:6,qf_mq101:4,qf_dunhillgrundstombqst:2
+actor.setvehicle	14	3	implemented	implemented	world mutation	qf_mq101:10,carriagesystemscript:2,cartdriverscript:2
+actorbase.getsex	14	7	missing	missing	world read	draugrfxscript:4,fxdraugrmagicscript:4,byohrelationshipadoptionscript:2
+game.showfirstpersongeometry	14	6	noop	noop	world mutation	qf_mq101:4,c03:2,carriagesystemscript:2
+location.getreftypealivecount	14	7	missing	missing	world read	cwcampaignscript:8,cw0:2,cwmission:2
+math.atan	14	8	implemented	implemented	pure	rpdefault:6,dlc:3,cwartilleryaimingmenuscript:1
+objectreference.getworldspace	14	12	implemented	implemented	world read	dlc:9,da0:1,dragonactorscript:1
+actor.setvoicerecoverytime	13	12	missing	missing	world mutation	tif:8,sf_mq105sprinttrialscene:2,dunustenpuzgatescript:1
+alias.unregisterforanimationevent	13	8	missing	missing	world mutation	dlc:6,altarofmolagbalscript:2,mq1:2
+cell.setpublic	13	8	missing	missing	world mutation	dunsetfortownership:5,qf_tg01:2,dlc:1
+game.iswordunlocked	13	5	implemented	implemented	world read	dlc:5,qf_mq105:4,qf_mq204:4
+math.pow	13	4	implemented	implemented	pure	db0:4,da1:3,dunhaltedstreamcampghostdebris:3
+objectreference.isactivationblocked	13	13	missing	missing	world read	dlc:5,mq1:2,cwfortsiegejarlshousedoorscript:1
+objectreference.isindialoguewithplayer	13	13	implemented	implemented	world read	dlc:3,mq2:2,bardsongsscript:1
+objectreference.setangle	13	12	implemented	implemented	world mutation	dlc:3,mg0:2,critter:1
+objectreference.stoptranslation	13	7	missing	missing	world mutation	dlc:5,tg0:4,dunpinewatch:2
+quest.completequest	13	13	missing	missing	world mutation	dlc:3,companionsstoryquest:1,dunexplorecompletescript:1
+quest.getcurrentstageid	13	9	implemented	implemented	world read	mq1:3,ms0:3,v02:3
+actor.getcombatstate	12	9	implemented	implemented	world read	sf_we01scenea:4,c00:2,dunmarkarthwizardcallreinforcements:1
+actor.getequippeditemtype	12	5	missing	missing	world read	dlc:4,weaponrackactivatescript:3,elderscrollscript:2
+actor.isbleedingout	12	10	missing	missing	world read	qf_dgintimidatequest:3,cwresolution:2,dlc:2
+game.forcethirdperson	12	10	missing	missing	world mutation	dlc:5,qf_mq303:2,c03:1
+game.getform	12	4	implemented	implemented	world read	movementtestrig:6,cwcampaignscript:3,cwartilleryaimingmenuscript:2
+objectreference.cleardestruction	12	11	missing	missing	world mutation	dlc:2,lumbermillsawscript:2,mineorescript:1
+objectreference.hasnode	12	3	missing	missing	world read	crittermoth:4,dlc:4,testmoth:4
+actor.getleveledactorbase	11	8	missing	missing	world read	dlc:3,da0:2,mq3:2
+actor.isplayerteammate	11	8	implemented	implemented	world read	rpdefault:6,dlc:2,sayonhitbymagiceffectscript:2
+actor.playidlewithtarget	11	9	missing	missing	world mutation	dlc:5,qf_mq206:1,qf_mq303:1
+location.setcleared	11	11	missing	missing	world mutation	dlc:3,defaultclearlocationonactivate:1,defaultclearlocationondeath:1
+objectreference.interruptcast	11	9	missing	missing	world mutation	dlc:5,magictrap:2,dunkilkreathcrystalnodescript:1
+actor.clearextraarrows	10	8	missing	missing	world mutation	dlc:7,mqkilldragonscript:2,fxalduinscript:1
+actor.getsleepstate	10	9	missing	missing	world read	dlc:4,draugrfxscript:2,dragonpriestactorscript:1
+actor.istrespassing	10	1	missing	missing	world read	crimeguardsscript:10
+actor.removefromallfactions	10	9	missing	missing	world mutation	qf_tg08:2,byohrelationshipadoptionscript:1,da1:1
+alias.registerforsingleupdategametime	10	7	implemented	implemented	world mutation	dlc:6,caravanscript:3,byohrelationshipadoptionchildscript:1
+faction.getcrimegold	10	4	implemented	implemented	world read	crimeguardsscript:5,companionsdialoguescript:3,byohhousebuildingscript:1
+faction.modcrimegold	10	8	missing	missing	world mutation	crimeguardsscript:3,tif:2,qf_ms02:1
+form.getgoldvalue	10	5	implemented	implemented	world read	favorjobsgatherwheatscript:6,byohrelationshipadoptionchildscript:1,qf_mgr20:1
+formlist.find	10	7	missing	missing	world read	rpdefault:4,defaultaddmessagetohelpmenuscript:2,dlc:2
+objectreference.sendstealalarm	10	10	missing	missing	world mutation	tgrhcwealthitemscript:3,tgtq:2,tgcrownactivatorscript:1
+weather.findweather	10	3	missing	missing	world read	magicsetweatherscript:8,clearskieseffectscript:1,clearskiesquestscript:1
+activemagiceffect.gettargetactor	9	6	missing	missing	world read	dlc:6,perkavoiddeathscript:2,da0:1
+activemagiceffect.unregisterforanimationevent	9	6	missing	missing	world mutation	dlc:8,werewolftransformvisual:1
+actor.getequippedweapon	9	6	missing	missing	world read	dlc:4,byohrelationshipadoptionchildscript:2,c01:1
+actor.getsitstate	9	4	missing	missing	world read	dlc:5,elderscrollscript:4
+game.addhavokballandsocketconstraint	9	4	missing	missing	world mutation	defaultragdollattachpointscript:4,defaultwerewolfattachpointscript:2,hangingkeyattachonload:2
+math.sqrt	9	7	implemented	implemented	pure	critterfish:2,db0:2,critterdragonfly:1
+objectreference.getheadingangle	9	6	missing	missing	world read	da1:2,dlc:2,fxdragonblooddamagescript:2
+objectreference.processtraphit	9	9	missing	missing	world mutation	bladetraphit:1,da1:1,db0:1
+actor.allowpcdialogue	8	6	missing	missing	world mutation	dlc:2,qf_da14:2,da0:1
+actor.getfactionrank	8	4	implemented	implemented	world read	arenascript:3,byohrelationshipadoptablescript:2,petframework:2
+actor.hasmagiceffectwithkeyword	8	7	missing	missing	world read	dlc:2,trapexplosivegas:2,db1:1
+actor.issneaking	8	6	missing	missing	world read	dlc:5,cwmission:1,defaultnpcruntotrig:1
+actor.pathtoreference	8	1	missing	missing	world mutation	movementtestrig:8
+actor.resethealthandlimbs	8	7	implemented	implemented	world mutation	c00:3,arenascript:1,c01:1
+actor.sendassaultalarm	8	7	missing	missing	world mutation	pemperordecoyscript:2,tif:2,da0:1
+actor.setattackactoronsight	8	4	missing	missing	world mutation	c03:2,dlc:2,playervampirequestscript:2
+actor.setheadtracking	8	2	missing	missing	world mutation	qf_mq101:7,dunwhiteriverwatchdisableheadtracking:1
+cell.setfactionowner	8	3	implemented	implemented	world mutation	dunsetfortownership:5,dlc:2,housepurchasescript:1
+faction.sendplayertojail	8	8	implemented	implemented	world mutation	tif:5,dlc:1,qf_ms02:1
+objectreference.pushactoraway	8	8	missing	missing	world mutation	dlc:3,dunkatariahscimitarscript:1,mq1:1
+utility.waitgametime	8	7	implemented	implemented	pure	dlc:2,fxfakecritterscript:2,qf_relationshipmarriageweddin:1
+actor.allowbleedoutdialogue	7	4	missing	missing	world mutation	dlc:5,qf_dgintimidatequest:2
+actor.unequipall	7	7	missing	missing	world mutation	dlc:3,c01:1,c03:1
+game.advanceskill	7	2	missing	missing	world mutation	favordialoguescript:5,transmutemineralscript:2
+game.setbeastform	7	4	missing	missing	world mutation	c03:2,dlc:2,playerwerewolfchangescript:2
+game.setplayeraidriven	7	4	missing	missing	world mutation	qf_mq101:3,qf_relationshipmarriageweddin:2,sf_ciceroangryscene:1
+message.resethelpmessage	7	3	missing	missing	world mutation	dlc:6,qf_mq105:1
+objectreference.playimpacteffect	7	2	missing	missing	world mutation	dragonactorscript:6,dlc:1
+shaderparticlegeometry.remove	7	4	missing	missing	world mutation	shaderparticlegeometryscript:4,qf_mg02:1,qf_mg04monkscenequest:1
+actor.hasassociation	6	1	missing	missing	world read	wifunctionsscript:6
+actor.isflying	6	1	missing	missing	world read	dlc:6
+actorbase.getdeadcount	6	4	missing	missing	world read	dlc:2,qf_tg04:2,cw0:1
+alias.registerforupdategametime	6	5	implemented	implemented	world mutation	dialoguefollowerscript:2,dlc:1,qf_relationshipmarriagefin:1
+faction.getstolenitemvaluenocrime	6	1	missing	missing	world read	tgrntquestscript:6
+game.fadeoutgame	6	3	noop	noop	world mutation	carriagesystemscript:2,ferrysystemscript:2,qf_mq101:2
+game.requestautosave	6	6	noop	noop	world mutation	dlc:2,defaultautosavescript:1,dunfellglowautosavetrigger:1
+game.setplayerreportcrime	6	3	missing	missing	world mutation	c03:2,dlc:2,playerwerewolfchangescript:2
+keyword.sendstoryeventandwait	6	4	implemented	implemented	world mutation	dlc:4,companionshousekeepingscript:1,cwsiegescript:1
+objectreference.canfasttraveltomarker	6	2	missing	missing	world read	dlc:5,favorscoutingscript:1
+objectreference.dropobject	6	5	missing	missing	world mutation	weaponrackactivatescript:2,c01:1,carryactorscript:1
+objectreference.getlength	6	3	missing	missing	world read	dragonactorscript:4,dragontowerwallscript:1,giantactorscript:1
+objectreference.getmass	6	3	missing	missing	world read	da1:2,dunhaltedstreamcampghostdebris:2,ghosttrap:2
+package.gettemplate	6	4	missing	missing	world read	dlc:4,defaultactivateself:2
+spell.remotecast	6	4	missing	missing	world mutation	dlc:2,magicprojectilestormscript:2,rpdefault:2
+actor.equipshout	5	4	missing	missing	world mutation	qf_mq105:2,c03:1,dlc:1
+actor.getbaseactorvalue	5	3	implemented	implemented	world read	dlc:2,qf_dlc01vq01:2,actor:1
+actor.getequippedshield	5	2	missing	missing	world read	weaponrackactivatescript:4,slowdownstrikescript:1
+actor.getflyingstate	5	5	missing	missing	world read	dlc:2,mq3:2,mq1:1
+actor.isallowedtofly	5	5	missing	missing	world read	dlc:2,blackreachdragononhitscript:1,mq1:1
+actor.isweapondrawn	5	5	missing	missing	world read	dlc:3,fxdraugrmagicwepsscript:1,trapexplosivegas:1
+actor.modfactionrank	5	5	missing	missing	world mutation	arenascript:1,qf_c01:1,qf_c02:1
+actor.unequipshout	5	4	missing	missing	world mutation	playerwerewolfchangescript:2,c03:1,dlc:1
+form.registerforsleep	5	5	missing	missing	world mutation	dlc:2,byohvampirecoffinscript:1,qf_dbentrancequest:1
+math.floor	5	4	implemented	implemented	pure	relationshipmarriageweddingscript:2,cwreinforcementcontrollerscript:1,qf_relationshipmarriageweddin:1
+objectreference.setactorcause	5	4	missing	missing	world mutation	trapfallingoillampcollayer:2,db0:1,trapexplosivegas:1
+shaderparticlegeometry.apply	5	4	missing	missing	world mutation	mg0:2,shaderparticlegeometryscript:2,qf_mg04monkscenequest:1
+sound.setinstancevolume	5	3	missing	missing	cosmetic	dlc:3,cwsiegescript:1,defaultplaysoundatlinkscript:1
+spell.preload	5	1	missing	missing	world mutation	dlc:5
+spell.unload	5	1	missing	missing	world mutation	dlc:5
+weather.getcurrentweather	5	4	missing	missing	world read	critterspawn:2,clearskieseffectscript:1,dlc:1
+activemagiceffect.registerforsinglelosgain	4	2	missing	missing	world mutation	dlc:4
+activemagiceffect.registerforsingleupdategametime	4	4	missing	missing	world mutation	dlc:2,byohrestedadoptioneffectscript:1,timedabilityscript:1
+actor.enddeferredkill	4	3	missing	missing	world mutation	dlc:4
+actor.isghost	4	1	missing	missing	world read	dragonactorscript:4
+actor.isonmount	4	4	missing	missing	world read	dlc:4
+actor.startdeferredkill	4	2	missing	missing	world mutation	dlc:4
+actor.startsneaking	4	3	missing	missing	world mutation	dlc:4
+actor.unequipitemslot	4	2	missing	missing	world mutation	dlc:3,cchorsearmorchangescript:1
+alias.registerforsinglelosgain	4	2	missing	missing	world mutation	qf_wichangelocation09:3,wealiasscript:1
+cell.isinterior	4	2	missing	missing	world read	objectreference:3,mq1:1
+debug.sendanimationevent	4	4	missing	missing	pure	dlc:4
+form.registerforlos	4	2	missing	missing	world mutation	qf_e3demo:3,qf_mq105:1
+formlist.removeaddedform	4	4	missing	missing	world mutation	dlc:3,mq2:1
+formlist.revert	4	4	missing	missing	world mutation	dlc:2,mq2:1,qf_favor110:1
+game.findrandomreferenceofanytypeinlist	4	4	missing	missing	world read	critterfish:1,crittermoth:1,dlc:1
+game.getplayerslastriddenhorse	4	3	missing	missing	world read	cchorsearmorchangescript:2,cwdisableduringsiegealiasscript:1,cwdisableduringsiegescript:1
+game.showracemenu	4	2	missing	missing	needs an engine feature	qf_mq101:3,triggerracemenuscript:1
+game.starttitlesequence	4	1	noop	noop	world mutation	mq1:4
+location.isloaded	4	3	missing	missing	world read	objectreference:2,cartdriverscript:1,cwscript:1
+magiceffect.getassociatedskill	4	1	missing	missing	world read	dunlabyrinthianmazetabletscript:4
+objectreference.adddependentanimatedobjectreference	4	3	missing	missing	world mutation	headchopblockhookupscript:2,headchopblock:1,spiderwebanimationsscript:1
+objectreference.getanimationvariablebool	4	4	missing	missing	world read	c03:1,dlc:1,playerwerewolfchangescript:1
+objectreference.getfactionowner	4	2	missing	missing	world read	qf_relationshipmarriagefin:2,traptriggerbase:2
+objectreference.getscale	4	3	missing	missing	world read	dunshafttrapscript:2,dunyngollightsoutscript:1,nirnrootactivatorscript:1
+objectreference.getwidth	4	1	missing	missing	world read	critter:4
+objectreference.removedependentanimatedobjectreference	4	3	missing	missing	world mutation	headchopblockhookupscript:2,headchopblock:1,spiderwebanimationsscript:1
+objectreference.setanimationvariablebool	4	2	missing	missing	world mutation	dunfolgunthurbosstrigger:2,dungeirmundsbosstrigger:2
+objectreference.tethertohorse	4	3	implemented	implemented	world mutation	qf_mq101:2,cartandhorsetether:1,cartdriverscript:1
+quest.isactive	4	4	missing	missing	world read	cidhnamineplayerpickaxescript:1,qf_mq105:1,qf_mq106:1
+utility.isinmenumode	4	3	implemented	implemented	pure	briarheartingredientscript:2,defaultautosavescript:1,dlc:1
+activemagiceffect.registerforupdate	3	3	missing	missing	world mutation	dlc:3
+activemagiceffect.registerforupdategametime	3	3	missing	missing	world mutation	bladesblessingeffectscript:1,marriagesleepabscript:1,vampirediseaseeffectscript:1
+activemagiceffect.unregisterforupdategametime	3	3	missing	missing	world mutation	bladesblessingeffectscript:1,marriagesleepabscript:1,vampirediseaseeffectscript:1
+actor.getbribeamount	3	1	missing	missing	world read	favordialoguescript:3
+actor.getequippedshout	3	3	missing	missing	world read	playerwerewolfchangescript:1,qf_da15:1,qf_mq105:1
+actor.ishostiletoactor	3	3	missing	missing	world read	dlc:3
+actor.isinkillmove	3	3	missing	missing	world read	dlc:2,playerwerewolfchangescript:1
+actor.sendlycanthropystatechanged	3	3	missing	missing	world mutation	c03:1,companionshousekeepingscript:1,dlc:1
+actor.sendvampirismstatechanged	3	2	missing	missing	world mutation	playervampirequestscript:2,dlc:1
+actor.startvampirefeed	3	2	missing	missing	world mutation	prkf:2,dlc:1
+debug.togglecollisions	3	1	missing	missing	pure	screenshot:3
+form.unregisterforlos	3	2	missing	missing	world mutation	qf_mq105:2,e3d:1
+form.unregisterforsleep	3	2	missing	missing	world mutation	byohvampirecoffinscript:2,qf_dbentrancequest:1
+game.isfightingcontrolsenabled	3	3	implemented	implemented	world read	dlc:1,playervampirequestscript:1,vampirediseaseeffectscript:1
+game.ismovementcontrolsenabled	3	3	implemented	implemented	world read	dlc:1,playervampirequestscript:1,vampirediseaseeffectscript:1
+game.playbink	3	1	missing	missing	world mutation	e3d:3
+game.quittomainmenu	3	1	missing	missing	world mutation	e3d:3
+game.removehavokconstraints	3	2	missing	missing	world mutation	hangingkeyattachonload:2,hangedmanscript:1
+game.sendwerewolftransformation	3	2	missing	missing	world mutation	playerwerewolfchangescript:2,dlc:1
+objectreference.getanimationvariablefloat	3	2	missing	missing	world read	trapdweflamepillar:2,magicanomalyspawnerscript:1
+objectreference.hasreftype	3	2	missing	missing	world read	da0:2,monitoralivecountaliasscript:1
+objectreference.ismapmarkervisible	3	3	missing	missing	world read	dlc:2,qf_wedl12:1
+spell.ishostile	3	3	missing	missing	world read	dlc:2,mq3:1
+activemagiceffect.registerforsingleloslost	2	2	missing	missing	world mutation	dlc:2
+actor.getfactionreaction	2	2	missing	missing	world read	defaultactivateself:1,dlc:1
+actor.getlightlevel	2	2	missing	missing	world read	dlc:2
+actor.isbeingridden	2	1	missing	missing	world read	dlc:2
+actor.isessential	2	2	missing	missing	world read	cchorsearmorchangescript:1,da1:1
+actor.setbribed	2	1	missing	missing	world mutation	favordialoguescript:2
+actor.setdontmove	2	1	missing	missing	world mutation	dlc:2
+actor.seteyetexture	2	2	missing	missing	world mutation	dlc:2
+actor.startcannibal	2	2	missing	missing	world mutation	da1:1,prkf:1
+actorbase.isunique	2	1	missing	missing	world read	actor:2
+cell.setfogcolor	2	1	missing	missing	world mutation	dbsanctuarydb:2
+cell.setfogplanes	2	1	missing	missing	world mutation	dbsanctuarydb:2
+debug.togglemenus	2	1	missing	missing	pure	screenshot:2
+debug.tracestack	2	2	implemented	implemented	pure	dlc:2
+faction.sendassaultalarm	2	2	missing	missing	world mutation	dlc:1,qf_dlc01vq01:1
+form.registerforsinglelosgain	2	2	missing	missing	world mutation	qf_cwmission03:1,qf_mq106:1
+form.registerforsingleloslost	2	2	missing	missing	world mutation	db0:1,defaultenablelinkedrefonlostlos:1
+game.clearprison	2	1	missing	missing	world mutation	qf_ms02:2
+game.cleartempeffects	2	1	missing	missing	world mutation	qf_mq206:2
+game.findclosestreferenceofanytypeinlist	2	2	missing	missing	world read	dlc:1,game:1
+game.getsunpositionx	2	1	missing	missing	world read	dlc:2
+game.getsunpositionz	2	1	missing	missing	world read	dlc:2
+game.precachechargen	2	2	missing	missing	world mutation	dlc:1,qf_mq101:1
+game.sethudcartmode	2	1	noop	noop	world mutation	qf_mq101:2
+game.triggerscreenblood	2	1	missing	missing	world mutation	dlc:2
+location.iscleared	2	2	missing	missing	world read	defaultdisableonresetiflocwascleared:1,dunmossmotherquestmanager:1
+math.ceiling	2	2	implemented	implemented	pure	rpdefault:2
+objectreference.addinventoryeventfilter	2	2	implemented	implemented	world mutation	abforswornbriarheartscript:1,mgrarniel:1
+objectreference.forceaddragdolltoworld	2	2	missing	missing	world mutation	defaultragdollattachpointscript:1,defaultwerewolfattachpointscript:1
+objectreference.getactorowner	2	1	missing	missing	world read	traptriggerbase:2
+objectreference.getheight	2	1	missing	missing	world read	critter:2
+objectreference.getvoicetype	2	1	missing	missing	world read	bardsongsscript:2
+objectreference.setanimationvariableint	2	1	missing	missing	world mutation	dlc:2
+scene.isactioncomplete	2	1	missing	missing	world read	ms1:2
+weather.getclassification	2	2	missing	missing	world read	critterspawn:1,dlc:1
+activemagiceffect.getcasteractor	1	1	missing	missing	world read	boundboweffectscript:1
+activemagiceffect.unregisterforupdate	1	1	missing	missing	world mutation	dlc:1
+actor.canflyhere	1	1	missing	missing	world read	dlc:1
+actor.cleararrested	1	1	missing	missing	world mutation	qf_dgarrestquest:1
+actor.forceactorvalue	1	1	missing	missing	world mutation	actor:1
+actor.getactorvaluemax	1	1	missing	missing	world read	actor:1
+actor.getgoldamount	1	1	missing	missing	world read	favordialoguescript:1
+actor.hasfamilyrelationship	1	1	missing	missing	world read	wifunctionsscript:1
+actor.hasparentrelationship	1	1	missing	missing	world read	wifunctionsscript:1
+actor.killsilent	1	1	missing	missing	world mutation	dlc:1
+actor.setallowflyingex	1	1	missing	missing	world mutation	dlc:1
+actor.setintimidated	1	1	missing	missing	world mutation	favordialoguescript:1
+actor.trapsoul	1	1	missing	missing	world mutation	magicsoultrapfxscript:1
+actor.unlockowneddoorsincell	1	1	missing	missing	world mutation	cr0:1
+actor.wornhaskeyword	1	1	missing	missing	world mutation	dlc:1
+actorbase.getgiftfilter	1	1	missing	missing	world read	favordialoguescript:1
+alias.registerforsleep	1	1	missing	missing	world mutation	tiberseptimbedscript:1
+alias.unregisterforsleep	1	1	missing	missing	world mutation	tiberseptimbedscript:1
+cell.setactorowner	1	1	implemented	implemented	world mutation	dlc:1
+debug.centeroncellandwait	1	1	missing	missing	pure	screenshot:1
+debug.dbsendplayerposition	1	1	missing	missing	pure	statsplayerposition:1
+debug.openuserlog	1	1	implemented	implemented	pure	cwscript:1
+debug.quitgame	1	1	missing	missing	pure	screenshot:1
+debug.setfootik	1	1	missing	missing	pure	screenshot:1
+debug.setgodmode	1	1	missing	missing	pure	screenshot:1
+debug.takescreenshot	1	1	missing	missing	pure	screenshot:1
+faction.getcrimegoldnonviolent	1	1	missing	missing	world read	crimeguardsscript:1
+faction.getcrimegoldviolent	1	1	missing	missing	world read	crimeguardsscript:1
+form.registerfortrackedstatsevent	1	1	missing	missing	world mutation	achievementsscript:1
+game.addperkpoints	1	1	missing	missing	world mutation	dlc:1
+game.findclosestactor	1	1	missing	missing	world read	game:1
+game.findclosestreferenceoftype	1	1	missing	missing	world read	game:1
+game.findrandomactor	1	1	missing	missing	world read	game:1
+game.findrandomreferenceoftype	1	1	missing	missing	world read	game:1
+game.getplayergrabbedref	1	1	missing	missing	world read	playerbookshelftriggerscript:1
+game.getsunpositiony	1	1	missing	missing	world read	dlc:1
+game.hidetitlesequencemenu	1	1	noop	noop	world mutation	mq1:1
+game.isactivatecontrolsenabled	1	1	missing	missing	world read	dlc:1
+game.isfasttravelcontrolsenabled	1	1	missing	missing	world read	dlc:1
+game.islookingcontrolsenabled	1	1	missing	missing	world read	dlc:1
+game.ismenucontrolsenabled	1	1	missing	missing	world read	dlc:1
+game.issneakingcontrolsenabled	1	1	missing	missing	world read	dlc:1
+game.requestsave	1	1	missing	missing	world mutation	qf_mq101:1
+game.servetime	1	1	missing	missing	world mutation	jailbedscript:1
+game.setsittingrotation	1	1	missing	missing	world mutation	qf_mq101:1
+game.setsungazeimagespacemodifier	1	1	missing	missing	world mutation	dlc:1
+game.showlimitedracemenu	1	1	missing	missing	needs an engine feature	dlc:1
+game.showtitlesequencemenu	1	1	noop	noop	world mutation	qf_mq101:1
+game.usinggamepad	1	1	missing	missing	world mutation	qf_mq101:1
+leveledactor.addform	1	1	missing	missing	world mutation	dlc:1
+location.hascommonparent	1	1	missing	missing	world read	location:1
+math.asin	1	1	implemented	implemented	pure	rpdefault:1
+objectreference.getcurrentscene	1	1	missing	missing	world read	sayonhitbymagiceffectscript:1
+objectreference.getkey	1	1	missing	missing	world read	objectreference:1
+objectreference.haseffectkeyword	1	1	missing	missing	world read	wichangelocation:1
+objectreference.isdeleted	1	1	missing	missing	world read	dlc:1
+objectreference.islockbroken	1	1	missing	missing	world read	traptriggerhinge:1
+quest.isobjectivefailed	1	1	missing	missing	world read	qf_ms10:1
+quest.setcurrentstageid	1	1	implemented	implemented	world mutation	quest:1
+referencealias.removeinventoryeventfilter	1	1	implemented	implemented	world mutation	ms1:1
+topic.add	1	1	missing	missing	world mutation	tif:1
+weather.getskymode	1	1	missing	missing	world read	magicsetweatherscript:1

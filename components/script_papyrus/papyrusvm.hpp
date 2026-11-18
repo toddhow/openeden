@@ -374,6 +374,7 @@ namespace ScriptPapyrus::Vm
         void setMaxArrayLength(std::uint32_t length) noexcept override { mOptions.maxArrayLength = length; }
         std::string stateOf(openeden::script::InstanceId instance) const override;
         std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const override;
+        std::map<std::string, std::map<std::string, std::uint64_t>> nativeCallers() const override;
         std::uint32_t suspendedStacks() const noexcept override { return mSuspendedCount; }
         std::uint64_t latentToken() const noexcept override { return mLatentToken; }
         bool completeLatent(std::uint64_t token) noexcept override;
@@ -382,7 +383,8 @@ namespace ScriptPapyrus::Vm
     private:
         // papyrusruntime.cpp
         openeden::script::LoadResult load(std::span<const std::uint8_t> bytes, std::string_view name);
-        openeden::script::LinkReport buildLinkReport(std::map<std::string, std::uint64_t>* natives) const;
+        openeden::script::LinkReport buildLinkReport(std::map<std::string, std::uint64_t>* natives,
+            std::map<std::string, std::map<std::string, std::uint64_t>>* callers = nullptr) const;
         const Script* find(const std::string& lowerClass) const
         {
             auto found = mByName.find(lowerClass);
