@@ -102,3 +102,22 @@ New game at `@WhiterunWorld,25670,-7633`; MQ105 marked; `dragonborn = true`.
 - `ObjectPlaceRequest` gained `allowActor` (default false; additive). `PlaceAtMe` now goes through `placeNear` (same behaviour; its body was moved).
 - With `dragonborn` on: every ForceGreet package walks to the player first (this changes Brynjolf and Vilkas too when the setting is on; off by default), fragments follow their log entries' conditions, `SetAV Aggression` reaches the combat AI.
 - The `@seconds` suffix of `summons test kill` is parsed inside the string (no new setting).
+
+## 7. Rebased onto task 0305 (Dawnguard): one walk-up, one alias plumbing
+
+Task 0305 reached `main` with its own ForceGreet approach and forced-alias packages, which clashed with gaps 3 and 4 above. The two are now ONE mechanism each:
+
+- **One walk-up rule** (`PackageBrain::evaluate` / `update`, 0305's `mGreetApproach`, which reuses the follower walk): an actor of a ForceGreet package farther than `mGreetFrom` from the player
+  walks up (`enterFollowPlayer`, runs beyond 700) and asks for its conversation once within `mGreetStop`. The two distances are parameters: the defaults are 0305's
+  (`kGreetApproachFrom` 2600, `kGreetApproachStop` 1800: Durak walks from far outside the town and asks inside the Lua activation range of 3,000), and
+  `PackageBrain::setApproachGreeters(true)` (set by `dragonborn`) makes both `kGreetAskDistance` 380, so the cultists ask only within 380 units. My own `approachPlayer`,
+  `mGreeting`, `mGreetTimer` and the second ask test are removed.
+- **One alias-package plumbing**: 0305's `setAliasLookup` / `aliasRevision` (`PapyrusHost::aliasReference`) already give a reference the packages of every alias with ALPC that no data
+  fills, read from the quest state, so the references a quest created (`setAliasFill` in `createAliasObjects`) get theirs through it. My `addAliasPackageReference` and the
+  `setAliasCreated` callback are removed; `createAliasObjects` moves `aliasRevision` instead, and `startPackageQuest` (a quest the story manager starts is running for the brain) stays.
+- Tests: `SkyrimDragonbornReport` now checks `aliasRevision` moves and `aliasReference` returns the created references; the control test of the greeter stands the actor at 2,000 units
+  (inside 0305's own range, so a greeter asks at once as before). No existing test edited.
+- Re-run after the rebase (combat3 build at `63cd0c00e1` + this branch): three Dragonborn runs (`f1` to `f3`) give the same 34 trace lines, md5 `0ba8d1c98245`, as before the merge;
+  `tools/skydawnguard_check` (`actor cell moves`, `quest alias packages`, `player level = 10`, the 0305 teleport at frame 2200): `STORY started 0200D90B ... Messenger=02015C16(Durak)`,
+  `FORCEGREET the actor ... wants to say topic`, the conversation with Durak (2 turns), `DLC1VQ00` stages 20 and 50 run. `components-tests` `SkyrimDragonborn*:SkyrimDawnguard*:SkyrimThieves*:SkyrimFollower*:*Package*` 212 pass.
+  Not repeated: Durak's own walk (0305 records it blocked at (21972, -7687) here too; the check teleports the player).
