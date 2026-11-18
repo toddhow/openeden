@@ -380,6 +380,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testaerialmath.cpp
     render/testwatermath.cpp
     render/testgputiming.cpp
+    render/testscenecensus.cpp
     render/testhdrmath.cpp
     render/testtonemap.cpp
     render/testimagespace.cpp

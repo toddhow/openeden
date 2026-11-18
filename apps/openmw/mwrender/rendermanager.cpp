@@ -392,17 +392,35 @@ namespace MWRender
             counters.add("scene draws", [this] {
                 if (mCensusCountdown == 0)
                 {
+                    // Task 0062 stage a: DistanceLOD ranges are applied for the eye, and the objects the engine loaded
+                    // (the active grid's statics and the actors) are counted on their own.
                     mCensus.reset();
+                    mCensus.setEye(mCensusEye);
                     if (mSceneRoot)
                         mSceneRoot->accept(mCensus);
                     mCensusDraws = mCensus.draws();
                     mCensusTriangles = mCensus.triangles();
+                    mCensusLodSkipped = mCensus.lodChildrenSkipped();
+                    mCensus.reset();
+                    mCensus.setEye(mCensusEye);
+                    if (mScene)
+                    {
+                        if (auto objects = mScene->getObjects())
+                            objects->accept(mCensus);
+                        if (auto actors = mScene->getActors())
+                            actors->accept(mCensus);
+                    }
+                    mCensusObjectDraws = mCensus.draws();
+                    mCensusObjectTriangles = mCensus.triangles();
                     mCensusCountdown = 30;
                 }
                 --mCensusCountdown;
                 return static_cast<double>(mCensusDraws);
             });
             counters.add("scene triangles", [this] { return static_cast<double>(mCensusTriangles); });
+            counters.add("scene lod skipped", [this] { return static_cast<double>(mCensusLodSkipped); });
+            counters.add("object draws", [this] { return static_cast<double>(mCensusObjectDraws); });
+            counters.add("object triangles", [this] { return static_cast<double>(mCensusObjectTriangles); });
         }
 
         // OpenEden (task 0080): the video memory scale-back. Nothing is made, and no memory budget is read, unless on.
@@ -3773,7 +3791,8 @@ namespace MWRender
         }
         {
             Misc::LoadTrace::Scope traceObjects("render.update.distantobjects");
-            updateDistantObjects(cameraPosition, dt);
+mCensusEye = vsg::dvec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+                        updateDistantObjects(cameraPosition, dt);
         }
         {
             Misc::LoadTrace::Scope traceClusters("render.update.lodclusters");

@@ -134,4 +134,14 @@ Out of scope: skinned actors, the chain for models with their own `NiLODNode` ra
 
 ## Stage log (implementer's notes)
 
-None yet. Nothing in this spec is built.
+### Stage a (2026-11-18, branch `modellod-0062a`): measured, the gate says no-go on the RTX 4070
+
+Full numbers and method: `docs/research/0145-model-lod-gate-measurement.md`. Built: `Render::SceneCensus` applies `DistanceLOD`
+ranges for an eye (4 tests, written with the code), new frame counters `ctr_scene_lod_skipped`, `ctr_object_draws`,
+`ctr_object_triangles`; harness `tools/modellod_check/`. Results: both games are CPU-bound at every pose (GPU frame 0.05 to
+0.8 ms against 1.6 to 6.3 ms wall); geometry-bound GPU time (320 x 180 main pass plus shadow cascades) is at most about 0.6 ms
+(Skyrim street) and 0.4 ms (Balmora ground, shadows on); halving the triangles beyond level 1 saves at most 0.17 ms (Morrowind)
+and 0.3 ms (Skyrim street) with shadows on, never reaching the 0.5 ms criterion; draw counts do not fall. The literal "10 percent of
+GPU time" reading is met only because the GPU is nearly idle. **Verdict: no-go here, conditional go for a triangle-limited device.**
+The software device run and the paper estimate (item 3) were not run (reasons in the note). Stages b to e are not started and
+should not be without toddhow's word; the gate wording should become an absolute number.

@@ -1,0 +1,6 @@
+tcl
+player->setpos x 20480
+player->setpos y -86016
+player->setpos z 900
+player->setangle x 8
+player->setangle z 0

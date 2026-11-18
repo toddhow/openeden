@@ -477,6 +477,11 @@ namespace MWRender
         std::uint64_t mCensusDraws = 0;
         std::uint64_t mCensusTriangles = 0;
         unsigned mCensusCountdown = 0;
+        // Task 0062 stage a: the eye the census applies DistanceLOD ranges for, and the extra counters.
+        vsg::dvec3 mCensusEye;
+        std::uint64_t mCensusLodSkipped = 0;
+        std::uint64_t mCensusObjectDraws = 0;
+        std::uint64_t mCensusObjectTriangles = 0;
         static constexpr std::size_t noPass = static_cast<std::size_t>(-1);
         std::size_t mReflectPass = noPass;
         vsg::ref_ptr<vsg::StateGroup> mSceneRoot;
