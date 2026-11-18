@@ -162,7 +162,7 @@ namespace
         // the skin's z extent
         EXPECT_NEAR(player.mCapsuleHeight, 139.6f, 0.1f);
         EXPECT_EQ(bareClip(player.mAttack), "ww_attackrightfast");
-        EXPECT_EQ(bareClip(player.mPower), "ww_attackrightpowercombo");
+        EXPECT_EQ(bareClip(player.mPower), "ww_attackright"); // task 0316: the single power clip, not the combo
     }
 
     // ---- the combat half --------------------------------------------------------------------------------------------

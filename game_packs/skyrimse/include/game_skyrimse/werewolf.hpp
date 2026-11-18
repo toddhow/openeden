@@ -161,8 +161,8 @@ namespace game_skyrimse::werewolf
     inline constexpr FormId kDefaultHowl = 0xCF790;
     inline constexpr std::array<FormId, 3> kDefaultHowlWords = { 0xCF78E, 0xCF794, 0xCF795 };
 
-    /// The row of the player's beast with the real power attack `ww_attackright` (the older `playerProfile()` keeps the
-    /// three-hit combo, which an existing test pins). Clip names carry the creature folder like `playerProfile()`.
+    /// The row of the player's beast with the real power attack `ww_attackright`. Since task 0316 `playerProfile()`
+    /// has the same single power clip (it kept the three-hit combo before). Clip names carry the creature folder.
     [[nodiscard]] const CreatureProfile& playerBeastProfile();
 
     /// The way back: the form ends not when the clock runs out but 1.799 s into the clip `ww_bleedoutstart`

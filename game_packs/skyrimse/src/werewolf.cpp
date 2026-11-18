@@ -19,7 +19,7 @@ namespace game_skyrimse::werewolf
         const CreatureProfile kPlayer = { "werewolf", "actors/werewolfbeast/character assets/skeleton.nif",
             "werewolfbeastproject", "ww_idlebase", "ww_walkforward", "ww_runforward", 93.4308f / 1.33333f,
             222.219f / 0.733333f, 93.4308f, 222.219f, 139.6f, "werewolfbeast::ww_attackrightfast",
-            "werewolfbeast::ww_attackrightpowercombo", "ww_staggersmalll", "ww_staggermedium", "ww_deathtemp", 30.f };
+            "werewolfbeast::ww_attackright", "ww_staggersmalll", "ww_staggermedium", "ww_deathtemp", 30.f };
         // Task 0279: the same row with the real power attack (generator AttackRightPower_State, 1.26667 s)
         const CreatureProfile kPlayerBeast = { "werewolf", "actors/werewolfbeast/character assets/skeleton.nif",
             "werewolfbeastproject", "ww_idlebase", "ww_walkforward", "ww_runforward", 93.4308f / 1.33333f,

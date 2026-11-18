@@ -49,7 +49,7 @@ namespace
         EXPECT_EQ(bareClip(beast.mAttack), "ww_attackrightfast");
         EXPECT_EQ(beast.mWalk, playerProfile().mWalk);
         EXPECT_EQ(beast.mRunStride, playerProfile().mRunStride);
-        EXPECT_EQ(bareClip(playerProfile().mPower), "ww_attackrightpowercombo");
+        EXPECT_EQ(bareClip(playerProfile().mPower), "ww_attackright"); // task 0316: both rows now use the single clip
     }
 
     // ---- the way back (TransformToHuman) ----------------------------------------------------------------------------
