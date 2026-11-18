@@ -197,6 +197,15 @@ namespace game_skyrimse
         return sdkgame::ActorRelation::Neutral;
     }
 
+    sdkgame::ActorRelation lawlessHostileRelation(sdkgame::ActorAggression aggression, sdkgame::ActorRelation relation,
+        FormId crimeFaction, bool guard)
+    {
+        if (aggression == sdkgame::ActorAggression::Aggressive && relation == sdkgame::ActorRelation::Neutral
+            && crimeFaction == kNullFormId && !guard)
+            return sdkgame::ActorRelation::Enemy;
+        return relation;
+    }
+
     bool wouldAttackOnSight(sdkgame::ActorAggression aggression, sdkgame::ActorRelation relation)
     {
         switch (aggression)
@@ -234,6 +243,20 @@ namespace game_skyrimse
             if (aiOwner->mAi)
                 out.aggression
                     = static_cast<sdkgame::ActorAggression>(std::min<std::uint8_t>(aiOwner->mAi->mAggression, 3));
+        }
+        if (options.mHostileFactions) // task 0316
+        {
+            FormId crime = kNullFormId;
+            if (const ActorNpc* crimeSource = index.npc(resolved.mFactionsFrom))
+                crime = crimeSource->mCrimeFaction;
+            if (crime == kNullFormId)
+                if (const ActorNpc* own = index.npc(npc))
+                    crime = own->mCrimeFaction;
+            bool guard = false;
+            for (const FactionMembership& membership : resolved.mFactions)
+                if (const FactionRecord* faction = index.faction(membership.mFaction))
+                    guard = guard || faction->mCommon.mEditorId == "IsGuardFaction";
+            out.relationToPlayer = lawlessHostileRelation(out.aggression, out.relationToPlayer, crime, guard);
         }
         out.hostileOnSight = wouldAttackOnSight(out.aggression, out.relationToPlayer);
         error.clear();

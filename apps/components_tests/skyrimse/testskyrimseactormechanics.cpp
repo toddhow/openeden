@@ -695,4 +695,31 @@ namespace
         EXPECT_TRUE(index.faction(0x500)->mRelations.empty());
         EXPECT_EQ(index.faction(0x999), nullptr);
     }
+
+    // Task 0316: `combat hostile factions`: an Aggressive outlaw with no stated relation is an enemy of the player.
+    TEST(SkyrimLawlessHostile, anAggressiveOutlawWithNoStatedRelationIsAnEnemy)
+    {
+        using sdkgame::ActorAggression;
+        using sdkgame::ActorRelation;
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Neutral, 0, false),
+            ActorRelation::Enemy);
+    }
+
+    TEST(SkyrimLawlessHostile, townFolkGuardsAndOtherAggressionKeepTheirRelation)
+    {
+        using sdkgame::ActorAggression;
+        using sdkgame::ActorRelation;
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Neutral, 0x1234, false),
+            ActorRelation::Neutral); // a crime faction: a town's soldier or citizen
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Neutral, 0, true),
+            ActorRelation::Neutral); // a guard
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Unaggressive, ActorRelation::Neutral, 0, false),
+            ActorRelation::Neutral);
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::VeryAggressive, ActorRelation::Neutral, 0, false),
+            ActorRelation::Neutral); // already attacks neutrals
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Friend, 0, false),
+            ActorRelation::Friend);
+        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Ally, 0, false),
+            ActorRelation::Ally);
+    }
 }

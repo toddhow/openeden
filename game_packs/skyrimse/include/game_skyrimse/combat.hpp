@@ -90,6 +90,8 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatFactionsKey = "combat factions";
     /// Task 0197 test rule: this actor (editor id) attacks the nearest valid target on sight.
     inline constexpr std::string_view kCombatTestAttackerKey = "combat test attacker";
+    /// Task 0316: Aggressive outlaws with no stated relation to the player attack him on sight (off by default).
+    inline constexpr std::string_view kCombatHostileFactionsKey = "combat hostile factions";
     inline constexpr std::string_view kCombatFactionsDelayKey = "combat factions delay";
     /// Task 0172 (stage S5-4) test settings, all off by default: every Nth attack of a hostile actor is a power attack,
     /// every Mth a bash, and the actors with this editor id block.

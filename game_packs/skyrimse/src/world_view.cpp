@@ -766,6 +766,7 @@ namespace game_skyrimse
                 std::string dispositionError;
                 MechanicsOptions options;
                 options.mPlayerLevel = mStandInPlayerLevel;
+                options.mHostileFactions = mHostileFactions; // task 0316
                 if (computeActorDisposition(*mActorIndex, npc, pick, options, disposition, dispositionError))
                 {
                     out.mAi.mHostileOnSight = disposition.hostileOnSight;
@@ -1096,6 +1097,7 @@ namespace game_skyrimse
         }
         MechanicsOptions options;
         options.mPlayerLevel = mStandInPlayerLevel;
+        options.mHostileFactions = mHostileFactions; // task 0316
         return computeActorDisposition(*mActorIndex, static_cast<FormId>(base), variation, options, out, error);
     }
 

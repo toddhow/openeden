@@ -5729,6 +5729,11 @@ namespace game_skyrimse
                         mCellSource.combat().setCombatAi(true);
                         say(openeden::sdk::LogLevel::Info, "combat ai: on");
                         // Task 0197: relations, followers, guards and sight choose the target.
+                        if (settings->getBool(kPackId, kCombatHostileFactionsKey, false)) // task 0316
+                        {
+                            mWorldView.setHostileFactions(true);
+                            say(openeden::sdk::LogLevel::Info, "combat hostile factions: on");
+                        }
                         if (settings->getBool(kPackId, kCombatFactionsKey, false))
                         {
                             mCellSource.combat().setCombatFactions(true);

@@ -52,6 +52,9 @@ namespace game_skyrimse
         std::uint16_t mPlayerLevel = kStandInPlayerLevel; ///< 0 is read as kStandInPlayerLevel
         /// The factions the player is a member of (rank is not used): the stand-in has PlayerFaction only.
         std::vector<FormId> mPlayerFactions{ kPlayerFactionId };
+        /// Task 0316 (`[extension.skyrimse] combat hostile factions`): an Aggressive actor with no crime faction and
+        /// no stated relation to the player is an enemy of the player (see lawlessHostileRelation).
+        bool mHostileFactions = false;
     };
 
     /// The per-level gains of a class (zero when the class is unknown or has no weights).
@@ -72,6 +75,15 @@ namespace game_skyrimse
     /// any pair is allies or shares a faction, else Friend if any pair is friends, else Neutral.
     [[nodiscard]] openeden::sdk::game::ActorRelation relationOfFactions(
         const ActorIndex& index, const std::vector<FactionMembership>& a, const std::vector<FactionMembership>& b);
+
+    /// Task 0316. The data has no relation between BanditFaction and PlayerFaction (nor for most wild factions), so
+    /// the stated-relation rule leaves every Aggressive (AIDT 1) outlaw peaceful. The rule here (RECALLED-VERIFY: that
+    /// the engine does this is NOT shown by the data; the CK wiki could not be read): an actor whose AIDT aggression
+    /// is Aggressive, with no relation to the player stated (Neutral), that collects no crime (NPC CRIF none: a town
+    /// guard, citizen or soldier always has one) and is not a guard, is an enemy of the player. Every other case keeps
+    /// `relation`.
+    [[nodiscard]] sdkgame::ActorRelation lawlessHostileRelation(sdkgame::ActorAggression aggression,
+        sdkgame::ActorRelation relation, FormId crimeFaction, bool guard);
 
     /// The pack's rule: Unaggressive never; Aggressive attacks an enemy; VeryAggressive an enemy or a neutral; Frenzied
     /// anyone.

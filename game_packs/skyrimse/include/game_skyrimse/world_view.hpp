@@ -456,6 +456,7 @@ namespace game_skyrimse
         /// The level an actor that scales with the player scales to when the caller passes 0 (the pack setting
         /// `player level`; kStandInPlayerLevel by default).
         void setStandInPlayerLevel(std::uint16_t level) { mStandInPlayerLevel = level; }
+        void setHostileFactions(bool on) { mHostileFactions = on; } ///< task 0316
         [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
         /// Task 0212 (`creatures`): creature races are described and fight as creatures. Set before the first actor.
         void setCreatures(bool on) { mCreatures = on; }
@@ -972,6 +973,7 @@ namespace game_skyrimse
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         bool mStandInFemale = false;
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
+        bool mHostileFactions = false; ///< task 0316: `combat hostile factions`
         bool mCreatures = false; ///< task 0212
         bool mDragons = false; ///< task 0253
         std::map<std::string, FormId> mNpcByEditorId; ///< task 0253: lower case, built by the first npcByEditorId
