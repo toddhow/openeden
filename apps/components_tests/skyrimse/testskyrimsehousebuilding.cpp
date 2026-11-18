@@ -74,7 +74,7 @@ namespace
             const auto it = mClasses.find(form);
             return it != mClasses.end() ? it->second : std::string();
         }
-        bool formListEntries(FormId list, std::vector<FormId>& out) override
+        bool formListEntries(FormId list, std::vector<FormId>& out) const override
         {
             out.clear();
             const auto it = mLists.find(list);

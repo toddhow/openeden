@@ -188,9 +188,12 @@ namespace game_skyrimse
             }
             bool actorLevel(FormId actor, std::int32_t& level) const override
             {
-                if (actor == kPapyrusPlayerReference) // the stand-in player: his level is the pack's setting (decision)
+                if (actor == kPapyrusPlayerReference)
                 {
-                    level = mView.standInPlayerLevel();
+                    // the progression's level when [extension.skyrimse] player progression is on, else the stand-in's
+                    // setting (toddhow, 2026-11-18)
+                    if (!mPlayerLevel || !mPlayerLevel(level))
+                        level = mView.standInPlayerLevel();
                     return true;
                 }
                 return mView.actorLevelOf(actorBaseOf(actor), level);
@@ -260,11 +263,7 @@ namespace game_skyrimse
             bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
             FormId questOfScene(FormId scene) const override { return mView.questOfScene(scene); }
-            // Task 0317: the entries of a form list and the scripts of an unplaced item form
-            bool formListEntries(FormId list, std::vector<FormId>& out) override
-            {
-                return mView.formListEntries(list, out);
-            }
+            // Task 0317: the scripts of an unplaced item form (its form lists are formListEntries above)
             bool baseScripts(FormId form, std::vector<vmad::Script>& out) override
             {
                 out.clear();
@@ -286,6 +285,9 @@ namespace game_skyrimse
             SkyrimWorldView& mView;
             const QuestIndex* mQuests = nullptr;
             const LocationIndex* mLocations = nullptr;
+
+        public:
+            std::function<bool(std::int32_t&)> mPlayerLevel; ///< the progression's level; empty or false: stand-in
         };
 
         // Task 0194: the scene runner's environment over the pack's own parts: the quest state and alias filler, the
@@ -718,6 +720,10 @@ namespace game_skyrimse
                 mDaedric = true;
                 mView.setPrimitiveTriggers(true);
                 mHost.setRelocation(true, mainquest::kRelocateRange);
+            }
+            void setPlayerLevelSource(std::function<bool(std::int32_t&)> source)
+            {
+                mData.mPlayerLevel = std::move(source);
             }
             void enableDawnguard() // task 0319: the same world as the Daedric quests; the fort's trigger boxes fire
             {
@@ -2231,6 +2237,14 @@ namespace game_skyrimse
                                 return driver->host().globalSetByScript(global, value);
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
+                            // Actor.GetLevel of the player: the progression's level (read at the call, so the
+                            // progression may be made later)
+                            mPapyrus->setPlayerLevelSource([this](std::int32_t& level) {
+                                if (mProgression == nullptr || mProgression->progression() == nullptr)
+                                    return false;
+                                level = mProgression->progression()->level();
+                                return true;
+                            });
                             mPapyrus->setSceneParkSeconds(SceneRunner::parkSecondsFor( // tasks 0287, 0316
                                 settings->getFloat(kPackId, "scene park seconds", 0.f),
                                 settings->getBool(kPackId, kQuestAliasPackagesKey, false)));

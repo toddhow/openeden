@@ -131,7 +131,8 @@ namespace game_skyrimse
             (void)actor, (void)race;
             return false;
         }
-        /// Task 0321 (FormList.GetSize, GetAt, HasForm): the members of a form list in order. False: not a list.
+        /// Tasks 0317 and 0321 (FormList natives): the members of a form list (FLST) in the record's own order. False:
+        /// not a list or its data is not read yet.
         [[nodiscard]] virtual bool formListEntries(FormId list, std::vector<FormId>& out) const
         {
             (void)list, (void)out;
@@ -251,14 +252,6 @@ namespace game_skyrimse
         {
             (void)form;
             return {};
-        }
-        /// Task 0317: the entries of a form list (FLST), in the record's own order. False when `list` is no form list
-        /// or its data is not read yet; `out` is then empty.
-        [[nodiscard]] virtual bool formListEntries(FormId list, std::vector<FormId>& out)
-        {
-            (void)list;
-            out.clear();
-            return false;
         }
         /// Task 0317: the scripts the record of an UNPLACED form carries (a MISC item's VMAD); false when it has none.
         [[nodiscard]] virtual bool baseScripts(FormId form, std::vector<vmad::Script>& out)

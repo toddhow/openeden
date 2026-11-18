@@ -1552,8 +1552,10 @@ namespace MWRender
             mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
         }
         // Task 0059: baked object clusters (DRAFT layout), only when asked for. Nothing below runs with the setting
-        // off.
-        if (Settings::worldLod().mEnabled && Settings::worldLod().mObjectClusters && !mLodClusterPack.empty())
+        // off. A session with no Morrowind land (a game pack's neutral world) has its own pack, opened by
+        // startNeutralLodClusters: asking for this one only logged that it cannot be opened (task 0322).
+        if (Settings::worldLod().mEnabled && Settings::worldLod().mObjectClusters && !mLodClusterPack.empty()
+            && store.get<ESM::Land>().getSize() != 0)
         {
             LodClusters::Setup setup;
             setup.mPack = mLodClusterPack;

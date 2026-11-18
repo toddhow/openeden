@@ -126,6 +126,7 @@ namespace ScriptPapyrus
         PapyrusWorld& mWorld;
         const PapyrusFormQueries* mQueries; ///< null: the world cannot answer
         std::uint64_t mUnanswered = 0;
+        bool mAlphaWarned = false; ///< Actor.SetAlpha does nothing; scripts use it to hide actors, so say so once
         std::string mClassScratch; ///< keeps the class name of a returned form alive until the next call
         std::vector<FormId> mEntries; ///< reused between calls: no allocation once warm
 
@@ -285,6 +286,16 @@ namespace ScriptPapyrus
             if (e.returnsInt)
                 bind(e.cls, e.function, e.global, [](const NativeCall&) {
                     return NativeResult{ PapyrusValue::makeInt(0) };
+                });
+            else if (std::string_view(e.function) == "SetAlpha")
+                bind(e.cls, e.function, e.global, [state = mState](const NativeCall&) {
+                    if (!state->mAlphaWarned)
+                    {
+                        state->mAlphaWarned = true;
+                        state->mWorld.log(openeden::script::Severity::Warning,
+                            "Papyrus: Actor.SetAlpha is not drawn here (an actor a script fades or hides stays visible)");
+                    }
+                    return NativeResult{};
                 });
             else
                 bind(e.cls, e.function, e.global, [](const NativeCall&) { return NativeResult{}; });
