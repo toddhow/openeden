@@ -120,6 +120,12 @@ namespace game_skyrimse
     /// distance is not finite.
     [[nodiscard]] std::optional<openeden::sdk::game::CellLighting> makeCellLighting(const CellLightingData& lighting);
 
+    /// Task 0303: a cell's lighting after its lighting template (LTMP): each value whose inherit flag is set in `own`
+    /// is taken from `templateLighting`; with no template (nullptr) `own` is returned as it is. The inherit flags are
+    /// left as they were. A cell that inherits its colours stores stale ones (Dawnguard HQ: a bright green ambient).
+    [[nodiscard]] CellLightingData applyLightingTemplate(
+        const CellLightingData& own, const CellLightingData* templateLighting);
+
     /// Gives the components of a placement of a cell the view has just loaded. The pointer is valid until the next
     /// loadCell on the same view.
     /// Gives the cell source the terrain index of a view (task 0120, stage E1). Pack-internal, like ComponentSource.

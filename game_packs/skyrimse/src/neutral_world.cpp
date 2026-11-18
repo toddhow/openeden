@@ -181,6 +181,24 @@ namespace game_skyrimse
         return c;
     }
 
+    CellLightingData applyLightingTemplate(const CellLightingData& own, const CellLightingData* templateLighting)
+    {
+        CellLightingData out = own;
+        if (templateLighting == nullptr)
+            return out;
+        if ((own.mInherit & LightingInherit::Ambient) != 0)
+            out.mAmbient = templateLighting->mAmbient;
+        if ((own.mInherit & LightingInherit::Directional) != 0)
+            out.mDirectional = templateLighting->mDirectional;
+        if ((own.mInherit & LightingInherit::FogColor) != 0)
+            out.mFogColor = templateLighting->mFogColor;
+        if ((own.mInherit & LightingInherit::FogNear) != 0)
+            out.mFogNear = templateLighting->mFogNear;
+        if ((own.mInherit & LightingInherit::FogFar) != 0)
+            out.mFogFar = templateLighting->mFogFar;
+        return out;
+    }
+
     std::optional<sdkgame::CellLighting> makeCellLighting(const CellLightingData& lighting)
     {
         if (!std::isfinite(lighting.mFogNear) || !std::isfinite(lighting.mFogFar))

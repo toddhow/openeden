@@ -3287,6 +3287,15 @@ namespace game_skyrimse
                     break;
                 }
             }
+            for (auto s = entry.mSources.rbegin(); s != entry.mSources.rend(); ++s)
+            {
+                const CellRecord& c = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex];
+                if (c.mLightingTemplate != kNullFormId)
+                {
+                    entry.mLightingTemplate = c.mLightingTemplate;
+                    break;
+                }
+            }
             if (entry.mInfo.interior)
                 for (auto s = entry.mSources.rbegin(); s != entry.mSources.rend(); ++s)
                 {
@@ -4115,7 +4124,21 @@ namespace game_skyrimse
                         mItemCounts[placement] = component.itemCount; // task 0208
             mLastComponents = std::move(components);
             if (entry.mLighting && entry.mInfo.interior)
-                mLastLighting = makeCellLighting(*entry.mLighting);
+            {
+                // Task 0303: the values the cell inherits come from its lighting template, not from its own XCLL.
+                const CellLightingData* lightingTemplate = nullptr;
+                if (entry.mLightingTemplate != kNullFormId)
+                {
+                    const auto base = mBases.find(entry.mLightingTemplate);
+                    if (base != mBases.end() && base->second.mTable == BaseTable::Model)
+                    {
+                        const ModelRecord& m = mPlugins[base->second.mPlugin].mParsed.mModels[base->second.mIndex];
+                        if (m.mType == Content::fourCC("LGTM") && m.mLighting)
+                            lightingTemplate = &*m.mLighting;
+                    }
+                }
+                mLastLighting = makeCellLighting(applyLightingTemplate(*entry.mLighting, lightingTemplate));
+            }
             return true;
         }
         catch (const std::exception& e)

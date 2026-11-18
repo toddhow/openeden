@@ -850,6 +850,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseworldviewreal.cpp
     skyrimse/testskyrimseneutralrotation.cpp
     skyrimse/testskyrimseneutralworld.cpp
+    skyrimse/testskyrimselightingtemplate.cpp
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimseinteriorwater.cpp
     skyrimse/testskyrimselightsreal.cpp

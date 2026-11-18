@@ -894,6 +894,8 @@ namespace game_skyrimse
             bool mWorldPersistent = false;
             /// The XCLL of the latest source that has one (interior lighting; task 0113).
             std::optional<CellLightingData> mLighting;
+            /// Task 0303: the LTMP of the latest source that has one (0 when none).
+            FormId mLightingTemplate = kNullFormId;
             /// Task 0291: the interior water of the latest source that has any (`CellRecord::interiorWaterHeight`).
             std::optional<float> mInteriorWater;
         };

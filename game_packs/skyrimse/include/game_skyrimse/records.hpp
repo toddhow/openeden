@@ -312,7 +312,22 @@ namespace game_skyrimse
         std::array<std::uint8_t, 3> mFogColor{};
         float mFogNear = 0.0f;
         float mFogFar = 0.0f;
+        /// Task 0303: the inherit flags of a 92 byte XCLL (offset 88): the values a cell takes from its lighting
+        /// template (LTMP, a LGTM record) instead of its own. 0 for a 64 byte XCLL and for a LGTM record itself.
+        std::uint32_t mInherit = 0;
     };
+
+    /// Task 0303: the XCLL inherit flag bits that matter to the neutral world's interior lighting. Order and meaning
+    /// from xEdit's `wbCELL` XCLL definition (Ambient Color, Directional Color, Fog Color, Fog Near, Fog Far, ...):
+    /// RECALLED-VERIFY; the data agrees (Dawnguard HQ stores a bright green ambient and sets the Ambient bit).
+    namespace LightingInherit
+    {
+        inline constexpr std::uint32_t Ambient = 0x1;
+        inline constexpr std::uint32_t Directional = 0x2;
+        inline constexpr std::uint32_t FogColor = 0x4;
+        inline constexpr std::uint32_t FogNear = 0x8;
+        inline constexpr std::uint32_t FogFar = 0x10;
+    }
 
     /// Task 0291 (follow-up): what the content of an interior cell says about whether a water plane at the cell's XCLW
     /// height can be real. Skyrim.esm has 71 interior cells with the water flag and an XCLW of exactly 0.0 (and none
@@ -348,6 +363,8 @@ namespace game_skyrimse
         /// XCLL, the interior lighting (64 or 92 bytes, VERIFIED on the five masters: 2,360 of 2,360). Only the part
         /// both sizes share is decoded.
         std::optional<CellLightingData> mLighting;
+        /// LTMP (task 0303): the lighting template (a LGTM record) the cell inherits from; 0 when it has none.
+        FormId mLightingTemplate = kNullFormId;
         /// The world whose children group held the cell, or 0 for an interior cell.
         FormId mWorld = kNullFormId;
         /// Interior cells: the labels of the block (type 2) and sub-block (type 3) groups, otherwise -1.
@@ -470,6 +487,8 @@ namespace game_skyrimse
         std::optional<HarvestData> mHarvest;
         /// DESC of a MESG record (task 0224: the text of a message box); other types leave it absent.
         LString mDescription;
+        /// DATA of a LGTM (lighting template) record, task 0303: the first 20 bytes, as in XCLL.
+        std::optional<CellLightingData> mLighting;
         /// ITXT of a MESG (task 0237): the buttons' texts, in order, and DNAM bit 0: a message box (else a corner
         /// text).
         std::vector<LString> mButtons;

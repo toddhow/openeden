@@ -409,6 +409,7 @@ namespace game_skyrimse
                     case Content::fourCC("TXST"):
                     case Content::fourCC("MESG"):
                     case Content::fourCC("KYWD"): // task 0270: a script calls Keyword.SendStoryEvent on one
+                    case Content::fourCC("LGTM"): // task 0303: a lighting template
                         break;
                     default:
                         return true;
@@ -498,6 +499,7 @@ namespace game_skyrimse
                     case Content::fourCC("TXST"):
                     case Content::fourCC("KYWD"): // task 0270
                     case Content::fourCC("MESG"): // task 0224: DESC only
+                    case Content::fourCC("LGTM"): // task 0303: DATA only
                         ok = readStatic(record, bytes);
                         break;
                     case Content::fourCC("NPC_"):
@@ -760,6 +762,9 @@ namespace game_skyrimse
                         case Content::fourCC("XLCN"):
                             ok = formField(type, data, c.mLocation);
                             break;
+                        case Content::fourCC("LTMP"): // task 0303: the lighting template (a LGTM record)
+                            ok = formField(type, data, c.mLightingTemplate);
+                            break;
                         case Content::fourCC("XOWN"): // task 0213: 4 bytes in all 230 of Skyrim.esm's cells
                             ok = formField(type, data, c.mOwner);
                             break;
@@ -776,6 +781,8 @@ namespace game_skyrimse
                                 }
                                 lighting.mFogNear = readLe<float>(p + 12);
                                 lighting.mFogFar = readLe<float>(p + 16);
+                                if (data.size() == 92) // task 0303: the inherit flags are the last word
+                                    lighting.mInherit = readLe<std::uint32_t>(p + 88);
                                 c.mLighting = lighting;
                             }
                             else
@@ -1122,6 +1129,8 @@ namespace game_skyrimse
                 StaticRecord s;
                 s.mCommon = common(record);
                 const bool isLight = record.mType == Content::fourCC("LIGH");
+                const bool isLightingTemplate = record.mType == Content::fourCC("LGTM");
+                std::optional<CellLightingData> templateLighting;
                 LightData light;
                 bool hasLightData = false;
                 float lightFade = 1.0f;
@@ -1206,6 +1215,27 @@ namespace game_skyrimse
                                 odd("DNAM");
                             break;
                         case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
+                            if (isLightingTemplate)
+                            {
+                                // LGTM DATA: 92 bytes in the five masters (tool, task 0303); the prefix is XCLL's.
+                                if (data.size() >= 20)
+                                {
+                                    const std::byte* p = data.data();
+                                    CellLightingData lighting;
+                                    for (std::size_t i = 0; i < 3; ++i)
+                                    {
+                                        lighting.mAmbient[i] = static_cast<std::uint8_t>(p[i]);
+                                        lighting.mDirectional[i] = static_cast<std::uint8_t>(p[4 + i]);
+                                        lighting.mFogColor[i] = static_cast<std::uint8_t>(p[8 + i]);
+                                    }
+                                    lighting.mFogNear = readLe<float>(p + 12);
+                                    lighting.mFogFar = readLe<float>(p + 16);
+                                    templateLighting = lighting;
+                                }
+                                else
+                                    odd("DATA");
+                                break;
+                            }
                             if (!isLight)
                                 break;
                             if (data.size() == 48)
@@ -1282,6 +1312,7 @@ namespace game_skyrimse
                     model.mButtons = std::move(buttons);
                     model.mMessageBox = messageBox;
                     model.mActivateText = std::move(activateText);
+                    model.mLighting = templateLighting;
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);
                     if (hasHarvest)
