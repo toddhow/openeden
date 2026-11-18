@@ -5631,7 +5631,10 @@ namespace game_skyrimse
                     {
                         mWorldView.setCreatures(true);
                         say(openeden::sdk::LogLevel::Info,
-                            "creatures: on (" + std::to_string(creatureProfilesAll().size()) + " creatures)");
+                            "creatures: on ("
+                            + std::to_string(creatureProfilesAll().size() + creatureProfilesFourth().size()
+                                + creatureProfilesFifth().size())
+                            + " creatures)");
                     }
                     // Task 0254: dead stays dead across a load (a fix of the neutral saves: no setting). Hooks only;
                     // the keeper does nothing until an actor of the ledger appears.
