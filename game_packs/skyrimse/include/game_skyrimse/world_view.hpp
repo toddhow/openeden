@@ -422,7 +422,6 @@ namespace game_skyrimse
         /// The shouts and words of the load order, or null while the combat records are being read.
         [[nodiscard]] const ShoutIndex* shoutIndex() const;
         const ProjectileRecord* projectileById(FormId id) override;
-        const WeaponRecord* weaponById(FormId id) override; // task 0299
         const AmmoRecord* ammoById(FormId id) override; // task 0299
         std::string_view artModelById(FormId id) override; ///< task 0191
         const ExplosionRecord* explosionById(FormId id) override; ///< task 0242

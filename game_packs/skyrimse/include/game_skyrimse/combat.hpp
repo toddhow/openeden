@@ -333,12 +333,8 @@ namespace game_skyrimse
             (void)ammo;
             return nullptr;
         }
-        /// Task 0299: a WEAP and an AMMO by form id (a script's Weapon.Fire names its weapon and ammunition so).
-        virtual const WeaponRecord* weaponById(FormId id)
-        {
-            (void)id;
-            return nullptr;
-        }
+        /// Task 0299: an AMMO by form id (a script's Weapon.Fire names its weapon and ammunition so; the weapon is
+        /// `weaponById` above).
         virtual const AmmoRecord* ammoById(FormId id)
         {
             (void)id;
