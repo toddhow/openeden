@@ -897,6 +897,8 @@ namespace game_skyrimse
             std::uint32_t mUnresolvedBases = 0;
             std::map<FormId, PlacementComponents> mComponents; ///< by placement id; only placements that have any
             std::vector<ReferenceScripts> mScripts; ///< placements with VMAD scripts, by id (task 0176)
+            /// Task 0293: placements that have an enable parent (XESP): child -> (parent, opposite of the parent).
+            std::map<FormId, std::pair<FormId, bool>> mEnableParents;
         };
 
         /// True when the caller may read or change the index: nothing is building, or the caller is the worker, or the
@@ -910,6 +912,9 @@ namespace game_skyrimse
         [[nodiscard]] bool readCellRefs(
             const CellSource& source, const CellEntry& entry, std::vector<PlacedRef>& out, std::string& error);
         [[nodiscard]] openeden::sdk::game::PlacedObject makeObject(const PlacedRef& ref, bool& baseMissing) const;
+        static void foldEnableParents(
+            std::vector<openeden::sdk::game::PlacedObject>& objects, const Materialised& own,
+            const Materialised* persistent);
         /// The LIGH data of a base form, if the base is a light that has some.
         [[nodiscard]] const LightData* lightOfBase(FormId base) const;
 

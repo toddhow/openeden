@@ -2125,9 +2125,9 @@ namespace game_skyrimse
                                         return own;
                                     // Task 0261: the furnishings of a house are enabled by their enable parent (XESP),
                                     // a marker the purchase's script enables: a cell built after follows its parent's
-                                    // state
-                                    if (!mHousesOn && !driver->mainQuestOn())
-                                        return std::nullopt;
+                                    // state. Task 0293: always, since the world view now starts a placement in its
+                                    // parent's state (the Skyrim garrisons), so a script that enables the parent must
+                                    // reach the children of a cell built later whatever the settings
                                     const PlacedRefIndex* placed = mWorldView.placedRefs();
                                     const PlacedEntry* entry
                                         = placed != nullptr ? placed->find(static_cast<FormId>(reference)) : nullptr;

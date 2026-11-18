@@ -3736,6 +3736,10 @@ namespace game_skyrimse
                 components.light = makeLightComponent(*light, mStats.mComponents, NeutralLimits{});
             if (!components.empty())
                 result->mComponents.emplace(id, std::move(components));
+            if (ref.mEnableParent && ref.mEnableParent->mParent != kNullFormId
+                && ref.mEnableParent->mParent != kUnresolvedFormId)
+                result->mEnableParents.emplace(
+                    id, std::make_pair(ref.mEnableParent->mParent, (ref.mEnableParent->mFlags & 1) != 0));
             std::vector<vmad::Script> allScripts = vmad::combineScripts(ref.mScripts, baseScriptsOf(ref.mBase));
             if (!allScripts.empty())
             {
@@ -3789,6 +3793,51 @@ namespace game_skyrimse
         return it->second.mInteriorWater;
     }
 
+
+    // Task 0293: a placement with an enable parent starts in its parent's state (opposite when the XESP flag says so),
+    // a chain of parents follows its root; a parent this cell and the world's persistent cell do not hold (the player, a
+    // marker in another square) leaves the placement as its own flags say. The seven towns' Imperial and Stormcloak
+    // garrisons are enabled by markers of which only one starts enabled.
+    void SkyrimWorldView::foldEnableParents(
+        std::vector<sdkgame::PlacedObject>& objects, const Materialised& own, const Materialised* persistent)
+    {
+        if (own.mEnableParents.empty() && (persistent == nullptr || persistent->mEnableParents.empty()))
+            return;
+        std::map<FormId, bool> rawDisabled;
+        const auto note = [&](const Materialised& m) {
+            for (const sdkgame::PlacedObject& o : m.mObjects)
+                rawDisabled.emplace(static_cast<FormId>(o.id), o.initiallyDisabled);
+        };
+        note(own);
+        if (persistent != nullptr)
+            note(*persistent);
+        const auto parentOf = [&](FormId id) -> const std::pair<FormId, bool>* {
+            auto it = own.mEnableParents.find(id);
+            if (it != own.mEnableParents.end())
+                return &it->second;
+            if (persistent != nullptr)
+            {
+                it = persistent->mEnableParents.find(id);
+                if (it != persistent->mEnableParents.end())
+                    return &it->second;
+            }
+            return nullptr;
+        };
+        constexpr int kMaxDepth = 8;
+        const auto effective = [&](auto&& self, FormId id, int depth) -> bool {
+            const auto raw = rawDisabled.find(id);
+            const bool ownState = raw != rawDisabled.end() && raw->second;
+            const std::pair<FormId, bool>* parent = parentOf(id);
+            if (parent == nullptr || depth >= kMaxDepth || rawDisabled.find(parent->first) == rawDisabled.end())
+                return ownState;
+            const bool parentState = self(self, parent->first, depth + 1);
+            return parent->second ? !parentState : parentState;
+        };
+        for (sdkgame::PlacedObject& o : objects)
+            if (parentOf(static_cast<FormId>(o.id)) != nullptr)
+                o.initiallyDisabled = effective(effective, static_cast<FormId>(o.id), 0);
+    }
+
     bool SkyrimWorldView::loadCell(sdkgame::WorldId cell, sdkgame::WorldCellContent& out, std::string& error)
     {
         out = sdkgame::WorldCellContent{};
@@ -3819,6 +3868,7 @@ namespace game_skyrimse
             content.objects = own->mObjects;
             content.unresolvedBases = own->mUnresolvedBases;
             std::map<FormId, PlacementComponents> components = own->mComponents;
+            std::shared_ptr<const Materialised> persistentCell; // task 0293: its markers can be enable parents
 
             // The world's persistent placements that stand in this exterior square.
             if (!entry.mInfo.interior && entry.mInfo.hasGrid && !entry.mWorldPersistent)
@@ -3841,6 +3891,7 @@ namespace game_skyrimse
                     std::set<sdkgame::WorldId> ownIds;
                     for (const sdkgame::PlacedObject& placed : content.objects)
                         ownIds.insert(placed.id);
+                    persistentCell = persistent;
                     for (const sdkgame::PlacedObject& o : persistent->mObjects)
                     {
                         if (!finite(o.position.x) || !finite(o.position.y))
@@ -3861,6 +3912,7 @@ namespace game_skyrimse
                         [](const sdkgame::PlacedObject& a, const sdkgame::PlacedObject& b) { return a.id < b.id; });
                 }
             }
+            foldEnableParents(content.objects, *own, persistentCell.get());
             content.cell.objectCount = static_cast<std::uint32_t>(content.objects.size());
             if (mPlacements.size() < 4u * 1024 * 1024)
                 for (const sdkgame::PlacedObject& o : content.objects)
