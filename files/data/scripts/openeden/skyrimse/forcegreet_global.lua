@@ -11,6 +11,8 @@ local fg = require('core.skyrimse.forcegreet')
 
 local RANGE = 3000.0 -- the actor must be this near the player
 local asked = {} -- [serial] = true
+local WIDE_EVERY = 30 -- search the neighbour cells outside once every this many updates
+local ticks = 0
 
 local function parse(text)
   local out = {}
