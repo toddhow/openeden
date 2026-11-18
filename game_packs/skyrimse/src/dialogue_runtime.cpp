@@ -91,14 +91,23 @@ namespace game_skyrimse
     }
 
     bool DialogueRuntime::evaluateQuestConditions(
-        const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver)
+        const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver, FormId playerLocation)
     {
         if (list.empty())
             return true;
         conditions::Evaluator eval;
         mWorld.setQuestContext(quest);
         mWorld.setPlugin(&resolver);
+        mWorld.setPlayerLocation(playerLocation);
+        // the entry's conditions run on the player; the last speaker stands for him, so he stands where he does
+        const FormId speakerAt = mWorld.speakerLocation();
+        const bool speakerKnown = mWorld.speakerLocationKnown();
+        if (playerLocation != kNullFormId)
+            mWorld.setSpeakerLocation(playerLocation, true);
         const bool pass = eval.evaluate(list, mWorld);
+        if (playerLocation != kNullFormId)
+            mWorld.setSpeakerLocation(speakerAt, speakerKnown);
+        mWorld.setPlayerLocation(kNullFormId);
         mWorld.setPlugin(nullptr);
         mWorld.setQuestContext(kNullFormId);
         return pass;

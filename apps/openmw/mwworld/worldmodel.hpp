@@ -112,6 +112,11 @@ namespace MWWorld
         /// why not (no such world, or the game pack cannot describe it).
         NeutralWorldLookup findNeutralWorld(NeutralWorld::NeutralWorldStore& neutral, std::string_view editorId) const;
 
+        /// Task 0312: registers the neutral worldspace a text "<gameId>:w<world>" names (the id a cell's worldSpaceId
+        /// shows), if the game's pack can describe that world; the RefId, or an empty one for any other text.
+        ESM::RefId registerNeutralWorldspaceText(
+            NeutralWorld::NeutralWorldStore& neutral, std::string_view text) const;
+
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
 
         /// Task 0177 (neutral world saves, stage N6). The key a neutral cell is saved under: an interior by the pack's

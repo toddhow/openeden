@@ -36,6 +36,10 @@ namespace game_skyrimse::dragonborn
     inline constexpr std::uint32_t kCultistAmbushLocal = 0x03546D; ///< DLC2CultistAmbush in Dragonborn.esm
     inline constexpr std::uint32_t kDragonbornQuestLocal = 0x017F8E; ///< DLC2MQ01 "Dragonborn"
 
+    /// Task 0312: game hours the ship between Windhelm and Raven Rock takes (OURS: the data has none; FastTravel to a
+    /// marker of another world has no distance to measure).
+    inline constexpr int kShipHours = 6;
+
     /// The aid's one stage: `quest` and `stage` of the prerequisite, nothing else is ever faked.
     struct Prerequisite
     {

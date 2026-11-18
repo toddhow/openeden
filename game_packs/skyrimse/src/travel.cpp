@@ -286,8 +286,12 @@ namespace game_skyrimse::travel
         if (!access.mCellWorld(ref->mCell, refWorld, interior) || interior)
             return false;
         // the same world, or one that borrows its land from the other (the teleport lands in the player's world)
-        if (!contains(mMap.markerWorlds(world), refWorld) && !contains(mMap.markerWorlds(refWorld), world))
+        const bool related
+            = contains(mMap.markerWorlds(world), refWorld) || contains(mMap.markerWorlds(refWorld), world);
+        // task 0312: a ship may also take the player to a world that shares nothing with his (Solstheim)
+        if (!related && mCrossWorldHours <= 0)
             return false;
+        out.mWorld = refWorld;
         out.mWhere = Destination();
         out.mWhere.mX = ref->mX;
         out.mWhere.mY = ref->mY;
@@ -297,7 +301,32 @@ namespace game_skyrimse::travel
         const double dy = static_cast<double>(ref->mY) - fromY;
         out.mDistance = std::isfinite(dx) && std::isfinite(dy) ? std::hypot(dx, dy) : 0.0;
         out.mHours = travelHours(out.mDistance);
+        if (!related)
+        {
+            out.mDistance = 0.0; // two worlds have no common ground to measure on
+            out.mHours = mCrossWorldHours;
+            out.mWhere.mYaw = 0.0;
+        }
         return true;
+    }
+
+    void TravelService::setCrossWorldHours(int hours)
+    {
+        mCrossWorldHours = std::clamp(hours, 0, kMaxTravelHours);
+    }
+
+    FormId TravelService::worldOfRef(FormId destination)
+    {
+        if (destination == kNullFormId || !mMap.poll())
+            return kNullFormId;
+        const map::Access& access = mMap.access();
+        const PlacedEntry* ref = access.mPlaced != nullptr ? access.mPlaced->find(destination) : nullptr;
+        FormId world = kNullFormId;
+        bool interior = false;
+        if (ref == nullptr || ref->mDeleted || !access.mCellWorld || !access.mCellWorld(ref->mCell, world, interior)
+            || interior)
+            return kNullFormId;
+        return world;
     }
 
     Refusal TravelService::refusalToRef(FormId world, bool interior, FormId destination, double fromX, double fromY)
@@ -333,7 +362,7 @@ namespace game_skyrimse::travel
         Plan plan;
         if (!planToRef(world, destination, fromX, fromY, plan))
             return false; // refusalToRef() has just said it could be planned
-        (void)mMap.visit(world, plan.mWhere.mX, plan.mWhere.mY);
+        (void)mMap.visit(plan.mWorld != kNullFormId ? plan.mWorld : world, plan.mWhere.mX, plan.mWhere.mY);
         ++mPerformed;
         if (mHooks.mLog)
         {
@@ -365,6 +394,7 @@ namespace game_skyrimse::travel
         // (world, interior, marker, x, y)
         static const BindingType refusalParams[]
             = { BindingType::Int32, BindingType::Bool, BindingType::String, BindingType::Double, BindingType::Double };
+        static const BindingType worldOfRefParams[] = { BindingType::String };
         // (world, marker, x, y)
         static const BindingType planParams[]
             = { BindingType::Int32, BindingType::String, BindingType::Double, BindingType::Double };
@@ -495,6 +525,13 @@ namespace game_skyrimse::travel
                 return arrayResult(BindingType::Double);
             },
             BindingShape::Array);
+        // task 0312: the world the destination stands in (0: none), so the global script can enter another world
+        add("world_of_ref", worldOfRefParams, true, BindingType::Int32,
+            [self, markerOf](std::span<const BindingValue> a) {
+                BindingResult r;
+                r.value = integer(static_cast<std::int32_t>(self->worldOfRef(markerOf(a[0]))));
+                return r;
+            });
         add(
             "commit_ref", refusalParams, false, BindingType::Bool,
             [self, markerOf](std::span<const BindingValue> a) {
@@ -506,7 +543,7 @@ namespace game_skyrimse::travel
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = kNamespace;
-        ns.version = { 1, 1 };
+        ns.version = { 1, 2 };
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

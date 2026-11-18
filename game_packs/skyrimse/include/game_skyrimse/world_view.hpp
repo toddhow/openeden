@@ -617,6 +617,12 @@ namespace game_skyrimse
             mPlayerCell = cell;
             mPlayerWorld = world;
         }
+        /// Task 0312: the world the player stands in (none indoors or before the place is known) and the world of an
+        /// exterior cell (none for an interior or an unknown cell).
+        [[nodiscard]] FormId playerWorld() const { return mPlayerPlaceKnown && !mPlayerInterior ? mPlayerWorld : kNullFormId; }
+        [[nodiscard]] FormId worldOfCell(FormId cell);
+        /// Task 0312: the location the player stands in now (an interior's, or the exterior square's), none when unknown.
+        [[nodiscard]] FormId playerLocationNow() const;
         /// Task 0271: the packages quest aliases give (ALPC) join an actor's list (off by default).
         void setAliasPackages(bool on) { mAliasPackagesOn = on; }
         /// Task 0302 (draugr ambushes): the package conditions also see what the game's scripts did to an actor's

@@ -99,6 +99,7 @@ namespace game_skyrimse::travel
         Destination mWhere;
         double mDistance = 0.0; ///< from where the player stands
         int mHours = kMinTravelHours;
+        FormId mWorld = kNullFormId; ///< task 0312: the world the destination reference stands in (planToRef only)
     };
 
     struct Hooks
@@ -138,6 +139,14 @@ namespace game_skyrimse::travel
         /// Game.FastTravel(destination): remembers the request for the global travel script (which reads
         /// `request_seq` and `request_ref`). False for a null form id. A later request replaces an earlier unread one.
         bool queueRequest(FormId destination);
+
+        // ---- task 0312: the ship to Solstheim ---------------------------------------------------------------------
+        /// With a number above 0, `planToRef` also accepts a reference of an UNRELATED world (a ship or a portal), and
+        /// the travel takes that many game hours whatever the distance (the distance across two worlds means
+        /// nothing). 0 (the default) keeps the carriage rule: the player's world and the worlds that share its land.
+        void setCrossWorldHours(int hours);
+        /// The world an exterior placed reference stands in, or kNullFormId (unknown, deleted, interior, no map).
+        [[nodiscard]] FormId worldOfRef(FormId destination);
         [[nodiscard]] std::uint32_t requestSequence() const { return mRequestSeq; }
         [[nodiscard]] FormId requestedRef() const { return mRequested; }
         [[nodiscard]] std::size_t performed() const { return mPerformed; }
@@ -154,6 +163,7 @@ namespace game_skyrimse::travel
         std::size_t mRefused = 0;
         std::uint32_t mRequestSeq = 0;
         FormId mRequested = kNullFormId;
+        int mCrossWorldHours = 0;
     };
 }
 

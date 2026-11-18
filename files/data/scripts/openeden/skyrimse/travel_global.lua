@@ -24,8 +24,10 @@ local function refuse(reason, name)
 end
 
 -- Teleports the player to the planned place (x, y, z, yaw), `hours` after now; the followers go with him (the engine).
-local function arrive(player, x, y, z, yaw, hours)
-  local ok, cell = pcall(world.getExteriorCell, math.floor(x / CELL_UNITS), math.floor(y / CELL_UNITS), player.cell)
+-- `toWorld` (task 0312, optional) is the worldspace id text of ANOTHER world ("<gameId>:w<id>") to land in.
+local function arrive(player, x, y, z, yaw, hours, toWorld)
+  local ok, cell = pcall(world.getExteriorCell, math.floor(x / CELL_UNITS), math.floor(y / CELL_UNITS),
+    toWorld or player.cell)
   if not ok or cell == nil then return false end
   world.advanceTime(hours)
   player:teleport(cell, util.vector3(x, y, z + DROP), { rotation = util.transform.rotateZ(yaw), onGround = true })
@@ -67,12 +69,20 @@ local function doCarriage(ref)
   local plan = travel.plan_ref(worldId, ref, pos.x, pos.y)
   if #plan < 6 then return refuse('unknown', ref) end
   local x, y, z, yaw, hours = plan[1], plan[2], plan[3], plan[4], plan[5]
-  local okCell, cell = pcall(world.getExteriorCell, math.floor(x / CELL_UNITS), math.floor(y / CELL_UNITS), player.cell)
+  -- Task 0312: a ship's landing is in another world (Solstheim): the cell is asked of that world by its id text
+  local destWorld = travel.world_of_ref and travel.world_of_ref(ref) or 0
+  local toWorld = nil
+  if destWorld ~= 0 and destWorld ~= worldId then
+    local game = tostring(player.cell.worldSpaceId or ''):match('^(.-):w%d+$')
+    if game then toWorld = game .. ':w' .. tostring(destWorld) end
+  end
+  local okCell, cell = pcall(world.getExteriorCell, math.floor(x / CELL_UNITS), math.floor(y / CELL_UNITS),
+    toWorld or player.cell)
   if not okCell or cell == nil then return refuse('no_destination', ref) end
-  print(string.format('[skyrimse travel] carriage to %s at (%.0f, %.0f, %.0f) in %d hours, %d followers', ref, x, y, z,
-    hours, travel.follower_count()))
+  print(string.format('[skyrimse travel] carriage to %s at (%.0f, %.0f, %.0f) in %d hours, %d followers%s', ref, x, y, z,
+    hours, travel.follower_count(), toWorld and (' into ' .. toWorld) or ''))
   travel.commit_ref(worldId, false, ref, pos.x, pos.y)
-  arrive(player, x, y, z, yaw, hours)
+  arrive(player, x, y, z, yaw, hours, toWorld)
   toPlayer('SkyrimTravelDone', { name = ref, hours = hours })
 end
 

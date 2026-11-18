@@ -117,6 +117,31 @@ namespace MWWorld
         return ESM::RefId::stringRefId(key);
     }
 
+    bool parseNeutralWorldspaceText(std::string_view text, std::string& gameId, WorldId& world)
+    {
+        const std::size_t at = text.rfind(":w");
+        if (at == std::string_view::npos || at == 0)
+            return false;
+        const std::string_view digits = text.substr(at + 2);
+        if (digits.empty() || digits.size() > 10)
+            return false;
+        std::uint64_t value = 0;
+        for (const char c : digits)
+        {
+            if (c < '0' || c > '9')
+                return false;
+            value = value * 10 + static_cast<std::uint64_t>(c - '0');
+        }
+        if (value == 0 || value > 0xFFFFFFFFull)
+            return false;
+        const std::string_view game = text.substr(0, at);
+        if (!carriableGameId(game))
+            return false;
+        gameId = std::string(game);
+        world = static_cast<WorldId>(value);
+        return true;
+    }
+
     ESM::RefId neutralEmptyExteriorCellId(std::string_view gameId, WorldId world, std::int32_t x, std::int32_t y)
     {
         if (!carriableGameId(gameId))

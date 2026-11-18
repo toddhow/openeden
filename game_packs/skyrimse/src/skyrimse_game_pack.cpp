@@ -189,6 +189,15 @@ namespace game_skyrimse
                 const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
                 return entry != nullptr ? mView.locationOfCell(entry->mCell) : kNullFormId;
             }
+            // Task 0312: the world of the player (where the place events say he stands) or of a placed reference's cell
+            FormId worldOf(FormId reference) const override
+            {
+                if (reference == kPapyrusPlayerReference)
+                    return mView.playerWorld();
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                return entry != nullptr ? mView.worldOfCell(entry->mCell) : kNullFormId;
+            }
             // Task 0276
             FormId locationOfCell(FormId cell) const override { return mView.locationOfCell(cell); }
             bool locationWithin(FormId location, FormId ancestor) const override
@@ -432,6 +441,7 @@ namespace game_skyrimse
                     return;
                 flushPending();
                 applyDragonbornPrerequisite(); // task 0306: before the first story event is walked
+                applyDragonbornTestStage(); // task 0312
                 applyPendingScenes(); // task 0211
                 applyPendingStory(); // task 0217
                 processPlace();
@@ -743,6 +753,29 @@ namespace game_skyrimse
             // by where the player is), as with `houses`
             void enableDragonborn() { mDragonborn = true; }
             void itemRead(FormId base) { mHost.onItemRead(base); } // task 0306
+            // Task 0312 (a developer aid): `dragonborn test stage = <stage>[,<script seconds>]` starts DLC2MQ01 and sets that
+            // stage (the quest the cultists' orders would start and advance, to be able to board the ship in a run that
+            // did not play the ambush)
+            void setDragonbornTestStage(const std::string& text)
+            {
+                if (text.empty())
+                    return;
+                const std::size_t comma = text.find(',');
+                mDragonbornTestStage = static_cast<std::int32_t>(std::strtol(text.c_str(), nullptr, 10));
+                mDragonbornTestDelay = comma == std::string::npos ? 0.0 : std::strtod(text.c_str() + comma + 1, nullptr);
+            }
+            void applyDragonbornTestStage()
+            {
+                if (mDragonbornTestStage <= 0 || !mHost.started() || mHost.scriptTime() < mDragonbornTestDelay)
+                    return;
+                const std::int32_t stage = mDragonbornTestStage;
+                mDragonbornTestStage = 0;
+                const FormId quest = mData.formFromFile(dragonborn::kDragonbornFile, dragonborn::kDragonbornQuestLocal);
+                say(openeden::sdk::LogLevel::Info,
+                    "DRAGONBORN test stage " + std::to_string(stage) + " of " + hexId(quest) + " "
+                        + (quest != 0 && mHost.startQuestForTest(quest, stage) ? "set" : "refused"));
+            }
+
             void applyDragonbornPrerequisite()
             {
                 if (!mDragonbornPrerequisite || mDragonbornApplied || !mHost.started())
@@ -1690,6 +1723,8 @@ namespace game_skyrimse
             bool mDragonbornPrerequisite = false; ///< task 0306
             bool mDragonborn = false; ///< task 0306
             bool mDragonbornApplied = false;
+            std::int32_t mDragonbornTestStage = 0; ///< task 0312
+            double mDragonbornTestDelay = 0.0;
             bool mMainQuest = false; ///< task 0268
             float mSceneParkSeconds = 0.f; ///< task 0287: 0 keeps the runner's default
             std::map<FormId, FormId> mMovedCells; ///< task 0286: a reference the world moved -> the cell it stands in
@@ -2148,7 +2183,10 @@ namespace game_skyrimse
                             if (settings->getBool(kPackId, std::string(dragonborn::kTestPrerequisitesKey), false)) // task 0306
                                 mPapyrus->enableDragonbornPrerequisite();
                             if (settings->getBool(kPackId, std::string(dragonborn::kKey), false))
+                            {
                                 mPapyrus->enableDragonborn();
+                                mPapyrus->setDragonbornTestStage(settings->getString(kPackId, "dragonborn test stage", ""));
+                            }
                             if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
                             {
                                 mPapyrus->enableMainQuest();
@@ -3382,6 +3420,9 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
                 mTravel = std::make_unique<travel::TravelService>(*mMap, std::move(hooks));
+                // Task 0312: Gjalund's ship (Game.FastTravel to the Raven Rock landing) goes to another world
+                if (settings->getBool(kPackId, std::string(dragonborn::kKey), false))
+                    mTravel->setCrossWorldHours(dragonborn::kShipHours);
                 // Task 0223: the carriage drivers' Game.FastTravel (the Papyrus host, when it runs) leaves a request
                 // that the global travel script reads
                 if (mPapyrus != nullptr)

@@ -19,6 +19,7 @@
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
+#include <cstdio>
 #include <components/script_papyrus/pexfile.hpp>
 
 #include <algorithm>
@@ -2393,6 +2394,29 @@ namespace game_skyrimse
         return true;
     }
 
+    FormId SkyrimWorldView::playerLocationNow() const
+    {
+        if (!mPlayerSite)
+            return kNullFormId;
+        const QuestAliasFiller::PlayerSite site = mPlayerSite();
+        if (!site.mKnown)
+            return kNullFormId;
+        if (site.mInterior)
+            return locationOfCell(site.mCell);
+        return locationOfGridSquare(site.mWorld, static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize)),
+            static_cast<std::int32_t>(std::floor(site.mY / QuestAliasFiller::kCellSize)));
+    }
+
+    FormId SkyrimWorldView::worldOfCell(FormId cell)
+    {
+        if (cell == kNullFormId || !awaitIndex())
+            return kNullFormId;
+        const auto it = mCells.find(cell);
+        if (it == mCells.end() || it->second.mInfo.interior)
+            return kNullFormId;
+        return static_cast<FormId>(it->second.mInfo.world);
+    }
+
     bool SkyrimWorldView::loadingAccess(menus::Access& out)
     {
         if (!ready() || mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mQuestWorld == nullptr)
@@ -2592,11 +2616,12 @@ namespace game_skyrimse
         };
         out.mSetStance
             = [state](bool sneaking, std::uint8_t drawState) { state->mRuntime->setPlayerStance(sneaking, drawState); };
-        out.mQuestConditions = [state, data](const std::vector<survey::Ctda>& list, FormId quest) {
+        out.mQuestConditions = [this, state, data](const std::vector<survey::Ctda>& list, FormId quest) {
             const QuestRecord* record = data->mQuests.quest(quest);
             if (record == nullptr)
                 return true;
-            return state->mRuntime->evaluateQuestConditions(list, quest, data->mQuests.resolverOf(*record));
+            return state->mRuntime->evaluateQuestConditions(
+                list, quest, data->mQuests.resolverOf(*record), playerLocationNow()); // task 0312
         };
         out.mSetLiveQuestVariable = [state](SkyrimConditionWorld::LiveQuestVariable source) {
             state->mLiveQuestVariable = source; // task 0271: the package world reads it with `quest alias packages`

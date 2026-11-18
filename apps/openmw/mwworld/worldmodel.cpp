@@ -270,6 +270,23 @@ namespace MWWorld
         return result;
     }
 
+    ESM::RefId WorldModel::registerNeutralWorldspaceText(
+        NeutralWorld::NeutralWorldStore& neutral, std::string_view text) const
+    {
+        std::string gameId;
+        openeden::sdk::game::WorldId world = openeden::sdk::game::kNoWorldId;
+        if (!parseNeutralWorldspaceText(text, gameId, world))
+            return ESM::RefId();
+        openeden::sdk::game::WorldCellSource* source = neutral.source(gameId);
+        openeden::sdk::game::WorldSpaceInfo info;
+        if (source == nullptr || !source->worldInfo(world, info))
+            return ESM::RefId();
+        const ESM::RefId worldspace = neutralWorldspaceId(gameId, world);
+        if (!worldspace.empty())
+            mNeutralWorldspaces.emplace(worldspace, NeutralWorldspace{ gameId, world });
+        return worldspace;
+    }
+
     const NeutralWorldspace* WorldModel::neutralWorldspace(const ESM::RefId& worldspace) const
     {
         const auto it = mNeutralWorldspaces.find(worldspace);

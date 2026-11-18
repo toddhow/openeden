@@ -29,6 +29,9 @@
 #include "../mwworld/store.hpp"
 #include "../mwworld/worldmodel.hpp"
 
+#include "../mwbase/extensionmanager.hpp"
+#include <components/worldmodel/store.hpp>
+
 #include "luamanagerimp.hpp"
 
 #include "animationbindings.hpp"
@@ -95,6 +98,21 @@ namespace MWLua
         };
     }
 
+    // Task 0312: a text "<gameId>:w<world>" names a neutral world; it is registered and its id returned.
+    static bool registerNeutralWorldspace(std::string_view text, ESM::RefId& out)
+    {
+        if (text.find(":w") == std::string_view::npos)
+            return false;
+        NeutralWorld::NeutralWorldStore* neutral = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        if (neutral == nullptr)
+            return false;
+        const ESM::RefId id = MWBase::Environment::get().getWorldModel()->registerNeutralWorldspaceText(*neutral, text);
+        if (id.empty())
+            return false;
+        out = id;
+        return true;
+    }
+
     static void addCellGetters(sol::table& api, const Context& context)
     {
         api["getCellByName"] = [](std::string_view name) {
@@ -108,6 +126,11 @@ namespace MWLua
             ESM::RefId worldspace;
             if (cellOrName.is<GCell>())
                 worldspace = cellOrName.as<GCell>().mStore->getCell()->getWorldSpace();
+            else if (cellOrName.is<std::string_view>() && !cellOrName.as<std::string_view>().empty()
+                && registerNeutralWorldspace(cellOrName.as<std::string_view>(), worldspace))
+            {
+                // task 0312: "<gameId>:w<world>", the id a neutral cell's worldSpaceId shows
+            }
             else if (cellOrName.is<std::string_view>() && !cellOrName.as<std::string_view>().empty())
                 worldspace = MWBase::Environment::get()
                                  .getWorldModel()

@@ -767,6 +767,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsetravel.cpp
     skyrimse/testskyrimseservices.cpp
     skyrimse/testskyrimsecarriage.cpp
+    skyrimse/testskyrimsesolstheim.cpp
     skyrimse/testskyrimsefavourvalues.cpp
     skyrimse/testskyrimsecombatrest.cpp
     skyrimse/testskyrimsemenus.cpp

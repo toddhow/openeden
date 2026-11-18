@@ -243,8 +243,9 @@ namespace game_skyrimse
         void setRankMinusOneMembers(std::set<FormId> factions) { mWorld.setRankMinusOneMembers(std::move(factions)); }
         /// Task 0261: do the conditions of a quest's log entry hold now? The subject is the player (the last speaker
         /// stands for his place: the conversation world's location); `resolver` resolves the stored form ids.
-        [[nodiscard]] bool evaluateQuestConditions(
-            const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver);
+        /// Task 0312: `playerLocation` (when not none) is where the player stands, for GetInCurrentLoc on him.
+        [[nodiscard]] bool evaluateQuestConditions(const std::vector<survey::Ctda>& list, FormId quest,
+            const FormIdResolver& resolver, FormId playerLocation = kNullFormId);
 
     private:
         static constexpr std::size_t kMaxFollowDepth = 4; ///< task 0304

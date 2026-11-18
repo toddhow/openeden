@@ -70,6 +70,14 @@ namespace game_skyrimse
             return false;
         }
 
+        /// Task 0312: the world (WRLD) an exterior reference stands in, the player's for the player reference 0x14
+        /// (ObjectReference.GetWorldSpace); 0 for an interior, an unknown reference or no data.
+        [[nodiscard]] virtual FormId worldOf(FormId reference) const
+        {
+            (void)reference;
+            return 0;
+        }
+
         /// Task 0223: the default value of a GLOB (GlobalVariable.GetValue). False when the form is not a global.
         [[nodiscard]] virtual bool globalValue(FormId global, float& value) const
         {

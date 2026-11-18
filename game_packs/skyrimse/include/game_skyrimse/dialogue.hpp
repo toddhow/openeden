@@ -346,6 +346,15 @@ namespace game_skyrimse
         SkyrimConditionWorld(const ActorIndex& actors, const DialogueIndex& dialogue);
 
         void setSpeaker(const DialogueSpeaker& speaker);
+        /// Task 0312: the location the speaker stands in (a quest's log-entry conditions run on the PLAYER, whom the
+        /// last speaker stands for), changed and read back without resolving the speaker again.
+        void setSpeakerLocation(FormId location, bool known)
+        {
+            mSpeaker.mLocation = location;
+            mSpeaker.mLocationKnown = known;
+        }
+        [[nodiscard]] FormId speakerLocation() const { return mSpeaker.mLocation; }
+        [[nodiscard]] bool speakerLocationKnown() const { return mSpeaker.mLocationKnown; }
         /// The stand-in player (task 0155). With it set the world answers GetActorValue / GetBaseActorValue (for the
         /// player and for the speaker, whose numbers come from actor_mechanics), GetLevel, GetGold (the player's),
         /// GetIntimidateSuccess and GetBribeSuccess; without it (the default) all of those keep the default answers.

@@ -1120,6 +1120,9 @@ namespace game_skyrimse
                 = mStoryEvent->mLocation2 != kNullFormId ? mStoryEvent->mLocation2 : mStoryEvent->mLocation1;
             return mLocations != nullptr && id != kNullFormId && at != kNullFormId && mLocations->isWithin(at, id);
         }
+        // task 0312: the player's own location, where the pack told it (a quest's stage entry: DLC2MQ01's "on Solstheim")
+        if (subject == kPlayer && mPlayerLocation != kNullFormId)
+            return mLocations != nullptr && id != kNullFormId && mLocations->isWithin(mPlayerLocation, id);
         return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown && id != kNullFormId
             && mLocations->isWithin(mSpeaker.mLocation, id);
     }
@@ -1427,6 +1430,8 @@ namespace game_skyrimse
                     return true; // task 0271: the place the core told
                 if (mPlayer != nullptr && c.mFunction == 640 && c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina)
                     return true;
+                if (c.mFunction == 359 && mLocations != nullptr && mPlayerLocation != kNullFormId)
+                    return true; // task 0312: GetInCurrentLoc of the player, where the pack told his location
                 return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
             case 2:
             {
@@ -1483,7 +1488,10 @@ namespace game_skyrimse
                 return mSpeaker.mInterior.has_value();
             case 651: // GetKeywordDataForCurrentLocation (task 0217)
                 return mKeywordData != nullptr && (mSpeaker.mLocationKnown || mStoryEvent != nullptr);
-            case 359: // GetInCurrentLoc
+            case 359: // GetInCurrentLoc (task 0312: also the player's own location, where the pack told it)
+                return mLocations != nullptr
+                    && (mSpeaker.mLocationKnown || mSubjectLocation != kNullFormId || mStoryEvent != nullptr
+                        || mPlayerLocation != kNullFormId);
             case 562: // LocationHasKeyword
                 return mLocations != nullptr
                     && (mSpeaker.mLocationKnown || mSubjectLocation != kNullFormId || mStoryEvent != nullptr);

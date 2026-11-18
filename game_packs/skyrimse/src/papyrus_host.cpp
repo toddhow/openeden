@@ -1202,6 +1202,7 @@ namespace game_skyrimse
         static constexpr std::int32_t kOpenStateOpen = 1;
         static constexpr std::int32_t kOpenStateClosed = 3;
         static constexpr double kMaxAnimationWaitSeconds = 30.0;
+        static constexpr double kAnimationEventWaitSeconds = 8.0; ///< task 0312: ours (the ride's clip is not played)
         static constexpr double kMaxGameWaitSeconds = 3.0 * 24.0 * 3600.0 / 20.0; // three game days at the default scale
         static constexpr std::size_t kMaxOpenStates = 4096;
         std::map<FormId, std::int32_t> mOpenStates;
@@ -2144,6 +2145,27 @@ namespace game_skyrimse
             for (const char* name : { "Apply", "PopTo", "Remove", "ApplyCrossFade" })
                 reg("ImageSpaceModifier", name, false, nothing);
             reg("ImageSpaceModifier", "RemoveCrossFade", true, nothing); // task 0256: a static
+            // Task 0312 (Gjalund's ship, DLC2DialogueRRQuestScript.SetSail): the player's world, the end of a talk (the
+            // world is paused while the box is open, so a script that waits for it to end already runs after it),
+            // the combat alarm, a follower's AI and the autosave are no-ops; the boat ride waits for an animation
+            // event the neutral player does not play, for a limited time (OURS)
+            reg("ObjectReference", "GetWorldSpace", false, [this](const NativeCall& c) {
+                const FormId reference = formOf(c.self);
+                return result(formValue(reference != 0 ? mData.worldOf(reference) : 0));
+            });
+            reg("ObjectReference", "IsInDialogueWithPlayer", false,
+                [](const NativeCall&) { return result(PapyrusValue::makeBool(false)); });
+            reg("Actor", "StopCombatAlarm", false, nothing);
+            reg("Actor", "EnableAI", false, nothing);
+            reg("Game", "RequestAutoSave", true, nothing);
+            reg("ObjectReference", "WaitForAnimationEvent", false,
+                [](const NativeCall&) {
+                    NativeResult r;
+                    r.value = PapyrusValue::makeBool(true);
+                    r.waitSeconds = kAnimationEventWaitSeconds;
+                    return r;
+                },
+                true);
             // Task 0256 (a word wall's script): Actor.HasLOS of the player is where he looks.
             // Task 0282: Actor.IsInCombat asks the world (the combat AI's engaged state); with no hooks it is false.
             reg("Actor", "IsInCombat", false, [this](const NativeCall& c) {

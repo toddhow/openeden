@@ -52,6 +52,11 @@ namespace MWWorld
     /// when the game id cannot be carried.
     [[nodiscard]] ESM::RefId neutralWorldspaceId(std::string_view gameId, openeden::sdk::game::WorldId world);
 
+    /// Task 0312: the parts of a worldspace id text "<gameId>:w<world>" (what neutralWorldspaceId makes). False for any
+    /// other text, a world id of 0 or one that does not fit.
+    [[nodiscard]] bool parseNeutralWorldspaceText(
+        std::string_view text, std::string& gameId, openeden::sdk::game::WorldId& world);
+
     /// The id of the synthetic record of an exterior grid square the pack has no cell for, "<gameId>:e<world>.<x>.<y>".
     [[nodiscard]] ESM::RefId neutralEmptyExteriorCellId(
         std::string_view gameId, openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y);

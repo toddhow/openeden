@@ -58,6 +58,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralactorpick.cpp
     mwworld/testneutralnavigation.cpp
     mwworld/testneutralexterior.cpp
+    mwworld/testneutralworldspacetext.cpp
     mwworld/testneutraldoorexterior.cpp
     mwworld/testneutralstart.cpp
     mwworld/testneutralnewgamestart.cpp

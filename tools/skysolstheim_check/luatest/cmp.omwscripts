@@ -1,0 +1,2 @@
+GLOBAL: scripts/cmp/global.lua
+MENU: scripts/cmp/menu.lua

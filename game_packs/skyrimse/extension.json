@@ -721,6 +721,11 @@
       "default": false
     },
     {
+      "key": "dragonborn test stage",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "dragonborn test prerequisites",
       "type": "bool",
       "default": false
