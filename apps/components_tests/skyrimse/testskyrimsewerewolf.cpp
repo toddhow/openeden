@@ -149,7 +149,7 @@ namespace
         EXPECT_EQ(clipFolder(player.mAttack), kCreatureFolder);
         EXPECT_EQ(clipFolder(player.mPower), kCreatureFolder);
         EXPECT_EQ(bareClip(player.mAttack), bare.mAttack);
-        EXPECT_EQ(bareClip(player.mPower), bare.mPower);
+        EXPECT_EQ(bareClip(bare.mPower), "ww_attackrightpowercombo"); // task 0316: only the player's row has the single power clip
         EXPECT_TRUE(clipFolder(player.mIdle).empty());
         EXPECT_EQ(player.mIdle, bare.mIdle);
         EXPECT_EQ(player.mWalk, "ww_walkforward");
