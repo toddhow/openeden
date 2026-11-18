@@ -408,6 +408,11 @@ namespace game_skyrimse
             mGreetStop = on ? kGreetAskDistance : kGreetApproachStop;
         }
 
+        /// Task 0310: a Follow or Escort package whose target is the PLAYER leads the actor along behind him (the
+        /// follower rules of task 0196), for as long as that package is the one in force. Off: those packages run as
+        /// Stand, as before.
+        void setFollowPlayerPackages(bool on) { mFollowPlayerPackages = on; }
+
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] std::optional<ActorView> view(openeden::sdk::game::WorldId reference) const;
@@ -492,6 +497,7 @@ namespace game_skyrimse
             // Task 0305: a ForceGreet package whose actor stands too far from the player first walks up to him
             bool mGreetApproach = false;
             bool mGreetApproaching = false; ///< enterFollowPlayer ran for the approach
+            bool mPackageFollow = false; ///< task 0310: the package in force leads the actor behind the player
             // Task 0277
             FormId mElsewhereRef = kNullFormId; ///< the Travel target that stands in another cell (0: none)
             bool mSnapNext = false; ///< a scene's Travel walk failed: put the actor at the anchor at the next update
@@ -537,6 +543,7 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, Actor> mActors;
         FurnitureSource* mFurniture = nullptr;
         ForceGreetHook mGreetHook;
+        bool mFollowPlayerPackages = false; ///< task 0310
         double mGreetFrom = kGreetApproachFrom; ///< tasks 0305 and 0306: the walk-up starts beyond this
         double mGreetStop = kGreetApproachStop; ///< ... and ends (the ask is made) within this
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)

@@ -686,6 +686,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsebards.cpp
     skyrimse/testskyrimsecivilwar.cpp
     skyrimse/testskyrimsedawnguard.cpp
+    skyrimse/testskyrimsedaedriccontinue.cpp
+    skyrimse/testskyrimsedaedricfollow.cpp
+    skyrimse/testskyrimsedaedricreal.cpp
     skyrimse/testskyrimsestormcloakreal.cpp
     skyrimse/testskyrimsemq308.cpp
     skyrimse/testskyrimsemarriage.cpp

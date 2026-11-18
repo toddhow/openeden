@@ -373,6 +373,9 @@ namespace game_skyrimse
         [[nodiscard]] PackageActivity activityOf(const PackageRecord& package) const override;
         [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const override;
         [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const override;
+        /// Task 0310: a reference with a primitive (a trigger volume) is listed with the scripted references even when it
+        /// carries no script (a quest alias holds its script); set before any cell is read
+        void setPrimitiveTriggers(bool on) { mPrimitiveTriggers = on; }
         [[nodiscard]] bool linkedRef(FormId reference, FormId keyword, FormId& out) const override;
         /// Task 0299: the stored angles of a scripted placement of a cell this view materialised (a trap's facing).
         [[nodiscard]] bool referenceRotation(FormId reference, double (&xyz)[3]) const;
@@ -1018,6 +1021,7 @@ namespace game_skyrimse
         ForcedGreetHooks mForcedGreet; ///< task 0264
         FormId mForcedGreetReference = kNullFormId; ///< task 0264: the open conversation is a ForceGreet package's
         bool mAliasPackagesOn = false; ///< task 0271
+        bool mPrimitiveTriggers = false; ///< task 0310
         bool mAmbushOn = false; ///< task 0302
         bool mPlayerPlaceKnown = false;
         bool mPlayerInterior = false;

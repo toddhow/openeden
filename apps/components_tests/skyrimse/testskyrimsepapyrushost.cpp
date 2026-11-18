@@ -798,4 +798,47 @@ namespace
         EXPECT_TRUE(rig.mHost->restoreState(blob));
         EXPECT_EQ(rig.number(kQuestA, "QS", "Count"), 4.0);
     }
+
+    // Task 0310 (A Daedra's Best Friend): the meeting trigger of Barbas is a box with no script of its own; the game's
+    // defaultSetStageAliasScript sits on the QUEST ALIAS that holds it, so the player entering the volume must reach the
+    // alias script (written first, red against the host that only told scripts on the reference itself)
+    TEST(SkyrimPapyrusHost, a_trigger_volume_wakes_the_alias_script_of_the_reference_a_quest_alias_holds)
+    {
+        Rig rig;
+        ScriptBuilder aliasScript("TriggerAlias");
+        aliasScript.parent("ReferenceAlias");
+        aliasScript.var("entered", "Int");
+        aliasScript.function("OnTriggerEnter")
+            .param("akActionRef", "ObjectReference")
+            .iadd(Id("entered"), Id("entered"), Int(1));
+        rig.mData.add(aliasScript);
+        rig.quests({ questRecord(kQuestA, QuestFlags::StartGameEnabled, stage(10, 0), aliasRef(2, kRefA)) });
+        vmad::Vmad v = vmadOf({});
+        vmad::AliasScripts as;
+        as.mQuest = kQuestA;
+        as.mAlias = 2;
+        as.mScripts.push_back(script("TriggerAlias"));
+        v.mAliases.push_back(as);
+        rig.mVmads[kQuestA] = v;
+        rig.mHost->startGame();
+        rig.tick();
+        TriggerVolume volume;
+        volume.mType = kPrimitiveSphere;
+        volume.mBounds[0] = 100.0;
+        ASSERT_TRUE(rig.mHost->addTrigger(kRefA, volume));
+        PapyrusPlayerView view;
+        view.mKnown = true;
+        view.mX = 10.0;
+        view.mPlace.mKnown = true;
+        rig.mHost->setPlayerView(view);
+        EXPECT_EQ(rig.mHost->updateTriggers(), 1u);
+        rig.tick();
+        EXPECT_EQ(rig.mHost->aliasScriptNumber(kQuestA, 2, "TriggerAlias", "entered"), std::optional<double>(1.0));
+        // and leaving sends no OnTriggerEnter again
+        view.mX = 5000.0;
+        rig.mHost->setPlayerView(view);
+        (void)rig.mHost->updateTriggers();
+        rig.tick();
+        EXPECT_EQ(rig.mHost->aliasScriptNumber(kQuestA, 2, "TriggerAlias", "entered"), std::optional<double>(1.0));
+    }
 }

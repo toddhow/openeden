@@ -514,6 +514,17 @@ namespace game_skyrimse
             return out;
         }
 
+        /// Task 0310: the instances of the scripts on the quest aliases that hold `reference` (a trigger volume that has
+        /// no script of its own, the game's defaultSetStageAliasScript on its alias)
+        std::vector<InstanceId> aliasInstancesHolding(FormId reference) const
+        {
+            std::vector<InstanceId> out;
+            for (const auto& [key, ids] : mByAlias)
+                if (reference != 0 && aliasReferenceOf(key.first, key.second) == reference)
+                    out.insert(out.end(), ids.begin(), ids.end());
+            return out;
+        }
+
         InstanceId findInstance(FormId form, std::string_view script) const
         {
             const std::string wanted = lower(script);
@@ -3929,10 +3940,15 @@ namespace game_skyrimse
         m.mTracker.update(m.mPlayerView.mPlace, m.mPlayerView.mX, m.mPlayerView.mY, m.mPlayerView.mZ, edges);
         std::size_t queued = 0;
         for (const TriggerEdge& edge : edges)
-            for (const InstanceId instance : m.instancesOf(edge.mReference))
+        {
+            std::vector<InstanceId> hearers = m.instancesOf(edge.mReference);
+            for (const InstanceId alias : m.aliasInstancesHolding(edge.mReference)) // task 0310
+                hearers.push_back(alias);
+            for (const InstanceId instance : hearers)
                 if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
                         { m.formValue(kPlayerReference) }))
                     ++queued;
+        }
         return queued;
     }
 
@@ -3951,7 +3967,10 @@ namespace game_skyrimse
                 "Papyrus: trigger " + hex(edge.mReference) + (edge.mEntered ? " entered by " : " left by ")
                     + hex(edge.mSubject) + " (" + std::to_string(m.instancesOf(edge.mReference).size())
                     + " scripts)");
-            for (const InstanceId instance : m.instancesOf(edge.mReference))
+            std::vector<InstanceId> hearers = m.instancesOf(edge.mReference);
+            for (const InstanceId alias : m.aliasInstancesHolding(edge.mReference)) // task 0310
+                hearers.push_back(alias);
+            for (const InstanceId instance : hearers)
                 if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
                         { m.formValue(edge.mSubject) }))
                     ++queued;

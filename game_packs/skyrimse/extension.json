@@ -749,6 +749,11 @@
       "key": "college",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "daedric quests",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

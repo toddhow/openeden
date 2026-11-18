@@ -1871,6 +1871,10 @@ namespace game_skyrimse
         }
         world.setSpeaker(speaker);
         world.setFollowerOverlay(mAmbushOn ? mFollowerOverlay : nullptr); // task 0302: Variable01 of an ambusher
+        // Task 0310: the player's level, for a package whose condition reads it (DA03StartGuardStartQuestGreet:
+        // GetLevel of the player at least 10); only with `quest alias packages`, like the other player facts here
+        if (mAliasPackagesOn)
+            world.setPlayerLevel(mHaveProgressionPlayer ? mProgressionLevel : mStandInPlayerLevel);
         // Task 0271: only with `quest alias packages` (else the package conditions are what they were)
         world.setPlayerPlace(mAliasPackagesOn && mPlayerPlaceKnown, mPlayerInterior, mPlayerCell, mPlayerWorld);
         world.setLiveQuestVariable(
@@ -4034,7 +4038,8 @@ namespace game_skyrimse
             if (mHelloGreetings) // task 0308: the template scripts of an NPC_ need the actor index
                 (void)ensureActorIndex();
             std::vector<vmad::Script> allScripts = vmad::combineScripts(ref.mScripts, baseScriptsOf(ref.mBase));
-            if (!allScripts.empty())
+            // task 0310: a trigger volume with no script of its own may hold a quest alias whose script listens
+            if (!allScripts.empty() || (mPrimitiveTriggers && ref.mPrimitive))
             {
                 ReferenceScripts scripts;
                 scripts.mReference = id;

@@ -605,7 +605,8 @@ namespace game_skyrimse
         }
         fillTurn(*s.mInfo, out);
         mChoices = s.mInfo->mLinksTo; // task 0261: the next menu is what this response links to (offerTopics)
-        followNamelessLinks(out); // task 0304
+        if (!mLinkMode) // task 0310: a forced conversation follows a link with no name in offerLinks (once)
+            followNamelessLinks(out); // task 0304
         // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its
         // own ends the talk, as the game closes a forced dialogue when nothing is left to choose
         if (mLinkMode && !out.endsConversation && !s.mInfo->mLinksTo.empty())
@@ -720,6 +721,8 @@ namespace game_skyrimse
     {
         out.topics.clear();
         mOffered.clear();
+        if (mFragmentFlush) // task 0310: what the response just said set in the world (a quest stage) before a link is chosen
+            mFragmentFlush();
         const SelectionOptions opts = options(0);
         const DialogInfo* silent = nullptr; // task 0271: the first link that is no choice (the speaker goes on)
         for (const FormId link : from.mLinksTo)

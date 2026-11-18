@@ -9,6 +9,8 @@ namespace game_skyrimse
     {
         namespace sdkgame = openeden::sdk::game;
 
+        constexpr FormId kPlayerFormId = 0x14; // task 0310: the player's reference, as a package target
+
         /// The longest frame time one update takes into account (a stall must not run a pause out at once).
         constexpr float kMaxStepSeconds = 1.f;
         constexpr double kTwoPi = 6.283185307179586;
@@ -948,6 +950,13 @@ namespace game_skyrimse
                 mTravellerRefs.erase(actor.mHandle.reference);
             }
         }
+        if (actor.mPackageFollow) // task 0310
+        {
+            actor.mToFollow = true;
+            actor.mFollowPlayerTimer = 0.f;
+            actor.mPhase = Phase::Following;
+            return;
+        }
         if (actor.mActivity == PackageActivity::Patrol)
         {
             beginPatrol(actor, writer);
@@ -1042,6 +1051,7 @@ namespace game_skyrimse
         actor.mToPatrol = false;
         actor.mEndFired = false; // task 0274
         actor.mToFollow = false;
+        actor.mPackageFollow = false; // task 0310
         actor.mPatrolFirst = kNullFormId;
         actor.mPatrolMarker = kNullFormId;
         actor.mFollowTarget = kNullFormId;
@@ -1049,6 +1059,16 @@ namespace game_skyrimse
         mTravellerRefs.erase(actor.mHandle.reference);
         if (actor.mBehavior == PackageBehavior::Stand || actor.mBehavior == PackageBehavior::Unsupported)
             actor.mActivity = mSource.activityOf(*package);
+        // Task 0310: a Follow or Escort package that names the PLAYER leads the actor along behind him (Barbas's
+        // DA03BarbasFollowPlayer and DA03BarbasEscortToShrine); the escort's far destination is not walked to
+        if (mFollowPlayerPackages
+            && (actor.mActivity == PackageActivity::Follow || actor.mActivity == PackageActivity::Escort))
+        {
+            PackageTarget target;
+            if (mSource.targetOf(*package, target) && target.mType == PackageTargetType::SpecificReference
+                && target.mValue == kPlayerFormId)
+                actor.mPackageFollow = true;
+        }
         if (actor.mActivity == PackageActivity::Escort)
             ++mStats.mEscortsSkipped;
         if (actor.mBehavior == PackageBehavior::Unsupported && actor.mActivity == PackageActivity::None)
@@ -1413,7 +1433,10 @@ namespace game_skyrimse
                     actor.mSinceEval = -nextUnit(actor) * mOptions.mReevaluateSeconds; // spread the actors over frames
                 evaluate(actor, writer);
             }
-            run(actor, seconds, writer);
+            if (actor.mPackageFollow && !actor.mEntering && !actor.mExiting && !actor.mTalking) // task 0310
+                runFollowPlayer(actor, seconds, writer);
+            else
+                run(actor, seconds, writer);
         }
     }
 

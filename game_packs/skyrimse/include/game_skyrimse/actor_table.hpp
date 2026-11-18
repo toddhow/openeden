@@ -102,6 +102,12 @@ namespace game_skyrimse
                 mBrain->setForceGreetHook(std::move(hook));
         }
 
+        /// Task 0310: see PackageBrain::setFollowPlayerPackages (no brain: nothing).
+        void setFollowPlayerPackages(bool on)
+        {
+            if (mBrain)
+                mBrain->setFollowPlayerPackages(on);
+        }
         /// Task 0306: see PackageBrain::setApproachGreeters (no brain: nothing).
         void setApproachGreeters(bool on)
         {
