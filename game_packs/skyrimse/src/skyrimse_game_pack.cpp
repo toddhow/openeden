@@ -674,6 +674,11 @@ namespace game_skyrimse
                 mView.setPrimitiveTriggers(true);
                 mHost.setRelocation(true, mainquest::kRelocateRange);
             }
+            void enableDawnguard() // task 0319: the same world as the Daedric quests; the fort's trigger boxes fire
+            {
+                mDawnguard = true;
+                enableDaedric();
+            }
             [[nodiscard]] bool mainQuestOn() const { return mMainQuest; } // task 0274
             [[nodiscard]] std::string formName(FormId form) const { return mData.nameOf(form); } // task 0274
             void setSceneParkSeconds(float seconds) { mSceneParkSeconds = seconds; } // task 0287
@@ -1666,9 +1671,9 @@ namespace game_skyrimse
                             volume.mCell = s.mCell;
                             volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
                             // tasks 0274 and 0292: the cart ride's slabs and the College bridge's box
-                            volume.mAcceptBox = mMainQuest || mCollege || mDaedric;
+                            volume.mAcceptBox = mMainQuest || mCollege || mDaedric || mDawnguard;
                             volume.mInterior = mData.cellIsInterior(s.mCell);
-                            if ((mMainQuest || mCollege || mDaedric) && volume.mType == kPrimitiveBox)
+                            if ((mMainQuest || mCollege || mDaedric || mDawnguard) && volume.mType == kPrimitiveBox)
                                 say(openeden::sdk::LogLevel::Info,
                                     std::string("PAPYRUS box trigger ") + hexOf(s.mReference) + " "
                                         + (s.mScripts.empty() ? std::string("-") : s.mScripts.front().mName) + " rot "
@@ -1730,6 +1735,7 @@ namespace game_skyrimse
             std::map<FormId, FormId> mMovedCells; ///< task 0286: a reference the world moved -> the cell it stands in
             bool mCollege = false; ///< task 0292
             bool mDaedric = false; ///< task 0310
+            bool mDawnguard = false; ///< task 0319
             bool mMainQuestApplied = false;
             double mNextCartLog = 0.0; ///< task 0274
             bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
@@ -2868,9 +2874,13 @@ namespace game_skyrimse
                             && mPapyrus->host().hasScript(static_cast<FormId>(reference), "dragonactorscript");
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false))
+                const bool dawnguardOn = spellSettings != nullptr && spellSettings->getBool(kPackId, "dawnguard", false);
+                if (dawnguardOn)
+                    mPapyrus->enableDawnguard(); // task 0319
+                if (dawnguardOn || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
                 {
-                    mPapyrus->enableDaedric(); // task 0310: Barbas is moved to the road, the meeting box fires
+                    if (!dawnguardOn)
+                        mPapyrus->enableDaedric(); // task 0310: Barbas is moved to the road, the meeting box fires
                     // Lod's "There's one out on the road" goes on by itself through a link with no name, and the
                     // fragments of a response run before the next INFO is chosen (task 0304's rules)
                     mWorldView.setQuestGreetings(true);

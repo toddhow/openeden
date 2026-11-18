@@ -1799,6 +1799,20 @@ namespace game_skyrimse
             };
             reg("Quest", "SetObjectiveDisplayed", false, objective(false));
             reg("Quest", "SetObjectiveCompleted", false, objective(true));
+            // Task 0319: every objective the quest has shown is finished (DLC1VQ01MiscObjective stage 180)
+            reg("Quest", "CompleteAllObjectives", false, [this](const NativeCall& c) {
+                const FormId quest = formOf(c.self);
+                bool changed = false;
+                for (const auto& [key, shown] : mObjectivesDisplayed)
+                    if (key.first == quest && shown && !mObjectivesCompleted[key])
+                    {
+                        mObjectivesCompleted[key] = true;
+                        changed = true;
+                    }
+                if (changed)
+                    ++mObjectiveRevision;
+                return NativeResult{};
+            });
             reg("Quest", "IsObjectiveDisplayed", false, [this](const NativeCall& c) {
                 const auto it = mObjectivesDisplayed.find({ formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)) });
                 return result(PapyrusValue::makeBool(it != mObjectivesDisplayed.end() && it->second));

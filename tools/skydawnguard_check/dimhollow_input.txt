@@ -1,0 +1,3 @@
+300 shot
+1200 shot
+1800 shot

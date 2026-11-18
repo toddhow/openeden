@@ -764,6 +764,11 @@
       "key": "daedric quests",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "dawnguard",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"
