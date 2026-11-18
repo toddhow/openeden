@@ -3793,7 +3793,6 @@ namespace game_skyrimse
         return it->second.mInteriorWater;
     }
 
-
     // Task 0293: a placement with an enable parent starts in its parent's state (opposite when the XESP flag says so),
     // a chain of parents follows its root; a parent this cell and the world's persistent cell do not hold (the player, a
     // marker in another square) leaves the placement as its own flags say. The seven towns' Imperial and Stormcloak
