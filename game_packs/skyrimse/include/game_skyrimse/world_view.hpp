@@ -617,13 +617,8 @@ namespace game_skyrimse
         /// data is not built yet (nothing blocks the main thread).
         [[nodiscard]] bool forcedGreetingAvailable(FormId base, FormId reference, std::string* why = nullptr);
         /// Task 0271: where the player stands, for the package conditions that run on him.
-        void setPlayerPlace(bool interior, FormId cell, FormId world)
-        {
-            mPlayerPlaceKnown = true;
-            mPlayerInterior = interior;
-            mPlayerCell = cell;
-            mPlayerWorld = world;
-        }
+        /// Task 0327: the scenes' condition world (the quest world) is told too.
+        void setPlayerPlace(bool interior, FormId cell, FormId world);
         /// Task 0312: the world the player stands in (none indoors or before the place is known) and the world of an
         /// exterior cell (none for an interior or an unknown cell).
         [[nodiscard]] FormId playerWorld() const { return mPlayerPlaceKnown && !mPlayerInterior ? mPlayerWorld : kNullFormId; }

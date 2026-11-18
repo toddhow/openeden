@@ -71,6 +71,21 @@ local function stepTo(s)
         activateActor(s[3])
         return
     end
+    if s[2] == 'bring' then
+        -- { update, 'bring', fromCellName, decimalBase, toCellName, x, y, z }: a hand-written stand-in for an off-screen
+        -- schedule (task 0327): the actor is put where its package would have taken it
+        local from = world.getCellByName(s[3])
+        for _, o in ipairs(from:getAll()) do
+            local ok, id = pcall(function() return o.recordId end)
+            if ok and id ~= nil and tostring(id):match(':b(%d+)$') == s[4] then
+                o:teleport(s[5], util.vector3(s[6], s[7], s[8]), { onGround = true })
+                print('MQ step bring: base ' .. s[4] .. ' to ' .. s[5])
+                return
+            end
+        end
+        print('MQ step bring: base ' .. s[4] .. ' not found in ' .. s[3])
+        return
+    end
     if s[2] == 'event' then
         -- { update, 'event', name, { field = value } }: the event the engine's activation would send (a stand-in for AIMING)
         print('MQ step event: ' .. tostring(s[3]))

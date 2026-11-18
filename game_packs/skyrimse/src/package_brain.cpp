@@ -920,7 +920,7 @@ namespace game_skyrimse
             // when the target can be placed the actor walks to it, and when the player's cell is the target's and it
             // still cannot be placed the old answer (the home is the anchor) applies.
             double x = 0, y = 0, z = 0;
-            if (mSource.locate(actor.mElsewhereRef, x, y, z))
+            if (!mSource.targetIsElsewhere(actor.mElsewhereRef) && mSource.locate(actor.mElsewhereRef, x, y, z))
             {
                 actor.mAnchorX = x;
                 actor.mAnchorY = y;
@@ -1088,7 +1088,12 @@ namespace game_skyrimse
                 case PackageLocationType::NearReference:
                 {
                     double x = 0, y = 0, z = 0;
+                    // Task 0327: a scene's target in another cell than the player's is not walked to, even when its
+                    // cell was loaded earlier (the player began outside, in the College's courtyard): the actor waits
+                    // and is carried through the doors (begin() below)
+                    const bool leadsPlayer = tracksScenePackages() && actor.mForced == package;
                     if (loc.mValue != kNullFormId && loc.mValue != kUnresolvedFormId
+                        && !(leadsPlayer && mSource.targetIsElsewhere(static_cast<FormId>(loc.mValue)))
                         && mSource.locate(static_cast<FormId>(loc.mValue), x, y, z))
                     {
                         actor.mAnchorX = x;

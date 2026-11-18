@@ -2191,6 +2191,18 @@ namespace game_skyrimse
 
     float SkyrimConditionWorld::distanceTo(conditions::Subject subject, std::uint32_t reference) const
     {
+        // Task 0327 (a scene's "the player is within 300 of the marker"): the player is measured from where he stands
+        // to a placed reference of his own interior cell, or, outdoors, to a placed reference at its world place
+        if (subject == kPlayer && mPlayerPositionKnown && mPlayerPlaceKnown && mPlacedRefs != nullptr)
+            if (const PlacedEntry* target = mPlacedRefs->find(resolve(reference)))
+            {
+                if (mPlayerInterior && (mPlayerCell == kNullFormId || target->mCell != mPlayerCell))
+                    return std::numeric_limits<float>::max();
+                const double dx = mPlayerPosition[0] - target->mX;
+                const double dy = mPlayerPosition[1] - target->mY;
+                const double dz = mPlayerPosition[2] - target->mZ;
+                return static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
+            }
         double ax = 0, ay = 0, az = 0, tx = 0, ty = 0, tz = 0;
         if (livePlaces(subject, reference, ax, ay, az, tx, ty, tz)) // task 0277
             return static_cast<float>(std::sqrt((ax - tx) * (ax - tx) + (ay - ty) * (ay - ty) + (az - tz) * (az - tz)));

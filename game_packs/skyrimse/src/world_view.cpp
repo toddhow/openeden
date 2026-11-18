@@ -1403,6 +1403,12 @@ namespace game_skyrimse
             world->setKeywordData(&mKeywordData); // task 0217
             world->setPlacedRefs(&raw->mData->mPlacedRefs);
             world->setQuestVariables(raw->mQuestVariables.get());
+            if (mPlayerPlaceKnown && mLiveActorPlace) // task 0327
+                world->setPlayerPlace(true, mPlayerInterior, mPlayerCell, mPlayerWorld);
+            if (mLiveActorPlace) // task 0327
+                world->setLivePlaces(mLiveActorPlace, [this](std::uint32_t reference, double& x, double& y, double& z) {
+                    return locate(reference, x, y, z);
+                });
             raw->mQuestExtras = storyAndLocationExtraFunctions(); // task 0211
             raw->mQuestExtras.insert(
                 raw->mQuestExtras.end(), sceneExtraFunctions().begin(), sceneExtraFunctions().end());
@@ -1489,6 +1495,16 @@ namespace game_skyrimse
     void SkyrimWorldView::setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site)
     {
         mPlayerSite = std::move(site);
+    }
+
+    void SkyrimWorldView::setPlayerPlace(bool interior, FormId cell, FormId world)
+    {
+        mPlayerPlaceKnown = true;
+        mPlayerInterior = interior;
+        mPlayerCell = cell;
+        mPlayerWorld = world;
+        if (mLiveActorPlace && mDialogue != nullptr && mDialogue->mQuestWorld != nullptr) // only with live places
+            mDialogue->mQuestWorld->setPlayerPlace(true, interior, cell, world);
     }
 
     void SkyrimWorldView::setPlayerPosition(double x, double y, double z)
@@ -2308,6 +2324,8 @@ namespace game_skyrimse
                 return locate(reference, x, y, z);
             };
             mDialogue->mRuntime->setLivePlaces(mLiveActorPlace, target);
+            if (mDialogue->mQuestWorld != nullptr) // task 0327: a scene's phase asks where an actor stands now
+                mDialogue->mQuestWorld->setLivePlaces(mLiveActorPlace, target);
         }
     }
 

@@ -3144,6 +3144,15 @@ namespace game_skyrimse
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
+                    // task 0327: a quest's MoveTo of a student to the classroom moves the real placement into the other
+                    // interior (task 0286's mechanism; its walk hook stays off: the tour walks and is carried)
+                    mPapyrus->host().setCellMoves(true);
+                    // task 0327: Mirabelle's tour walks through the College's doors with the player following
+                    mCellSource.actorTable().setCarryTravellers(true);
+                    // and the scene's "Mirabelle within 100 of the marker" reads where she is now, not her placement
+                    mWorldView.setLiveActorPlace([this](FormId reference, double& x, double& y, double& z) {
+                        return mCellSource.actorTable().brainPlace(reference, x, y, z);
+                    });
                     mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
                     mWorldView.setFragmentFlush([this]() {
                         if (mPapyrus != nullptr)

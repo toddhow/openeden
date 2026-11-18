@@ -1,4 +1,5 @@
 #include "game_skyrimse/scene_runner.hpp"
+#include <cstdlib>
 
 #include <algorithm>
 #include <cmath>
@@ -10,6 +11,8 @@ namespace game_skyrimse
 {
     namespace
     {
+        const bool sSceneWaitTrace = std::getenv("OPENEDEN_SCENE_WAIT") != nullptr; // a developer trace (task 0327)
+
         enum class ActionStage : std::uint8_t
         {
             Waiting,
@@ -46,6 +49,7 @@ namespace game_skyrimse
         std::vector<ActionState> mActions;
         std::vector<FormId> mHeld;
         float mTime = 0.f;
+        int mNote = 0;
     };
 
     SceneRunner::SceneRunner(const SceneIndex& scenes, SceneEnvironment& env, Options options)
@@ -73,6 +77,15 @@ namespace game_skyrimse
             mEnv.log("SCENE " + hex(scene) + " not started: too many scenes are playing");
         else if (!force && !record->mConditions.empty())
             mEnv.log("SCENE " + hex(scene) + " not started: no speaker is loaded or its conditions fail");
+        else
+        {
+            // task 0327: the one remaining quiet refusal of startImpl: not one of its actors is loaded
+            std::string refs;
+            for (const SceneActor& a : record->mActors)
+                refs += " " + hex(mEnv.aliasReference(record->mQuest, a.mAlias));
+            mEnv.log("SCENE " + hex(scene) + " not started: none of its actors is loaded (alias references" + refs
+                + ")");
+        }
         return false;
     }
 
@@ -633,6 +646,11 @@ namespace game_skyrimse
                     case PhaseEndRule::ConditionsOnly:
                         complete = conditionsDone;
                         break;
+                }
+                if (!complete && sSceneWaitTrace && ++in.mNote % 300 == 0)
+                {
+                    mEnv.log("SCENEWAIT " + hex(id) + " phase " + std::to_string(in.mPhase) + " actions "
+                        + (actionsDone ? "done" : "pending") + " conditions " + (conditionsDone ? "ok" : "no"));
                 }
                 if (!complete)
                     break;
