@@ -66,6 +66,11 @@ local startCell = nil
 local lookAgain = nil
 local function stepTo(s)
     local player = world.players[1]
+    if s[2] == 'activate' then
+        -- { update, 'activate', base }: the player activates that actor (the key finds nothing in a crowd of scenery)
+        activateActor(s[3])
+        return
+    end
     if s[2] == 'event' then
         -- { update, 'event', name, { field = value } }: the event the engine's activation would send (a stand-in for AIMING)
         print('MQ step event: ' .. tostring(s[3]))

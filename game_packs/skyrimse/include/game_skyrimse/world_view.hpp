@@ -635,6 +635,8 @@ namespace game_skyrimse
         void setOpenServices(bool on);
         /// Task 0298: a Blocking dialogue branch starts a conversation instead of Hello (DialogueRuntime::setBlockingBranches).
         void setBlockingBranches(bool on);
+        void setDialogueTrace(std::function<void(const std::string&)> trace); ///< task 0304
+        void setQuestGreetings(bool on); ///< task 0304: a quest's nameless branch start greets (College of Winterhold)
         /// The class data of an NPC_ base (templates followed): CLAS DATA's trained skill and maximum training level.
         /// Ready (with `hasData` false for a class with no data), Pending until the actor index is built, NotVendor
         /// when the NPC or its class is unknown. Main thread; reads the actor index like vendorOf.
@@ -1022,6 +1024,8 @@ namespace game_skyrimse
         std::function<void(const std::string&)> mPackageTraceLog;
         bool mOpenServices = false; ///< task 0219
         bool mBlockingBranches = false; ///< task 0298
+        bool mQuestGreetings = false; ///< task 0304
+        std::function<void(const std::string&)> mDialogueTrace;
         std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)

@@ -243,6 +243,12 @@ namespace game_skyrimse
         /// Task 0298: the starting topics of the branches that carry the Blocking flag (DLBR DNAM bit 2), sorted by id.
         /// A blocking branch's first line is what the speaker says instead of the Hello greeting when its conditions pass.
         [[nodiscard]] std::vector<FormId> blockingStarts() const;
+        /// Task 0304: the topics a quest speaks as its own greeting: a Custom topic ("CUST") of category Topic with no
+        /// name that is the starting topic of its DLBR branch, that no INFO links to and one of whose INFOs names its
+        /// speaker (GetIsID or GetIsAliasRef: a shared quest's start names none) (Faralda's "Welcome to the College"). Highest priority
+        /// first; at equal priority the higher form id first (Faralda's Initial branch before the Nirya greeting catch-all,
+        /// which has the same priority and a lower id: OURS, the data names no other rule).
+        [[nodiscard]] std::vector<FormId> questGreetingTopics() const;
 
         /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
         /// folder of this plugin, named with that id. Nullopt when no plugin of the index owns the id.

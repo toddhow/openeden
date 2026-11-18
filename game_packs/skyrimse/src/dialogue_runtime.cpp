@@ -315,18 +315,44 @@ namespace game_skyrimse
         mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
         // The random pick is a function of the placement, so the same actor greets the same way in a session.
         const std::uint32_t pickNumber = speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase;
+        const SelectionOptions greetingOptions = options(pickNumber);
         Selection greeting;
-        // Task 0298: a Blocking branch (the Civil War's Rikke: "Are you lost?", "You survived Helgen?") says its first line
-        // that passes instead of Hello; the lowest topic id comes first so the choice never depends on a hash order
+        // The greeting step, in this order: tasks 0298 and 0304 each say a line of their own instead of Hello, behind
+        // their own settings, then the Hello pick as before.
+        // 1. Task 0298: a Blocking branch (the Civil War's Rikke: "Are you lost?", "You survived Helgen?") says its first line
+        // that passes; the lowest topic id comes first so the choice never depends on a hash order
         if (mBlockingBranches)
             for (const FormId start : mDialogue.blockingStarts())
             {
-                greeting = selectInfo(mDialogue, start, mWorld, mSpeaker, options(pickNumber));
+                greeting = selectInfo(mDialogue, start, mWorld, mSpeaker, greetingOptions);
                 if (greeting.mInfo != nullptr)
                     break;
             }
+        // 2. Task 0304: a quest's own greeting (the nameless start of one of its branches)
+        if (greeting.mInfo == nullptr && mQuestGreetings)
+        {
+            if (!mGreetingTopicsKnown)
+            {
+                mGreetingTopics = mDialogue.questGreetingTopics();
+                mGreetingTopicsKnown = true;
+            }
+            for (const FormId id : mGreetingTopics)
+            {
+                const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, greetingOptions);
+                if (mTrace && s.mInfo != nullptr)
+                    mTrace("quest greeting topic " + hex8(id) + ": " + std::to_string(s.mConsidered)
+                        + " considered, " + std::to_string(s.mPassing) + " passing, chosen "
+                        + hex8(s.mInfo->mCommon.mId));
+                if (s.mInfo != nullptr)
+                {
+                    greeting = s;
+                    break;
+                }
+            }
+        }
+        // 3. Hello
         if (greeting.mInfo == nullptr)
-            greeting = pickFromTopics(mDialogue, "HELO", mWorld, mSpeaker, options(pickNumber));
+            greeting = pickFromTopics(mDialogue, "HELO", mWorld, mSpeaker, greetingOptions);
         if (greeting.mInfo == nullptr)
         {
             error = "no greeting passes for this speaker";

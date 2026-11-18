@@ -219,6 +219,13 @@ namespace game_skyrimse
             mBlockingBranches = on;
             mWorld.setCountRefTypes(on); // GetRefTypeAliveCount counts the placed references (Fort Hraggstad's bandits)
         }
+        /// Task 0304: a nameless Custom topic that starts a quest's dialogue branch (the quest's own greeting, such as
+        /// Faralda's "Welcome to the College") is spoken at the start of a conversation, before the Hello lines, when
+        /// one of its INFOs passes. Off by default.
+        void setQuestGreetings(bool on) { mQuestGreetings = on; }
+        /// Task 0304: a line of trace for each quest greeting looked at (the topic, how many INFOs were considered and
+        /// passed, the INFO chosen); unset: none.
+        void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
 
         [[nodiscard]] bool open() const { return mOpen; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -237,6 +244,10 @@ namespace game_skyrimse
             const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver);
 
     private:
+        bool mQuestGreetings = false;
+        std::function<void(const std::string&)> mTrace;
+        std::vector<FormId> mGreetingTopics; ///< task 0304: DialogueIndex::questGreetingTopics, found once
+        bool mGreetingTopicsKnown = false;
         void fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void offerTopics(openeden::sdk::game::DialogueTurn& out);

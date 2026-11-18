@@ -1356,6 +1356,8 @@ namespace game_skyrimse
             raw->mRuntime->setCrimeSource(mCrimeSource); // task 0258
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         raw->mRuntime->setBlockingBranches(mBlockingBranches); // task 0298
+        raw->mRuntime->setQuestGreetings(mQuestGreetings); // task 0304
+        raw->mRuntime->setTrace(mDialogueTrace);
         raw->mRuntime->setRankMinusOneMembers(mRankMinusOneMembers); // task 0261
         // Task 0187: aliases and the story manager
         if (mInfoFragmentSink)
@@ -2286,6 +2288,20 @@ namespace game_skyrimse
         mBlockingBranches = on;
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setBlockingBranches(on);
+    }
+
+    void SkyrimWorldView::setDialogueTrace(std::function<void(const std::string&)> trace)
+    {
+        mDialogueTrace = trace;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setTrace(std::move(trace));
+    }
+
+    void SkyrimWorldView::setQuestGreetings(bool on)
+    {
+        mQuestGreetings = on;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setQuestGreetings(on);
     }
 
     barter::VendorLookup SkyrimWorldView::trainingOf(FormId npcBase, ClassTraining& out)

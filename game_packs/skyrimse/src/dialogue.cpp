@@ -9,6 +9,7 @@
 #include "game_skyrimse/quest_script.hpp"
 
 #include <algorithm>
+#include <unordered_set>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -781,6 +782,54 @@ namespace game_skyrimse
             return true;
         const auto branch = mBranchStart.find(t->mBranch);
         return branch == mBranchStart.end() || branch->second == kNullFormId || branch->second == topicId;
+    }
+
+    namespace
+    {
+        constexpr std::uint16_t kFnGetIsId = 72;
+        constexpr std::uint16_t kFnGetIsAliasRef = 566;
+    }
+
+    std::vector<FormId> DialogueIndex::questGreetingTopics() const
+    {
+        // a topic some INFO links to (TCLT) is a reply inside a conversation: MG01FaraldaYoureInBranchTopic and the
+        // Nirya greeting are such starts; the greeting is a start nothing links to (MG01FaraldaInitialBranchTopic)
+        std::unordered_set<FormId> linked;
+        for (const auto& [topicId, slot] : mSlots)
+            for (std::size_t i = 0; i < slot.mList.size(); ++i)
+                if (slot.mAlive[i])
+                    linked.insert(slot.mList[i].mLinksTo.begin(), slot.mList[i].mLinksTo.end());
+        std::vector<FormId> ids;
+        for (const auto& [id, t] : mTopics)
+        {
+            if (t.mCategory != TopicCategory::Topic || t.mSubtypeName != "CUST" || t.mName.mPresent
+                || t.mBranch == kNullFormId || linked.count(id) != 0)
+                continue;
+            // a quest's greeting is for one actor: some INFO of the topic names its speaker (GetIsID or
+            // GetIsAliasRef). A shared quest's start (WESharedDialogue...) names none and would greet everybody.
+            bool namesSpeaker = false;
+            if (const auto slot = mSlots.find(id); slot != mSlots.end())
+                for (std::size_t i = 0; i < slot->second.mList.size() && !namesSpeaker; ++i)
+                    if (slot->second.mAlive[i])
+                        for (const survey::Ctda& c : slot->second.mList[i].mConditions)
+                            if (c.mFunction == kFnGetIsId || c.mFunction == kFnGetIsAliasRef)
+                            {
+                                namesSpeaker = true;
+                                break;
+                            }
+            if (!namesSpeaker)
+                continue;
+            const auto branch = mBranchStart.find(t.mBranch);
+            if (branch == mBranchStart.end() || branch->second != id)
+                continue;
+            ids.push_back(id);
+        }
+        std::sort(ids.begin(), ids.end(), [this](FormId a, FormId b) {
+            const float pa = mTopics.at(a).mPriority;
+            const float pb = mTopics.at(b).mPriority;
+            return pa != pb ? pa > pb : a > b;
+        });
+        return ids;
     }
 
     std::optional<DialogueIndex::VoiceOrigin> DialogueIndex::voiceOriginOf(const DialogInfo& info) const

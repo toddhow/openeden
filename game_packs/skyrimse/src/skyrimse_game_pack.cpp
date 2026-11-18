@@ -2762,6 +2762,11 @@ namespace game_skyrimse
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
+                    mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
+                    mWorldView.setDialogueTrace([logger](const std::string& line) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
+                    });
                     mCellSource.combat().setSpellEventSink([&host, logger](const SkyrimCombat::SpellEvent& e) {
                         const auto reference = [](openeden::sdk::game::CombatSubject who) -> FormId {
                             return who.player ? kPapyrusPlayerReference : static_cast<FormId>(who.actor.reference);
