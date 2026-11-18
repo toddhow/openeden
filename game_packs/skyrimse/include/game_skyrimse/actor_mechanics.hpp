@@ -82,8 +82,8 @@ namespace game_skyrimse
     /// is Aggressive, with no relation to the player stated (Neutral), that collects no crime (NPC CRIF none: a town
     /// guard, citizen or soldier always has one) and is not a guard, is an enemy of the player. Every other case keeps
     /// `relation`.
-    [[nodiscard]] sdkgame::ActorRelation lawlessHostileRelation(sdkgame::ActorAggression aggression,
-        sdkgame::ActorRelation relation, FormId crimeFaction, bool guard);
+    [[nodiscard]] openeden::sdk::game::ActorRelation lawlessHostileRelation(openeden::sdk::game::ActorAggression aggression,
+        openeden::sdk::game::ActorRelation relation, FormId crimeFaction, bool guard);
 
     /// The pack's rule: Unaggressive never; Aggressive attacks an enemy; VeryAggressive an enemy or a neutral; Frenzied
     /// anyone.
