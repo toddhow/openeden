@@ -549,6 +549,9 @@ namespace game_skyrimse
 
     void SkyrimCombat::aiRaiseGuard(CombatRequestWriter& writer, AiActor& actor, Fighter& fighter)
     {
+        // Task 0301: an animal or monster has no guard clip (the person's 1HM_BlockIdle is not a file of its folder).
+        if (fighter.mProfile.mCreature != nullptr)
+            return;
         const std::string_view clip = mRealGear ? meleeClip(ClipSlot::BlockStart, fighter, true)
                                                 : mGuardSlots.clipFor(ClipSlot::BlockStart, kWeaponAnim1HSword);
         if (clip.empty())

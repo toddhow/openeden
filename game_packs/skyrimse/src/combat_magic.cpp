@@ -926,7 +926,14 @@ namespace game_skyrimse
         // Task 0300: a dual cast plays the same right-hand clip: the archive has no clip file of the DualMagic_* states
         // (only their sidecar entries, a behavior graph layers MRh_* and MLh_* clips) and the core plays one clip per
         // actor, so the left hand is not animated.
-        const std::string_view clip = mMagicSlots.clipFor(ClipSlot::Cast, column);
+        std::string_view clip = mMagicSlots.clipFor(ClipSlot::Cast, column);
+        // Task 0301: a creature that casts plays the clip of its own folder (the person's MRh_Release is not there).
+        if (caster.mProfile.mCreature != nullptr)
+        {
+            const std::string_view own = creatureCastClip(*caster.mProfile.mCreature, column == kMagicSelf);
+            if (!own.empty())
+                clip = own;
+        }
         if (clip.empty())
             return false;
         Cast cast;

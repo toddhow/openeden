@@ -145,6 +145,85 @@ namespace game_skyrimse
                 "attackpowerstanding", "recoil", "staggerbacksmall", "death", 40.5f },
         };
 
+        // Task 0301: the fifth slice, searched last (older tests pin the sizes of the first two tables). Every row is
+        // read as docs/tasks/0301-skyrim-creatures-rest-pose.md section 2 says: the clip files from the listing of
+        // Skyrim - Animations.bsa under <actor folder>/animations (no sex folder); strides and durations from the
+        // sidecar's blocks (meshes/animationdata/boundanims/anims_<project>.txt) where the project has one, else the
+        // ESTIMATE marked on the row: a foot bone's peak to peak travel along the body over the cycle, divided by a
+        // stance share of 0.6 (walk) or 0.4 (run), the method of the boar riekling (task 0290); heights are the skin
+        // model's z extent (the top of the skin for a model that hovers above its root: icewraith, netch), radii half
+        // the smaller mid-body width (at least kCreatureMinRadius; the core caps a radius at 45 percent of the
+        // height). A row of a creature that never fights (hare, chicken) has no combat clips.
+        const CreatureProfile kFifthProfiles[] = {
+            // Sidecar: Forward_Walk 72.7391 and Forward_Run 145.865 units in 1 s. No death file: the back stagger.
+            { "mudcrab", "actors/mudcrab/character assets/", "mudcrabproject", "mainidle", "forward_walk",
+                "forward_run", 72.7391f / 1.f, 145.865f / 1.f, 72.7391f, 145.865f, 75.f, "attack_leftchop",
+                "attack_combochop", "recoillchop", "stagger_small", "stagger_back", 34.8f },
+            // Sidecar: Forward_Walk 52.2566 in 0.833333 s, Forward_Run 100.194 in 0.5 s. No combat clips.
+            { "hare", "actors/ambient/hare/character assets/", "hareproject", "mt_idle", "walkforward", "runforward",
+                52.2566f / 0.833333f, 100.194f / 0.5f, 52.2566f, 100.194f, 34.4f, "", "", "", "", "", 16.f },
+            // Sidecar: Forward_Walk 34.7115 and Forward_Run 251.938 units in 1 s. No combat clips.
+            { "chicken", "actors/ambient/chicken/character assets/", "chickenproject", "mt_idle", "walkforward",
+                "runforward", 34.7115f / 1.f, 251.938f / 1.f, 34.7115f, 251.938f, 37.2f, "", "", "", "", "", 16.f },
+            // Sidecar (highlandcowproject): WalkForward 129.727 in 2 s, RunForward 350.164 in 0.666667 s.
+            { "cow", "actors/cow/character assets/", "highlandcowproject", "mt_idle", "walkforward", "runforward",
+                129.727f / 2.f, 350.164f / 0.666667f, 129.727f, 350.164f, 112.8f, "attack1", "attackpowerstanding",
+                "recoil", "staggerbacksmall", "deathpose", 29.1f },
+            // Sidecar: WalkForward 49.1507 and RunForward 125.112 units in 1.5 s.
+            { "horker", "actors/horker/character assets/", "horkerproject", "mt_idle", "walkforward", "runforward",
+                49.1507f / 1.5f, 125.112f / 1.5f, 49.1507f, 125.112f, 74.5f, "attackleft1", "attackpowerstanding",
+                "recoil", "staggerbacksmall", "death", 44.5f },
+            // A swimmer: the walk is swim_forward (600 units in 3.33333 s) and the run swim_fastforward (600.1 in
+            // 1.66667 s). The skin is 23.5 high (a capsule thinner than kCreatureMinRadius is capped by the core).
+            { "slaughterfish", "actors/slaughterfish/character assets/", "slaughterfishproject", "mainidle",
+                "swim_forward", "swim_fastforward", 600.f / 3.33333f, 600.1f / 1.66667f, 600.f, 600.1f, 23.5f,
+                "attacklslash", "attackruppercut", "recoilright", "stagger", "stagger", 16.f },
+            // It has one gait clip, runf (341 units in 1.06667 s, sidecar), used for the walk too: an ESTIMATE. The
+            // skin hovers 70.4 above its root: 136 is the top of the skin.
+            { "icewraith", "actors/icewraith/character assets/", "icewraithproject", "idle", "runf", "runf",
+                341.f / 1.06667f, 341.f / 1.06667f, 341.f, 341.f, 136.f, "attack_power", "attack_grounddive", "recoil",
+                "stagger", "staggerlarge", 18.2f },
+            // The Solstheim riekling (the ordinary one, not the boar): NO sidecar. Foot excursion 59.5387 (mt_walkf)
+            // and 71.1671 (mt_runf), over 0.6 and 0.4: ESTIMATED strides 99.23 and 177.92. No death clip: the large
+            // back stagger. Its spear clip is used for the power attack only (the unarmed set has none).
+            { "riekling", "actors/dlc02/riekling/character assets/", "rieklingproject", "mt_idle", "mt_walkf",
+                "mt_runf", 99.23f / 1.f, 177.92f / 0.666667f, 99.23f, 177.92f, 95.6f, "mt_attack1",
+                "spear_standingpowerattack", "mt_attack1_recoil", "mt_staggerb_small", "mt_staggerb_large", 16.f },
+            // NO sidecar. Foot excursion 122.65 (walkforward) and 147.196 (runforward): ESTIMATED strides 204.42 and
+            // 367.99, each over 1 s.
+            { "scrib", "actors/dlc02/scrib/character assets/", "scribproject", "mt_idle", "walkforward", "runforward",
+                204.42f / 1.f, 367.99f / 1.f, 204.42f, 367.99f, 76.9f, "attack1", "attackpowerstanding", "recoil",
+                "staggerbacksmall", "death", 50.3f },
+            // Its folder is `characterassets` (no space). NO sidecar and no foot bone: the gait clips are
+            // netch_runforward (2 s) and netch_sprintforward (1 s); the strides 200 and 265 are ESTIMATES (about
+            // three quarters and one of its 265 unit body length).
+            { "netch", "actors/dlc02/netch/characterassets/", "netchproject", "netch_idle", "netch_runforward",
+                "netch_sprintforward", 200.f / 2.f, 265.f / 1.f, 200.f, 265.f, 430.4f, "netch_attackright",
+                "netch_attackpowerstanding", "netch_recoilright", "netch_staggersmall", "netch_staggerlarge", 50.6f },
+            // Sidecar `dragon_priest`: MT_Walk_F 160 and MT_Run_F 600 units in 2 s. It fights with spells (the clips
+            // are creatureCastClip's), so it has no melee attack; its second skeleton (skeletonnecropriest) lies in
+            // the same folder.
+            { "dragonpriest", "actors/dragonpriest/character assets/", "dragon_priest", "mt_idle", "mt_walk_f",
+                "mt_run_f", 160.f / 2.f, 600.f / 2.f, 160.f, 600.f, 162.8f, "", "", "mt_stagger_b_small",
+                "mt_stagger_b_medium", "deathpose", 20.4f },
+            // NO sidecar. Foot excursion 59.0163 (mt_walkforward) and 92.2725 (mt_runforward): ESTIMATED strides 98.36
+            // and 230.68.
+            { "vampirelord", "actors/vampirelord/character assets/", "vampirelord", "mt_idle", "mt_walkforward",
+                "mt_runforward", 98.36f / 1.13333f, 230.68f / 0.633333f, 98.36f, 230.68f, 153.9f, "mt_attackright",
+                "mt_powerattackright", "mt_staggerbacksmall", "mt_staggerbacklarge", "mt_staggerbacklarge", 16.f },
+            // NO sidecar. Foot excursion 97.0748 (walkforward) and 107.533 (runforward): ESTIMATED strides 161.79 and
+            // 268.83.
+            { "vampirebrute", "actors/dlc01/vampirebrute/character assets/", "vampirebruteproject", "idle",
+                "walkforward", "runforward", 161.79f / 1.43333f, 268.83f / 0.6f, 161.79f, 268.83f, 182.4f, "attackr",
+                "attack_standingpower", "recoilr", "stagger_small", "deathpose", 33.5f },
+            // The Dwarven spider centurion; its folder is `dwarvenspider` (task 0290 looked under the other name).
+            // Sidecar: Forward_Walk 100.037 units in 1 s; it has NO Forward_Run block, so the run stride 200.074
+            // (twice the walk, as the mudcrab's) is an ESTIMATE.
+            { "dwarvenspider", "actors/dwarvenspider/character assets/", "dwarvenspidercenturionproject", "mainidle",
+                "forward_walk", "forward_run", 100.037f / 1.f, 200.074f / 1.f, 100.037f, 200.074f, 56.7f,
+                "attack_combolow", "attackcombohigh", "recoil_jump", "stagger_back", "stagger_back", 54.6f },
+        };
+
         // The rows of tasks 0212 and 0216 come first; creatureProfiles() is exactly these.
         constexpr std::size_t kEarlierCount = 10;
         static_assert(std::size(kProfiles) > kEarlierCount);
@@ -176,6 +255,26 @@ namespace game_skyrimse
     std::span<const CreatureProfile> creatureProfilesFourth()
     {
         return std::span<const CreatureProfile>(kFourthProfiles, std::size(kFourthProfiles));
+    }
+
+    std::span<const CreatureProfile> creatureProfilesFifth()
+    {
+        return std::span<const CreatureProfile>(kFifthProfiles, std::size(kFifthProfiles));
+    }
+
+    std::string_view creatureCastClip(const CreatureProfile& profile, bool self)
+    {
+        // Task 0301: the clips a creature that casts plays instead of the person's MRh_Release (not a file of its
+        // folder). The dragon priest's Mag_RH_ff_R_release (MRh_SpellFire at 0.1 s) and Mag_RH_ff_S_release (0.466 s)
+        // are the right hand fire and forget releases; the Dwarven spider's Attack_CastingA carries MLh_SpellFire at
+        // 0.266 s, and the chaurus's file attack_releasespit is that generator too (a sidecar alias: same duration).
+        if (profile.mName == "dragonpriest")
+            return self ? "mag_rh_ff_s_release" : "mag_rh_ff_r_release";
+        if (profile.mName == "dwarvenspider")
+            return "attack_castinga";
+        if (profile.mName == "chaurus")
+            return "attack_releasespit";
+        return {};
     }
 
     std::string_view creatureClipFor(const CreatureProfile& profile, openeden::sdk::game::ClipSlot slot)
@@ -215,6 +314,9 @@ namespace game_skyrimse
             if (matches(profile))
                 return &profile;
         for (const CreatureProfile& profile : kFourthProfiles) // task 0290
+            if (matches(profile))
+                return &profile;
+        for (const CreatureProfile& profile : kFifthProfiles) // task 0301
             if (matches(profile))
                 return &profile;
         return nullptr;

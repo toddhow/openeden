@@ -818,6 +818,10 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecreaturesclips.cpp
     skyrimse/testskyrimsecreaturesthirdreal.cpp
     skyrimse/testskyrimsecreaturesfourthreal.cpp
+    skyrimse/testskyrimsecreaturesfifthreal.cpp
+    skyrimse/testskyrimsecreaturescast.cpp
+    skyrimse/testskyrimsecreaturesguard.cpp
+    skyrimse/testskyrimsecreaturesfifth.cpp
     skyrimse/testskyrimsecreaturesfourth.cpp
     skyrimse/testskyrimsedragonsreal.cpp
     skyrimse/testskyrimsedragons.cpp

@@ -115,6 +115,10 @@ namespace MWRender::SkyrimClipMeta
             for (int i = 0; i <= 10; ++i)
                 out.push_back("ww " + rest + ".hkx" + (i < 10 ? "0" : "") + std::to_string(i));
         }
+        // Task 0301: the chaurus's spit is the file `attack_releasespit`, played by the generator `Attack_CastingA`
+        // (1.16667 s, MLh_SpellFire_Event at 0.1 s) of chaurusproject.
+        if (lower == "attack_releasespit")
+            out.push_back("Attack_CastingA");
         out.push_back(std::string(clipStem) + "NPC");
         return out;
     }

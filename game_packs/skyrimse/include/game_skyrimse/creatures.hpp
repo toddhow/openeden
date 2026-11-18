@@ -77,6 +77,14 @@ namespace game_skyrimse
     /// searches them after the others.
     [[nodiscard]] std::span<const CreatureProfile> creatureProfilesFourth();
 
+    /// Task 0301: the creatures of the fifth slice, after the fourth: the animals and monsters whose clips are in
+    /// their own folder and were not found (task 0297 item 11). `creatureProfileFor` searches them last.
+    [[nodiscard]] std::span<const CreatureProfile> creatureProfilesFifth();
+
+    /// Task 0301: the clip a creature that casts plays for a spell, or empty (the person's `MRh_Release` and
+    /// `MRh_SelfRelease` are not files of a creature's folder). `self` is the self-delivery column.
+    [[nodiscard]] std::string_view creatureCastClip(const CreatureProfile& profile, bool self);
+
     /// The clip of a combat slot for this creature (Attack, PowerAttack, Recoil, Stagger, Death), or empty: a creature
     /// has no block, bash, cast or bow clips.
     [[nodiscard]] std::string_view creatureClipFor(const CreatureProfile& profile, openeden::sdk::game::ClipSlot slot);

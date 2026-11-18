@@ -249,6 +249,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralcombatsound.cpp
     mwrender/testskyrimcombatclips.cpp
     mwrender/testskyrimclipalias.cpp
+    mwrender/testskyrimclipaliascast.cpp
     mwrender/testskyrimclipaliasfalmer.cpp
     mwrender/testskyrimclipaliasbeast.cpp
     mwrender/testplayerclipmeta.cpp
