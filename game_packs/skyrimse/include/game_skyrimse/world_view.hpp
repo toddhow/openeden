@@ -679,6 +679,9 @@ namespace game_skyrimse
         /// or the reference is a created one), and a cell's form id by its editor id (0 when unknown). Main thread.
         [[nodiscard]] FormId cellOfPlacement(FormId placement) const;
         [[nodiscard]] FormId cellIdByEditorId(std::string_view editorId);
+        /// Task 0325: the editor id of a cell (lower case, as the index keeps it), empty when unknown or before the
+        /// index is built. Main thread.
+        [[nodiscard]] std::string cellEditorIdOf(FormId cell);
         /// Task 0221: the harvest data of a FLOR or TREE base that names an ingredient, and its name (the FULL, else
         /// the editor id); false for any other base or before the index is built. Main thread.
         [[nodiscard]] bool plantOf(FormId base, HarvestData& out, std::string& name);

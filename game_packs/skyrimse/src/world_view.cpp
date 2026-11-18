@@ -4401,6 +4401,16 @@ namespace game_skyrimse
         return it == mCellByEditorId.end() ? kNullFormId : it->second;
     }
 
+    std::string SkyrimWorldView::cellEditorIdOf(FormId cell)
+    {
+        if (cell == kNullFormId || !awaitIndex())
+            return {};
+        for (const auto& [name, id] : mCellByEditorId)
+            if (id == cell)
+                return name;
+        return {};
+    }
+
     bool SkyrimWorldView::plantOf(FormId base, HarvestData& out, std::string& name)
     {
         if (base == kNullFormId || base == kUnresolvedFormId || !awaitIndex())

@@ -1208,6 +1208,26 @@ namespace game_skyrimse
             }
         }
 
+        // Task 0325: the scripts a Form.RegisterForUpdate call is for: the calling script and the other scripts of its
+        // form (not the scripts of the quest's aliases: an alias has its own registration)
+        std::vector<InstanceId> formUpdateTargets(const NativeCall& c) const
+        {
+            std::vector<InstanceId> out;
+            if (!c.self.attached)
+                return out;
+            const auto info = mInstances.find(c.self.handle);
+            if (info != mInstances.end() && !info->second.mIsAlias)
+                for (const InstanceId other : instancesOf(info->second.mForm))
+                {
+                    const auto otherInfo = mInstances.find(other);
+                    if (otherInfo != mInstances.end() && !otherInfo->second.mIsAlias)
+                        out.push_back(other);
+                }
+            if (std::find(out.begin(), out.end(), c.self.handle) == out.end())
+                out.push_back(c.self.handle);
+            return out;
+        }
+
         // The scripts a game-time registration is for: the script itself when it calls on its own object, else the
         // scripts attached to the object the receiver stands for (an alias or a form: QF_RelationshipMarriageFIN calls
         // Alias_LoveInterest.RegisterForUpdateGameTime(24) and LoveInterestFINScript gets the updates).
@@ -1331,6 +1351,8 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxAnimRegistrations = 256;
         std::map<FormId, FormId> mPackageQuest; ///< task 0274: package -> the quest its fragment answers
         std::vector<AnimRegistration> mAnimRegistrations;
+        static constexpr std::size_t kMaxSleepers = 256; ///< task 0325: scripts registered for the player's sleep
+        std::vector<InstanceId> mSleepers;
         // Task 0289: the open state (GetOpenState: 1 open, 3 closed) of the objects that scripts opened or closed
         static constexpr std::int32_t kOpenStateOpen = 1;
         static constexpr std::int32_t kOpenStateClosed = 3;
@@ -1630,19 +1652,22 @@ namespace game_skyrimse
                 mStringScratch = mData.nameOf(formOf(c.self));
                 return result(PapyrusValue::makeString(mStringScratch));
             });
+            // Task 0325: an update is registered for the FORM: every script on it that handles OnUpdate gets it. A quest's
+            // fragment script (QF_DarkBrotherhood) registers RegisterForUpdate(5) and its OnUpdate is in the quest's other
+            // script (DarkBrotherhood), so the timer is kept for each script of the form
             reg("Form", "RegisterForSingleUpdate", false, [this](const NativeCall& c) {
-                if (c.self.attached)
-                    registerUpdate(c.self.handle, argNumber(c, 0), false);
+                for (const InstanceId target : formUpdateTargets(c))
+                    registerUpdate(target, argNumber(c, 0), false);
                 return NativeResult{};
             });
             reg("Form", "RegisterForUpdate", false, [this](const NativeCall& c) {
-                if (c.self.attached)
-                    registerUpdate(c.self.handle, argNumber(c, 0), true);
+                for (const InstanceId target : formUpdateTargets(c))
+                    registerUpdate(target, argNumber(c, 0), true);
                 return NativeResult{};
             });
             reg("Form", "UnregisterForUpdate", false, [this](const NativeCall& c) {
-                if (c.self.attached)
-                    unregisterUpdate(c.self.handle);
+                for (const InstanceId target : formUpdateTargets(c))
+                    unregisterUpdate(target);
                 return NativeResult{};
             });
             // Task 0217: what the radiant quests' start-up scripts call (the tolerant calls of a story-started Favor,
@@ -1679,6 +1704,23 @@ namespace game_skyrimse
                 reg(cls, "UnregisterForUpdateGameTime", false, [this](const NativeCall& c) {
                     for (const InstanceId target : gameTimerTargets(c))
                         unregisterGameUpdate(target);
+                    return NativeResult{};
+                });
+            }
+            // Task 0325: RegisterForSleep (the Dark Brotherhood's entrance quest waits for the player's sleep);
+            // `onSleepStart` and `onSleepStop` raise the events
+            for (const char* cls : { "Form", "Alias" })
+            {
+                reg(cls, "RegisterForSleep", false, [this](const NativeCall& c) {
+                    for (const InstanceId target : gameTimerTargets(c))
+                        if (mSleepers.size() < kMaxSleepers
+                            && std::find(mSleepers.begin(), mSleepers.end(), target) == mSleepers.end())
+                            mSleepers.push_back(target);
+                    return NativeResult{};
+                });
+                reg(cls, "UnregisterForSleep", false, [this](const NativeCall& c) {
+                    for (const InstanceId target : gameTimerTargets(c))
+                        mSleepers.erase(std::remove(mSleepers.begin(), mSleepers.end(), target), mSleepers.end());
                     return NativeResult{};
                 });
             }
@@ -1757,6 +1799,22 @@ namespace game_skyrimse
                 double where[3] = { 0.0, 0.0, 0.0 };
                 if (self == 0 || target == 0 || !positionOf(target, where))
                     return NativeResult{};
+                if (self == kPlayerReference && mPlayerMove) // task 0325: the player goes through the pack's travel
+                {
+                    const double at[3]
+                        = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2), where[2] + argNumber(c, 3) };
+                    std::array<double, 3> turned{ 0.0, 0.0, 0.0 };
+                    double stored[3] = { 0.0, 0.0, 0.0 };
+                    bool known = anglesOf(target, turned);
+                    if (!known && mData.referenceRotation(target, stored)) // the marker's angles as the data stores them
+                    {
+                        turned = { stored[0], stored[1], stored[2] };
+                        known = true;
+                    }
+                    const bool done = mPlayerMove(cellOfReference(target), at, known ? turned[2] : 0.0);
+                    say(false, std::string("Papyrus: MoveTo of the player to ") + hex(target) + (done ? "" : ": refused"));
+                    return NativeResult{};
+                }
                 {
                     // Task 0268: what the world cannot move in place is made again at the place (actors, objects of
                     // other cells), near the player only
@@ -2865,6 +2923,7 @@ namespace game_skyrimse
         LocationKeywordData* mKeywordData = nullptr; ///< task 0217
         FollowerState* mFollowers = nullptr; ///< task 0239
         PapyrusHost::FastTravelSink mFastTravel; ///< task 0223
+        PapyrusHost::PlayerMoveSink mPlayerMove; ///< task 0325
         bool mTraceNatives
             = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE") != nullptr; ///< a developer aid: one line a native
         std::uint64_t mTraceCount = 0;
@@ -3767,6 +3826,11 @@ namespace game_skyrimse
         mImpl->mFastTravel = std::move(sink);
     }
 
+    void PapyrusHost::setPlayerMoveSink(PlayerMoveSink sink)
+    {
+        mImpl->mPlayerMove = std::move(sink);
+    }
+
     void PapyrusHost::onItemMoved(FormId from, FormId to, FormId item, std::int32_t count)
     {
         Impl& m = *mImpl;
@@ -3945,6 +4009,24 @@ namespace game_skyrimse
         Impl& m = *mImpl;
         for (const InstanceId instance : m.instancesHolding(actor))
             (void)m.sendEvent(instance, "OnGetUp", { m.formValue(furniture) });
+    }
+
+    void PapyrusHost::onSleepStart(double startDays, double desiredEndDays)
+    {
+        Impl& m = *mImpl;
+        const std::vector<InstanceId> targets = m.mSleepers; // a handler may register or unregister
+        for (const InstanceId instance : targets)
+            (void)m.sendEvent(instance, "OnSleepStart",
+                { PapyrusValue::makeFloat(static_cast<float>(startDays)),
+                    PapyrusValue::makeFloat(static_cast<float>(desiredEndDays)) });
+    }
+
+    void PapyrusHost::onSleepStop(bool interrupted)
+    {
+        Impl& m = *mImpl;
+        const std::vector<InstanceId> targets = m.mSleepers;
+        for (const InstanceId instance : targets)
+            (void)m.sendEvent(instance, "OnSleepStop", { PapyrusValue::makeBool(interrupted) });
     }
 
     void PapyrusHost::onCombatStateChanged(FormId actor, FormId target, std::int32_t state)

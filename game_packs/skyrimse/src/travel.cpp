@@ -384,6 +384,18 @@ namespace game_skyrimse::travel
         return true;
     }
 
+    bool TravelService::queueMove(std::string_view cellName, double x, double y, double z, double yaw)
+    {
+        if (cellName.empty() || cellName.find(';') != std::string_view::npos || !std::isfinite(x) || !std::isfinite(y)
+            || !std::isfinite(z) || !std::isfinite(yaw))
+            return false;
+        char numbers[160];
+        std::snprintf(numbers, sizeof numbers, ";%.3f;%.3f;%.3f;%.5f", x, y, z, yaw);
+        mMovePlace = std::string(cellName) + numbers;
+        ++mMoveSeq;
+        return true;
+    }
+
     openeden::sdk::DeclareResult TravelService::declare(openeden::sdk::BindingsService& service)
     {
         Impl& m = *mImpl;
@@ -541,9 +553,22 @@ namespace game_skyrimse::travel
             },
             BindingShape::Single, openeden::sdk::BindingAccess::Mutate);
 
+        // task 0325: the player's own MoveTo
+        add("move_seq", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
+            BindingResult r;
+            r.value = integer(static_cast<std::int32_t>(std::min<std::uint32_t>(self->mMoveSeq, 0x7FFFFFFF)));
+            return r;
+        });
+        add("move_place", {}, true, BindingType::String, [self, &m](std::span<const BindingValue>) {
+            m.mText = self->mMovePlace;
+            BindingResult r;
+            r.value = text(m.mText);
+            return r;
+        });
+
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = kNamespace;
-        ns.version = { 1, 2 };
+        ns.version = { 1, 3 };
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }

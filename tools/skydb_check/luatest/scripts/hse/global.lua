@@ -10,6 +10,7 @@ local util = require('openmw.util')
 local storage = require('openmw.storage')
 local cfg = require('scripts.hse.cfg')
 local okInv, inv = pcall(require, 'core.skyrimse.inventory')
+local okRest, rest = pcall(require, 'core.skyrimse.rest')
 
 local updates = 0
 local target = nil
@@ -92,6 +93,22 @@ return {
                             f:activateBy(player)
                         else
                             trace('furn none')
+                        end
+                    elseif step[2] == 'beds' then
+                        -- task 0325: every bed of the cell (the pack's own bed rule), with its ids and position
+                        local shown = 0
+                        print('MRG beds okRest=' .. tostring(okRest) .. ' ready=' .. tostring(okRest and rest.ready()))
+                        for _, o in ipairs(player.cell:getAll()) do
+                            local id = tostring(o.id)
+                            if shown < 3 then shown = shown + 1; print('MRG obj ' .. id .. ' ' .. tostring(o.recordId)) end
+                            local base = tostring(o.recordId):match('^skyrimse:b(%d+)$')
+                            local place = tonumber(id:sub(-8), 16)
+                            if okRest and base and place then
+                                local state = rest.bed_state(string.format('%08x', place), string.format('%08x', tonumber(base)))
+                                if state ~= 'none' then
+                                    print(string.format('MRG bed %s %s state=%s at %.0f,%.0f,%.0f', o.recordId, id, state, o.position.x, o.position.y, o.position.z))
+                                end
+                            end
                         end
                     elseif step[2] == 'count' then
                         local n = 0

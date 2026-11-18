@@ -3460,6 +3460,7 @@ namespace game_skyrimse
                 {
                     mPapyrus->host().setWorldHooks(nullptr);
                     mPapyrus->host().setFastTravelSink({}); // task 0223
+                    mPapyrus->host().setPlayerMoveSink({}); // task 0325
                 }
                 if (mInventory != nullptr)
                     mInventory->model().setChangeSink({});
@@ -3670,6 +3671,13 @@ namespace game_skyrimse
                     mPapyrus->host().setFastTravelSink([this](FormId destination) {
                         return mTravel != nullptr && mTravel->queueRequest(destination);
                     });
+                // Task 0325: the player's own MoveTo (the sleep that carries him to the Dark Brotherhood's shack) leaves a
+                // teleport the same global script does; the cell must be an interior with an editor id
+                if (mPapyrus != nullptr)
+                    mPapyrus->host().setPlayerMoveSink([this](FormId cell, const double* at, double heading) {
+                        const std::string name = mWorldView.cellEditorIdOf(cell);
+                        return mTravel != nullptr && !name.empty() && mTravel->queueMove(name, at[0], at[1], at[2], heading);
+                    });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
                     const openeden::sdk::DeclareResult declared = mTravel->declare(*bindings);
@@ -3868,8 +3876,16 @@ namespace game_skyrimse
                         owned = !(who == crime::kPlayerNpcId || who == kPlayerFactionId);
                     return rest::bedStateOf(true, owned);
                 };
-                hooks.mApply = [this](double seconds, int, bool) {
+                hooks.mApply = [this](double seconds, int hours, bool sleeping) {
                     mCellSource.combat().requestRest(static_cast<float>(seconds));
+                    // task 0325: scripts that called RegisterForSleep hear of the sleep (game days, as Papyrus gives
+                    // them); the rest is instant here, so it stops at once
+                    if (sleeping && mPapyrus != nullptr && mRest != nullptr)
+                    {
+                        const double start = mRest->now() / 86400.0;
+                        mPapyrus->host().onSleepStart(start, start + static_cast<double>(hours) / 24.0);
+                        mPapyrus->host().onSleepStop(false);
+                    }
                 };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)

@@ -745,6 +745,11 @@ namespace game_skyrimse
         /// global script does the teleport) and says whether it took it. Not set: the native does nothing but count.
         using FastTravelSink = std::function<bool(FormId destination)>;
         void setFastTravelSink(FastTravelSink sink);
+        /// Task 0325: Game.GetPlayer().MoveTo(reference). A player cannot be moved by the world's object moves, so the
+        /// pack's sink queues a teleport for the global travel script: (cell of the target reference, position, heading
+        /// in radians); false when it was refused. Not set: the player's MoveTo is the object move it always was.
+        using PlayerMoveSink = std::function<bool(FormId cell, const double* position, double heading)>;
+        void setPlayerMoveSink(PlayerMoveSink sink);
 
         /// Task 0198: the events the inventory and combat can raise. `from` and `to` are the owners' reference ids (0:
         /// none, as when a script added the item). Queued like any event; run by the next tick.
@@ -779,6 +784,10 @@ namespace game_skyrimse
         [[nodiscard]] bool handlesGetUp(FormId actor) const;
         /// Task 0302: the engine's OnGetUp(akFurniture) to the scripts that hold the actor (queued; run by the next tick).
         void onGetUp(FormId actor, FormId furniture);
+        /// Task 0325: the player slept (a rest at a bed): OnSleepStart(afSleepStartTime, afDesiredSleepEndTime), in game
+        /// days, goes to the scripts that called RegisterForSleep; `onSleepStop(interrupted)` follows when it ends.
+        void onSleepStart(double startDays, double desiredEndDays);
+        void onSleepStop(bool interrupted);
         /// Task 0302: OnCombatStateChanged(akTarget, aeCombatState) to the scripts that hold the actor. State 0 left the
         /// fight, 1 in combat, 2 searching (Papyrus's own numbers).
         void onCombatStateChanged(FormId actor, FormId target, std::int32_t state);

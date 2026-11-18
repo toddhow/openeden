@@ -303,6 +303,7 @@ namespace game_skyrimse
         bool mWalkAwayInfos = false; ///< task 0326
         FormId mLastTopic = 0; ///< task 0326: the topic of the last response shown
         FormId mWalkAway = 0; ///< the walk-away topic of the last response shown
+        [[nodiscard]] bool hidesWalkAway(FormId topic) const; ///< task 0325
         InfoFragmentSink mFragmentSink;
         std::map<std::string, std::string> mServiceOfScript; ///< fragment script -> service ("" for none), probed once
         PlayerStandIn mPlayer;

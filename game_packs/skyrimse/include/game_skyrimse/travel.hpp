@@ -140,6 +140,15 @@ namespace game_skyrimse::travel
         /// `request_seq` and `request_ref`). False for a null form id. A later request replaces an earlier unread one.
         bool queueRequest(FormId destination);
 
+        // ---- task 0325: the player's own MoveTo (the abduction: OnSleepStart moves him to the shack) ----------------
+        /// Game.GetPlayer().MoveTo(reference) into the interior cell `cellName` (an editor id), at (x, y, z) facing `yaw`
+        /// (radians). Remembered for the global travel script, which reads `move_seq` and `move_place` ("cell;x;y;z;yaw")
+        /// and teleports (a teleport of the player is a global script's right). No time passes. A later request replaces
+        /// an earlier unread one. False for an empty name or a place that is not finite.
+        bool queueMove(std::string_view cellName, double x, double y, double z, double yaw);
+        [[nodiscard]] std::uint32_t moveSequence() const { return mMoveSeq; }
+        [[nodiscard]] const std::string& movePlace() const { return mMovePlace; }
+
         // ---- task 0312: the ship to Solstheim ---------------------------------------------------------------------
         /// With a number above 0, `planToRef` also accepts a reference of an UNRELATED world (a ship or a portal), and
         /// the travel takes that many game hours whatever the distance (the distance across two worlds means
@@ -164,6 +173,8 @@ namespace game_skyrimse::travel
         std::uint32_t mRequestSeq = 0;
         FormId mRequested = kNullFormId;
         int mCrossWorldHours = 0;
+        std::uint32_t mMoveSeq = 0;
+        std::string mMovePlace;
     };
 }
 

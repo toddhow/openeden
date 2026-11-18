@@ -13,6 +13,6 @@ controller menus = true
 [extension.skyrimse]
 ${SETTINGS_EXTRA:-}"
 HERE=$(cd "$(dirname "$0")" && pwd)
-W=I:/Projects/OpenEden-work/ragdoll5/db; mkdir -p $W
+W=${W:-I:/Projects/OpenEden-work/ragdoll5/db}; mkdir -p $W
 bash "$HERE/check.sh" ${BUILD:-I:/Projects/OpenEden-work/ragdoll5/build} I:/Projects/OpenEden-work/integ2/base "I:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data" $W/run_$NAME $FRAMES > $W/run_$NAME.out 2>&1
 echo "RUN_EXIT=$?" >> $W/run_$NAME.out

@@ -283,34 +283,55 @@ namespace game_skyrimse
     void SkyrimCombat::tickSummons(CombatRequestWriter& writer)
     {
         // Task 0306: `summons test kill = <editor id>@<seconds>` kills it no earlier than that combat second (the cultist
-        // of the ambush is created long after the data was read, and must talk first)
-        const std::size_t killAt = mTestKill.find('@');
-        const std::string killName = killAt == std::string::npos ? mTestKill : mTestKill.substr(0, killAt);
-        const float killAfter = killAt == std::string::npos
-            ? kSummonTestKillSeconds
-            : std::max(kSummonTestKillSeconds, static_cast<float>(std::atof(mTestKill.c_str() + killAt + 1)));
-        if (!mTestKill.empty() && mClock >= killAfter)
+        // of the ambush is created long after the data was read, and must talk first). Tasks 0325 and 0326: a comma
+        // separated list of such entries, and an entry ending in `*` names every actor whose editor id starts so (the
+        // fort's bandits). One actor dies an update, in list order; a named entry is done after its kill, a `*` entry
+        // stays (its next match dies next update).
+        if (!mTestKill.empty())
         {
-            for (const auto& named : mActorNames)
+            std::string remaining;
+            bool killed = false;
+            std::size_t start = 0;
+            while (start <= mTestKill.size())
             {
-                bool multi = false;
-                if (!testKillMatches(killName, named.second, multi))
+                const std::size_t comma = mTestKill.find(',', start);
+                const std::string entry
+                    = mTestKill.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+                start = comma == std::string::npos ? mTestKill.size() + 1 : comma + 1;
+                if (entry.empty())
                     continue;
-                Fighter* victim = find(CombatSubject::of(named.first));
-                const bool alive = victim != nullptr && !victim->mDead && ready(*victim);
-                if (alive)
+                const std::size_t killAt = entry.find('@');
+                const std::string killName = killAt == std::string::npos ? entry : entry.substr(0, killAt);
+                const float killAfter = killAt == std::string::npos
+                    ? kSummonTestKillSeconds
+                    : std::max(kSummonTestKillSeconds, static_cast<float>(std::atof(entry.c_str() + killAt + 1)));
+                bool multi = false;
+                bool done = false;
+                if (!killed && mClock >= killAfter)
                 {
-                    (void)changeVital(writer, nullptr, *victim, kHealthValue,
-                        -(victim->mProfile.mHealthMax + victim->mHealth + 1.f), nullptr);
-                    if (mTrace)
-                        trace("COMBAT test kill " + subjectText(victim->mSubject));
-                    if (!multi)
-                        mTestKill.clear();
+                    for (const auto& named : mActorNames)
+                    {
+                        if (!testKillMatches(killName, named.second, multi))
+                            continue;
+                        Fighter* victim = find(CombatSubject::of(named.first));
+                        if (victim != nullptr && !victim->mDead && ready(*victim))
+                        {
+                            (void)changeVital(writer, nullptr, *victim, kHealthValue,
+                                -(victim->mProfile.mHealthMax + victim->mHealth + 1.f), nullptr);
+                            if (mTrace)
+                                trace("COMBAT test kill " + subjectText(victim->mSubject));
+                            done = true;
+                            killed = true;
+                            break;
+                        }
+                        if (!multi)
+                            break; // a single name stops at its first match
+                    }
                 }
-                // a list kills one actor an update (a stable order); a single name stops at its first match
-                if (alive || !multi)
-                    break;
+                if (!done || multi)
+                    remaining += (remaining.empty() ? "" : ",") + entry;
             }
+            mTestKill = std::move(remaining);
         }
         if (!mSummonsOn || mSummons.size() == 0)
             return;

@@ -809,6 +809,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrusnatives2.cpp
     skyrimse/testskyrimsedungeon.cpp
     skyrimse/testskyrimsedb01.cpp
+    skyrimse/testskyrimsedb02.cpp
+    skyrimse/testskyrimsewalkaway3.cpp
     skyrimse/testskyrimsemainquest.cpp
     skyrimse/testskyrimsepapyrusobjects.cpp
     skyrimse/testskyrimsepapyruslocation.cpp

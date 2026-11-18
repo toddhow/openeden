@@ -1721,6 +1721,33 @@ namespace game_skyrimse
         return isSpeaker(subject) && mSpeaker.mCell != kNullFormId && resolve(cell) == mSpeaker.mCell;
     }
 
+    bool SkyrimConditionWorld::inSameCell(conditions::Subject subject, std::uint32_t reference) const
+    {
+        // Task 0325 (Astrid's forced greeting: DBAstridSleepGreet needs GetInSameCell(player)): the subject's cell and the
+        // reference's. The player's cell is known for an interior only (the place the core told); a placed reference or
+        // actor stands in the cell the data places it in, which is also where a script's MoveTo put it inside its cell.
+        FormId mine = kNullFormId;
+        if (subject == kPlayer)
+            mine = mPlayerPlaceKnown && mPlayerInterior ? mPlayerCell : kNullFormId;
+        else if (isOtherSubject(subject))
+        {
+            ActorView view;
+            if (viewOf(subject, view) && view.mRef != nullptr)
+                mine = view.mRef->mCell;
+        }
+        else if (isSpeaker(subject))
+            mine = mSpeaker.mCell;
+        if (mine == kNullFormId)
+            return false;
+        const FormId target = resolve(reference);
+        FormId theirs = kNullFormId;
+        if (target == kPlayerReference)
+            theirs = mPlayerPlaceKnown && mPlayerInterior ? mPlayerCell : kNullFormId;
+        else if (const PlacedEntry* placed = findReference(target))
+            theirs = placed->mCell;
+        return theirs != kNullFormId && theirs == mine;
+    }
+
     int SkyrimConditionWorld::sexOf(conditions::Subject subject) const
     {
         if (mPlayer != nullptr && subject == kPlayer)

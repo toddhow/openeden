@@ -243,6 +243,14 @@ namespace game_skyrimse
         }
     }
 
+    bool DialogueRuntime::hidesWalkAway(FormId topic) const
+    {
+        // Task 0325: the walk-away topic a response names (TWAT) is said as the player leaves; it is never a button even
+        // when the response also links to it (Astrid's every line links to DB02AstridWalkAwayTopic, a topic whose name is
+        // its editor id). Only with walk-away topics switched on.
+        return mWalkAwayTopics && mWalkAway != kNullFormId && topic == mWalkAway;
+    }
+
     void DialogueRuntime::offerTopics(openeden::sdk::game::DialogueTurn& out)
     {
         out.topics.clear();
@@ -259,6 +267,8 @@ namespace game_skyrimse
             {
                 const DialogTopic* topic = mDialogue.topic(id);
                 if (topic == nullptr || topic->mCategory != TopicCategory::Topic)
+                    continue;
+                if (hidesWalkAway(id)) // task 0325
                     continue;
                 // task 0270: a choice may have no name of its own (the marriage branch's yes and no): the prompt of its
                 // INFO (RNAM) is what the player reads, so a nameless topic counts when the chosen INFO has one
@@ -744,6 +754,8 @@ namespace game_skyrimse
         for (const FormId link : from.mLinksTo)
         {
             const DialogTopic* topic = mDialogue.topic(link);
+            if (hidesWalkAway(link)) // task 0325
+                continue;
             if (topic == nullptr || mOffered.count(link) != 0)
                 continue;
             const Selection s = selectInfo(mDialogue, link, mWorld, mSpeaker, opts);

@@ -88,9 +88,28 @@ local function doCarriage(ref)
   toPlayer('SkyrimTravelDone', { name = ref, hours = hours })
 end
 
+-- Task 0325: the player's own MoveTo from a script (the Dark Brotherhood's abduction): "cell;x;y;z;yaw", an interior
+-- cell by its editor id. No time passes and no travel rule applies: a script moved him.
+local lastMove = 0
+local function doMove(place)
+  local player = world.players[1]
+  local cell, x, y, z, yaw = tostring(place):match('^([^;]+);([^;]+);([^;]+);([^;]+);([^;]+)$')
+  if not player or not cell then return end
+  print(string.format('[skyrimse travel] script move to %s at (%s, %s, %s)', cell, x, y, z))
+  player:teleport(cell, util.vector3(tonumber(x), tonumber(y), tonumber(z)),
+    { rotation = util.transform.rotateZ(tonumber(yaw) or 0) })
+end
+
 return {
   engineHandlers = {
     onUpdate = function()
+      if travel.move_seq then
+        local moveSeq = travel.move_seq()
+        if moveSeq ~= lastMove then
+          lastMove = moveSeq
+          doMove(travel.move_place())
+        end
+      end
       if not travel.request_seq then return end -- a pack without the carriage functions
       local seq = travel.request_seq()
       if seq ~= lastRequest then

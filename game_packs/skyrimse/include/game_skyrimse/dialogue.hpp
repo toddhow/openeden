@@ -58,6 +58,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace game_skyrimse
@@ -551,6 +552,7 @@ namespace game_skyrimse
         float globalValue(std::uint32_t global) const override;
         bool hasVoiceType(conditions::Subject subject, std::uint32_t voiceOrList) const override;
         bool inCell(conditions::Subject subject, std::uint32_t cell) const override;
+        bool inSameCell(conditions::Subject subject, std::uint32_t reference) const override; // task 0325
         int sexOf(conditions::Subject subject) const override;
         bool hasKeyword(conditions::Subject subject, std::uint32_t keyword) const override;
         float factionRank(conditions::Subject subject, std::uint32_t faction) const override;
