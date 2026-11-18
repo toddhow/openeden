@@ -68,6 +68,8 @@ sweep scripts with a longer settle and a `combat trace` setting; plans `plan_cam
 line 165: `ww_attackright`), `testskyrimsebeastclips.cpp` (line 52: `ww_attackright`), and two renamed test names
 (`test_world_source_service.cpp`, `testskyrimsecarriage.cpp`).
 
+toddhow confirmed the line 152 edit on 2026-11-18.
+
 ## For toddhow
 
 - Item 5's rule is a guess; the data does not say why unrelated Aggressive actors attack the real player. Wild animals
