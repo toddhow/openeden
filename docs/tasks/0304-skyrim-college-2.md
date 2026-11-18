@@ -108,3 +108,12 @@ speaker does not, a reply links on to a nameless topic, the same without the set
 Red against stubs: the first five (2 of 5 failed), the link rule (1 of 7), the follow rule (1 of 10). NOT run red: the
 speaker-naming rule and the tie order (the code changed in the same step as the test). Green: `*Skyrim*:*Dialogue*:*Papyrus*`
 and `SkyrimQuestGreeting.*`. No existing test edited.
+
+## 6. After the rebase onto main `63cd0c00e1` (tasks 0298 and 0305)
+
+Rebuilt (`components-tests`, `skyrimse`, `openmw`), `*Skyrim*:*Dialogue*:*Papyrus*:*Quest*:*Extension*` 3,584 pass. The College scenario
+runs as before (Faralda's Welcome, stage 20, the cast reaches the stone's script, stage 30). Task 0298's `tools/skycivilwar_check`
+with its PLAN and `join_input.txt` (`civil war` and `quest alias packages` on, 14,800 frames) still runs the chain: quest
+`CW` 0xD3C5F goes to stages 7, 10 and 20 and `CW01A` (0xD517A) starts. Conflicts were in the greeting step (see above), the
+`world_view` setters and CLAUDE.md; `setCountRefTypes` is kept (inside `DialogueRuntime::setBlockingBranches`).
+
