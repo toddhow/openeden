@@ -156,3 +156,17 @@ TEST(NifSceneFaceTint, the_skyrimhd_build_folder_is_stripped_to_the_plain_textur
     // A path that merely mentions the word elsewhere keeps its folder.
     EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath("textures\\skyrimhdfoo\\a.dds"), "textures/skyrimhdfoo/a.dds");
 }
+
+// Task 0297: Dawnguard and Dragonborn models name textures under their own build folders
+// ("textures\dlc02\build\pc\data\textures\dlc02\..."); the files are at the plain "textures\dlc02\..." path.
+TEST(NifSceneFaceTint, a_dlc_build_folder_is_stripped_to_the_plain_textures_path)
+{
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath(
+                  "textures\\DLC02\\build\\pc\\data\\textures\\DLC02\\plants\\spikygrassash01.dds"),
+        "textures/dlc02/plants/spikygrassash01.dds");
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath("textures\\dlc01\\build\\pc\\data\\textures\\dlc01\\boots.dds"),
+        "textures/dlc01/boots.dds");
+    // "build" must be a whole path component.
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath("textures\\rebuild\\pc\\data\\a.dds"),
+        "textures/rebuild/pc/data/a.dds");
+}

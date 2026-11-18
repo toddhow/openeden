@@ -90,8 +90,9 @@ namespace NifScene::FaceTint
         // Task skyext: 60 vanilla Skyrim SE models name textures under the build machine's folder
         // "skyrimhd/build/pc/data/", which no archive holds; the file is under the plain "textures/..." (119 of the 120
         // distinct paths exist there, the 120th is in no archive). The marker needs its whole folder chain at the
-        // start of a path component.
-        static constexpr std::string_view kBuildFolder = "skyrimhd/build/pc/data/";
+        // start of a path component. Task 0297: the DLC models do the same under "dlc01/" and "dlc02/" (the files are
+        // at the plain "textures/dlc02/..."), so any build folder is stripped, not only skyrimhd's.
+        static constexpr std::string_view kBuildFolder = "build/pc/data/";
         for (std::size_t at = path.find(kBuildFolder); at != std::string::npos; at = path.find(kBuildFolder, at + 1))
             if (at == 0 || path[at - 1] == '/')
             {
