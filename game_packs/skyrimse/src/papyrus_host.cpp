@@ -810,6 +810,11 @@ namespace game_skyrimse
         {
             if (referenceEnabled(reference) == enabled)
                 return;
+            if (!enabled && mKeepEnabled && mKeepEnabled(reference)) // task 0320
+            {
+                say(false, "Papyrus: reference " + hex(reference) + " stays enabled (kept by the pack)");
+                return;
+            }
             mEnabled[reference] = enabled;
             say(false,
                 "Papyrus: reference " + hex(reference) + (enabled ? " enabled" : " disabled")
@@ -2583,6 +2588,7 @@ namespace game_skyrimse
             mDeferred; ///< work that needs a script loaded, run after the native returned
         bool mPreloaded = false;
         SceneControl* mScenes = nullptr; ///< task 0194
+        std::function<bool(FormId)> mKeepEnabled; ///< task 0320
         StoryEventSink mStorySink; ///< task 0187
         StageEntryCheck mStageEntryCheck; ///< task 0261
         bool mRelocate = false; ///< task 0268
@@ -3476,6 +3482,11 @@ namespace game_skyrimse
     void PapyrusHost::setStoryEventSink(StoryEventSink sink)
     {
         mImpl->mStorySink = std::move(sink);
+    }
+
+    void PapyrusHost::setKeepEnabled(std::function<bool(FormId)> keep)
+    {
+        mImpl->mKeepEnabled = std::move(keep);
     }
 
     void PapyrusHost::setSceneControl(SceneControl* control)

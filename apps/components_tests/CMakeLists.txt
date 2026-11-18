@@ -846,6 +846,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecreaturesthird.cpp
     skyrimse/testskyrimseriding.cpp
     skyrimse/testskyrimsecartride.cpp
+    skyrimse/testskyrimseravenrock.cpp
     skyrimse/testskyrimsecartbrain.cpp
     skyrimse/testskyrimseridingreal.cpp
     skyrimse/testskyrimserecordsreal.cpp

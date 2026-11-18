@@ -40,6 +40,17 @@ namespace game_skyrimse::dragonborn
     /// marker of another world has no distance to measure).
     inline constexpr int kShipHours = 6;
 
+    /// Task 0320: `ShipNorthwindREF002` (Dragonborn.esm), the ship moored at Raven Rock's dock. The ride script
+    /// (`DLC2DialogueRRQuestScript.FirstTimeTravel`) disables it for the boat animation, which has no stand-in here (no
+    /// boat is drawn), and the player, set down on the landing marker on its deck, falls into the sea. So the pack keeps
+    /// it enabled (HAND-WRITTEN: the ship stands for the boat; every other reference of the script's DisableList is
+    /// disabled as the game does).
+    inline constexpr std::uint32_t kRavenRockShipLocal = 0x016FE2;
+    [[nodiscard]] constexpr bool keepsEnabledDuringTheRide(std::uint32_t local)
+    {
+        return local == kRavenRockShipLocal;
+    }
+
     /// The aid's one stage: `quest` and `stage` of the prerequisite, nothing else is ever faked.
     struct Prerequisite
     {

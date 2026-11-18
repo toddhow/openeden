@@ -682,6 +682,9 @@ namespace game_skyrimse
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;
         /// Task 0194: the scene runner. Not owned; null: the Scene natives answer false and quests start no scenes.
         void setSceneControl(SceneControl* control);
+        /// Task 0320: references a script's Disable does not take effect on (the pack names them). A refused disable is
+        /// logged once per reference. Empty function: none.
+        void setKeepEnabled(std::function<bool(FormId)> keep);
         /// Task 0198: the world natives' reach (see PapyrusWorldHooks). Not owned; null: those natives are tolerant.
         void setWorldHooks(PapyrusWorldHooks* hooks);
         /// Task 0217: where Location.SetKeywordData stores (and GetKeywordData reads). Not owned; null: those natives

@@ -4,6 +4,11 @@
 
 namespace game_skyrimse
 {
+    bool acceptsBoxTriggers(bool mainQuest, bool college, bool daedric, bool dragonborn)
+    {
+        return mainQuest || college || daedric || dragonborn;
+    }
+
     namespace
     {
         bool finite3(const double (&v)[3])

@@ -756,7 +756,15 @@ namespace game_skyrimse
             void enableDragonbornPrerequisite() { mDragonbornPrerequisite = true; }
             // task 0306: a stage's fragments run only when their log entry's conditions hold (DLC2MQ01's stage 10 has three,
             // by where the player is), as with `houses`
-            void enableDragonborn() { mDragonborn = true; }
+            void enableDragonborn()
+            {
+                mDragonborn = true;
+                // task 0320: the ship moored at Raven Rock stays as the deck the player is set down on
+                mHost.setKeepEnabled([this](FormId reference) {
+                    return reference != 0
+                        && reference == mData.formFromFile(dragonborn::kDragonbornFile, dragonborn::kRavenRockShipLocal);
+                });
+            }
             void itemRead(FormId base) { mHost.onItemRead(base); } // task 0306
             // Task 0312 (a developer aid): `dragonborn test stage = <stage>[,<script seconds>]` starts DLC2MQ01 and sets that
             // stage (the quest the cultists' orders would start and advance, to be able to board the ship in a run that
@@ -1671,9 +1679,10 @@ namespace game_skyrimse
                             volume.mCell = s.mCell;
                             volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
                             // tasks 0274 and 0292: the cart ride's slabs and the College bridge's box
-                            volume.mAcceptBox = mMainQuest || mCollege || mDaedric || mDawnguard;
+                            volume.mAcceptBox
+                                = acceptsBoxTriggers(mMainQuest, mCollege, mDaedric, mDragonborn) || mDawnguard;
                             volume.mInterior = mData.cellIsInterior(s.mCell);
-                            if ((mMainQuest || mCollege || mDaedric || mDawnguard) && volume.mType == kPrimitiveBox)
+                            if (volume.mAcceptBox && volume.mType == kPrimitiveBox)
                                 say(openeden::sdk::LogLevel::Info,
                                     std::string("PAPYRUS box trigger ") + hexOf(s.mReference) + " "
                                         + (s.mScripts.empty() ? std::string("-") : s.mScripts.front().mName) + " rot "
@@ -2877,6 +2886,12 @@ namespace game_skyrimse
                 const bool dawnguardOn = spellSettings != nullptr && spellSettings->getBool(kPackId, "dawnguard", false);
                 if (dawnguardOn)
                     mPapyrus->enableDawnguard(); // task 0319
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false))
+                {
+                    // task 0320: Adril's arrival ForceGreet package (topic subtype HELO) makes him say his greeting
+                    mWorldView.setHelloGreetings(true);
+                    mPapyrus->enableHelloGreetings();
+                }
                 if (dawnguardOn || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
                 {
                     if (!dawnguardOn)

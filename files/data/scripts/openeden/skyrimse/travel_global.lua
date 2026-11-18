@@ -24,13 +24,15 @@ local function refuse(reason, name)
 end
 
 -- Teleports the player to the planned place (x, y, z, yaw), `hours` after now; the followers go with him (the engine).
+-- Task 0320: a landing in another world (a ship's) is not put on the ground by a height probe (the probe reaches the
+-- seabed under Raven Rock's dock): the player drops DROP units onto what is there.
 -- `toWorld` (task 0312, optional) is the worldspace id text of ANOTHER world ("<gameId>:w<id>") to land in.
 local function arrive(player, x, y, z, yaw, hours, toWorld)
   local ok, cell = pcall(world.getExteriorCell, math.floor(x / CELL_UNITS), math.floor(y / CELL_UNITS),
     toWorld or player.cell)
   if not ok or cell == nil then return false end
   world.advanceTime(hours)
-  player:teleport(cell, util.vector3(x, y, z + DROP), { rotation = util.transform.rotateZ(yaw), onGround = true })
+  player:teleport(cell, util.vector3(x, y, z + DROP), { rotation = util.transform.rotateZ(yaw), onGround = toWorld == nil })
   return true
 end
 

@@ -42,6 +42,10 @@ namespace game_skyrimse
         bool mAcceptBox = false;
     };
 
+    /// Task 0320: which pack features let a box trigger fire (the cart ride, the College bridge, Barbas's box and, new,
+    /// Raven Rock's kickoff box, which starts the arrival scene when the player lands from the ship).
+    [[nodiscard]] bool acceptsBoxTriggers(bool mainQuest, bool college, bool daedric, bool dragonborn);
+
     /// Is this a volume the tracker can test (a sphere with a positive, finite radius and a finite place)?
     [[nodiscard]] bool triggerSupported(const TriggerVolume& volume);
     /// Is the point inside (on the surface counts)? False for a volume that is not supported or a point that is not
