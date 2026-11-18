@@ -44,6 +44,7 @@ namespace game_skyrimse
         std::function<bool(FormId actor)> isDead;
         std::function<bool(FormId actor)> queueKill;
         std::function<bool(FormId form)> isItem;
+        std::function<std::int32_t(FormId form)> goldValue; ///< task 0285: the item's base value, -1 unknown
         std::function<bool(FormId word)> teachWord; ///< task 0205
         std::function<bool(FormId word)> unlockWord;
         std::function<bool(FormId word)> isWordUnlocked;
@@ -98,6 +99,7 @@ namespace game_skyrimse
         bool addItem(FormId owner, FormId item, std::int32_t count) override;
         std::int32_t removeItem(FormId owner, FormId item, std::int32_t count) override;
         std::int32_t itemCount(FormId owner, FormId item) override;
+        std::int32_t goldValue(FormId item) override;
         bool transferItem(FormId from, FormId to, FormId item, std::int32_t count) override;
         std::int64_t removeAllItems(FormId owner, FormId target) override;
         bool actorValue(FormId actor, std::string_view lowerName, double& current, double& maximum) override;

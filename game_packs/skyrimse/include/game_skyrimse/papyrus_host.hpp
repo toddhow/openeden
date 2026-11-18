@@ -339,6 +339,12 @@ namespace game_skyrimse
             (void)cell, (void)owner;
             return false;
         }
+        /// Task 0285: Form.GetGoldValue: the item's base value in gold; -1 when the pack does not know the item.
+        [[nodiscard]] virtual std::int32_t goldValue(FormId item)
+        {
+            (void)item;
+            return -1;
+        }
         /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
         virtual bool addItem(FormId owner, FormId item, std::int32_t count)
         {

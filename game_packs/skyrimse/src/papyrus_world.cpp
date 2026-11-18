@@ -126,6 +126,11 @@ namespace game_skyrimse
         return m->count(ownerOf(owner), item);
     }
 
+    std::int32_t PackWorldHooks::goldValue(FormId item)
+    {
+        return mEnv.goldValue ? mEnv.goldValue(item) : -1;
+    }
+
     bool PackWorldHooks::transferItem(FormId from, FormId to, FormId item, std::int32_t count)
     {
         InventoryModel* m = nullptr;

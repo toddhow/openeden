@@ -2431,6 +2431,10 @@ namespace game_skyrimse
                 env.isItem = [this](FormId form) {
                     return mInventory != nullptr && mInventory->table().item(form) != nullptr;
                 };
+                env.goldValue = [this](FormId form) -> std::int32_t { // task 0285
+                    const auto* stat = mInventory != nullptr ? mInventory->table().item(form) : nullptr;
+                    return stat != nullptr ? stat->mValue : -1;
+                };
                 // Task 0202: moves, fades and creations reach the engine through the world source service
                 env.setObjectEnabled = [this](FormId reference, bool enabled, float fade) {
                     return mPapyrus != nullptr && mPapyrus->pushEnabled(reference, enabled, fade);

@@ -1858,6 +1858,26 @@ namespace game_skyrimse
                     (void)mData.globalValue(global, value);
                 return result(PapyrusValue::makeFloat(value));
             });
+            // Task 0285: GlobalVariable.GetValueInt (the whole part, truncated toward zero) and Form.GetGoldValue (the
+            // item's base value from the pack's inventory model, 0 when it does not know the item); the favour jobs'
+            // sales pay count times value.
+            reg("GlobalVariable", "GetValueInt", false, [this](const NativeCall& c) {
+                const FormId global = formOf(c.self);
+                const auto set = mGlobalValues.find(global);
+                float value = 0.f;
+                if (set != mGlobalValues.end())
+                    value = set->second;
+                else if (const std::optional<float> kept
+                    = mFollowers != nullptr ? mFollowers->globalValue(global) : std::optional<float>())
+                    value = *kept;
+                else
+                    (void)mData.globalValue(global, value);
+                return result(PapyrusValue::makeInt(static_cast<std::int32_t>(value)));
+            });
+            reg("Form", "GetGoldValue", false, [this](const NativeCall& c) {
+                const std::int32_t value = mHooks != nullptr ? mHooks->goldValue(formOf(c.self)) : -1;
+                return result(PapyrusValue::makeInt(std::max(value, 0)));
+            });
             reg("GlobalVariable", "SetValue", false, [this](const NativeCall& c) {
                 const FormId global = formOf(c.self);
                 if (global != 0 && (mGlobalValues.size() < kMaxAvOffsets || mGlobalValues.count(global) != 0))
