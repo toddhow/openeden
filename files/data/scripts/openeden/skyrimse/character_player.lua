@@ -106,6 +106,16 @@ local POWER_KEY = input.KEY.P
 local function usePower()
   if not chr.ready() or chr.needed() or I.UI.getMode() ~= nil then return end
   local now = math.floor(core.getGameTime())
+  -- task 0281: a power chosen in the shout menu is the one the key uses; it is not swapped for another when not ready
+  local chosen = chr.power_chosen()
+  if chosen >= 0 then
+    if chr.power_ready(chosen, now) then
+      core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'power', index = chosen, now = now })
+    else
+      require('openmw.ui').showMessage(string.format('%s is not ready.', chr.power_name(chosen)))
+    end
+    return
+  end
   for i = 0, chr.power_count() - 1 do
     if chr.power_ready(i, now) then
       core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'power', index = i, now = now })

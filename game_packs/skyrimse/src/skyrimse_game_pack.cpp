@@ -3053,6 +3053,13 @@ namespace game_skyrimse
                     }
                     return out;
                 };
+                hooks.mPowerSource = [](const character::PowerInfo& power) { // task 0281
+                    if (power.mId == werewolf::kBeastPower)
+                        return std::string("Lycanthropy");
+                    if (power.mName.rfind("Vampire", 0) == 0)
+                        return std::string("Vampirism");
+                    return std::string("Standing stone");
+                };
                 hooks.mCastPower = [this](FormId spell) { return mCellSource.combat().castPlayerPower(spell); };
                 hooks.mExtraPowerSpells = [this] { // task 0241: the powers of the stones the player holds
                     std::vector<FormId> held = mStones != nullptr ? mStones->active() : std::vector<FormId>();
@@ -3079,6 +3086,8 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Warning, "the character chunk was not registered");
                     if (!chunks->registerHandler(mCharacter->powerChunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the character powers chunk was not registered");
+                    if (!chunks->registerHandler(mCharacter->choiceChunk()) && logger != nullptr) // task 0281
+                        logger->log(openeden::sdk::LogLevel::Warning, "the power choice chunk was not registered");
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "CHARACTER the character creation is on");

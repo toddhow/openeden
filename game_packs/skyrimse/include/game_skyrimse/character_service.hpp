@@ -15,6 +15,8 @@
 //   step_part(part, d)   [Mutate]   d places in the part's list, wrapping round
 //   set_name(text)       [Mutate]
 //   finish()             [Mutate]   keeps the choice: the chunk, the body, the race's skills and abilities
+// Task 0281 (additive, the version stays 1.1): power_source(i) -> string, power_cooldown(i, now) -> int (seconds left,
+//   0 when ready), power_chosen() -> int (index or -1), choose_power(name) [Mutate] (the editor id; "" clears).
 // Version 1.1 (task 0228), the race's powers (RACE SPLO spells of type power or lesser power; once a game day each):
 //   power_count() -> int, power_name(i) -> string (the editor id), power_support(i) -> "works"|"status"|"none"
 //   power_ready(i, now) -> bool            `now` is the game time in seconds (core.getGameTime())
@@ -36,6 +38,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -60,6 +63,8 @@ namespace game_skyrimse::character
         FormId mId = kNullFormId;
         std::string mName;
         PowerSupport mSupport = PowerSupport::Unsupported;
+        /// Where the power comes from (task 0281): "Race", "Standing stone", "Vampirism" or "Lycanthropy".
+        std::string mSource;
     };
     /// A power can be used once in this many game seconds (a game day; OURS: the records give no timing).
     inline constexpr std::int64_t kPowerCooldownSeconds = 24 * 60 * 60;
@@ -82,6 +87,8 @@ namespace game_skyrimse::character
         /// Task 0241: the spells the player holds beyond his race's (the standing stones' powers); asked for the powers
         /// among them like the race's. Without it the list is the race's alone.
         std::function<std::vector<FormId>()> mExtraPowerSpells;
+        /// Task 0281: the source text of a power that is not the race's (a stone, a disease). Without it "Other".
+        std::function<std::string(const PowerInfo&)> mPowerSource;
         std::function<void(const std::string&)> mLog;
     };
 
@@ -120,9 +127,19 @@ namespace game_skyrimse::character
         /// Casts power `index` when ready and starts its day; false (nothing changes) otherwise.
         bool usePower(std::size_t index, std::int64_t nowSeconds);
 
+        /// Task 0281: game seconds until the power is ready again (0 when ready, unsupported or a bad index).
+        [[nodiscard]] std::int64_t powerCooldownLeft(std::size_t index, std::int64_t nowSeconds) const;
+        /// Task 0281: the power the P key uses. `name` is the power's editor id; empty clears the choice (the key then
+        /// uses the first ready power). False (nothing changes) for an unknown or unsupported power.
+        bool choosePower(std::string_view name);
+        /// The index of the chosen power in `powers()`, or -1 (no choice, or the power is no longer held).
+        [[nodiscard]] int chosenPower() const;
+
         [[nodiscard]] openeden::sdk::SaveChunkHandler& chunk();
         /// Task 0228: the powers' last use, a second chunk (`character_powers` v1) so the first stays as saved before.
         [[nodiscard]] openeden::sdk::SaveChunkHandler& powerChunk();
+        /// Task 0281: the chosen power, a chunk of its own (`power_choice` v1), so `character_powers` stays as saved.
+        [[nodiscard]] openeden::sdk::SaveChunkHandler& choiceChunk();
         [[nodiscard]] openeden::sdk::DeclareResult declare(openeden::sdk::BindingsService& service);
 
         /// Called by the chunk.
@@ -130,6 +147,8 @@ namespace game_skyrimse::character
         bool readChunk(openeden::sdk::ChunkReader& reader, std::uint32_t version);
         void writePowerChunk(openeden::sdk::ChunkWriter& writer);
         bool readPowerChunk(openeden::sdk::ChunkReader& reader);
+        void writeChoiceChunk(openeden::sdk::ChunkWriter& writer);
+        bool readChoiceChunk(openeden::sdk::ChunkReader& reader);
 
     private:
         void changed();
@@ -141,6 +160,7 @@ namespace game_skyrimse::character
         Access mAccess;
         bool mDone = false;
         Choice mFinal;
+        FormId mChosenPower = kNullFormId; ///< task 0281 (saved)
         std::vector<std::pair<FormId, std::int64_t>> mPowerUsed; ///< power -> game second of its last use (saved)
         bool mHavePending = false;
         Choice mPending;

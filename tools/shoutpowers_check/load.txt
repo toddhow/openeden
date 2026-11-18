@@ -1,0 +1,9 @@
+# task 0281: after a load, open the menu with H (the equipped power comes from the save alone), close it, press P.
+3600 key H down
+3602 key H up
+3680 shot
+3760 key H down
+3762 key H up
+4200 key P down
+4204 key P up
+4300 shot

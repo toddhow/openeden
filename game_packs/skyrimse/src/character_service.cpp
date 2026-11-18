@@ -15,6 +15,7 @@ namespace game_skyrimse::character
 
         constexpr std::uint32_t kChunkVersion = 1;
         constexpr std::uint32_t kPowerChunkVersion = 1; // task 0228: the powers' last use, a chunk of its own
+        constexpr std::uint32_t kChoiceChunkVersion = 1; // task 0281: the chosen power, a chunk of its own
         constexpr std::uint32_t kMaxPowerRecords = 16;
         constexpr std::uint32_t kMaxBlobBytes = 1024;
 
@@ -70,6 +71,25 @@ namespace game_skyrimse::character
             CharacterService& mService;
         };
 
+        class ChoiceChunk final : public openeden::sdk::SaveChunkHandler
+        {
+        public:
+            explicit ChoiceChunk(CharacterService& service)
+                : mService(service)
+            {
+            }
+            std::string_view chunkName() const override { return "power_choice"; }
+            std::uint32_t chunkVersion() const override { return kChoiceChunkVersion; }
+            void write(openeden::sdk::ChunkWriter& writer) override { mService.writeChoiceChunk(writer); }
+            bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override
+            {
+                return version == kChoiceChunkVersion && mService.readChoiceChunk(reader);
+            }
+
+        private:
+            CharacterService& mService;
+        };
+
         BindingResult okResult()
         {
             return BindingResult();
@@ -98,6 +118,7 @@ namespace game_skyrimse::character
         std::vector<openeden::sdk::FunctionDescriptor> mFunctions;
         std::unique_ptr<Chunk> mChunk;
         std::unique_ptr<PowerChunk> mPowerChunk;
+        std::unique_ptr<ChoiceChunk> mChoiceChunk;
         std::string mText; // the text of the last answer: a binding result views it until the next call
         std::uint64_t mBump = 0;
         bool mWarnedNoRaces = false;
@@ -109,6 +130,7 @@ namespace game_skyrimse::character
     {
         mImpl->mChunk = std::make_unique<Chunk>(*this);
         mImpl->mPowerChunk = std::make_unique<PowerChunk>(*this);
+        mImpl->mChoiceChunk = std::make_unique<ChoiceChunk>(*this);
     }
 
     CharacterService::~CharacterService() = default;
@@ -147,6 +169,71 @@ namespace game_skyrimse::character
         if (reader.remaining() != 0)
             return false;
         mPowerUsed = std::move(used);
+        return true;
+    }
+
+    std::int64_t CharacterService::powerCooldownLeft(std::size_t index, std::int64_t nowSeconds) const
+    {
+        const std::vector<PowerInfo> list = powers();
+        if (index >= list.size() || list[index].mSupport == PowerSupport::Unsupported)
+            return 0;
+        for (const auto& [id, at] : mPowerUsed)
+            if (id == list[index].mId)
+                return nowSeconds < at ? 0 : std::max<std::int64_t>(0, kPowerCooldownSeconds - (nowSeconds - at));
+        return 0;
+    }
+
+    bool CharacterService::choosePower(std::string_view name)
+    {
+        FormId wanted = kNullFormId;
+        if (!name.empty())
+        {
+            const std::vector<PowerInfo> list = powers();
+            const auto it = std::find_if(list.begin(), list.end(), [&](const PowerInfo& p) {
+                return p.mName == name && p.mSupport != PowerSupport::Unsupported;
+            });
+            if (it == list.end())
+                return false;
+            wanted = it->mId;
+        }
+        if (wanted != mChosenPower)
+        {
+            mChosenPower = wanted;
+            ++mImpl->mBump; // the window follows the revision
+            if (mHooks.mLog)
+                mHooks.mLog("CHARACTER power chosen: " + (name.empty() ? std::string("none") : std::string(name)));
+        }
+        return true;
+    }
+
+    int CharacterService::chosenPower() const
+    {
+        if (mChosenPower == kNullFormId)
+            return -1;
+        const std::vector<PowerInfo> list = powers();
+        for (std::size_t i = 0; i < list.size(); ++i)
+            if (list[i].mId == mChosenPower)
+                return static_cast<int>(i);
+        return -1;
+    }
+
+    openeden::sdk::SaveChunkHandler& CharacterService::choiceChunk()
+    {
+        return *mImpl->mChoiceChunk;
+    }
+
+    void CharacterService::writeChoiceChunk(openeden::sdk::ChunkWriter& writer)
+    {
+        writer.writeValue(static_cast<std::uint32_t>(mChosenPower));
+    }
+
+    bool CharacterService::readChoiceChunk(openeden::sdk::ChunkReader& reader)
+    {
+        std::uint32_t id = 0;
+        if (!reader.readValue(id) || reader.remaining() != 0)
+            return false;
+        mChosenPower = static_cast<FormId>(id);
+        ++mImpl->mBump;
         return true;
     }
 
@@ -304,6 +391,8 @@ namespace game_skyrimse::character
             const RaceOption* race = mCreator->race();
             if (race != nullptr)
                 out = mHooks.mPowers(race->mAbilities);
+            for (PowerInfo& power : out)
+                power.mSource = "Race"; // task 0281
         }
         // task 0241: the powers of the spells the player holds beyond his race's (the stones), after the race's
         if (mHooks.mExtraPowerSpells)
@@ -312,7 +401,10 @@ namespace game_skyrimse::character
             if (!held.empty())
                 for (PowerInfo& power : mHooks.mPowers(held))
                     if (std::none_of(out.begin(), out.end(), [&](const PowerInfo& p) { return p.mId == power.mId; }))
+                    {
+                        power.mSource = mHooks.mPowerSource ? mHooks.mPowerSource(power) : std::string("Other");
                         out.push_back(std::move(power));
+                    }
         }
         return out;
     }
@@ -534,6 +626,25 @@ namespace game_skyrimse::character
         add("power_ready", intIntParams, true, BindingType::Bool, kRead, [self](std::span<const BindingValue> a) {
             return boolResult(
                 a[0].integer >= 0 && self->powerReady(static_cast<std::size_t>(a[0].integer), a[1].integer));
+        });
+        add("power_source", intParam, true, BindingType::String, kRead,
+            [self, textResult](std::span<const BindingValue> a) {
+                const std::vector<PowerInfo> list = self->powers();
+                return textResult(a[0].integer >= 0 && static_cast<std::size_t>(a[0].integer) < list.size()
+                        ? list[static_cast<std::size_t>(a[0].integer)].mSource
+                        : std::string());
+            });
+        add("power_cooldown", intIntParams, true, BindingType::Int32, kRead,
+            [self](std::span<const BindingValue> a) {
+                return intResult(a[0].integer >= 0
+                        ? self->powerCooldownLeft(static_cast<std::size_t>(a[0].integer), a[1].integer)
+                        : 0);
+            });
+        add("power_chosen", {}, true, BindingType::Int32, kRead,
+            [self](std::span<const BindingValue>) { return intResult(self->chosenPower()); });
+        add("choose_power", strParam, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue> a) {
+            (void)self->choosePower(a[0].text);
+            return okResult();
         });
         add("choose_race", intParam, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue> a) {
             if (a[0].integer >= 0)

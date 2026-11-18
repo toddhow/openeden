@@ -7,6 +7,9 @@
 -- shouts the player has learned a word of, their words, the dragon souls, and the Unlock and Equip buttons (see
 -- openeden/skyrimse/shout_windows.lua). The second press of H, Escape or the Close button leave. The requests go to
 -- shouts_global.lua, because only a global script may call the pack's Mutate functions.
+--
+-- Task 0281: the same window lists the player's powers (race, standing stones, vampirism, lycanthropy) with their
+-- cooldowns; Equip makes one the power the P key uses (character_global.lua runs the Mutate call).
 local core = require('openmw.core')
 local input = require('openmw.input')
 local I = require('openmw.interfaces')
@@ -16,6 +19,8 @@ if not okShouts then
   return {}
 end
 local okUi, rml = pcall(require, 'openeden.ui')
+-- task 0281: the powers section needs the character package (without it the window is the shouts alone)
+local okChr, chr = pcall(require, 'core.skyrimse.character')
 
 local hud = nil
 local menu = nil
@@ -26,6 +31,9 @@ if okUi then
   menu = require('openeden.skyrimse.shout_windows').create{
     ui = rml,
     shouts = shouts,
+    chr = okChr and chr or nil,
+    now = function() return math.floor(core.getGameTime()) end,
+    choosePower = function(name) core.sendGlobalEvent('SkyrimCharacterRequest', { kind = 'choosepower', name = name }) end,
     unlock = function(id) core.sendGlobalEvent('SkyrimShoutsUnlock', { id = id }) end,
     equip = function(id) core.sendGlobalEvent('SkyrimShoutsEquip', { id = id }) end,
     close = function() I.UI.setMode() end, -- drops every mode; the window follows in onFrame

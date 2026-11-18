@@ -22,6 +22,9 @@ return {
       elseif data.kind == 'power' and type(data.index) == 'number' and type(data.now) == 'number' then
         -- task 0228: the race's power (once a game day); the pack checks that it is ready
         chr.use_power(math.floor(data.index), math.floor(data.now))
+      elseif data.kind == 'choosepower' and type(data.name) == 'string' then
+        -- task 0281: the power the P key uses (the shout menu's Equip button); "" clears the choice
+        chr.choose_power(data.name)
       end
     end,
   },

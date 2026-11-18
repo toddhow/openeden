@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsepresentationlua.cpp
     ui/testskyrimseshouthud.cpp
     ui/testskyrimseshoutmenuwindow.cpp
+    ui/testskyrimsepowerswindow.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testskyrimselockpickwindow.cpp
     ui/testskyrimsebookwindow.cpp
@@ -716,6 +717,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsejournal.cpp
     skyrimse/testskyrimsetexttags.cpp
     skyrimse/testskyrimsepowersname.cpp
+    skyrimse/testskyrimsepowerchoice.cpp
     skyrimse/testskyrimsepowersreal.cpp
     skyrimse/testskyrimsemap.cpp
     skyrimse/testskyrimserest.cpp

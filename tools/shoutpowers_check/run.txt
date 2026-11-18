@@ -1,0 +1,17 @@
+# task 0281: finish the creation (Done), open the menu with H, equip Werewolf Change with a real click on its Equip button,
+# close with H, wait for the save (3 s of simulation time after the choice), press P and look. 1280 x 720.
+3300 mouse 62 407
+3304 down L 62 407
+3306 up L 62 407
+3600 key H down
+3602 key H up
+3680 shot
+3720 mouse 838 343
+3724 down L 838 343
+3726 up L 838 343
+3800 shot
+3840 key H down
+3842 key H up
+4200 key P down
+4204 key P up
+4300 shot
