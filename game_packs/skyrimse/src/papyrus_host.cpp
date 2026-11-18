@@ -721,8 +721,44 @@ namespace game_skyrimse
 
         FormId cellOfReference(FormId reference) const
         {
+            const auto moved = mCellMoved.find(reference); // task 0286: a reference the world moved into another cell
+            if (moved != mCellMoved.end())
+                return moved->second;
             const auto created = mCreated.find(reference);
             return created != mCreated.end() ? created->second.mCell : mData.cellOf(reference);
+        }
+
+        // Task 0286: MoveTo of `self` to `at` through the world's cell move. False: not done (the older ways apply).
+        bool tryCellMove(FormId self, FormId target, const double* at, const std::array<double, 3>* angles)
+        {
+            if (!mCellMoves || mHooks == nullptr || self == kPlayerReference)
+                return false;
+            const FormId destination = cellOfReference(target);
+            ObjectMoveRequest request;
+            request.hasPosition = true;
+            for (int i = 0; i < 3; ++i)
+                request.position[i] = at[i];
+            if (angles != nullptr)
+            {
+                request.hasAngles = true;
+                for (std::size_t i = 0; i < 3; ++i)
+                    request.angles[i] = (*angles)[i];
+            }
+            double from[3] = { 0.0, 0.0, 0.0 };
+            if (positionOf(self, from))
+            {
+                request.hasFrom = true;
+                for (int i = 0; i < 3; ++i)
+                    request.from[i] = from[i];
+            }
+            if (!mHooks->moveToCell(self, destination, request))
+                return false;
+            mPositions[self] = { at[0], at[1], at[2] };
+            if (angles != nullptr)
+                mAngles[self] = *angles;
+            mCellMoved[self] = destination;
+            say(false, "Papyrus: MoveTo of " + hex(self) + " into cell " + hex(destination) + " by the world");
+            return true;
         }
 
         // Task 0268: the reference a script's old reference stands for now (an actor it moved was made again).
@@ -1319,6 +1355,8 @@ namespace game_skyrimse
                         = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2), where[2] + argNumber(c, 3) };
                     std::array<double, 3> turned{};
                     const bool turnTo = argNumber(c, 4) != 0.0 && anglesOf(target, turned);
+                    if (tryCellMove(self, target, at, turnTo ? &turned : nullptr)) // task 0286
+                        return NativeResult{};
                     if (tryRelocate(self, target, at, turnTo ? &turned : nullptr))
                         return NativeResult{};
                 }
@@ -2206,6 +2244,8 @@ namespace game_skyrimse
         StoryEventSink mStorySink; ///< task 0187
         StageEntryCheck mStageEntryCheck; ///< task 0261
         bool mRelocate = false; ///< task 0268
+        bool mCellMoves = false; ///< task 0286
+        std::map<FormId, FormId> mCellMoved; ///< task 0286: a reference the world moved -> the cell it stands in now
         double mRelocateRange = 6000.0;
         std::map<FormId, FormId> mRedirect; ///< task 0268: a relocated reference -> the new one
         bool mStarted = false;
@@ -3051,6 +3091,11 @@ namespace game_skyrimse
     void PapyrusHost::setAliasFiller(QuestAliasFiller* filler)
     {
         mImpl->mFiller = filler;
+    }
+
+    void PapyrusHost::setCellMoves(bool on)
+    {
+        mImpl->mCellMoves = on;
     }
 
     void PapyrusHost::setRelocation(bool on, double maxPlayerDistance)

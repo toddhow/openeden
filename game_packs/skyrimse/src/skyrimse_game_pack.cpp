@@ -1197,6 +1197,9 @@ namespace game_skyrimse
             // The pack's id of the cell a reference stands in: where a script created it, else its record's cell.
             FormId cellOfReference(FormId reference) const
             {
+                const auto moved = mMovedCells.find(reference); // task 0286: the world moved it into another cell
+                if (moved != mMovedCells.end())
+                    return moved->second;
                 for (const PapyrusHost::CreatedObject& created : mHost.createdObjects())
                     if (created.mReference == reference)
                         return created.mCell;
@@ -1276,6 +1279,71 @@ namespace game_skyrimse
                             + (request.toOriginal ? " back to its record" : "")
                             + (queued ? " sent to the world" : " not sent"));
                 return queued;
+            }
+
+            // Task 0286: a script (or a scene's travel) moved a reference INTO another cell. The world moves it, loaded or
+            // not, and it keeps its identity: its reference id, so its inventory, packages and quest aliases follow.
+            // `destinationCell` is the pack's id of the cell the target stands in (0: the exterior square that holds
+            // the position). `request.from` says where the reference stands now, for a persistent reference whose cell
+            // id does not say.
+            bool pushMoveToCell(FormId reference, FormId destinationCell, const ObjectMoveRequest& request)
+            {
+                if (mSources == nullptr || !request.hasPosition)
+                    return false;
+                // an object that stays in its cell is moved by the plain move (the actor system places actors, and an
+                // actor's move inside its cell is the world's too)
+                if (destinationCell != 0 && destinationCell == cellOfReference(reference) && !isActor(reference))
+                    return false;
+                openeden::sdk::game::ObjectMove move;
+                move.hasPosition = true;
+                move.position = { request.position[0], request.position[1], request.position[2] };
+                if (request.hasAngles)
+                {
+                    move.hasRotation = true;
+                    move.rotation = eulerToQuat({ static_cast<float>(request.angles[0]),
+                        static_cast<float>(request.angles[1]), static_cast<float>(request.angles[2]) });
+                }
+                move.hasCell = true;
+                move.cell = destinationCell != 0 ? static_cast<openeden::sdk::game::WorldId>(destinationCell)
+                                                 : openeden::sdk::game::kNoWorldId;
+                if (request.hasFrom)
+                {
+                    move.hasFrom = true;
+                    move.from = { request.from[0], request.from[1], request.from[2] };
+                }
+                const FormId cell = cellOfReference(reference);
+                const bool queued = mSources->moveObject(mCells, cell, reference, move);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS move of " + hexId(reference) + " from cell " + hexId(cell) + " into cell "
+                        + hexId(destinationCell) + (queued ? " sent to the world" : " not sent"));
+                if (queued)
+                    mMovedCells[reference] = destinationCell;
+                return queued;
+            }
+
+            // Task 0286: a scene's Travel package leads an actor to a reference in another cell: the world moves the
+            // actor to the target's place. The target's place and cell come from its record.
+            bool travelMove(openeden::sdk::game::WorldId actor, FormId target)
+            {
+                const PlacedRefIndex* placed = mView.placedRefs();
+                if (placed == nullptr)
+                    return false;
+                const PlacedEntry* where = placed->find(target);
+                if (where == nullptr || where->mDeleted)
+                    return false;
+                ObjectMoveRequest request;
+                request.hasPosition = true;
+                request.position[0] = where->mX;
+                request.position[1] = where->mY;
+                request.position[2] = where->mZ;
+                if (const PlacedEntry* self = placed->find(static_cast<FormId>(actor)))
+                {
+                    request.hasFrom = true;
+                    request.from[0] = self->mX;
+                    request.from[1] = self->mY;
+                    request.from[2] = self->mZ;
+                }
+                return pushMoveToCell(static_cast<FormId>(actor), where->mCell, request);
             }
 
             // Task 0202: PlaceAtMe. The base is described by the view, the object is built as the pack builds a placed
@@ -1489,6 +1557,7 @@ namespace game_skyrimse
             bool mHousesApplied = false;
             bool mMainQuest = false; ///< task 0268
             float mSceneParkSeconds = 0.f; ///< task 0287: 0 keeps the runner's default
+            std::map<FormId, FormId> mMovedCells; ///< task 0286: a reference the world moved -> the cell it stands in
             bool mMainQuestApplied = false;
             double mNextCartLog = 0.0; ///< task 0274
             bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
@@ -1922,6 +1991,18 @@ namespace game_skyrimse
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
                             mPapyrus->setSceneParkSeconds(settings->getFloat(kPackId, "scene park seconds", 0.f)); // 0287
+                            if (settings->getBool(kPackId, kActorCellMovesKey, false)) // task 0286
+                            {
+                                mPapyrus->host().setCellMoves(true);
+                                PapyrusDriver* const mover = mPapyrus.get();
+                                mCellSource.actorTable().setTravelMoveHook(
+                                    [mover](openeden::sdk::game::WorldId actor, FormId target) {
+                                        return mover->travelMove(actor, target);
+                                    });
+                                if (logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Info,
+                                        "ACTORMOVES actors and objects move between cells through the world");
+                            }
                             if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
                             {
                                 mPapyrus->enableMainQuest();
@@ -2356,6 +2437,9 @@ namespace game_skyrimse
                 };
                 env.moveObject = [this](FormId reference, const ObjectMoveRequest& request) {
                     return mPapyrus != nullptr && mPapyrus->pushMove(reference, request);
+                };
+                env.moveToCell = [this](FormId reference, FormId cell, const ObjectMoveRequest& request) {
+                    return mPapyrus != nullptr && mPapyrus->pushMoveToCell(reference, cell, request);
                 };
                 env.tetherCart = [this, logger](FormId cart, FormId horse, const double (&at)[3], double heading) {
                     if (mPapyrus == nullptr || !mPapyrus->mainQuestOn())

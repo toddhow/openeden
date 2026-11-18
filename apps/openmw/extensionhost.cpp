@@ -426,6 +426,46 @@ namespace OMW
                                      << ", " << at.pos[1] << ", " << at.pos[2];
                     continue;
                 }
+                if (op.kind == Kind::Move && op.move.hasCell && !op.move.toOriginal)
+                {
+                    // Task 0286: a move INTO another cell (loaded or not): the placement keeps its identity
+                    const openeden::sdk::game::Vec3d* from = op.move.hasFrom ? &op.move.from : nullptr;
+                    MWWorld::Ptr mover = model->findNeutralObjectForMove(
+                        *mNeutralWorldStore, op.gameId, op.cell, op.placement, from);
+                    if (mover.isEmpty())
+                    {
+                        Log(Debug::Warning) << "A game pack's move of the placement " << op.placement
+                                            << " into another cell: the placement was not found";
+                        continue;
+                    }
+                    std::string problem;
+                    MWWorld::CellStore* const destination = model->resolveNeutralDestination(
+                        *mNeutralWorldStore, op.gameId, op.move.cell, op.move.position, mover.getCell(), problem);
+                    if (destination == nullptr)
+                    {
+                        Log(Debug::Warning) << "A game pack's move of the placement " << op.placement
+                                            << " into another cell: " << problem;
+                        continue;
+                    }
+                    const MWWorld::CellStore* const origin = mover.getCell()->originOf(mover.getBase());
+                    const std::string before(mover.getCell()->getCell()->getDescription());
+                    const vsg::vec3 where(static_cast<float>(op.move.position.x),
+                        static_cast<float>(op.move.position.y), static_cast<float>(op.move.position.z));
+                    MWWorld::Ptr moved = world->moveObject(mover, destination, where, true, true);
+                    if (op.move.hasRotation)
+                    {
+                        const std::array<float, 3> angles = MWWorld::neutralRotationAngles(op.move.rotation);
+                        world->rotateObject(
+                            moved, vsg::vec3(angles[0], angles[1], angles[2]), MWBase::RotationFlag_none);
+                    }
+                    const bool kept = model->noteNeutralRelocation(
+                        op.gameId, op.placement, *origin, *destination, moved.getRefData().getPosition());
+                    Log(Debug::Info) << "A game pack moved the placement " << op.placement << " from " << before
+                                     << " into " << destination->getCell()->getDescription() << " at "
+                                     << op.move.position.x << ", " << op.move.position.y << ", " << op.move.position.z
+                                     << (kept ? "" : " (not saved)");
+                    continue;
+                }
                 const MWWorld::Ptr ptr = model->findLoadedNeutralObject(op.gameId, op.cell, op.placement);
                 if (ptr.isEmpty())
                 {

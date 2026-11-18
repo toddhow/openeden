@@ -12,6 +12,7 @@
 #include <components/misc/algorithm.hpp>
 
 #include "cellstore.hpp"
+#include "neutralrelocations.hpp"
 #include "neutralsave.hpp"
 #include "ptr.hpp"
 #include "ptrregistry.hpp"
@@ -151,6 +152,7 @@ namespace MWWorld
             std::size_t mObjects = 0;
             std::size_t mMissing = 0; ///< saved placements that the pack no longer has
             std::size_t mCreated = 0; ///< objects a script created (task 0202) and the save brought back
+            std::size_t mRelocated = 0; ///< task 0286: placements moved into another cell that the save brought back
             std::string mError; ///< why the player's cell could not be found
             std::vector<std::string> mWarnings;
         };
@@ -159,6 +161,31 @@ namespace MWWorld
         /// the opened locks and held keys and finds the player's cell. Main thread, after the world was cleared.
         NeutralSaveRestore restoreNeutralSave(
             const NeutralSaveState& state, NeutralWorld::NeutralWorldStore& neutral) const;
+
+        /// Task 0286 (neutral actors and objects move between cells). Where a placement of a game pack stands NOW, as a
+        /// Ptr whose cell is the cell it is in (a placement moved into another cell is found there). The loaded neutral
+        /// cells are searched first; when it is in none, the cell the pack names (`cell`, an interior id or an exterior
+        /// with a grid) or, for an exterior with no grid (a persistent reference), the square that holds `*from` is
+        /// built, loaded (resident, not active) and searched. Empty Ptr when it cannot be found. Main thread.
+        Ptr findNeutralObjectForMove(NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId,
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement,
+            const openeden::sdk::game::Vec3d* from) const;
+
+        /// The cell a move goes into, built and loaded (resident, not active): the pack's cell `cell` when it names one
+        /// (an interior, or an exterior of a world the engine can carry: its grid square, or the square that holds
+        /// `position` when the pack cell has no grid), else the exterior square that holds `position` in the world of
+        /// `source` (an interior source has none). Null with `error` when there is no such cell.
+        CellStore* resolveNeutralDestination(NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId,
+            openeden::sdk::game::WorldId cell, const openeden::sdk::game::Vec3d& position, const CellStore* source,
+            std::string& error) const;
+
+        /// Remembers that the placement moved from the cell `before` into the cell `after`, standing at `where`: the
+        /// neutral save writes it (version 4) and restores the move after a load. False when it cannot be kept (a
+        /// cell that is not a neutral one, a value that is not finite, the cap).
+        bool noteNeutralRelocation(const std::string& gameId, openeden::sdk::game::WorldId placement,
+            const CellStore& before, const CellStore& after, const ESM::Position& where);
+
+        const NeutralRelocations& neutralRelocations() const { return mNeutralRelocations; }
 
         /// The cell a key names, built when needed; null with `error` when the pack no longer has it.
         CellStore* findNeutralSaveCell(
@@ -246,6 +273,7 @@ namespace MWWorld
         mutable std::map<ESM::RefId, NeutralWorldspace> mNeutralWorldspaces;
         std::vector<std::pair<ESM::RefId, CellStore*>> mIdCache;
         std::size_t mIdCacheIndex = 0;
+        mutable NeutralRelocations mNeutralRelocations; // task 0286 (restoreNeutralSave is const, like the cells it builds)
 
         CellStore& getOrInsertCellStore(const ESM::Cell& cell);
 

@@ -800,7 +800,9 @@ namespace MWWorld
                 const auto dx = std::abs(playerCellX - cell->getCell()->getGridX());
                 const auto dy = std::abs(playerCellY - cell->getCell()->getGridY());
                 if (unloadAfterGridChange(dx > halfGridSize || dy > halfGridSize, cell->isNeutral(),
-                        cell->isNeutral() && cell->holdsLiveCreatedNeutralActor())) // task 0274
+                        cell->isNeutral()
+                            && (cell->holdsLiveCreatedNeutralActor()
+                                || cell->holdsMovedHereNeutralActor()))) // tasks 0274, 0286
                     unloadCell(cell, navigatorUpdateGuard.get());
             }
             else

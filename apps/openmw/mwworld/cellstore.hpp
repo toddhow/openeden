@@ -232,6 +232,19 @@ namespace MWWorld
         /// Task 0274: whether the cell holds an enabled actor that a script created (see neutralkeepcell.hpp).
         bool holdsLiveCreatedNeutralActor() const;
 
+        /// Task 0286: the neutral references this cell OWNS (its pack's placements) as Ptrs of the cell each one stands
+        /// in now: a placement that was moved into another cell comes with that cell. A loaded cell; nothing otherwise.
+        void forEachNeutralPtr(const std::function<void(const Ptr&)>& visitor);
+
+        /// Task 0286: whether an enabled, living neutral ACTOR that belongs to another cell was moved into this one (a
+        /// scripted move or a scene's travel). Such a cell stays loaded after the player's grid leaves it, as one that
+        /// holds an actor a script created does (neutralkeepcell.hpp).
+        bool holdsMovedHereNeutralActor() const;
+
+        /// Task 0286: the cell that owns `ref` (the cell of the pack's record): the cell it was moved here from when it
+        /// was moved into this one, else this cell.
+        const CellStore* originOf(const LiveCellRefBase* ref) const;
+
         /// Whether this cell came from a game pack's neutral world (setNeutralCell).
         bool isNeutral() const { return mNeutralCell != nullptr; }
 

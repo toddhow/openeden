@@ -928,6 +928,15 @@ namespace game_skyrimse
             }
             else if (mSource.targetIsElsewhere(actor.mElsewhereRef))
             {
+                // Task 0286: the world can move the actor into the target's cell: no wait and no carry
+                if (mTravelMoveHook && mTravelMoveHook(actor.mHandle.reference, actor.mElsewhereRef))
+                {
+                    ++mStats.mTravelMoves;
+                    actor.mElsewhereRef = kNullFormId;
+                    mTravellerRefs.erase(actor.mHandle.reference);
+                    actor.mPhase = Phase::Done;
+                    return;
+                }
                 mTravellerRefs.insert(actor.mHandle.reference);
                 actor.mPhase = Phase::Failed;
                 actor.mTimer = kElsewhereRetrySeconds;
@@ -1099,7 +1108,7 @@ namespace game_skyrimse
                     placed = false; // in cell, linked reference, alias, object id/type, unknown: not placeable yet
                     break;
             }
-            if (!placed && mCarryTravellers && actor.mForced == package // only a scene's package leads the player
+            if (!placed && tracksScenePackages() && actor.mForced == package // only a scene's package leads the player
                 && actor.mBehavior == PackageBehavior::Travel
                 && loc.mType == PackageLocationType::NearReference && loc.mValue != kNullFormId
                 && loc.mValue != kUnresolvedFormId && mSource.targetIsElsewhere(static_cast<FormId>(loc.mValue)))
@@ -1360,7 +1369,7 @@ namespace game_skyrimse
 
     bool PackageBrain::forcePackage(sdkgame::WorldId reference, const PackageRecord* package)
     {
-        if (mCarryTravellers) // task 0277: remembered by placement, so the package outlives the actor being removed
+        if (tracksScenePackages()) // task 0277: remembered by placement, so the package outlives the actor being removed
         {
             if (package != nullptr)
                 mForcedRefs[reference] = package;

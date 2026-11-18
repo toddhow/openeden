@@ -3089,7 +3089,8 @@ namespace MWWorld
         Log(Debug::Info) << "Neutral world restored: " << restored.mCells << " cells with changes, "
                          << restored.mObjects << " changed objects (" << restored.mMissing
                          << " no longer in the game), " << state.mUnlocked.size() << " opened locks, "
-                         << state.mKeys.size() << " keys, " << restored.mCreated << " created objects";
+                         << state.mKeys.size() << " keys, " << restored.mCreated << " created objects, "
+                         << restored.mRelocated << " moved into other cells";
         // Task 0202: queued operations and fades belong to the world that is gone; the counter is the save's
         MWBase::Environment::get().getExtensionManager()->resetNeutralObjects(state.mNextCreatedIndex);
         if (restored.mPlayerCell == nullptr)

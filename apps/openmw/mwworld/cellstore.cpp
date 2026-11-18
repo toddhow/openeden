@@ -931,6 +931,34 @@ namespace MWWorld
         return found;
     }
 
+    void CellStore::forEachNeutralPtr(const std::function<void(const Ptr&)>& visitor)
+    {
+        if (mState != State_Loaded)
+            return;
+        for (LiveCellRef<NeutralBase>& live : get<NeutralBase>().mList)
+            visitor(getCurrentPtr(&live));
+    }
+
+    const CellStore* CellStore::originOf(const LiveCellRefBase* ref) const
+    {
+        const auto found = mMovedHere.find(const_cast<LiveCellRefBase*>(ref));
+        return found == mMovedHere.end() ? this : found->second;
+    }
+
+    bool CellStore::holdsMovedHereNeutralActor() const
+    {
+        for (const auto& [base, from] : mMovedHere)
+        {
+            if (base == nullptr || base->getType() != NeutralBase::sRecordId)
+                continue;
+            const auto* live = static_cast<const LiveCellRef<NeutralBase>*>(base);
+            if (live->mBase != nullptr && live->mBase->mKind == openeden::sdk::game::ObjectKind::Actor
+                && live->mData.isEnabled() && live->mRef.getCount(false) != 0)
+                return true;
+        }
+        return false;
+    }
+
     void CellStore::forEachNeutralRefMutable(const std::function<void(LiveCellRef<NeutralBase>&)>& visitor)
     {
         if (mState != State_Loaded)

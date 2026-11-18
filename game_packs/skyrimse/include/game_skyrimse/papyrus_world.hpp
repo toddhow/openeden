@@ -57,6 +57,8 @@ namespace game_skyrimse
         /// Task 0202: enable or disable with a fade, move or turn, and create (PlaceAtMe) through the world.
         std::function<bool(FormId reference, bool enabled, float fadeSeconds)> setObjectEnabled;
         std::function<bool(FormId reference, const ObjectMoveRequest& request)> moveObject;
+        /// Task 0286: a move into another cell (see PapyrusWorldHooks::moveToCell).
+        std::function<bool(FormId reference, FormId destinationCell, const ObjectMoveRequest& request)> moveToCell;
         std::function<ObjectPlaceResult(const ObjectPlaceRequest& request)> placeObject;
         std::function<bool(FormId cell, FormId owner)> setCellOwner; ///< task 0261
         std::function<bool(FormId reference)> referenceLoaded; ///< task 0268
@@ -111,6 +113,10 @@ namespace game_skyrimse
         bool moveObject(FormId reference, const ObjectMoveRequest& request) override
         {
             return mEnv.moveObject && mEnv.moveObject(reference, request);
+        }
+        bool moveToCell(FormId reference, FormId destinationCell, const ObjectMoveRequest& request) override
+        {
+            return mEnv.moveToCell && mEnv.moveToCell(reference, destinationCell, request);
         }
         ObjectPlaceResult placeObject(const ObjectPlaceRequest& request) override
         {

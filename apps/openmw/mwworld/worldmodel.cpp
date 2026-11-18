@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <optional>
 #include <stdexcept>
 #include <unordered_map>
@@ -164,6 +165,7 @@ void MWWorld::WorldModel::clear()
     mExteriors.clear();
     mCells.clear();
     mNeutralCells.clear(); // after mCells: their Cells point into it
+    mNeutralRelocations.clear(); // task 0286
     std::fill(mIdCache.begin(), mIdCache.end(), std::make_pair(ESM::RefId(), (MWWorld::CellStore*)nullptr));
     mIdCacheIndex = 0;
 }
@@ -985,6 +987,24 @@ namespace MWWorld
         }
         out.mUnlocked = neutralLockState().unlockedEntries();
         out.mKeys = neutralLockState().keyEntries();
+        // Task 0286: placements moved into another cell, standing where they stand now
+        out.mRelocations = mNeutralRelocations.collect();
+        for (NeutralRelocation& moved : out.mRelocations)
+        {
+            const Ptr now = findLoadedNeutralObject(moved.mGameId, openeden::sdk::game::kNoWorldId,
+                static_cast<openeden::sdk::game::WorldId>(moved.mPlacement));
+            if (now.isEmpty())
+                continue;
+            const ESM::Position& at = now.getRefData().getPosition();
+            for (int i = 0; i < 3; ++i)
+            {
+                if (std::isfinite(at.pos[i]) && std::isfinite(at.rot[i]))
+                {
+                    moved.mPos[i] = at.pos[i];
+                    moved.mRot[i] = at.rot[i];
+                }
+            }
+        }
         canonicaliseNeutralSave(out);
     }
 
@@ -1035,9 +1055,10 @@ namespace MWWorld
     {
         const auto inCell = [&](CellStore& store) -> Ptr {
             Ptr found;
-            store.forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
-                if (found.isEmpty() && live.mRef.getRefNum().mIndex == placement)
-                    found = Ptr(&live, &store);
+            // Task 0286: the Ptr of the cell the placement stands in NOW (it may have been moved into another cell)
+            store.forEachNeutralPtr([&](const Ptr& ptr) {
+                if (found.isEmpty() && ptr.getCellRef().getRefNum().mIndex == placement)
+                    found = ptr;
             });
             return found;
         };
@@ -1178,6 +1199,49 @@ namespace MWWorld
             }
         }
 
+        // Task 0286: placements that were moved into another cell go there again, before the player's cell is entered
+        mNeutralRelocations.clear();
+        for (const NeutralRelocation& moved : state.mRelocations)
+        {
+            std::string error;
+            CellStore* origin = findNeutralSaveCell(neutral, moved.mOrigin, error);
+            CellStore* destination
+                = origin != nullptr ? findNeutralSaveCell(neutral, moved.mDestination, error) : nullptr;
+            if (origin == nullptr || destination == nullptr)
+            {
+                result.mWarnings.push_back("Dropping a moved placement: " + error);
+                ++result.mMissing;
+                continue;
+            }
+            if (origin->getState() != CellStore::State_Loaded)
+                origin->load();
+            if (destination->getState() != CellStore::State_Loaded)
+                destination->load();
+            Ptr ptr;
+            origin->forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
+                if (ptr.isEmpty() && live.mRef.getRefNum().mIndex == moved.mPlacement)
+                    ptr = Ptr(&live, origin);
+            });
+            if (ptr.isEmpty() || origin == destination)
+            {
+                result.mWarnings.push_back(
+                    "Dropping a moved placement: " + std::to_string(moved.mPlacement) + " is not in its cell");
+                ++result.mMissing;
+                continue;
+            }
+            const Ptr placed = origin->moveTo(ptr, destination);
+            ESM::Position at = placed.getRefData().getPosition();
+            for (int i = 0; i < 3; ++i)
+            {
+                at.pos[i] = moved.mPos[i];
+                at.rot[i] = moved.mRot[i];
+            }
+            placed.getRefData().setPosition(at);
+            mNeutralRelocations.note(
+                moved.mGameId, moved.mPlacement, moved.mOrigin, moved.mDestination, moved.mPos, moved.mRot);
+            ++result.mRelocated;
+        }
+
         if (state.mPlayerCell.mKind != NeutralSaveCellKey::Kind::None)
         {
             result.mPlayerCell = findNeutralSaveCell(neutral, state.mPlayerCell, result.mError);
@@ -1187,5 +1251,132 @@ namespace MWWorld
         else
             result.mError = "the save has no player cell";
         return result;
+    }
+
+    Ptr WorldModel::findNeutralObjectForMove(NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId,
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement,
+        const openeden::sdk::game::Vec3d* from) const
+    {
+        Ptr loaded = findLoadedNeutralObject(gameId, cell, placement);
+        if (!loaded.isEmpty())
+            return loaded;
+        // Not in a loaded cell: build the cell the pack says it stands in (resident, never active) and look there
+        CellStore* store = nullptr;
+        try
+        {
+            if (cell != openeden::sdk::game::kNoWorldId)
+            {
+                const NeutralCellLookup found = findNeutralCell(neutral, gameId, cell);
+                if (found.mStatus == NeutralCellStatus::Found)
+                    store = found.mStore;
+                else if (found.mStatus == NeutralCellStatus::Exterior && found.mWorldSupported)
+                {
+                    // where the placement stands decides (a persistent cell reports the grid (0, 0)); no place: the grid
+                    if (from != nullptr)
+                        store = findNeutralExterior(neutral,
+                            ESM::positionToExteriorCellLocation(
+                                static_cast<float>(from->x), static_cast<float>(from->y), found.mWorldspace));
+                    else if (found.mHasGrid)
+                        store = findNeutralExterior(
+                            neutral, ESM::ExteriorCellLocation(found.mGridX, found.mGridY, found.mWorldspace));
+                }
+            }
+            if (store == nullptr && from != nullptr)
+            {
+                // a persistent reference of a world: the square of its position, in the world of any neutral
+                // exterior of the game that is already known
+                for (const auto& [id, known] : mCells)
+                {
+                    if (known.isNeutral() && known.neutralGameId() == gameId && known.isExterior())
+                    {
+                        store = findNeutralExterior(neutral,
+                            ESM::positionToExteriorCellLocation(static_cast<float>(from->x),
+                                static_cast<float>(from->y), known.getCell()->getWorldSpace()));
+                        break;
+                    }
+                }
+            }
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Warning) << "Neutral move: the cell of the placement " << placement << " cannot be built: "
+                                << e.what();
+            return Ptr();
+        }
+        if (store == nullptr)
+            return Ptr();
+        if (store->getState() != CellStore::State_Loaded)
+            store->load();
+        Ptr found;
+        store->forEachNeutralPtr([&](const Ptr& ptr) {
+            if (found.isEmpty() && ptr.getCellRef().getRefNum().mIndex == placement)
+                found = ptr;
+        });
+        if (found.isEmpty())
+            Log(Debug::Info) << "Neutral move: the placement " << placement << " is not in the cell "
+                                << store->getCell()->getNameId() << " (" << store->getCell()->getGridX() << ", "
+                                << store->getCell()->getGridY() << ") the pack's cell " << cell << " leads to" << (from != nullptr ? " (from given)" : " (no from)");
+        return found;
+    }
+
+    CellStore* WorldModel::resolveNeutralDestination(NeutralWorld::NeutralWorldStore& neutral,
+        std::string_view gameId, openeden::sdk::game::WorldId cell, const openeden::sdk::game::Vec3d& position,
+        const CellStore* source, std::string& error) const
+    {
+        error.clear();
+        try
+        {
+            CellStore* store = nullptr;
+            if (cell != openeden::sdk::game::kNoWorldId)
+            {
+                const NeutralCellLookup found = findNeutralCell(neutral, gameId, cell);
+                if (found.mStatus == NeutralCellStatus::Found)
+                    store = found.mStore;
+                else if (found.mStatus == NeutralCellStatus::Exterior && found.mWorldSupported)
+                {
+                    // The position decides: a world's persistent cell reports the grid (0, 0), and for any other exterior
+                    // the position lies in its own square anyway
+                    const ESM::ExteriorCellLocation where = ESM::positionToExteriorCellLocation(
+                        static_cast<float>(position.x), static_cast<float>(position.y), found.mWorldspace);
+                    store = findNeutralExterior(neutral, where);
+                }
+                else
+                {
+                    error = found.mError.empty() ? "the cell is an exterior of a world the engine cannot carry"
+                                                 : found.mError;
+                    return nullptr;
+                }
+            }
+            else if (source != nullptr && source->isNeutral() && source->isExterior())
+            {
+                const ESM::RefId worldspace = source->getCell()->getWorldSpace();
+                store = findNeutralExterior(neutral,
+                    ESM::positionToExteriorCellLocation(
+                        static_cast<float>(position.x), static_cast<float>(position.y), worldspace));
+            }
+            if (store == nullptr)
+            {
+                error = "no destination cell for the move";
+                return nullptr;
+            }
+            if (store->getState() != CellStore::State_Loaded)
+                store->load();
+            return store;
+        }
+        catch (const std::exception& e)
+        {
+            error = e.what();
+            return nullptr;
+        }
+    }
+
+    bool WorldModel::noteNeutralRelocation(const std::string& gameId, openeden::sdk::game::WorldId placement,
+        const CellStore& before, const CellStore& after, const ESM::Position& where)
+    {
+        const NeutralSaveCellKey from = neutralSaveKey(before);
+        const NeutralSaveCellKey to = neutralSaveKey(after);
+        if (from.mKind == NeutralSaveCellKey::Kind::None || to.mKind == NeutralSaveCellKey::Kind::None)
+            return false;
+        return mNeutralRelocations.note(gameId, static_cast<std::uint32_t>(placement), from, to, where.pos, where.rot);
     }
 }

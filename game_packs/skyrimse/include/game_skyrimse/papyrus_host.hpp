@@ -232,6 +232,9 @@ namespace game_skyrimse
         bool hasAngles = false;
         double angles[3] = {};
         bool toOriginal = false;
+        /// Task 0286: where the reference stands now or last stood (a persistent reference's cell id does not say).
+        bool hasFrom = false;
+        double from[3] = {};
     };
 
     /// Task 0202: a script asked for a new object (PlaceAtMe). `nearCell` is the pack's cell id when the near reference
@@ -291,6 +294,16 @@ namespace game_skyrimse
         {
             (void)reference, (void)base, (void)request, (void)destinationCell;
             return {};
+        }
+        /// Task 0286: a script moved `reference` to `request` (a place that stands in `destinationCell`, the pack's id
+        /// of the cell of the MoveTo's target). The world moves the thing itself into that cell, loaded or not, and
+        /// it keeps its identity (its reference id, so its inventory, package and quest aliases follow it). True when
+        /// the world took the move; false (the default) leaves the host to its older ways (a move inside the cell, or
+        /// the relocation of task 0268). Main thread.
+        virtual bool moveToCell(FormId reference, FormId destinationCell, const ObjectMoveRequest& request)
+        {
+            (void)reference, (void)destinationCell, (void)request;
+            return false;
         }
         /// Task 0274 (the cart ride): `cart.TetherToHorse(horse)`; the cart stands at `position` (game units) turned by
         /// `heading` (radians, NaN when no script gave one). False when nothing follows the horse (the default).
@@ -581,6 +594,10 @@ namespace game_skyrimse
         /// Task 0268: a MoveTo near the player that the world cannot do in place (actors, objects of other cells) makes
         /// a new reference there (PapyrusWorldHooks::relocateObject); the quest's aliases follow it. Off by default.
         void setRelocation(bool on, double maxPlayerDistance);
+
+        /// Task 0286: MoveTo asks PapyrusWorldHooks::moveToCell first (any distance from the player, any cell); the
+        /// relocation above is the fallback when the hook refuses. Off by default.
+        void setCellMoves(bool on);
         /// Task 0261: the live value of a number or bool variable of a script attached to `form` (by the name the
         /// condition's CIS2 string gives); nullopt when no instance of it has one.
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;

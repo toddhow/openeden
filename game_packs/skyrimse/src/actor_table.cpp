@@ -103,6 +103,8 @@ namespace game_skyrimse
         mBrain = std::make_unique<PackageBrain>(source, options);
         mBrain->setFurnitureSource(furniture);
         mBrain->setCarryTravellers(mCarryTravellers); // task 0277: asked before or after the brain is made
+        if (mTravelMoveHook)
+            mBrain->setTravelMoveHook(mTravelMoveHook); // task 0286
     }
 
     bool SkyrimActorTable::brainPlace(openeden::sdk::game::WorldId reference, double& x, double& y, double& z) const
@@ -116,6 +118,13 @@ namespace game_skyrimse
         y = view->mY;
         z = view->mZ;
         return true;
+    }
+
+    void SkyrimActorTable::setTravelMoveHook(PackageBrain::TravelMoveHook hook)
+    {
+        mTravelMoveHook = hook;
+        if (mBrain)
+            mBrain->setTravelMoveHook(std::move(hook));
     }
 
     void SkyrimActorTable::setCarryTravellers(bool on)

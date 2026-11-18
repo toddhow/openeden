@@ -75,6 +75,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralresource.cpp
     mwworld/testneutralsave.cpp
     mwworld/testneutralcorpseposes.cpp
+    mwworld/testneutralrelocations.cpp
+    mwworld/testneutralrelocationworld.cpp
     mwworld/testneutralsavecreated.cpp
     mwworld/testneutralfade.cpp
     mwworld/testneutralcreatedcell.cpp

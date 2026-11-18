@@ -14,7 +14,9 @@
 //   magic "NWSV", u32 version, cell key of the player, u32 cell count, cells, u32 unlocked count, entries,
 //   u32 key count, entries, and in version 2 (task 0202) u32 next created index; in version 3 (task 0263) after it
 //   u32 pose count, poses: string game id, u32 placement, u8 bone count, bones: string name, 3 f32 position, 4 f32
-//   rotation
+//   rotation; in version 4 (task 0286) the pose count is always there (it may be 0) and after the poses u32 moved
+//   count (at least 1), moved placements: string game id, u32 placement, origin cell key, destination cell key, 3 f32
+//   position, 3 f32 rotation
 // cell key: u8 kind; for a kind other than None: string game id, then Interior: u32 cell; Exterior: u32 world, i32 x,
 //   i32 y. string: u16 length, bytes.
 // cell: key, u32 object count, objects. object: u32 placement, u8 flags, then Moved: 6 floats (position, rotation),
@@ -31,6 +33,24 @@ namespace MWWorld
         constexpr std::uint8_t kKnownFlagsV2 = kKnownFlags | NeutralSaveCreated;
         constexpr std::uint8_t kMaxObjectKind = static_cast<std::uint8_t>(openeden::sdk::game::ObjectKind::Other);
         constexpr std::uint32_t kCreatedBase = static_cast<std::uint32_t>(openeden::sdk::game::kCreatedObjectBase);
+
+        /// Why a moved-placement entry (version 4) cannot be written or read; empty when it is fine.
+        std::string relocationProblem(const NeutralRelocation& moved)
+        {
+            if (moved.mGameId.empty() || moved.mGameId.size() > kNeutralSaveMaxString)
+                return "a moved placement has no game id or a too long one";
+            if (moved.mOrigin.mKind == NeutralSaveCellKey::Kind::None
+                || moved.mDestination.mKind == NeutralSaveCellKey::Kind::None)
+                return "a moved placement has no cell";
+            if (moved.mOrigin.mGameId != moved.mGameId || moved.mDestination.mGameId != moved.mGameId)
+                return "a moved placement names a cell of another game";
+            if (moved.mOrigin == moved.mDestination)
+                return "a moved placement stands in the cell it belongs to";
+            for (int i = 0; i < 3; ++i)
+                if (!std::isfinite(moved.mPos[i]) || !std::isfinite(moved.mRot[i]))
+                    return "a moved placement has a position that is not finite";
+            return {};
+        }
 
         /// Why a created entry cannot be written or read; empty when it is fine. The counter is the state's.
         std::string createdProblem(const NeutralSavedObject& o, std::uint32_t nextIndex)
@@ -280,6 +300,15 @@ namespace MWWorld
                                          return a.mGameId == b.mGameId && a.mPlacement == b.mPlacement;
                                      }),
             state.mCorpsePoses.end());
+        std::stable_sort(state.mRelocations.begin(), state.mRelocations.end(),
+            [](const NeutralRelocation& a, const NeutralRelocation& b) {
+                return std::tie(a.mGameId, a.mPlacement) < std::tie(b.mGameId, b.mPlacement);
+            });
+        state.mRelocations.erase(std::unique(state.mRelocations.begin(), state.mRelocations.end(),
+                                     [](const NeutralRelocation& a, const NeutralRelocation& b) {
+                                         return a.mGameId == b.mGameId && a.mPlacement == b.mPlacement;
+                                     }),
+            state.mRelocations.end());
         for (auto* entries : { &state.mUnlocked, &state.mKeys })
         {
             std::sort(entries->begin(), entries->end());
@@ -315,11 +344,19 @@ namespace MWWorld
                     throw std::invalid_argument(
                         "a neutral save cannot be written: a corpse pose bone has an empty or too long name");
         }
-        const bool version2 = created != 0 || state.mNextCreatedIndex != 0 || poses;
+        if (state.mRelocations.size() > kNeutralSaveMaxRelocations)
+            throw std::length_error("a neutral save holds too many moved placements");
+        for (const NeutralRelocation& moved : state.mRelocations)
+            if (const std::string problem = relocationProblem(moved); !problem.empty())
+                throw std::invalid_argument("a neutral save cannot be written: " + problem);
+        const bool relocations = !state.mRelocations.empty();
+        const bool version2 = created != 0 || state.mNextCreatedIndex != 0 || poses || relocations;
         Writer w;
         for (char c : kMagic)
             w.u8(static_cast<std::uint8_t>(c));
-        w.u32(poses ? kNeutralSaveVersionPoses : version2 ? kNeutralSaveVersionCreated : kNeutralSaveVersion);
+        w.u32(relocations ? kNeutralSaveVersionRelocations
+                          : poses ? kNeutralSaveVersionPoses
+                                  : version2 ? kNeutralSaveVersionCreated : kNeutralSaveVersion);
         w.key(state.mPlayerCell);
         w.count(state.mCells.size(), kNeutralSaveMaxCells, "cells");
         for (const NeutralSavedCell& cell : state.mCells)
@@ -361,7 +398,7 @@ namespace MWWorld
         writeEntries(w, state.mKeys, "keys");
         if (version2)
             w.u32(state.mNextCreatedIndex);
-        if (poses)
+        if (poses || relocations)
         {
             w.u32(static_cast<std::uint32_t>(state.mCorpsePoses.size()));
             for (const NeutralCorpsePose& pose : state.mCorpsePoses)
@@ -379,6 +416,21 @@ namespace MWWorld
                 }
             }
         }
+        if (relocations)
+        {
+            w.u32(static_cast<std::uint32_t>(state.mRelocations.size()));
+            for (const NeutralRelocation& moved : state.mRelocations)
+            {
+                w.string(moved.mGameId);
+                w.u32(moved.mPlacement);
+                w.key(moved.mOrigin);
+                w.key(moved.mDestination);
+                for (float f : moved.mPos)
+                    w.f32(f);
+                for (float f : moved.mRot)
+                    w.f32(f);
+            }
+        }
         if (w.mBytes.size() > kNeutralSaveMaxBytes)
             throw std::length_error("a neutral save is larger than " + std::to_string(kNeutralSaveMaxBytes) + " bytes");
         return std::move(w.mBytes);
@@ -389,9 +441,12 @@ namespace MWWorld
         out = {};
         error.clear();
         Reader r(bytes);
+        std::uint32_t version = 0;
         const auto fail = [&]() {
             out = {};
             error = r.mError.empty() ? "malformed neutral save" : r.mError;
+            if (version == kNeutralSaveVersionRelocations)
+                error = "neutral save version " + std::to_string(version) + ": " + error;
             return false;
         };
         if (bytes.size() > kNeutralSaveMaxBytes)
@@ -411,17 +466,17 @@ namespace MWWorld
                 return fail();
             }
         }
-        std::uint32_t version = 0;
         if (!r.u32(version))
             return fail();
         if (version != kNeutralSaveVersion && version != kNeutralSaveVersionCreated
-            && version != kNeutralSaveVersionPoses)
+            && version != kNeutralSaveVersionPoses && version != kNeutralSaveVersionRelocations)
         {
             r.fail("the neutral save has version " + std::to_string(version) + ", this build reads versions "
-                + std::to_string(kNeutralSaveVersion) + " to " + std::to_string(kNeutralSaveVersionPoses));
+                + std::to_string(kNeutralSaveVersion) + " to " + std::to_string(kNeutralSaveVersionRelocations));
             return fail();
         }
-        const bool version3 = version == kNeutralSaveVersionPoses;
+        const bool version4 = version == kNeutralSaveVersionRelocations;
+        const bool version3 = version == kNeutralSaveVersionPoses || version4;
         const bool version2 = version == kNeutralSaveVersionCreated || version3;
         std::size_t createdCount = 0;
         if (!r.key(state.mPlayerCell, true))
@@ -533,7 +588,7 @@ namespace MWWorld
             std::size_t poses = 0;
             if (!r.count(poses, kNeutralSaveMaxPoses, 11, "corpse poses"))
                 return fail();
-            if (poses == 0)
+            if (poses == 0 && !version4)
             {
                 r.fail("a version 3 save with no corpse pose is not canonical");
                 return fail();
@@ -577,6 +632,44 @@ namespace MWWorld
                     pose.mBones.push_back(std::move(bone));
                 }
                 state.mCorpsePoses.push_back(std::move(pose));
+            }
+        }
+        if (version4)
+        {
+            std::size_t moves = 0;
+            if (!r.count(moves, kNeutralSaveMaxRelocations, 40, "moved placements"))
+                return fail();
+            if (moves == 0)
+            {
+                r.fail("a version 4 save with no moved placement is not canonical");
+                return fail();
+            }
+            state.mRelocations.reserve(moves);
+            for (std::size_t i = 0; i < moves; ++i)
+            {
+                NeutralRelocation moved;
+                if (!r.string(moved.mGameId) || !r.u32(moved.mPlacement) || !r.key(moved.mOrigin, false)
+                    || !r.key(moved.mDestination, false))
+                    return fail();
+                for (float& f : moved.mPos)
+                    if (!r.f32(f))
+                        return fail();
+                for (float& f : moved.mRot)
+                    if (!r.f32(f))
+                        return fail();
+                if (const std::string problem = relocationProblem(moved); !problem.empty())
+                {
+                    r.fail(problem);
+                    return fail();
+                }
+                if (!state.mRelocations.empty()
+                    && !(std::tie(state.mRelocations.back().mGameId, state.mRelocations.back().mPlacement)
+                        < std::tie(moved.mGameId, moved.mPlacement)))
+                {
+                    r.fail("the moved placements are not in order");
+                    return fail();
+                }
+                state.mRelocations.push_back(std::move(moved));
             }
         }
         if (!r.atEnd())

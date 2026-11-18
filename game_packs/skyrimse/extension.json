@@ -679,6 +679,11 @@
       "key": "scene park seconds",
       "type": "float",
       "default": 0.0
+    },
+    {
+      "key": "actor cell moves",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

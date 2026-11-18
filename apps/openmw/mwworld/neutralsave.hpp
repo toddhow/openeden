@@ -144,6 +144,27 @@ namespace MWWorld
         friend bool operator==(const NeutralCorpsePose&, const NeutralCorpsePose&) = default;
     };
 
+    /// Task 0286 (version 4): a placement a game pack moved into ANOTHER cell on purpose (a script's MoveTo, a scene's
+    /// travel): it keeps its identity, and the cell it belongs to is no longer the cell the pack's record puts it in.
+    /// `mOrigin` is the cell of the pack's record, `mDestination` the cell it stands in, `mPos` and `mRot` where. An
+    /// actor's position is otherwise the actor system's and is not saved; this entry is what puts it back.
+    struct NeutralRelocation
+    {
+        std::string mGameId;
+        std::uint32_t mPlacement = 0;
+        NeutralSaveCellKey mOrigin;
+        NeutralSaveCellKey mDestination;
+        float mPos[3] = {};
+        float mRot[3] = {};
+
+        friend bool operator==(const NeutralRelocation&, const NeutralRelocation&) = default;
+    };
+
+    /// Version 4 (task 0286) adds the relocations after the poses (their count may be 0 there). Written ONLY when the
+    /// state holds a relocation, so every other save keeps its version 1, 2 or 3 bytes; all four are read.
+    inline constexpr std::uint32_t kNeutralSaveVersionRelocations = 4;
+    inline constexpr std::size_t kNeutralSaveMaxRelocations = 4096;
+
     struct NeutralSaveState
     {
         NeutralSaveCellKey mPlayerCell;
@@ -157,6 +178,8 @@ namespace MWWorld
         std::uint32_t mNextCreatedIndex = 0;
         /// Version 3 (task 0263): poses of settled corpses, sorted by (game id, placement), no duplicates.
         std::vector<NeutralCorpsePose> mCorpsePoses;
+        /// Version 4 (task 0286): placements moved into another cell, sorted by (game id, placement), no duplicates.
+        std::vector<NeutralRelocation> mRelocations;
 
         friend bool operator==(const NeutralSaveState&, const NeutralSaveState&) = default;
     };

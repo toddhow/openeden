@@ -271,6 +271,7 @@ namespace game_skyrimse
             std::uint64_t mFollowerNoPlayer = 0; ///< a repath skipped because the core gave no player position
             std::uint64_t mFollowerWaits = 0; ///< setFollowerWaiting(true) calls that changed something
             // Task 0277
+            std::uint64_t mTravelMoves = 0; ///< task 0286: scene Travel walks done by moving the actor into the cell
             std::uint64_t mTravelSnaps = 0; ///< scene Travel walks that failed and ended with the actor placed there
         };
 
@@ -378,6 +379,13 @@ namespace game_skyrimse
         /// player uses, until the target is reachable; a walk that fails ends with the actor placed there. Off by
         /// default; the pack turns it on with `[extension.skyrimse] companions`.
         void setCarryTravellers(bool on) { mCarryTravellers = on; }
+
+        /// Task 0286: a scene's Travel package whose target stands in another cell (see targetIsElsewhere) asks this
+        /// first. `actor` is the placement, `target` the reference it travels to. When the hook accepts (the world
+        /// moves the actor to the target, into its cell, keeping its identity), the package is done and the actor is
+        /// not carried through the player's doors. When it refuses, or none is set, the carry of task 0277 applies.
+        using TravelMoveHook = std::function<bool(openeden::sdk::game::WorldId actor, FormId target)>;
+        void setTravelMoveHook(TravelMoveHook hook) { mTravelMoveHook = std::move(hook); }
         [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& travellerRefs() const { return mTravellerRefs; }
 
         /// Task 0271: told when an actor's chosen package is a ForceGreet one (`reference` is the placement, `topic`
@@ -514,6 +522,12 @@ namespace game_skyrimse
         /// task 0277: scenes' packages by placement, so a door does not lose them
         std::map<openeden::sdk::game::WorldId, const PackageRecord*> mForcedRefs;
         bool mCarryTravellers = false;
+        TravelMoveHook mTravelMoveHook; // task 0286
+        /// A scene's package is remembered by placement and an unreachable target is looked for.
+        [[nodiscard]] bool tracksScenePackages() const
+        {
+            return mCarryTravellers || static_cast<bool>(mTravelMoveHook);
+        }
         std::uint32_t mPackagesRevision = 0; ///< task 0277: what mSource.packagesRevision() said last
         std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it
         std::vector<FurnitureSlot> mScratch;

@@ -41,6 +41,18 @@ namespace openeden::sdk::game
         Quatd rotation;
         /// Put the object back where the pack's record (or its creation) placed it; position and rotation are ignored.
         bool toOriginal = false;
+        /// Task 0286 (additive, at the end of the struct; the service's version number is not changed). When set, the
+        /// object is moved INTO another cell: `cell` is the pack's id of the destination (kNoWorldId or a cell without
+        /// a grid: the exterior square that holds `position` in the world of the cell it leaves), `position` is
+        /// required. The object keeps its identity (its placement id), and so its inventory, its package and the
+        /// aliases that name it; the destination cell may be loaded or not (the engine builds it, resident, not
+        /// active). `hasFrom` / `from`: where the object stands now or last stood, for a pack whose cell id for the
+        /// object does not say (a persistent reference of a world stands in the grid square its position is in).
+        /// Refused for an actor in a host built before this field (the move then stays a move inside the cell).
+        bool hasCell = false;
+        WorldId cell = kNoWorldId;
+        bool hasFrom = false;
+        Vec3d from;
     };
 
     /// One content file of the session (a `content=` line of the engine's configuration): the plugin a game pack

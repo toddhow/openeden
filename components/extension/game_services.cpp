@@ -197,7 +197,14 @@ namespace openeden::extension
                 return false;
             if (move.hasRotation && !usableRotation(move.rotation))
                 return false;
+            // Task 0286: a move into another cell needs the place it goes to
+            if (move.hasCell && !move.hasPosition)
+                return false;
+            if (move.hasFrom && !finiteVec(move.from))
+                return false;
         }
+        else if (move.hasCell)
+            return false;
         if (mObjectOps.size() >= kMaxPendingObjectChanges)
         {
             ++mDroppedObjectChanges;

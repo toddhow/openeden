@@ -337,6 +337,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_actor_rules_frozen.cpp
     extension/test_object_enable_queue.cpp
     extension/test_object_ops_queue.cpp
+    extension/test_object_move_cell.cpp
     extension/test_place_actor.cpp
     extension/test_session_content.cpp
     extension/test_crafting_contract.cpp
@@ -663,6 +664,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseforcegreetall.cpp
     skyrimse/testskyrimsecrimereplacementguard.cpp
     skyrimse/testskyrimsecompanions2.cpp
+    skyrimse/testskyrimsetravelmove.cpp
+    skyrimse/testskyrimsecellmoves.cpp
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsehouses2.cpp
     skyrimse/testskyrimsemarriage.cpp

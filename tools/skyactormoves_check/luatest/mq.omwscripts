@@ -1,0 +1,2 @@
+GLOBAL: scripts/mq/global.lua
+MENU: scripts/mq/menu.lua

@@ -66,6 +66,12 @@ namespace game_skyrimse
     /// asks for its conversation with the player.
     inline constexpr std::string_view kQuestAliasPackagesKey = "quest alias packages";
 
+    /// Task 0286: `[extension.skyrimse] actor cell moves` (needs `papyrus`; `neutral world`, `neutral actors`): a script's
+    /// MoveTo and a scene's Travel to another cell move the actor (or object) into that cell through the world, as the
+    /// same placement, instead of making a new reference near the player or carrying the actor through the player's
+    /// doors. Saved in the neutral world save (NWLD version 4).
+    inline constexpr std::string_view kActorCellMovesKey = "actor cell moves";
+
     /// PTDA target types (stage S6f; names RECALLED-VERIFY from xEdit, the data's counts fit: Patrol targets are 296
     /// type 0 and 101 type 3, Follow 95 type 0 and 60 type 4, Escort 59 type 0).
     namespace PackageTargetType
