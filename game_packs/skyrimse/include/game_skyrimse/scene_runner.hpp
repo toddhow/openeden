@@ -168,6 +168,15 @@ namespace game_skyrimse
                 return kDefaultParkSeconds;
             return seconds < kMinParkSeconds ? kMinParkSeconds : (seconds > kMaxParkSeconds ? kMaxParkSeconds : seconds);
         }
+        /// Task 0316 (toddhow, 2026-11-18): the park time to use. A set value (above 0) wins; otherwise 5 s (ours, task
+        /// 0287) with `quest alias packages` on, else 0 (the runner keeps its own 120 s).
+        static constexpr float kQuestAliasParkSeconds = 5.f;
+        [[nodiscard]] static float parkSecondsFor(float setting, bool questAliasPackages)
+        {
+            if (setting > 0.f)
+                return setting;
+            return questAliasPackages ? kQuestAliasParkSeconds : 0.f;
+        }
         void setParkSeconds(float seconds) { mOptions.mParkSeconds = clampParkSeconds(seconds); }
         SceneRunner(const SceneRunner&) = delete;
         SceneRunner& operator=(const SceneRunner&) = delete;

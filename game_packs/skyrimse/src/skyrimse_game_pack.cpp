@@ -2167,7 +2167,9 @@ namespace game_skyrimse
                                 return driver->host().globalSetByScript(global, value);
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
-                            mPapyrus->setSceneParkSeconds(settings->getFloat(kPackId, "scene park seconds", 0.f)); // 0287
+                            mPapyrus->setSceneParkSeconds(SceneRunner::parkSecondsFor( // tasks 0287, 0316
+                                settings->getFloat(kPackId, "scene park seconds", 0.f),
+                                settings->getBool(kPackId, kQuestAliasPackagesKey, false)));
                             if (settings->getBool(kPackId, kActorCellMovesKey, false)) // task 0286
                             {
                                 mPapyrus->host().setCellMoves(true);

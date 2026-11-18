@@ -692,6 +692,16 @@ namespace
         EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(120.f), 120.f);
     }
 
+    // Task 0316: with `quest alias packages` the park time defaults to 5 s; a set value wins; else the old default.
+    TEST(SceneRunnerPark, questAliasPackagesDefaultToFiveSecondsAndASetValueWins)
+    {
+        EXPECT_FLOAT_EQ(SceneRunner::parkSecondsFor(0.f, true), 5.f);
+        EXPECT_FLOAT_EQ(SceneRunner::parkSecondsFor(0.f, false), 0.f);
+        EXPECT_FLOAT_EQ(SceneRunner::parkSecondsFor(30.f, true), 30.f);
+        EXPECT_FLOAT_EQ(SceneRunner::parkSecondsFor(30.f, false), 30.f);
+        EXPECT_FLOAT_EQ(SceneRunner::parkSecondsFor(-1.f, true), 5.f);
+    }
+
     TEST(SceneRunnerPark, aBadNumberIsCutToTheRange)
     {
         EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(0.f), SceneRunner::kMinParkSeconds);
