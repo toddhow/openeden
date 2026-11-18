@@ -732,7 +732,7 @@ namespace
         }
     }
 
-    TEST_F(CarriageNativesTest, theCartSeatCountsAsTakenAndNobodyIsInAFactionOrAFightEvenThoughIsInCombatStaysTolerant)
+    TEST_F(CarriageNativesTest, theCartSeatCountsAsTakenAndNobodyIsInAFactionOrInCombat)
     {
         ASSERT_TRUE(call("Sit"));
         EXPECT_EQ(number("sitting"), 1.0);

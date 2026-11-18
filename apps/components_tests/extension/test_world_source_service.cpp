@@ -124,7 +124,7 @@ namespace
         EXPECT_EQ(worldView(base), &host.mViewMarker);
     }
 
-    TEST(WorldSourceService, theVersionIsOneZero)
+    TEST(WorldSourceService, theVersionIsOneThree)
     {
         EXPECT_EQ(kWorldSourceServiceVersion.major, 1);
         EXPECT_EQ(kWorldSourceServiceVersion.minor, 3);
