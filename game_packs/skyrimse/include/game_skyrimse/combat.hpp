@@ -333,6 +333,17 @@ namespace game_skyrimse
             (void)ammo;
             return nullptr;
         }
+        /// Task 0299: a WEAP and an AMMO by form id (a script's Weapon.Fire names its weapon and ammunition so).
+        virtual const WeaponRecord* weaponById(FormId id)
+        {
+            (void)id;
+            return nullptr;
+        }
+        virtual const AmmoRecord* ammoById(FormId id)
+        {
+            (void)id;
+            return nullptr;
+        }
         virtual ProjectileSettings projectileSettings() { return {}; }
         /// Task 0186: the SPEL with this editor id (case-insensitive), or null; a SPEL and an MGEF by form id (default:
         /// the perk library's); a PROJ by form id; the ward and magicka regeneration numbers.
@@ -502,6 +513,22 @@ namespace game_skyrimse
     };
 
     /// CombatRules: the clip slots, the melee hit and damage, and the test rules.
+    /// Task 0299: the direction a placed object faces as the engine's heading and pitch (heading 0 faces +Y, pitch
+    /// positive up), from the stored Euler angles of its placement (radians; R = Rx * Ry * Rz with every angle
+    /// negated, as eulerToQuat does: a positive stored X angle tilts the object's +Y axis DOWN, RECALLED-VERIFY by the
+    /// dart ports' frames). The model's forward axis is +Y.
+    struct TrapAim
+    {
+        float heading = 0.f;
+        float pitch = 0.f;
+    };
+    [[nodiscard]] TrapAim trapAimOf(double rx, double ry, double rz);
+    /// Task 0299: where a trap's dart leaves: the source's place moved `kTrapMuzzleForward` along the facing. The dart
+    /// port's NIF (`meshes/traps/trapdartportsingle01.nif`) has a ProjectileNode at (0, 16, 0) with no rotation, read
+    /// from its node block; a dart that starts at the origin hits the port's own collision at once (seen in game).
+    inline constexpr double kTrapMuzzleForward = 16.0;
+    void trapMuzzle(const double (&from)[3], const TrapAim& aim, double (&out)[3]);
+
     class SkyrimCombat final : public openeden::sdk::game::CombatRules
     {
     public:
@@ -888,6 +915,21 @@ namespace game_skyrimse
         void crimeHold(openeden::sdk::game::ActorHandle handle);
         void crimeRelease(openeden::sdk::game::ActorHandle handle);
         void crimeAttack(openeden::sdk::game::ActorHandle handle);
+        /// Task 0299 (dungeon traps): a script's Weapon.Fire(source, ammo). The shot flies from `x y z` along
+        /// `heading` and `pitch` (the engine's: heading 0 faces +Y), belongs to nobody and hurts the first actor or
+        /// the player it meets by the weapon's and the ammunition's own damage after the victim's armour (no skill, no
+        /// draw: a trap has neither). False when the weapon or ammunition is unknown, has no projectile, or the core
+        /// refuses the shot. `trapShotsInFlight` counts the shots whose end has not come.
+        struct TrapShot
+        {
+            FormId mWeapon = 0;
+            FormId mAmmo = 0;
+            double x = 0.0, y = 0.0, z = 0.0;
+            float heading = 0.f;
+            float pitch = 0.f;
+        };
+        bool fireTrapShot(openeden::sdk::game::CombatRequestWriter& writer, const TrapShot& shot);
+        [[nodiscard]] std::size_t trapShotsInFlight() const { return mTrapShots.size(); }
         /// Task 0264 (companions): what the game's own scripts ask of the combat. `scriptStartCombat` makes the actor
         /// fight the player (Actor.StartCombat), `scriptStopCombat` ends its fight (Actor.StopCombat) and
         /// `scriptResetHealth` heals it to the maximum (ResetHealthAndLimbs) and ends a bleedout.
@@ -1518,6 +1560,18 @@ namespace game_skyrimse
         std::vector<PendingHit> mPendingHits; ///< Hit events seen since the last combatUpdate
         std::vector<PendingBow> mPendingBow; ///< task 0178
         std::vector<Shot> mShots; ///< task 0178
+        /// Task 0299: a trap's dart in flight: the token and what flies (the damage is worked out when it lands).
+        struct TrapFlight
+        {
+            std::uint32_t mToken = 0;
+            FormId mWeapon = 0;
+            FormId mAmmo = 0;
+        };
+        std::vector<TrapFlight> mTrapShots;
+        [[nodiscard]] bool resolveTrapShot(
+            openeden::sdk::game::CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result);
+        void applyTrapDamage(openeden::sdk::game::CombatRequestWriter& writer, Fighter& victim, float damage, double x,
+            double y, double z);
         std::vector<openeden::sdk::game::ProjectileResult> mProjectileResults; ///< told, resolved in combatUpdate
         SlotTable mBowSlots;
         SlotTable mMagicSlots;

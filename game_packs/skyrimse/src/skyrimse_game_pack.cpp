@@ -154,6 +154,10 @@ namespace game_skyrimse
                 z = entry->mZ;
                 return true;
             }
+            bool referenceRotation(FormId reference, double (&xyz)[3]) const override
+            {
+                return mView.referenceRotation(reference, xyz);
+            }
             FormId baseOf(FormId reference) const override
             {
                 const PlacedRefIndex* refs = mView.placedRefs();
@@ -2437,6 +2441,33 @@ namespace game_skyrimse
                     return subject.valid() && mCellSource.combat().fighterView(subject, view) && view.mDead;
                 };
                 env.queueKill = [this](FormId actor) { return mCellSource.scriptBridge().queueKill(actor); };
+                // Task 0299: a trap's Weapon.Fire goes to the combat rules at the next update
+                mCellSource.scriptBridge().setShotSink(
+                    [this](const ScriptCombatBridge::QueuedShot& shot, openeden::sdk::game::CombatRequestWriter& writer) {
+                        SkyrimCombat::TrapShot trap;
+                        trap.mWeapon = shot.mWeapon;
+                        trap.mAmmo = shot.mAmmo;
+                        trap.x = shot.x;
+                        trap.y = shot.y;
+                        trap.z = shot.z;
+                        trap.heading = shot.heading;
+                        trap.pitch = shot.pitch;
+                        (void)mCellSource.combat().fireTrapShot(writer, trap);
+                    });
+                env.fireWeapon = [this](const PapyrusWorldHooks::WeaponFireRequest& request) {
+                    const TrapAim aim = trapAimOf(request.mAngles[0], request.mAngles[1], request.mAngles[2]);
+                    ScriptCombatBridge::QueuedShot shot;
+                    shot.mWeapon = request.mWeapon;
+                    shot.mAmmo = request.mAmmo;
+                    double muzzle[3];
+                    trapMuzzle(request.mPosition, aim, muzzle);
+                    shot.x = muzzle[0];
+                    shot.y = muzzle[1];
+                    shot.z = muzzle[2];
+                    shot.heading = aim.heading;
+                    shot.pitch = aim.pitch;
+                    return mCellSource.scriptBridge().queueShot(shot);
+                };
                 // Task 0264: the Companions' training fight asks the combat AI for a fight and a stop
                 const auto handleOfActor = [this](FormId actor) { return mCellSource.actorTable().handleOf(actor); };
                 env.startCombat = [this, handleOfActor](FormId actor) {
@@ -2931,6 +2962,7 @@ namespace game_skyrimse
                     mInventory->model().setChangeSink({});
                 mCellSource.scriptBridge().setSinks({}, {}, {});
                 mCellSource.combat().setSpellEventSink({}); // task 0292
+                mCellSource.scriptBridge().setShotSink({});
                 if (mProgression != nullptr)
                     mProgression->setSkillUseScale({});
                 mCellSource.setFeedHook({}); // task 0260

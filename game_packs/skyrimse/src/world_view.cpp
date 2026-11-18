@@ -21,6 +21,7 @@
 #include <components/script_papyrus/pexfile.hpp>
 
 #include <algorithm>
+#include <unordered_set>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
@@ -488,6 +489,16 @@ namespace game_skyrimse
     const ProjectileRecord* SkyrimWorldView::projectileById(FormId id)
     {
         return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->projectile(id);
+    }
+
+    const WeaponRecord* SkyrimWorldView::weaponById(FormId id)
+    {
+        return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->weapon(id);
+    }
+
+    const AmmoRecord* SkyrimWorldView::ammoById(FormId id)
+    {
+        return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->ammo(id);
     }
 
     const ExplosionRecord* SkyrimWorldView::explosionById(FormId id)
@@ -1851,6 +1862,16 @@ namespace game_skyrimse
             mPackageTraceLog(line);
         }
         return false;
+    }
+
+    bool SkyrimWorldView::referenceRotation(FormId reference, double (&xyz)[3]) const
+    {
+        const auto it = mRefRotations.find(reference);
+        if (it == mRefRotations.end())
+            return false;
+        for (int i = 0; i < 3; ++i)
+            xyz[i] = static_cast<double>(it->second[static_cast<std::size_t>(i)]);
+        return true;
     }
 
     float SkyrimWorldView::patrolIdle(FormId reference) const
@@ -3765,8 +3786,17 @@ namespace game_skyrimse
             }
         }
 
+        // Task 0299: the facing of a scripted placement and of every link target (a trap's ports are a chain of
+        // plain references whose last link has no script of its own)
+        std::unordered_set<FormId> linkTargets;
+        for (const auto& [id, ref] : merged)
+            for (const RefLink& link : ref.mLinks)
+                linkTargets.insert(link.mRef);
         for (const auto& [id, ref] : merged)
         {
+            if ((!ref.mScripts.empty() || linkTargets.count(id) != 0) && ref.mHasTransform
+                && mRefRotations.size() < 1024u * 1024u)
+                mRefRotations[id] = { ref.mRotation.x, ref.mRotation.y, ref.mRotation.z };
             if ((!ref.mLinks.empty() || ref.mPatrolIdle >= 0.f) && mRefLinks.size() < 1024u * 1024u)
             {
                 if (!ref.mLinks.empty())
@@ -4159,9 +4189,14 @@ namespace game_skyrimse
         if (mCells.find(form) != mCells.end())
             return "Cell"; // task 0261: HousePurchaseScript's `cell` properties
         const auto it = mBases.find(form);
+        if (it != mBases.end() && it->second.mTable == BaseTable::Item
+            && mPlugins[it->second.mPlugin].mParsed.mItems[it->second.mIndex].mKind == ItemKind::Weapon)
+            return "Weapon"; // task 0299: DartTrap's Weapon.Fire
         if (it == mBases.end() || it->second.mTable != BaseTable::Model)
             return {};
         const std::uint32_t type = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex].mType;
+        if (type == Content::fourCC("AMMO"))
+            return "Ammo"; // task 0299
         if (type == Content::fourCC("SPEL"))
             return "Spell";
         if (type == Content::fourCC("KYWD"))

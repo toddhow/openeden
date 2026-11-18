@@ -542,7 +542,7 @@ namespace MWPhysics
         // Projectiles that ended in an earlier frame: told now, after the sweeps and before the events.
         for (const openeden::sdk::game::ProjectileResult& result : mProjectileResults)
         {
-            if (!result.owner.player && mActors.keyOfHandle(result.owner.actor) == nullptr)
+            if (result.owner.valid() && !result.owner.player && mActors.keyOfHandle(result.owner.actor) == nullptr)
             {
                 ++mStats.mProjectileResultsDropped;
                 continue;
@@ -767,12 +767,16 @@ namespace MWPhysics
         const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z) && std::isfinite(r.heading)
             && std::isfinite(r.pitch) && std::isfinite(r.speed) && std::isfinite(r.gravity) && std::isfinite(r.range)
             && std::isfinite(r.stickDepth) && std::isfinite(r.stickSeconds);
-        if (mSink == nullptr || !owner.valid() || !finite || !(r.speed > 0.f && r.speed <= kMaxProjectileSpeed)
+        // Task 0299: a trap's shot has no owner (ownerless with an invalid owner); the flag with a real owner is a
+        // mistake and an invalid owner without the flag is refused as before.
+        const bool ownerOk = r.ownerless ? !owner.valid() : owner.valid();
+        if (mSink == nullptr || !ownerOk || !finite || !(r.speed > 0.f && r.speed <= kMaxProjectileSpeed)
             || !(r.gravity >= 0.f && r.gravity <= kMaxProjectileGravity)
             || !(r.range > 0.f && r.range <= kMaxProjectileRange) || !(std::abs(r.pitch) < kHalfPi)
             || !(r.stickDepth >= 0.f && r.stickDepth <= kMaxStickDepth)
             || !(r.stickSeconds >= 0.f && r.stickSeconds <= kMaxStickSeconds) || !validModelPath(r.model)
-            || (!owner.player && b.mActors.keyOfHandle(owner.actor) == nullptr) || b.mShots.size() >= kMaxProjectiles)
+            || (owner.valid() && !owner.player && b.mActors.keyOfHandle(owner.actor) == nullptr)
+            || b.mShots.size() >= kMaxProjectiles)
         {
             ++b.mStats.mProjectilesRefused;
             return false;

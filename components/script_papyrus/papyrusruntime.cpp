@@ -947,6 +947,18 @@ namespace ScriptPapyrus
             instance.script = scriptIndex;
             instance.stateName = script.mAutoStateName;
             instance.stateId = script.mAutoStateId;
+            // Task 0299: a script that names no auto state starts in the nearest ancestor's (the game's DartTrap
+            // extends TrapBase, whose `auto State Idle` holds OnActivate); the chain lists the child first.
+            for (const std::uint32_t owner : script.mChain)
+            {
+                const Script& chainScript = mScripts[owner];
+                if (!textOf(Val::makeString(chainScript.mAutoStateName)).empty())
+                {
+                    instance.stateName = chainScript.mAutoStateName;
+                    instance.stateId = chainScript.mAutoStateId;
+                    break;
+                }
+            }
             // Sized from every script of the chain, not from the first's own count alone, so that the writes below
             // can never leave the vector.
             std::size_t slots = script.totalVars();

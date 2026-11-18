@@ -132,6 +132,7 @@ openeden_add_game_pack(skyrimse
         src/killmove.cpp
         src/werewolf_service.cpp
         src/combat_dragon.cpp
+        src/combat_traps.cpp
         src/combat_ai.cpp
         src/combat_ai_run.cpp
         src/combat_factions.cpp
@@ -360,6 +361,7 @@ add_library(game_skyrimse_world STATIC
     src/killmove.cpp
     src/werewolf_service.cpp
     src/combat_dragon.cpp
+    src/combat_traps.cpp
     src/combat_ai.cpp
     src/combat_ai_run.cpp
     src/combat_factions.cpp

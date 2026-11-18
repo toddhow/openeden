@@ -230,6 +230,10 @@ namespace openeden::sdk::game
         /// (onProjectileResult is not called for it), and it does not stick in the world. A pack streams these along a
         /// beam it resolved with castRay so the spray of Flames is seen.
         bool visualOnly = false;
+        /// Task 0299 (additive, the contract version stays): a shot nobody fired, a trap's dart. The owner passed to
+        /// launchProjectile is then CombatSubject{} (invalid) and nothing is excluded from its hits: it can hurt the
+        /// player and every actor. The result carries the same invalid owner and the token.
+        bool ownerless = false;
     };
 
     enum class ProjectileFate : std::uint8_t

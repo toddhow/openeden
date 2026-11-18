@@ -2079,6 +2079,8 @@ namespace game_skyrimse
     {
         if (resolveSpellShot(writer, result))
             return; // task 0186: a spell's projectile
+        if (resolveTrapShot(writer, result))
+            return; // task 0299: a trap's dart
         const auto shot = std::find_if(mShots.begin(), mShots.end(),
             [&](const Shot& s) { return s.mToken == result.token && s.mOwner == result.owner; });
         if (shot == mShots.end())

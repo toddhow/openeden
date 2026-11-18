@@ -219,6 +219,7 @@ file(GLOB UNITTEST_SRC_FILES
     papyrus/testpapyrusnatives.cpp
     papyrus/testrestoreresultabi.cpp
     papyrus/testpapyrusgamepack.cpp
+    papyrus/testpapyrusautostate.cpp
 
     nif/node.hpp
     nif/testphysics.cpp
@@ -602,6 +603,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemagicconditions.cpp
     skyrimse/testskyrimseeffectconditions2.cpp
     skyrimse/testskyrimsecombatbow.cpp
+    skyrimse/testskyrimsecombattraps.cpp
+    skyrimse/testskyrimsedungeontraps.cpp
     skyrimse/testskyrimseplayerhands.cpp
     skyrimse/testskyrimsecombathud.cpp
     skyrimse/testskyrimsehudstyle.cpp
@@ -982,6 +985,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/killmove.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/werewolf_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_dragon.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_traps.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_factions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai_run.cpp

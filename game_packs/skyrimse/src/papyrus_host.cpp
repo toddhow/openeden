@@ -443,6 +443,15 @@ namespace game_skyrimse
                 return false;
             }
             ++mCounters.mEvents[lower(name)];
+            if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0299: OPENEDEN_PAPYRUS_NATIVE_TRACE too
+            {
+                const auto info = mInstances.find(instance);
+                if (info != mInstances.end())
+                {
+                    ++mTraceCount;
+                    say(false, "Papyrus event " + name + " to " + info->second.mScript + " of " + hex(info->second.mForm));
+                }
+            }
             return true;
         }
 
@@ -1241,11 +1250,26 @@ namespace game_skyrimse
             reg("ObjectReference", "SetNoFavorAllowed", false, [](const NativeCall&) { return NativeResult{}; });
             // Task 0289: a dart trap's shot (Weapon.Fire(source, ammo), the `DartTrap` script). No projectile flies and
             // nothing is hurt in this slice: the shot is counted and the first of each trap port is logged.
+            // Task 0299: the shot reaches the world (the combat's trap shot) from the source's place along its facing.
             reg("Weapon", "Fire", false, [this](const NativeCall& c) {
                 const FormId source = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (source == 0)
+                    return NativeResult{};
+                PapyrusWorldHooks::WeaponFireRequest request;
+                request.mWeapon = formOf(c.self);
+                request.mSource = source;
+                request.mAmmo = c.arguments.size() > 1 ? formOf(c.arguments[1]) : 0;
+                if (!positionOf(source, request.mPosition))
+                    return NativeResult{};
+                std::array<double, 3> angles{};
+                if (anglesOf(source, angles))
+                    std::copy(angles.begin(), angles.end(), request.mAngles);
+                else
+                    (void)mData.referenceRotation(source, request.mAngles);
                 const std::uint32_t seen = mDartShots[source]++;
-                if (seen == 0)
-                    say(false, "Papyrus: a dart is fired from " + hex(source) + " (no projectile in this slice)");
+                const bool fired = mHooks != nullptr && mHooks->fireWeapon(request);
+                if (!fired && seen == 0)
+                    say(false, "Papyrus: a shot from " + hex(source) + " could not be fired");
                 return NativeResult{};
             });
         }
@@ -2152,6 +2176,17 @@ namespace game_skyrimse
             reg("ObjectReference", "GetLinkedRef", false, [this](const NativeCall& c) {
                 const FormId keyword = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 return result(formValue(mData.linkedRef(formOf(c.self), keyword)));
+            });
+            // Task 0299: the n-th reference of the unkeyworded link chain (1 is the object's own link); a trap asks for
+            // a random one of its ports. A chain that loops ends at the bound.
+            reg("ObjectReference", "GetNthLinkedRef", false, [this](const NativeCall& c) {
+                FormId at = formOf(c.self);
+                const std::int32_t n = static_cast<std::int32_t>(argInt(c, 0));
+                if (n < 1 || n > 256)
+                    return result(formValue(0));
+                for (std::int32_t i = 0; i < n && at != 0; ++i)
+                    at = mData.linkedRef(at, 0);
+                return result(formValue(at));
             });
             reg("ObjectReference", "GetDistance", false, [this](const NativeCall& c) {
                 double a[3] = { 0, 0, 0 }, b[3] = { 0, 0, 0 };

@@ -374,6 +374,8 @@ namespace game_skyrimse
         [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const override;
         [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const override;
         [[nodiscard]] bool linkedRef(FormId reference, FormId keyword, FormId& out) const override;
+        /// Task 0299: the stored angles of a scripted placement of a cell this view materialised (a trap's facing).
+        [[nodiscard]] bool referenceRotation(FormId reference, double (&xyz)[3]) const;
         [[nodiscard]] float patrolIdle(FormId reference) const override;
         /// Task 0277: the reference stands in a cell other than the player's, an interior being on one side.
         [[nodiscard]] bool targetIsElsewhere(FormId reference) const override;
@@ -420,6 +422,8 @@ namespace game_skyrimse
         /// The shouts and words of the load order, or null while the combat records are being read.
         [[nodiscard]] const ShoutIndex* shoutIndex() const;
         const ProjectileRecord* projectileById(FormId id) override;
+        const WeaponRecord* weaponById(FormId id) override; // task 0299
+        const AmmoRecord* ammoById(FormId id) override; // task 0299
         std::string_view artModelById(FormId id) override; ///< task 0191
         const ExplosionRecord* explosionById(FormId id) override; ///< task 0242
         MagicSettings magicSettings() override;
@@ -1042,6 +1046,7 @@ namespace game_skyrimse
         // the root motion of the furniture clips, read from the animation data files the first time a seat is asked
         // for.
         std::unordered_map<FormId, std::vector<RefLink>> mRefLinks;
+        std::unordered_map<FormId, std::array<float, 3>> mRefRotations; ///< task 0299: scripted placements only
         std::unordered_map<FormId, float> mPatrolIdles;
         MotionTable mMotion;
         bool mMotionTried = false;

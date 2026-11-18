@@ -102,6 +102,15 @@ namespace game_skyrimse
             return false;
         }
 
+        /// Task 0299: the angles of a placed reference as the data stores them (radians, X Y Z). False for any other
+        /// form.
+        [[nodiscard]] virtual bool referenceRotation(FormId reference, double (&xyz)[3]) const
+        {
+            (void)reference;
+            (void)xyz;
+            return false;
+        }
+
         /// The base form of a placed reference, 0 for any other form.
         [[nodiscard]] virtual FormId baseOf(FormId reference) const
         {
@@ -396,6 +405,22 @@ namespace game_skyrimse
         virtual bool setHealth(FormId actor, double health)
         {
             (void)actor, (void)health;
+            return false;
+        }
+        /// Task 0299: a script's Weapon.Fire(source, ammo): the trap's shot, from the source reference's place along
+        /// its facing (angles as the host knows them: a script's SetAngle, else the data's). False when the world
+        /// cannot fire it (the shot is then only counted).
+        struct WeaponFireRequest
+        {
+            FormId mWeapon = 0;
+            FormId mSource = 0;
+            FormId mAmmo = 0;
+            double mPosition[3] = { 0.0, 0.0, 0.0 };
+            double mAngles[3] = { 0.0, 0.0, 0.0 };
+        };
+        virtual bool fireWeapon(const WeaponFireRequest& request)
+        {
+            (void)request;
             return false;
         }
         /// Is the actor dead (combat's own state)? False when unknown.

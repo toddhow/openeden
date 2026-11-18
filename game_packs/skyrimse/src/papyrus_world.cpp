@@ -237,6 +237,14 @@ namespace game_skyrimse
 
     void ScriptCombatBridge::drain(openeden::sdk::game::CombatRequestWriter& writer)
     {
+        if (!mShots.empty())
+        {
+            std::vector<QueuedShot> shots;
+            shots.swap(mShots);
+            for (const QueuedShot& shot : shots)
+                if (mShot)
+                    mShot(shot, writer);
+        }
         if (mKills.empty())
             return;
         std::vector<FormId> kills;

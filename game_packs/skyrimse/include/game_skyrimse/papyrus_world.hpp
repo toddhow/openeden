@@ -73,6 +73,7 @@ namespace game_skyrimse
             playIdle; ///< task 0274
         std::function<ObjectPlaceResult(FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell)>
             relocateObject; ///< task 0268
+        std::function<bool(const PapyrusWorldHooks::WeaponFireRequest& request)> fireWeapon; ///< task 0299
         std::function<bool(FormId actor)> startCombat; ///< task 0264
         std::function<bool(FormId actor)> stopCombat;
         std::function<bool(FormId actor)> resetHealth;
@@ -110,6 +111,10 @@ namespace game_skyrimse
         bool isDead(FormId actor) override;
         bool killActor(FormId actor) override;
         bool isItem(FormId form) override;
+        bool fireWeapon(const WeaponFireRequest& request) override
+        {
+            return mEnv.fireWeapon && mEnv.fireWeapon(request);
+        }
         void notification(const std::string& text) override;
         bool setObjectEnabled(FormId reference, bool enabled, float fadeSeconds) override
         {
@@ -214,6 +219,26 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxKills = 256;
         static constexpr std::size_t kMaxRememberedAttackers = 256;
 
+        /// Task 0299: a script's Weapon.Fire waits here until the next combat update, which fires it through the
+        /// combat rules (the shot function gets the combat's own writer).
+        struct QueuedShot
+        {
+            FormId mWeapon = 0;
+            FormId mAmmo = 0;
+            double x = 0.0, y = 0.0, z = 0.0;
+            float heading = 0.f, pitch = 0.f;
+        };
+        using ShotFn = std::function<void(const QueuedShot&, openeden::sdk::game::CombatRequestWriter& writer)>;
+        static constexpr std::size_t kMaxShots = 64;
+        void setShotSink(ShotFn fire) { mShot = std::move(fire); }
+        bool queueShot(const QueuedShot& shot)
+        {
+            if (!mShot || mShots.size() >= kMaxShots)
+                return false;
+            mShots.push_back(shot);
+            return true;
+        }
+
         void setSinks(HitFn onHit, DeathFn onDeath, KillFn kill)
         {
             mHit = std::move(onHit);
@@ -238,6 +263,8 @@ namespace game_skyrimse
         DeathFn mDeath;
         KillFn mKill;
         std::vector<FormId> mKills;
+        ShotFn mShot;
+        std::vector<QueuedShot> mShots;
         std::map<FormId, FormId> mLastAttacker; ///< victim -> the attacker of the last damage (0: the player is 0x14)
     };
 
