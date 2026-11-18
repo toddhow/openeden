@@ -52,6 +52,10 @@ namespace game_skyrimse::houses
     [[nodiscard]] std::vector<FormId> testPermissionJarlBases();
     inline constexpr FormId kMs11Quest = 0x0001F7A3;
 
+    /// Task 0311 (Hearthfire): with the test aid on, the Falkreath jarl Siddgeir and his steward Nenya are the
+    /// player's friends too (BYOHHouseFalkreath's purchase offer asks the steward's rank toward the player).
+    [[nodiscard]] std::vector<FormId> testPermissionHearthfireBases();
+
     /// Task 0269: the five hold dialogue quests (DialogueWhiterun 0x270A4, DialogueRiften 0x368D8, DialogueWindhelm
     /// 0x3502E, DialogueMarkarth 0x17F05, DialogueSolitude 0x2E1AD): their steward alias puts the steward into
     /// JobStewardFaction while the quest runs (ALFC), and Falk Firebeard (Solitude) has the faction no other way.

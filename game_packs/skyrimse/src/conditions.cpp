@@ -1,5 +1,7 @@
 #include <game_skyrimse/conditions.hpp>
 
+#include <algorithm>
+
 #include <array>
 #include <limits>
 #include <string>
@@ -979,12 +981,29 @@ namespace game_skyrimse::conditions
         }
     }
 
+    namespace
+    {
+        std::uint32_t sDebugQuest = 0;
+        ConditionDebugSink sDebugSink;
+    }
+
+    void setConditionDebug(std::uint32_t quest, ConditionDebugSink sink)
+    {
+        sDebugQuest = quest;
+        sDebugSink = std::move(sink);
+    }
+
     bool Evaluator::evaluate(std::span<const survey::Ctda> list, const ConditionWorld& world)
     {
         ++mLists;
+        const bool debug = sDebugSink && sDebugQuest != 0
+            && std::any_of(list.begin(), list.end(),
+                [](const survey::Ctda& c) { return (c.mParam1 & 0xFFFFFFu) == (sDebugQuest & 0xFFFFFFu); });
         bool failedClosed = false;
         bool allClausesTrue = true;
         bool clauseTrue = false;
+        if (debug)
+            sDebugSink("LIST of " + std::to_string(list.size()));
         for (std::size_t i = 0; i < list.size(); ++i)
         {
             const survey::Ctda& c = list[i];
@@ -1011,6 +1030,10 @@ namespace game_skyrimse::conditions
                         = (c.mFlags & kFlagUseGlobal) != 0 ? world.globalValue(c.mComparisonBits) : c.mComparison;
                     bool valid = true;
                     result = compareValues(c.mCompare, lhs, rhs, valid);
+                    if (debug)
+                        sDebugSink("COND " + survey::functionName(c.mFunction) + " p1 " + std::to_string(c.mParam1)
+                            + " value " + std::to_string(lhs) + " op " + std::to_string(c.mCompare) + " against "
+                            + std::to_string(rhs) + (result ? " true" : " false"));
                     if (!valid)
                     {
                         ++mConditionsBadCompare;

@@ -1252,6 +1252,53 @@ namespace ScriptPapyrus
             return true;
         }
 
+        bool Runtime::setArrayProperty(
+            InstanceId instance, std::string_view name, std::span<const PapyrusValue> elements) noexcept
+        {
+            try
+            {
+                if (instance == 0 || instance > mInstances.size())
+                    return false;
+                const std::uint32_t id = findNameId(name);
+                if (id == kNoScript)
+                    return false;
+                std::uint32_t slot = 0;
+                const TypeRef* type = nullptr;
+                if (!locateSlot(mScripts, mInstances[instance - 1], id, slot, type) || type->kind != TypeKind::Array)
+                    return false;
+                const TypeRef declared = *type;
+                TypeRef elementType;
+                elementType.kind = declared.elem;
+                for (const PapyrusValue& element : elements)
+                    if (element.kind == PapyrusKind::Array || element.kind == PapyrusKind::Struct
+                        || !storable(elementType, element))
+                        return false;
+                Val array;
+                if (!newArray(declared.elem, elements.size(), array))
+                {
+                    mErrKind = ErrorKind::None;
+                    return false;
+                }
+                for (std::size_t i = 0; i < elements.size(); ++i)
+                {
+                    Val converted;
+                    if (!fromPapyrus(elements[i], converted))
+                    {
+                        mErrKind = ErrorKind::None;
+                        return false;
+                    }
+                    mHeap[array.a].items[i] = coerce(converted, elementType);
+                }
+                mInstances[instance - 1].vars[slot] = array;
+                return true;
+            }
+            catch (...)
+            {
+                mErrKind = ErrorKind::None;
+                return false;
+            }
+        }
+
         std::string Runtime::stateOf(InstanceId instance) const
         {
             if (instance == 0 || instance > mInstances.size())

@@ -658,9 +658,9 @@ namespace game_skyrimse
         return plan.size();
     }
 
-    // Task 0230. Only an alias whose conditions call GetIsEditorLocAlias (fn_567) is tried: that function was
-    // unanswered, so the aliases that need it were not filled at the start of the quest; every other empty alias keeps
-    // the rule it had.
+    // Task 0230 (and 0311). Only an alias whose conditions call GetIsEditorLocAlias (fn_567), or name an actor by id
+    // (GetIsID), is tried: fn_567 was unanswered, so the aliases that need it were not filled at the start of the
+    // quest; every other empty alias keeps the rule it had.
     std::size_t QuestAliasFiller::fillForSpeaker(QuestState& state, FormId reference, FormId base)
     {
         if (!usable(reference) || !mMatcher)
@@ -670,6 +670,7 @@ namespace game_skyrimse
             return 0;
         const FormId entryBase = usable(entry->mBase) ? entry->mBase : base;
         std::size_t count = 0;
+        std::vector<FormId> joined; // task 0311: the quests the speaker took an alias of
         for (const FormId questId : mQuests.questIds())
         {
             if (!state.running(questId))
@@ -677,12 +678,17 @@ namespace game_skyrimse
             const QuestRecord* quest = mQuests.quest(questId);
             if (quest == nullptr)
                 continue;
+            const std::size_t before = count;
             for (const QuestAlias& alias : quest->mAliases)
             {
                 if (alias.mIsLocation || alias.mFill != AliasFillKind::FindMatching)
                     continue;
                 if (std::none_of(alias.mConditions.begin(), alias.mConditions.end(),
-                        [](const survey::Ctda& c) { return c.mFunction == kGetIsEditorLocAlias; }))
+                        [](const survey::Ctda& c) {
+                            // Task 0311: an alias that names its actor by id (GetIsID: the Falkreath steward) is
+                            // filled from the speaker too, the matcher says whether she is the one
+                            return c.mFunction == kGetIsEditorLocAlias || (c.mFunction == kGetIsId && c.mRunOn == 0);
+                        }))
                     continue;
                 if (filled(state.aliasFill(questId, alias.mId)))
                     continue;
@@ -708,7 +714,13 @@ namespace game_skyrimse
                 ++mStats.mMatched;
                 ++count;
             }
+            if (count != before)
+                joined.push_back(questId);
         }
+        // Task 0311: the speaker is now part of the quest, so its other empty aliases (the Falkreath jarl the
+        // steward's offer asks about) are filled as at the start of the quest, from the loaded area
+        for (const FormId questId : joined)
+            count += fillQuest(questId, state, true);
         return count;
     }
 

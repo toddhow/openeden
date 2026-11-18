@@ -369,6 +369,8 @@ namespace ScriptPapyrus::Vm
         {
             return setVariable(instance, name, value);
         }
+        bool setArrayProperty(openeden::script::InstanceId instance, std::string_view name,
+            std::span<const openeden::script::PapyrusValue> elements) noexcept override;
         std::string stateOf(openeden::script::InstanceId instance) const override;
         std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const override;
         std::uint32_t suspendedStacks() const noexcept override { return mSuspendedCount; }

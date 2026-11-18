@@ -1137,12 +1137,19 @@ namespace game_skyrimse
                 if (placed == nullptr)
                     return;
                 std::size_t given = 0;
-                for (const FormId base : houses::testPermissionJarlBases()) // task 0269: every hold's jarls
+                std::vector<FormId> friends = houses::testPermissionJarlBases(); // task 0269: every hold's jarls
+                for (const FormId base : houses::testPermissionHearthfireBases()) // task 0311: Falkreath's
+                    friends.push_back(base);
+                for (const FormId base : friends)
                 {
                     const PlacedRefIndex::Range range = placed->byBase(base);
                     for (const PlacedEntry* const* it = range.mBegin; it != range.mEnd; ++it)
                         if (mFollowers->setRelationshipRank((*it)->mId, kPapyrusPlayerReference, 2))
+                        {
                             ++given;
+                            if (base == 0x00013659) // task 0311: Nenya's placement, for the trace
+                                say(openeden::sdk::LogLevel::Info, "HOUSES test permission: Nenya " + hexId((*it)->mId));
+                        }
                 }
                 say(openeden::sdk::LogLevel::Info,
                     "HOUSES test permission: " + std::to_string(given) + " jarls are the player's friends");
@@ -2321,6 +2328,16 @@ namespace game_skyrimse
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
                             driver->setTestQuests(settings->getString(kPackId, "story test quest", ""),
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
+                            // Task 0311 (a developer aid): `conditions debug quest = <hex quest id>` reports every condition of
+                            // the lists that name that quest (value, compared value, answer)
+                            if (const std::string debugQuest = settings->getString(kPackId, "conditions debug quest", "");
+                                !debugQuest.empty())
+                                conditions::setConditionDebug(
+                                    static_cast<std::uint32_t>(std::strtoul(debugQuest.c_str(), nullptr, 16)),
+                                    [logger](const std::string& line) {
+                                        if (logger != nullptr)
+                                            logger->log(openeden::sdk::LogLevel::Info, "CONDDEBUG " + line);
+                                    });
                             // Task 0217: a developer's trace of every node and quest the story manager's walk tries
                             if (settings->getBool(kPackId, "story trace", false))
                             {

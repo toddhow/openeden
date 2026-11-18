@@ -511,6 +511,11 @@
       "default": ""
     },
     {
+      "key": "conditions debug quest",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "story trace",
       "type": "bool",
       "default": false

@@ -876,6 +876,13 @@ namespace game_skyrimse::conditions
         ConditionFunction mFunction = nullptr;
     };
 
+    /// Task 0311 (a developer aid): while a sink is set, every condition of a list that has a condition whose first
+    /// parameter is `quest` is reported with its value, its compared value and its answer (the first parameter of
+    /// GetStage, GetStageDone and GetVMQuestVariable is the quest). Not thread safe: set once, before evaluation
+    /// starts; an empty sink clears it.
+    using ConditionDebugSink = std::function<void(const std::string&)>;
+    void setConditionDebug(std::uint32_t quest, ConditionDebugSink sink);
+
     class Evaluator
     {
     public:

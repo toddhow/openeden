@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <span>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -174,6 +175,19 @@ namespace ScriptPapyrus
         using AliasResolver
             = std::function<bool(std::uint32_t handle, openeden::script::FormId& quest, std::uint32_t& alias)>;
         virtual void setAliasResolver(AliasResolver resolver) { (void)resolver; }
+
+        /// Task 0311 (Hearthfire's house scripts keep their enable lists in array properties): sets an array auto
+        /// property (or variable) of an instance to a new array holding  elements, as an editor's stored array does.
+        /// Every element must fit the declared kind of element (the rules of setVariable; an Object element may be
+        /// None, a form or an attached instance). False when the instance or the name does not exist, it is not an
+        /// array, the array is over the cap (RuntimeOptions::maxArrayLength) or an element does not fit; nothing
+        /// changes then. The default refuses (a runtime that predates it).
+        virtual bool setArrayProperty(openeden::script::InstanceId instance, std::string_view name,
+            std::span<const openeden::script::PapyrusValue> elements) noexcept
+        {
+            (void)instance, (void)name, (void)elements;
+            return false;
+        }
     };
 
     std::unique_ptr<PapyrusRuntime> createRuntime(openeden::script::PapyrusWorld& world,

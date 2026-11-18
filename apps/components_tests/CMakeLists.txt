@@ -203,6 +203,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0093: the Papyrus runtime of the common compatibility pack (generated .pex files from the test assembler).
     papyrus/testpapyruscontract.cpp
     papyrus/testpapyrusassembler.cpp
+    papyrus/testpapyrusarrayproperty.cpp
     papyrus/testpapyrusreader.cpp
     papyrus/testpapyrusfuzz.cpp
     papyrus/testpapyrusload.cpp
@@ -711,6 +712,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsestancecond.cpp
     skyrimse/testskyrimsebountydialogue.cpp
     skyrimse/testskyrimsebountydialoguereal.cpp
+    skyrimse/testskyrimsehearthfire.cpp
+    skyrimse/testskyrimsehearthfirereal.cpp
     skyrimse/testskyrimseradiantfill.cpp
     skyrimse/testskyrimseradiantreal.cpp
     skyrimse/testskyrimseradiantsurvey.cpp

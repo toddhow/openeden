@@ -333,16 +333,10 @@ namespace game_skyrimse
             return instance;
         }
 
-        void setProperty(InstanceId instance, const vmad::Property& property)
+        // One stored value as a Papyrus value; false for a kind this host does not carry
+        bool convertValue(const vmad::Value& v, PapyrusValue& value)
         {
-            if (property.mArray)
-            {
-                ++mCounters.mPropertiesSkipped;
-                return;
-            }
             std::string cls;
-            PapyrusValue value;
-            const vmad::Value& v = property.mValue;
             switch (v.mKind)
             {
                 case vmad::ValueKind::Object:
@@ -353,34 +347,67 @@ namespace game_skyrimse
                         if (mIndex != nullptr)
                             if (const QuestRecord* quest = mIndex->quest(v.mForm))
                                 alias = quest->alias(static_cast<std::uint32_t>(v.mAlias));
-                        cls = alias != nullptr && alias->mIsLocation ? "LocationAlias" : "ReferenceAlias";
-                        value = PapyrusValue::makeForm(cls, aliasHandle(v.mForm, static_cast<std::uint32_t>(v.mAlias)));
+                        // the class name is kept in the host's name table: the value only views it
+                        const std::string& named
+                            = intern(alias != nullptr && alias->mIsLocation ? "LocationAlias" : "ReferenceAlias");
+                        value = PapyrusValue::makeForm(named, aliasHandle(v.mForm, static_cast<std::uint32_t>(v.mAlias)));
                     }
                     else if (v.mForm != 0)
                     {
                         if (!formClass(v.mForm, cls))
                             cls = "Form";
-                        value = PapyrusValue::makeForm(cls, v.mForm);
+                        value = PapyrusValue::makeForm(intern(cls), v.mForm);
                     }
                     else
                         value = PapyrusValue::makeNone();
-                    break;
+                    return true;
                 }
                 case vmad::ValueKind::String:
                     value = PapyrusValue::makeString(v.mText);
-                    break;
+                    return true;
                 case vmad::ValueKind::Int:
                     value = PapyrusValue::makeInt(v.mInteger);
-                    break;
+                    return true;
                 case vmad::ValueKind::Float:
                     value = PapyrusValue::makeFloat(v.mNumber);
-                    break;
+                    return true;
                 case vmad::ValueKind::Bool:
                     value = PapyrusValue::makeBool(v.mInteger != 0);
-                    break;
+                    return true;
                 default:
-                    ++mCounters.mPropertiesSkipped;
-                    return;
+                    return false;
+            }
+        }
+
+        void setProperty(InstanceId instance, const vmad::Property& property)
+        {
+            if (property.mArray)
+            {
+                // Task 0311: an array property (Hearthfire's enable lists, house flags) is built in the runtime from
+                // its stored elements; an element of a kind this host does not carry leaves the array out
+                std::vector<PapyrusValue> elements;
+                elements.reserve(property.mElements.size());
+                for (const vmad::Value& element : property.mElements)
+                {
+                    PapyrusValue value;
+                    if (!convertValue(element, value))
+                    {
+                        ++mCounters.mPropertiesSkipped;
+                        return;
+                    }
+                    elements.push_back(std::move(value));
+                }
+                if (mRuntime->setArrayProperty(instance, property.mName, elements))
+                    ++mCounters.mPropertiesSet;
+                else
+                    ++mCounters.mPropertiesRejected;
+                return;
+            }
+            PapyrusValue value;
+            if (!convertValue(property.mValue, value))
+            {
+                ++mCounters.mPropertiesSkipped;
+                return;
             }
             if (mRuntime->setProperty(instance, property.mName, value))
                 ++mCounters.mPropertiesSet;

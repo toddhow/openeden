@@ -46,6 +46,11 @@ namespace game_skyrimse::houses
             0x0001326A }; // Elisif the Fair
     }
 
+    std::vector<FormId> testPermissionHearthfireBases()
+    {
+        return { 0x00013653, 0x00013659 }; // Siddgeir, Nenya (the Falkreath jarl and steward; QUST BYOHHouseFalkreath)
+    }
+
     bool Ledger::setCellOwner(FormId cell, FormId owner)
     {
         if (cell == kNullFormId || cell == kUnresolvedFormId || owner == kNullFormId || owner == kUnresolvedFormId)
