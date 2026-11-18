@@ -144,6 +144,11 @@ namespace game_skyrimse
         {
             return std::nullopt;
         }
+        /// The water height of an interior cell (task 0291), none when it has none.
+        [[nodiscard]] virtual std::optional<float> findInteriorWater(openeden::sdk::game::WorldId /*cell*/) const
+        {
+            return std::nullopt;
+        }
     };
 
     /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rx * Ry * Rz with every angle
@@ -305,6 +310,8 @@ namespace game_skyrimse
         /// Task 0129: the water of a grid square, through the terrain index (world_water.hpp).
         bool cellWater(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
             openeden::sdk::game::CellWater& out) const override;
+        /// Task 0291: the water of an interior cell (world_water.hpp 0.2), through the view.
+        bool interiorWater(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWater& out) const override;
         /// Task 0153: the grass of a grid square, through the terrain index (grass_source.hpp).
         bool grassForCell(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
             openeden::sdk::game::GrassCell& out) override;

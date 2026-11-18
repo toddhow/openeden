@@ -3159,6 +3159,16 @@ namespace game_skyrimse
                     break;
                 }
             }
+            if (entry.mInfo.interior)
+                for (auto s = entry.mSources.rbegin(); s != entry.mSources.rend(); ++s)
+                {
+                    const CellRecord& c = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex];
+                    if (c.mWaterHeight || (c.mFlags & CellFlags::HasWater) != 0)
+                    {
+                        entry.mInteriorWater = c.interiorWaterHeight(); // the latest source that speaks of water wins
+                        break;
+                    }
+                }
             if (entry.mWorldPersistent && entry.mInfo.world != sdkgame::kNoWorldId)
             {
                 const auto w = mWorlds.find(entry.mInfo.world);
@@ -3767,6 +3777,16 @@ namespace game_skyrimse
         if (!awaitIndex() || cell == kNullFormId || cell != mLastCell)
             return std::nullopt;
         return mLastLighting;
+    }
+
+    std::optional<float> SkyrimWorldView::findInteriorWater(sdkgame::WorldId cell) const
+    {
+        if (!awaitIndex() || cell == kNullFormId)
+            return std::nullopt;
+        const auto it = mCells.find(cell);
+        if (it == mCells.end() || !it->second.mInfo.interior)
+            return std::nullopt;
+        return it->second.mInteriorWater;
     }
 
     bool SkyrimWorldView::loadCell(sdkgame::WorldId cell, sdkgame::WorldCellContent& out, std::string& error)

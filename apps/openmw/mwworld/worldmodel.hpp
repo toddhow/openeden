@@ -4,6 +4,7 @@
 #include <deque>
 #include <list>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -286,7 +287,7 @@ namespace MWWorld
         /// The shared builder of the two routes above (by name, by pack id): the bases of the cell's objects into the
         /// ESMStore and the CellStore into mCells; the store that already exists for this cell when there is one.
         CellStore* emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
-            std::string_view name, bool& reused) const;
+            std::string_view name, bool& reused, std::optional<float> interiorWater) const;
 
         CellStore& insertCellStore(const ESM::Cell& cell);
 

@@ -15,10 +15,16 @@ namespace MWWorld
 {
     class CellStore;
 
-    /// The height of the physics water plane while the player is in `cell`, or nothing for "no plane". Only a neutral
-    /// exterior square that has water gives a height; every other cell (Morrowind's, interiors, dry squares) gives
-    /// nothing. The caller applies it only when `cell` is neutral, so Morrowind's own water handling stays untouched.
+    /// The height of the physics water plane while the player is in `cell`, or nothing for "no plane". A neutral
+    /// exterior square or a neutral interior that has water gives a height (task 0291: interiors too); every other
+    /// cell (Morrowind's, dry ones) gives nothing. The caller applies it only when `cell` is neutral, so Morrowind's
+    /// own water handling stays untouched.
     std::optional<float> neutralPhysicsWaterLevel(const CellStore& cell);
+
+    /// Task 0291: the water surface an actor standing at (x, y) in `cell` is in, or nothing. An interior with water has
+    /// it everywhere; a neutral exterior square only inside its own square (the World's lookup finds the square an
+    /// actor really stands in and asks that cell). Any other cell (Morrowind's, dry) gives nothing.
+    std::optional<float> neutralWaterLevelAt(const CellStore& cell, float x, float y);
 }
 
 #endif

@@ -52,6 +52,7 @@
 #include "neutralimagespace.hpp"
 #include "neutralmusicdriver.hpp"
 #include "neutralnavigation.hpp"
+#include "neutralphysicswater.hpp"
 #include "neutralpick.hpp"
 #include "neutralplayername.hpp"
 #include "neutralprojectiles.hpp"
@@ -515,6 +516,24 @@ namespace MWWorld
             };
             mPhysics->setNeutralRidingHooks(std::move(riding));
         }
+
+        // Task 0291 (swimming): the water a neutral actor stands in, by the grid square of its position.
+        mPhysics->setNeutralWaterLookup([this](const MWWorld::CellStore& home, float x, float y) -> std::optional<float> {
+            if (!home.isNeutral())
+                return std::nullopt;
+            if (!home.isExterior())
+                return neutralWaterLevelAt(home, x, y);
+            try
+            {
+                const ESM::ExteriorCellLocation location
+                    = ESM::positionToExteriorCellLocation(x, y, home.getCell()->getWorldSpace());
+                return neutralWaterLevelAt(mWorldModel.getExterior(location, false), x, y);
+            }
+            catch (const std::exception&)
+            {
+                return std::nullopt; // the square cannot be built: no water
+            }
+        });
 
         // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
         // session's navmesh is built for (the capsule can only make it narrower), so no second navmesh is made.

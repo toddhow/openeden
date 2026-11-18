@@ -205,6 +205,15 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked|doorsstreet|doorsgate|doorsdr
 # WhiterunWorld); it is the moons, the storm's sounds and the image space scenario (use at least 4000 frames; the sound
 # archive is a CFG_EXTRA line: fallback-archive=Skyrim - Sounds.bsa). The log lines are "Neutral weather sound:" and "moon".
 [ "$SHOT" = w5 ] && echo "content=w5.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0291 (swimming and water): "swim291" drops the player into water at SW_X,SW_Y,SW_Z (water surface SW_WATER; CELL names the world, for
+# example CELL='@RiftenWorld,168000,-95000'), swims at the surface, dives, rises and (god mode off) drowns, logging "S291" lines every SW_EVERY frames;
+# SW_FALL, SW_SURFACE, SW_DIVE, SW_RISE and SW_DRAWN are the lengths of the phases in frames, SW_SHOTS the frames of the pictures ("100,400").
+if [ "$SHOT" = swim291 ]; then
+    echo "content=n4swim291.omwscripts" >> "$WORK/config/openmw.cfg"
+    shots=""; IFS=',' read -ra frames <<< "${SW_SHOTS:-}"; for fr in "${frames[@]}"; do [ -n "$fr" ] && shots="$shots[$fr]=true,"; done
+    probe=""; [ -n "${SW_PROBE:-}" ] && probe=", probe = { $SW_PROBE }"
+    echo "return { x = ${SW_X:-0}, y = ${SW_Y:-0}, z = ${SW_Z:-0}, yaw = ${SW_YAW:-0}, water = ${SW_WATER:-0}, startFrame = ${SW_START:-600}, fall = ${SW_FALL:-240}, surface = ${SW_SURFACE:-300}, dive = ${SW_DIVE:-300}, rise = ${SW_RISE:-300}, drown = ${SW_DROWN:-1500}, every = ${SW_EVERY:-30}, shots = { $shots }$probe${SW_KEEP:+, keep = true} }" > "$WORK/luatest/scripts/swim291/swimcfg.lua"
+fi
 # Task 0129 swimming follow-up: "e2swim" swims in the Whiterun lake and walks out (use at least 6000 frames).
 [ "$SHOT" = e2swim ] && echo "content=n4e2swim.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0127 stage W-S2: "w2" leaves the Mare into WhiterunWorld and takes pictures on a fast clock; force a weather with
@@ -253,7 +262,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|bqtalk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5kill|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|ne|vamp|n5gear|pbody|seqdoor|seqwalk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|bqtalk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5kill|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|ne|vamp|n5gear|pbody|seqdoor|seqwalk|swim291) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

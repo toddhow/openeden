@@ -357,8 +357,25 @@ namespace MWWorld
         return store;
     }
 
-    CellStore* WorldModel::emplaceNeutralCellStore(
-        std::string_view gameId, const openeden::sdk::game::WorldCell& cell, std::string_view name, bool& reused) const
+    namespace
+    {
+        // Task 0291: the pack's water for an interior cell (an optional interface of the registered source).
+        std::optional<float> neutralInteriorWater(NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId,
+            const openeden::sdk::game::WorldCell& cell)
+        {
+            if (!cell.interior)
+                return std::nullopt;
+            const auto* source = dynamic_cast<const openeden::sdk::game::CellWaterSource*>(neutral.source(gameId));
+            openeden::sdk::game::CellWater water;
+            if (source == nullptr || !source->interiorWater(cell.id, water) || !water.present)
+                return std::nullopt;
+            return water.height;
+        }
+    }
+
+    CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId,
+        const openeden::sdk::game::WorldCell& cell, std::string_view name, bool& reused,
+        std::optional<float> interiorWater) const
     {
         reused = false;
         // A cell built earlier, by either route, is the same store (the "come back" path).
@@ -385,7 +402,7 @@ namespace MWWorld
             Log(Debug::Warning) << "Neutral cell '" << name << "': " << refused << " objects have no usable base, "
                                 << conflicts << " describe a base differently from an earlier object";
 
-        mNeutralCells.push_back(makeNeutralCellRecord(gameId, cell));
+        mNeutralCells.push_back(makeNeutralCellRecord(gameId, cell, interiorWater));
         const ESM::Cell& record = mNeutralCells.back();
         const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(record.mId),
             std::forward_as_tuple(Cell(record), mStore, mReaders));
@@ -451,7 +468,8 @@ namespace MWWorld
             result.mError = "the interior cell " + std::to_string(id) + " has no editor id";
             return result;
         }
-        result.mStore = emplaceNeutralCellStore(gameId, *cell, cell->editorId, result.mReused);
+        result.mStore = emplaceNeutralCellStore(
+            gameId, *cell, cell->editorId, result.mReused, neutralInteriorWater(neutral, gameId, *cell));
         result.mStatus = NeutralCellStatus::Found;
         // Register the store under its name, so that the lookup by name after the teleport finds this very store.
         mInteriors.emplace(cell->editorId, result.mStore);
@@ -496,7 +514,7 @@ namespace MWWorld
                 return nullptr;
             }
             bool reused = false;
-            return emplaceNeutralCellStore(gameId, *cell, name, reused);
+            return emplaceNeutralCellStore(gameId, *cell, name, reused, neutralInteriorWater(*neutral, gameId, *cell));
         }
         return nullptr;
     }

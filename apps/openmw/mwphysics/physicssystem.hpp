@@ -472,6 +472,12 @@ namespace MWPhysics
             const NeutralActor::Capsule& capsule, std::vector<vsg::vec3>& out)>;
         void setNeutralPathFinder(NeutralPathFinderFn finder) { mNeutralPathFinder = std::move(finder); }
 
+        /// Task 0291 (swimming): the water surface under a neutral actor's position (x, y), from the cell the Ptr
+        /// belongs to and the grid square the position is in (a neutral exterior has one height per square). The World
+        /// sets it; without one an actor never swims. Main thread.
+        using NeutralWaterLookupFn = std::function<std::optional<float>(const MWWorld::CellStore&, float x, float y)>;
+        void setNeutralWaterLookup(NeutralWaterLookupFn lookup) { mNeutralWaterLookup = std::move(lookup); }
+
         [[nodiscard]] const NeutralActorBridge::Stats& getNeutralBridgeStats() const { return mNeutralBridge.stats(); }
 
         /// The fall state of a neutral actor, null if `ptr` has none. For traces and tests.
@@ -724,6 +730,7 @@ namespace MWPhysics
             bool mRestoredCorpse = false; ///< task 0263: the pack put a saved corpse back (placeCorpse), until taken
             float mWalkSpeed = 0.f; ///< task 0212: a creature's own walk and run speeds, 0 for the core's
             float mRunSpeed = 0.f;
+            bool mSwimming = false; ///< task 0291: it landed in deep water and floats at the surface
         };
         NeutralProcess::Config mNeutralProcessConfig;
         NeutralProcessStats mNeutralProcessStats;
@@ -861,6 +868,7 @@ namespace MWPhysics
         NeutralActorEntry* findNeutralActor(const void* key);
         void restNeutralCorpse(NeutralActorEntry& entry, const MWWorld::Ptr& ptr);
         NeutralPathFinderFn mNeutralPathFinder;
+        NeutralWaterLookupFn mNeutralWaterLookup;
         std::vector<MWWorld::Ptr> mNeutralMoved; // reserved when an actor is added, so a frame does not allocate
         std::vector<MWWorld::Ptr> mNeutralTurned;
         std::vector<MWWorld::Ptr> mNeutralDeaths; // task 0174: reported dead since the last updateNeutralActors

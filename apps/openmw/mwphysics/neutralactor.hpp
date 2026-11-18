@@ -94,6 +94,24 @@ namespace MWPhysics::NeutralActor
     /// units a second squared) until the next position would be at or below the floor, where it lands; no floor makes
     /// it wait, and after kMaxWaitFrames it is Lost.
     [[nodiscard]] Fall stepFall(const Fall& fall, float dt, const FloorProbe& floor);
+
+    /// Task 0291 (swimming): water deeper than this share of the actor's height is swimming, not wading (Morrowind's
+    /// fSwimHeightScale default is 0.5: `isUnderwater(ptr, mSwimHeightScale)`).
+    inline constexpr float kSwimDepthShare = 0.5f;
+    /// A swimming actor floats with its feet this share of its height below the surface (the head is above it). Ours.
+    inline constexpr float kSwimFloatShare = 0.8f;
+
+    struct SwimRest
+    {
+        bool mSwims = false;
+        float mFeetZ = 0.f; ///< where the feet rest: the floor when wading, below the surface when swimming
+    };
+
+    /// Where an actor of `height` units that came to rest with its feet on `floorZ` stands in water whose surface is at
+    /// `waterLevel`: swimming when the water above the floor is deeper than kSwimDepthShare of the height, then its feet
+    /// float at waterLevel - kSwimFloatShare * height (never below the floor); wading or dry otherwise (the floor). A
+    /// non-finite number or a non-positive height means dry.
+    [[nodiscard]] SwimRest swimRest(float floorZ, float waterLevel, float height);
 }
 
 #endif

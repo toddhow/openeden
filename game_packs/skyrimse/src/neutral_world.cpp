@@ -362,6 +362,20 @@ namespace game_skyrimse
         return index && index->cellWater(world, x, y, out);
     }
 
+    bool SkyrimCellSource::interiorWater(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWater& out) const
+    {
+        out = openeden::sdk::game::CellWater();
+        const auto* components = dynamic_cast<const ComponentSource*>(&mView);
+        if (components == nullptr)
+            return false;
+        const std::optional<float> height = components->findInteriorWater(cell);
+        if (!height)
+            return false;
+        out.present = true;
+        out.height = *height;
+        return true;
+    }
+
     bool SkyrimCellSource::grassForCell(
         openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y, openeden::sdk::game::GrassCell& out)
     {

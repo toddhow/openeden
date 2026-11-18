@@ -114,4 +114,14 @@ namespace MWPhysics::NeutralActor
         }
         return next;
     }
+
+    SwimRest swimRest(float floorZ, float waterLevel, float height)
+    {
+        if (!std::isfinite(floorZ) || !std::isfinite(waterLevel) || !std::isfinite(height) || !(height > 0.f))
+            return SwimRest{ false, floorZ };
+        // Swimming is water deeper than half the actor's height above the floor, as Morrowind's isSwimming.
+        if (!(waterLevel - floorZ > kSwimDepthShare * height))
+            return SwimRest{ false, floorZ };
+        return SwimRest{ true, std::max(floorZ, waterLevel - kSwimFloatShare * height) };
+    }
 }

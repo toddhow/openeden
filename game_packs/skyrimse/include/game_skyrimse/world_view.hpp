@@ -333,6 +333,8 @@ namespace game_skyrimse
         /// The interior lighting of the cell the last loadCell returned (its XCLL); none for any other cell.
         [[nodiscard]] std::optional<openeden::sdk::game::CellLighting> findCellLighting(
             openeden::sdk::game::WorldId cell) const override;
+        /// Task 0291: the water height of an interior cell (any cell, not only the last one loaded).
+        [[nodiscard]] std::optional<float> findInteriorWater(openeden::sdk::game::WorldId cell) const override;
 
         /// The terrain index over the same plugins in the same order, built on the first call (task 0120). Waits for a
         /// running startLoad() like a query. Null after that wait times out. Main thread only.
@@ -879,6 +881,8 @@ namespace game_skyrimse
             bool mWorldPersistent = false;
             /// The XCLL of the latest source that has one (interior lighting; task 0113).
             std::optional<CellLightingData> mLighting;
+            /// Task 0291: the interior water of the latest source that has any (`CellRecord::interiorWaterHeight`).
+            std::optional<float> mInteriorWater;
         };
 
         struct WorldEntry

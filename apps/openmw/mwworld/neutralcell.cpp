@@ -150,6 +150,11 @@ namespace MWWorld
 
     ESM::Cell makeNeutralCellRecord(std::string_view gameId, const WorldCell& cell)
     {
+        return makeNeutralCellRecord(gameId, cell, std::nullopt);
+    }
+
+    ESM::Cell makeNeutralCellRecord(std::string_view gameId, const WorldCell& cell, std::optional<float> interiorWater)
+    {
         ESM::Cell record;
         record.mId = neutralCellRecordId(gameId, cell.id);
         record.mName = cell.editorId;
@@ -170,6 +175,13 @@ namespace MWWorld
             record.mAmbi.mFog = packNeutralColor(cell.lighting->fogColor);
         }
         record.mWater = 0.f;
+        // Task 0291 (swimming): an interior with water (the pack's CellWaterSource::interiorWater) is a cell with the
+        // flag and the surface height; the engine's own interior-water code then draws the plane and sets the physics.
+        if (interiorWater && std::isfinite(*interiorWater))
+        {
+            record.mData.mFlags |= ESM::Cell::HasWater;
+            record.mWater = *interiorWater;
+        }
         return record;
     }
 

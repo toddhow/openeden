@@ -351,6 +351,11 @@ namespace game_skyrimse
         std::uint64_t mChildrenSize = 0;
 
         [[nodiscard]] bool interior() const { return (mFlags & CellFlags::Interior) != 0; }
+        /// Task 0291: the water height of an INTERIOR cell, or nothing. The rule (measured on Skyrim.esm: 590 interior
+        /// cells carry an XCLW; 175 have the cell flag 0x0002 and of those 71 a real height, 0.0, the rest the
+        /// -2^31 "unset" sentinel; 415 without the flag have 0.0 or the sentinel and are dry): the flag is set AND the
+        /// height is a usable number. The flag's name ("has water") is RECALLED-VERIFY, the counts are measured.
+        [[nodiscard]] std::optional<float> interiorWaterHeight() const;
         [[nodiscard]] std::size_t refCount() const
         {
             return mPersistent.size() + mTemporary.size() + mVisibleDistant.size() + mOther.size();

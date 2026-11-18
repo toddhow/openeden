@@ -2052,6 +2052,36 @@ namespace MWPhysics
         const bool useLevels = Settings::game().mNeutralActorProcessLevels.get() && mNeutralFocusValid;
         std::fill(std::begin(mNeutralProcessStats.mActors), std::end(mNeutralProcessStats.mActors), 0u);
         std::size_t entryIndex = 0;
+        // OPENEDEN_NEUTRAL_ACTOR_DROP=<index>,<x>,<y>,<z>[,<frame>] (a developer aid, task 0291): once, at that physics
+        // frame (default 300), moves the actor with that index to the place and lets it fall from there, so that an
+        // actor can be dropped into water (a Lua teleport does not re-settle a neutral actor).
+        static const std::array<float, 5> dropAid = [] {
+            std::array<float, 5> a = { -1.f, 0.f, 0.f, 0.f, 300.f };
+            if (const char* text = std::getenv("OPENEDEN_NEUTRAL_ACTOR_DROP"))
+                std::sscanf(text, "%f,%f,%f,%f,%f", &a[0], &a[1], &a[2], &a[3], &a[4]);
+            return a;
+        }();
+        if (dropAid[0] >= 0.f && mNeutralFrame == static_cast<std::uint64_t>(dropAid[4])
+            && static_cast<std::size_t>(dropAid[0]) < mNeutralActors.size())
+        {
+            NeutralActorEntry& dropped = mNeutralActors[static_cast<std::size_t>(dropAid[0])];
+            if (const auto found = mObjects.find(dropped.mRef); found != mObjects.end())
+            {
+                const MWWorld::Ptr ptr = found->second->getPtr();
+                ESM::Position pos = ptr.getRefData().getPosition();
+                pos.pos[0] = dropAid[1];
+                pos.pos[1] = dropAid[2];
+                pos.pos[2] = dropAid[3];
+                ptr.getRefData().setPosition(pos);
+                dropped.mSeated = false;
+                dropped.mSwimming = false;
+                dropped.mFall = NeutralActor::Fall{};
+                dropped.mFall.mZ = pos.pos[2];
+                mNeutralMoved.push_back(ptr);
+                Log(Debug::Info) << "NACTDROP " << ptr.getCellRef().getRefId() << " to " << pos.pos[0] << " "
+                                 << pos.pos[1] << " " << pos.pos[2];
+            }
+        }
         static const WalkAid walkAid = readWalkAid();
         if (walkAid.mValid && walkAid.mIndex < mNeutralActors.size())
             mNeutralActors[walkAid.mIndex].mRequest = walkAid.mRequest;
@@ -2187,7 +2217,30 @@ namespace MWPhysics
 
             // The Ptr's position is the truth (a script may have moved the actor); the state follows it.
             entry.mFall.mZ = feet.z;
+            const bool wasGrounded = entry.mFall.mState == NeutralActor::State::Grounded;
             entry.mFall = NeutralActor::stepFall(entry.mFall, dt, probe);
+            // Task 0291 (swimming): an actor that comes to rest in water deeper than half its height floats at the
+            // surface instead of standing on the bed. It has fallen to the floor first (a pop upwards, not a swim).
+            if (!wasGrounded && entry.mFall.mState == NeutralActor::State::Grounded && ptr.isInCell())
+            {
+                const std::optional<float> water = mNeutralWaterLookup
+                    ? mNeutralWaterLookup(
+                          *ptr.getCell(), ptr.getRefData().getPosition().pos[0], ptr.getRefData().getPosition().pos[1])
+                    : std::nullopt;
+                if (water)
+                {
+                    const NeutralActor::SwimRest rest
+                        = NeutralActor::swimRest(entry.mFall.mZ, *water, 2.f * entry.mCapsule.mCentreZ);
+                    if (rest.mSwims)
+                    {
+                        entry.mSwimming = true;
+                        if (trace)
+                            Log(Debug::Info) << "NACTSWIM " << ptr.getCellRef().getRefId() << " floor z "
+                                             << entry.mFall.mZ << " water " << *water << " floats at " << rest.mFeetZ;
+                        entry.mFall.mZ = rest.mFeetZ;
+                    }
+                }
+            }
             if (entry.mFall.mZ != feet.z)
             {
                 ESM::Position pos = ptr.getRefData().getPosition();

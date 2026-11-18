@@ -1573,4 +1573,14 @@ namespace game_skyrimse
         }
         return parseRecords(*plugin, order, limits, out);
     }
+
+    std::optional<float> CellRecord::interiorWaterHeight() const
+    {
+        if (!interior() || (mFlags & CellFlags::HasWater) == 0 || !mWaterHeight)
+            return std::nullopt;
+        const float height = *mWaterHeight;
+        if (!(height > -1.0e9f) || !(height < 1.0e9f)) // false for NaN too; the -2^31 sentinel is below the bound
+            return std::nullopt;
+        return height;
+    }
 }

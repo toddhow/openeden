@@ -21,7 +21,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kWorldWaterVersion{ 0, 1 };
+    inline constexpr Version kWorldWaterVersion{ 0, 2 };
 
     /// The water of one exterior grid square.
     struct CellWater
@@ -42,5 +42,15 @@ namespace openeden::sdk::game
         /// The water of the square (x, y) of `world` (parent worlds are consulted by the source). False when the world
         /// is unknown to the source; `out` is then left empty. Never throws.
         [[nodiscard]] virtual bool cellWater(WorldId world, std::int32_t x, std::int32_t y, CellWater& out) const = 0;
+
+        /// 0.2 (task 0291, additive): the water of an INTERIOR cell, by the id of the `WorldCell` (`WorldCell::id`). The
+        /// pack resolves the game's rules (Skyrim SE: the "has water" bit of the cell flags and a real XCLW height).
+        /// The core makes the whole cell a swimming volume at that height (its own water surface and physics level).
+        /// Default: no interior water.
+        [[nodiscard]] virtual bool interiorWater(WorldId /*cell*/, CellWater& out) const
+        {
+            out = CellWater();
+            return false;
+        }
     };
 }

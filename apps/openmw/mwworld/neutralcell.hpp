@@ -74,6 +74,11 @@ namespace MWWorld
     /// (WorldCell::lighting) when it has one.
     [[nodiscard]] ESM::Cell makeNeutralCellRecord(std::string_view gameId, const openeden::sdk::game::WorldCell& cell);
 
+    /// Task 0291: the same record for an interior that has water (the game pack's `CellWaterSource::interiorWater`):
+    /// the HasWater flag and the surface height. A nullopt gives the dry record above, byte for byte.
+    [[nodiscard]] ESM::Cell makeNeutralCellRecord(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
+        std::optional<float> interiorWater);
+
     /// The reference of one placement: the base id (neutralBaseId), the RefNum, the position, the stored angles, the
     /// scale. False (with `error`) when the object has no usable id or base, a RefNum that does not fit, or a value
     /// that is not finite.
