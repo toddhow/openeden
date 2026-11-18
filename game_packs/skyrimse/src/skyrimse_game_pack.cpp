@@ -2692,6 +2692,11 @@ namespace game_skyrimse
                             openeden::sdk::game::CombatSubject::of(handle), 0.f);
                     });
                 const openeden::sdk::SettingsService* const spellSettings = sdkHost.getSettingsService(); // task 0292
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "civil war", false))
+                {
+                    // task 0298: Rikke's blocking branch speaks instead of Hello (the Civil War's join chain)
+                    mWorldView.setBlockingBranches(true);
+                }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)

@@ -13,6 +13,14 @@
 #      SETTINGS_EXTRA, PHASE (run|load: load reads the save the run made, in <work dir>.load), LOADARG, CHECK_TIMEOUT.
 # <work dir> must be under I:/Projects/OpenEden-work.
 #
+# Task 0298, the join chain (Rikke, then Tullius, then Rikke three times, then the journal): SETTINGS_EXTRA with
+# `civil war = true` (and `quest alias packages = true`), INPUT=join_input.txt (next to this file), 14800 frames,
+# `OPENEDEN_PACKAGE_TRACE=78462` (optional: the package trace of Tullius) and
+#   PLAN="{5800,'talk'},{10200,'talk'},{11400,'talk'}"
+# Steps: Rikke's "Are you lost?" (stage 7), Goodbye; Tullius' forced greeting and its choices (Helgen, ..., stage 10); Rikke's
+# "You survived Helgen?" and "I can handle anything"; Rikke's "Are you ready to test yourself", "What's at Fort Hraggstad?",
+# "Consider that fort already yours." (stage 20, CW01A started, objective 1 displayed); the journal (J) lists both quests.
+#
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; FRAMES=${5:-6000}

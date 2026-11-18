@@ -1,6 +1,7 @@
 #include "game_skyrimse/world_view.hpp"
 
 #include "game_skyrimse/dragons.hpp"
+#include "game_skyrimse/quest_priority.hpp"
 #include "game_skyrimse/vampirism.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
@@ -1342,6 +1343,7 @@ namespace game_skyrimse
         if (mCrimeSourceSet)
             raw->mRuntime->setCrimeSource(mCrimeSource); // task 0258
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
+        raw->mRuntime->setBlockingBranches(mBlockingBranches); // task 0298
         raw->mRuntime->setRankMinusOneMembers(mRankMinusOneMembers); // task 0261
         // Task 0187: aliases and the story manager
         if (mInfoFragmentSink)
@@ -1692,8 +1694,25 @@ namespace game_skyrimse
         if (const auto found = mDialogue->mAliasPackages.find(base); found != mDialogue->mAliasPackages.end())
         {
             std::vector<const PackageRecord*> front;
-            for (const auto& entry : found->second)
+            // task 0298: a quest of higher priority is tried first (the Civil War's CW00A before CW)
+            std::vector<std::size_t> ordered(found->second.size());
+            for (std::size_t i = 0; i < ordered.size(); ++i)
+                ordered[i] = i;
+            const auto priorityOf = [this](FormId quest) -> std::uint8_t {
+                const QuestRecord* record = mDialogue->mData->mQuests.quest(quest);
+                return record != nullptr ? record->mPriority : std::uint8_t(0);
+            };
+            if (mBlockingBranches) // the setting `civil war` (earlier slices keep their order)
             {
+                std::stable_sort(ordered.begin(), ordered.end(), [&](std::size_t a, std::size_t b) {
+                    const FormId qa = found->second[a].mQuest;
+                    const FormId qb = found->second[b].mQuest;
+                    return questPriorityBefore(priorityOf(qa), qa, priorityOf(qb), qb);
+                });
+            }
+            for (const std::size_t at : ordered)
+            {
+                const auto& entry = found->second[at];
                 if (!mDialogue->mPackageQuests.running(entry.mQuest))
                     continue;
                 for (const FormId id : entry.mPackages)
@@ -2175,6 +2194,13 @@ namespace game_skyrimse
         mOpenServices = on;
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setOpenServices(on);
+    }
+
+    void SkyrimWorldView::setBlockingBranches(bool on)
+    {
+        mBlockingBranches = on;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setBlockingBranches(on);
     }
 
     barter::VendorLookup SkyrimWorldView::trainingOf(FormId npcBase, ClassTraining& out)

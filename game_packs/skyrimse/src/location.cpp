@@ -397,6 +397,19 @@ namespace game_skyrimse
         return out;
     }
 
+    std::size_t LocationIndex::countSpecialRefs(
+        FormId location, FormId refType, const std::function<bool(FormId)>& counts) const
+    {
+        const LocationRecord* l = this->location(location);
+        if (l == nullptr || refType == kNullFormId || !counts)
+            return 0;
+        std::size_t n = 0;
+        for (const LocationSpecialRef& r : l->mSpecialRefs)
+            if (r.mRefType == refType && counts(r.mRef))
+                ++n;
+        return n;
+    }
+
     bool LocationIndex::hasRefType(FormId location, FormId refType) const
     {
         const LocationRecord* l = this->location(location);

@@ -682,6 +682,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsehouses2.cpp
     skyrimse/testskyrimsebards.cpp
+    skyrimse/testskyrimsecivilwar.cpp
     skyrimse/testskyrimsemarriage.cpp
     skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsespeech.cpp

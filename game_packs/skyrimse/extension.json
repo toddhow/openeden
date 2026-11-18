@@ -706,6 +706,11 @@
       "default": 0
     },
     {
+      "key": "civil war",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "quest alias packages",
       "type": "bool",
       "default": false

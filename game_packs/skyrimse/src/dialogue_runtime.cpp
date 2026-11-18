@@ -314,8 +314,19 @@ namespace game_skyrimse
         mWorld.setRandomSeed(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase);
         mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
         // The random pick is a function of the placement, so the same actor greets the same way in a session.
-        const Selection greeting = pickFromTopics(mDialogue, "HELO", mWorld, mSpeaker,
-            options(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase));
+        const std::uint32_t pickNumber = speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase;
+        Selection greeting;
+        // Task 0298: a Blocking branch (the Civil War's Rikke: "Are you lost?", "You survived Helgen?") says its first line
+        // that passes instead of Hello; the lowest topic id comes first so the choice never depends on a hash order
+        if (mBlockingBranches)
+            for (const FormId start : mDialogue.blockingStarts())
+            {
+                greeting = selectInfo(mDialogue, start, mWorld, mSpeaker, options(pickNumber));
+                if (greeting.mInfo != nullptr)
+                    break;
+            }
+        if (greeting.mInfo == nullptr)
+            greeting = pickFromTopics(mDialogue, "HELO", mWorld, mSpeaker, options(pickNumber));
         if (greeting.mInfo == nullptr)
         {
             error = "no greeting passes for this speaker";

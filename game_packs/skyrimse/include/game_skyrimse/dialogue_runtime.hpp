@@ -213,6 +213,12 @@ namespace game_skyrimse
         /// Task 0219: with this on a training, rent or gift service is named "open:<name>" (services.hpp) so the engine
         /// opens its window; off, the names are the classifier's and the engine logs "service not implemented".
         void setOpenServices(bool on) { mOpenServices = on; }
+        /// Task 0298: with this on, a blocking branch (the Civil War's Rikke) says its first line that passes instead of the Hello greeting.
+        void setBlockingBranches(bool on)
+        {
+            mBlockingBranches = on;
+            mWorld.setCountRefTypes(on); // GetRefTypeAliveCount counts the placed references (Fort Hraggstad's bandits)
+        }
 
         [[nodiscard]] bool open() const { return mOpen; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -265,6 +271,7 @@ namespace game_skyrimse
         VoiceProbe mVoiceProbe;
         ScriptNameProbe mScriptProbe;
         bool mOpenServices = false; ///< task 0219
+        bool mBlockingBranches = false; ///< task 0298
         InfoFragmentSink mFragmentSink;
         std::map<std::string, std::string> mServiceOfScript; ///< fragment script -> service ("" for none), probed once
         PlayerStandIn mPlayer;

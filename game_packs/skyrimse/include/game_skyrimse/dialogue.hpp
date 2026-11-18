@@ -103,6 +103,9 @@ namespace game_skyrimse
     };
 
     /// Task 0261: a DLBR record (a branch of dialogue): its starting topic (SNAM) and flags (DNAM: 1 top-level).
+    /// Task 0298: DLBR DNAM bit 2 (Mutagen's DialogBranch.Flag.Blocking; 1 is top-level, 4 exclusive).
+    constexpr std::uint32_t kBranchBlocking = 2;
+
     struct DialogBranch
     {
         RecordCommon mCommon;
@@ -233,6 +236,9 @@ namespace game_skyrimse
         /// is only reached through the TCLT choices of an INFO, never from the list of topics. True for every other
         /// topic.
         [[nodiscard]] bool isBranchStart(FormId topic) const;
+        /// Task 0298: the starting topics of the branches that carry the Blocking flag (DLBR DNAM bit 2), sorted by id.
+        /// A blocking branch's first line is what the speaker says instead of the Hello greeting when its conditions pass.
+        [[nodiscard]] std::vector<FormId> blockingStarts() const;
 
         /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
         /// folder of this plugin, named with that id. Nullopt when no plugin of the index owns the id.
@@ -282,6 +288,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, FormId> mScriptedInfos; ///< INFO id -> its topic (INFOs with a parsed VMAD only)
         std::unordered_map<FormId, FormId> mInfoTopic; ///< task 0261: every INFO id -> its topic
         std::unordered_map<FormId, FormId> mBranchStart; ///< task 0261: DLBR id -> its starting topic
+        std::unordered_map<FormId, FormId> mBlockingStart; ///< task 0298: DLBR id (Blocking flag) -> its starting topic
         std::unordered_map<FormId, GlobalValue> mGlobals;
         std::unordered_map<FormId, FormListRecord> mFormLists;
         std::size_t mInfoCount = 0;
@@ -528,6 +535,10 @@ namespace game_skyrimse
         float goldOf(conditions::Subject subject) const override;
         // task 0156
         bool isDead(conditions::Subject subject) const override;
+        /// Task 0298 (GetRefTypeAliveCount, the Civil War's Fort Hraggstad): with `setCountRefTypes(true)` the special
+        /// references of the location with that type that are not placed dead; off, 0 as before.
+        float refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const override;
+        void setCountRefTypes(bool on) { mCountRefTypes = on; }
         bool inDialogueWithPlayer(conditions::Subject subject) const override;
         float randomPercent() const override;
         bool inInterior(conditions::Subject subject) const override;
@@ -667,6 +678,7 @@ namespace game_skyrimse
         bool mRandomSeeded = false;
         mutable std::uint64_t mRandomState = 0;
         const LocationIndex* mLocations = nullptr;
+        bool mCountRefTypes = false; ///< task 0298
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261
         std::set<FormId> mRankMinusOneMembers; ///< task 0261

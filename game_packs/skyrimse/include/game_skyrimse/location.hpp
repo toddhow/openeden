@@ -30,6 +30,7 @@
 #include <components/contentsource/plugin.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <string>
@@ -141,6 +142,10 @@ namespace game_skyrimse
         [[nodiscard]] std::vector<LocationSpecialRef> specialRefsOfType(FormId location, FormId refType) const;
         /// Does the location (its own lists only) have a special reference of this type?
         [[nodiscard]] bool hasRefType(FormId location, FormId refType) const;
+        /// Task 0298: how many special references of the location with this type `counts` says yes to (GetRefTypeAliveCount:
+        /// the caller says whether a reference is alive). Zero for an unknown location or type.
+        [[nodiscard]] std::size_t countSpecialRefs(
+            FormId location, FormId refType, const std::function<bool(FormId)>& counts) const;
 
         // ---- task 0226 (bounty quests) -----------------------------------------------------------------------------
         /// The location itself or the first ancestor that carries `keyword` (the parent chain, at most 64 steps);

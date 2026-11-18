@@ -697,9 +697,18 @@ namespace game_skyrimse
             if (!usable(b.mCommon.mId))
                 continue;
             if (b.mCommon.deleted())
+            {
                 mBranchStart.erase(b.mCommon.mId);
+                mBlockingStart.erase(b.mCommon.mId);
+            }
             else
+            {
                 mBranchStart[b.mCommon.mId] = b.mStartTopic;
+                if ((b.mFlags & kBranchBlocking) != 0 && b.mStartTopic != kNullFormId)
+                    mBlockingStart[b.mCommon.mId] = b.mStartTopic;
+                else
+                    mBlockingStart.erase(b.mCommon.mId);
+            }
         }
         for (GlobalValue& g : records.mGlobals)
         {
@@ -752,6 +761,17 @@ namespace game_skyrimse
         if (at == slot->second.mByInfo.end() || !slot->second.mAlive[at->second])
             return nullptr;
         return &slot->second.mList[at->second];
+    }
+
+    std::vector<FormId> DialogueIndex::blockingStarts() const
+    {
+        std::vector<FormId> out;
+        out.reserve(mBlockingStart.size());
+        for (const auto& [branch, start] : mBlockingStart)
+            out.push_back(start);
+        std::sort(out.begin(), out.end());
+        out.erase(std::unique(out.begin(), out.end()), out.end());
+        return out;
     }
 
     bool DialogueIndex::isBranchStart(FormId topicId) const
@@ -985,6 +1005,18 @@ namespace game_skyrimse
         if (isOtherSubject(subject) && viewOf(subject, view) && view.mRef != nullptr)
             return (view.mRef->mFlags & PlacedFlags::Dead) != 0;
         return false;
+    }
+
+    float SkyrimConditionWorld::refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const
+    {
+        if (!mCountRefTypes || mLocations == nullptr)
+            return 0.f;
+        const FormId place = resolve(location);
+        const FormId type = resolve(refType);
+        return static_cast<float>(mLocations->countSpecialRefs(place, type, [this](FormId reference) {
+            const PlacedEntry* entry = mPlacedRefs != nullptr ? mPlacedRefs->find(reference) : nullptr;
+            return entry == nullptr || (entry->mFlags & PlacedFlags::Dead) == 0;
+        }));
     }
 
     bool SkyrimConditionWorld::inDialogueWithPlayer(conditions::Subject subject) const
