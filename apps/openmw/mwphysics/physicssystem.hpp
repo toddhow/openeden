@@ -6,6 +6,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <optional>
 #include <span>
 #include <string>
@@ -546,6 +547,9 @@ namespace MWPhysics
         void updateScale(const MWWorld::Ptr& ptr);
         void updateRotation(const MWWorld::Ptr& ptr, vsg::dquat rotate);
         void updatePosition(const MWWorld::Ptr& ptr);
+        /// Task 0274: a game pack moves this object every frame (a cart trailing its horse): a mount's sweeps leave
+        /// its body out, or the cart blocks the horse that pulls it in a bend.
+        void noteMovedByPack(const MWWorld::Ptr& ptr) { mNeutralMovable.insert(ptr.mRef); }
 
         void addHeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
             const vsg::Object* holdObject);
@@ -741,6 +745,7 @@ namespace MWPhysics
         std::uint64_t mNeutralCostRulesMaxNs = 0;
         std::uint64_t mNeutralCostRulesPrevNs = 0; ///< the bridge's running total at the last frame
         std::vector<NeutralActorEntry> mNeutralActors;
+        std::set<const MWWorld::LiveCellRefBase*> mNeutralMovable; ///< task 0274: objects a game pack moves (carts)
         std::vector<JPH::BodyID> mNeutralSweepIgnore; ///< task 0274: scratch, the bodies a mount's sweeps ignore
         // Task 0157: doors that open for walking neutral actors.
         struct NeutralDoorEntry

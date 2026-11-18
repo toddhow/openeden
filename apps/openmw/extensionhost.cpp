@@ -469,6 +469,8 @@ namespace OMW
                             turn = true;
                         }
                     }
+                    if (!isActor(ptr))
+                        world->getPhysicsSystem()->noteMovedByPack(ptr); // task 0274
                     if (op.move.hasPosition || op.move.toOriginal)
                         world->moveObject(ptr, ptr.getCell(), vsg::vec3(target.pos[0], target.pos[1], target.pos[2]));
                     if (turn)

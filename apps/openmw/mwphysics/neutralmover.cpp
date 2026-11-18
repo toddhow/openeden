@@ -5,7 +5,6 @@
 #include <utility>
 
 #include <Jolt/Physics/Body/BodyFilter.h>
-#include <Jolt/Physics/Body/BodyLock.h>
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>

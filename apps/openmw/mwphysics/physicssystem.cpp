@@ -2498,6 +2498,13 @@ namespace MWPhysics
                     if (otherObject != mObjects.end())
                         mNeutralSweepIgnore.push_back(otherObject->second->getPhysicsBody());
                 }
+        if (mount)
+            for (const MWWorld::LiveCellRefBase* moved : mNeutralMovable)
+            {
+                const auto movedObject = mObjects.find(moved);
+                if (movedObject != mObjects.end())
+                    mNeutralSweepIgnore.push_back(movedObject->second->getPhysicsBody());
+            }
         // Task 0255: the horse the player sits on climbs and drops more than a person: its limits follow its capsule.
         // Every other actor keeps the humanoid's (the pack names the ridden horse once a frame). Task 0280: so does a
         // capsule as wide as the dragon's, which also walks over small clutter. Task 0274: a rider of a cart rig's
