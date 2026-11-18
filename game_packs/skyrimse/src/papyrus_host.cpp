@@ -1036,6 +1036,7 @@ namespace game_skyrimse
         static constexpr std::int32_t kOpenStateOpen = 1;
         static constexpr std::int32_t kOpenStateClosed = 3;
         static constexpr double kMaxAnimationWaitSeconds = 30.0;
+        static constexpr double kMaxGameWaitSeconds = 3.0 * 24.0 * 3600.0 / 20.0; // three game days at the default scale
         static constexpr std::size_t kMaxOpenStates = 4096;
         std::map<FormId, std::int32_t> mOpenStates;
         std::map<FormId, std::uint32_t> mDartShots; // task 0289: Weapon.Fire calls per source reference
@@ -1197,6 +1198,18 @@ namespace game_skyrimse
             reg("Message", "Show", false,
                 [this](const NativeCall& c) { return result(PapyrusValue::makeInt(showMessage(formOf(c.self)))); });
             reg("Game", "AddAchievement", true, [](const NativeCall&) { return NativeResult{}; });
+            // Task 0294: Utility.WaitGameTime(hours) parks the script for that many game hours (the time scale is the
+            // game's; the host counts script seconds). Unregistered it returned at once, and the game's
+            // WIDeadBodyCleanupScript loops on it and used up the whole instruction budget.
+            reg("Utility", "WaitGameTime", true,
+                [this](const NativeCall& c) {
+                    NativeResult r;
+                    const double hours = argNumber(c, 0);
+                    if (std::isfinite(hours) && hours > 0.0 && mOptions.mTimeScale > 0.0)
+                        r.waitSeconds = std::min(hours * 3600.0 / mOptions.mTimeScale, kMaxGameWaitSeconds);
+                    return r;
+                },
+                true);
             // Task 0289 (dungeon mechanics): PlayAnimation and PlayAnimationAndWait go to the game through the hooks.
             // The latent form parks the script for the animation's own length (the hook says it), which stands for
             // the animation event the script names as the second argument.
