@@ -541,6 +541,49 @@ namespace game_skyrimse
         return found;
     }
 
+    void DialogueRuntime::followNamelessLinks(openeden::sdk::game::DialogueTurn& out)
+    {
+        // Task 0304: a response that links to a topic with no name whose INFO has no prompt is not a choice for the
+        // player: the speaker goes on with it (Faralda's "Excellent." continues with the Nirya spell branch's greeting).
+        if (!mQuestGreetings)
+            return;
+        for (std::size_t depth = 0; depth < kMaxFollowDepth && !out.endsConversation; ++depth)
+        {
+            const DialogInfo* next = nullptr;
+            if (mFragmentFlush)
+                mFragmentFlush();
+            for (const FormId id : mChoices)
+            {
+                const DialogTopic* topic = mDialogue.topic(id);
+                if (topic == nullptr || topic->mCategory != TopicCategory::Topic || topic->mName.mPresent)
+                    continue;
+                const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, options(id));
+                if (s.mInfo != nullptr && !s.mInfo->mPrompt.mPresent)
+                {
+                    next = s.mInfo;
+                    break;
+                }
+            }
+            if (next == nullptr)
+                return;
+            openeden::sdk::game::DialogueTurn more;
+            fillTurn(*next, more);
+            if (!more.text.empty())
+            {
+                if (!out.text.empty())
+                    out.text += ' ';
+                out.text += more.text;
+            }
+            out.voice.insert(out.voice.end(), more.voice.begin(), more.voice.end());
+            out.endsConversation = more.endsConversation;
+            if (!more.service.empty())
+                out.service = more.service;
+            if (mTrace)
+                mTrace("followed " + hex8(next->mCommon.mId));
+            mChoices = next->mLinksTo;
+        }
+    }
+
     bool DialogueRuntime::choose(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {
         out = {};
@@ -562,6 +605,7 @@ namespace game_skyrimse
         }
         fillTurn(*s.mInfo, out);
         mChoices = s.mInfo->mLinksTo; // task 0261: the next menu is what this response links to (offerTopics)
+        followNamelessLinks(out); // task 0304
         // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its
         // own ends the talk, as the game closes a forced dialogue when nothing is left to choose
         if (mLinkMode && !out.endsConversation && !s.mInfo->mLinksTo.empty())

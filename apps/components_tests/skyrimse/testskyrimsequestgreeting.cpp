@@ -194,6 +194,18 @@ namespace
         }
     };
 
+    std::uint32_t idOf(const Turn& turn, const std::string& name)
+    {
+        for (const auto& t : turn.topics)
+            if (t.text == name)
+                return t.id;
+        ADD_FAILURE() << "topic not offered: " << name;
+        return 0;
+    }
+
+    constexpr FormId kBranchB = kSelf | 0x501;
+    constexpr FormId kTopicB = kSelf | 0x330; // the higher id
+
     std::vector<std::string> names(const Turn& turn)
     {
         std::vector<std::string> out;
@@ -315,8 +327,6 @@ namespace
     {
         // Faralda's Initial branch (0AF0DD) and the Nirya greeting branch (01F80F, a catch-all that passes from stage
         // 0) both have priority 50: the data wants the Initial one first, and the other once the first says no more.
-        constexpr FormId kBranchB = kSelf | 0x501;
-        constexpr FormId kTopicB = kSelf | 0x330; // the higher id
         Plugin p;
         p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
         p.mDials.append(topic(kTopicOffer, "LowId", "CUST", 0xF0, kBranch, { speaks(info(0x21, "Low id line.")) }));
@@ -340,8 +350,6 @@ namespace
     {
         // MG01FaraldaYoureInBranchTopic: the start of a branch, no name, and the TCLT target of three INFOs: it is a reply
         // in a conversation, never the greeting.
-        constexpr FormId kBranchB = kSelf | 0x501;
-        constexpr FormId kTopicB = kSelf | 0x330;
         Plugin p;
         p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
         InfoSpec linker = info(0x21, "A line that links on.");
@@ -373,5 +381,45 @@ namespace
         std::string error;
         ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
         EXPECT_EQ(turn.text, "Yes?");
+    }
+
+    // MG01FaraldaEntryTakeTest answers "Excellent." and links to the nameless MG01NiryaGreetingBranchTopic, whose INFO
+    // has no prompt: the speaker goes on with it, then the player's choices are that INFO's own links.
+    Plugin followPlugin()
+    {
+        Plugin p;
+        p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
+        InfoSpec reply = info(0x21, "Excellent.");
+        reply.mLinks = { kTopicB };
+        p.mDials.append(topic(kTopicOffer, "Take the test", "CUST", 0, kBranch, { reply }));
+        InfoSpec follow = info(0x31, "Here is the spell.");
+        follow.mLinks = { kTopicTake };
+        p.mDials.append(topic(kTopicB, "Follow", "CUST", 0xF0, kBranchB, { follow }));
+        p.mDials.append(topic(kTopicTake, "Okay, I will.", "CUST", 0, kBranchB, { info(0x32, "Good.") }));
+        p.mBranches = branchRecord(kBranch, kTopicOffer, 2);
+        p.mBranches.append(branchRecord(kBranchB, kTopicB, 2));
+        return p;
+    }
+
+    TEST(SkyrimQuestGreeting, aReplyThatLinksToANamelessTopicGoesOnWithIt)
+    {
+        Talk talk(followPlugin());
+        talk.mRuntime->setQuestGreetings(true);
+        Turn turn, reply;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        ASSERT_TRUE(talk.mRuntime->choose(idOf(turn, "Take the test"), reply, error)) << error;
+        EXPECT_EQ(reply.text, "Excellent. Here is the spell.");
+        EXPECT_EQ(names(reply), (std::vector<std::string>{ "Okay, I will." }));
+    }
+
+    TEST(SkyrimQuestGreeting, withoutTheSettingTheNamelessLinkIsNotFollowed)
+    {
+        Talk talk(followPlugin());
+        Turn turn, reply;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        ASSERT_TRUE(talk.mRuntime->choose(idOf(turn, "Take the test"), reply, error)) << error;
+        EXPECT_EQ(reply.text, "Excellent.");
     }
 }

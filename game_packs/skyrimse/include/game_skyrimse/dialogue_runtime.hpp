@@ -225,6 +225,9 @@ namespace game_skyrimse
         void setQuestGreetings(bool on) { mQuestGreetings = on; }
         /// Task 0304: a line of trace for each quest greeting looked at (the topic, how many INFOs were considered and
         /// passed, the INFO chosen); unset: none.
+        /// Task 0304: runs the script work queued by the INFO fragments of the response just shown, so that the next INFO
+        /// of a chain is chosen with their effects (NiryaInit set by "Excellent." decides which spell offer follows).
+        void setFragmentFlush(std::function<void()> flush) { mFragmentFlush = std::move(flush); }
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
 
         [[nodiscard]] bool open() const { return mOpen; }
@@ -244,8 +247,11 @@ namespace game_skyrimse
             const std::vector<survey::Ctda>& list, FormId quest, const FormIdResolver& resolver);
 
     private:
+        static constexpr std::size_t kMaxFollowDepth = 4; ///< task 0304
+        void followNamelessLinks(openeden::sdk::game::DialogueTurn& out);
         bool mQuestGreetings = false;
         std::function<void(const std::string&)> mTrace;
+        std::function<void()> mFragmentFlush;
         std::vector<FormId> mGreetingTopics; ///< task 0304: DialogueIndex::questGreetingTopics, found once
         bool mGreetingTopicsKnown = false;
         void fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);

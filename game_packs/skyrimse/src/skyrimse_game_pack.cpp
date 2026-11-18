@@ -643,6 +643,8 @@ namespace game_skyrimse
                         + (mHost.startQuestForTest(mainquest::kUnboundQuest, stage) ? "set" : "refused"));
             }
 
+            void flushFragments() { mHost.tick(0.f); } // task 0304: a dialogue chain wants the effects of the line just shown
+
             void enableCollege() // task 0292: quests move actors near the player, box triggers fire
             {
                 mCollege = true;
@@ -2763,6 +2765,10 @@ namespace game_skyrimse
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
                     mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
                     mWorldView.setDialogueTrace([logger](const std::string& line) {
                         if (logger != nullptr)
                             logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);

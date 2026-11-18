@@ -3515,9 +3515,17 @@ namespace game_skyrimse
                     instances.insert(instances.end(), ids.begin(), ids.end());
             }
         }
+        std::size_t sent = 0;
         for (const InstanceId instance : instances)
             if (m.sendEvent(instance, "OnHit", args))
+            {
                 ++m.mCounters.mCombatEvents;
+                ++sent;
+            }
+        if (target == 0) // task 0304: where a spell ended on the world and how many scripts it reached
+            m.say(false, "Papyrus: spell " + hex(spell) + " ended at " + std::to_string(static_cast<long long>(x)) + " "
+                    + std::to_string(static_cast<long long>(y)) + " " + std::to_string(static_cast<long long>(z))
+                    + ", OnHit sent to " + std::to_string(sent) + " script(s) of " + std::to_string(instances.size()));
     }
 
     void PapyrusHost::onMagicEffectApplied(FormId caster, FormId target, FormId effect)

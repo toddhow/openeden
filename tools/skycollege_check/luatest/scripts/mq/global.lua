@@ -96,7 +96,9 @@ local function stepTo(s)
     end
     if s[2] == 'abs' then
         -- { update, 'abs', x, y, z, yawDegrees (0 looks north, positive turns right), pitchDegrees }
-        player:teleport(player.cell, util.vector3(s[3], s[4], s[5]), { onGround = true, rotation = util.transform.rotateZ(math.rad(s[6])) })
+        -- the pitch goes into the player's own rotation as well (a spell's launch reads the actor's pitch, not the camera's)
+        local rot = util.transform.rotateZ(math.rad(s[6])) * util.transform.rotateX(math.rad(s[7] or 0))
+        player:teleport(player.cell, util.vector3(s[3], s[4], s[5]), { onGround = true, rotation = rot })
         player:sendEvent('MQLook', { pitch = math.rad(s[7] or 0) })
         lookAgain = { updates + 20, math.rad(s[7] or 0) }
         print(string.format('MQ step abs: the player at %.0f,%.0f,%.0f yaw %.1f pitch %.1f', s[3], s[4], s[5], s[6], s[7] or 0))
