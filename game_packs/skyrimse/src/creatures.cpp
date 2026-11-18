@@ -118,6 +118,33 @@ namespace game_skyrimse
                 "ground_bite", "ground_tailwhip", "", "mtland_staggerheavy", "mtdeathintro", 150.f },
         };
 
+        // Task 0290: the fourth slice, searched after the others (older tests pin the size of kProfiles). Numbers:
+        // docs/tasks/0290-skyrim-beast-and-machine-animations.md section 2. The centurions' clips lie flat in
+        // <actor folder>/animations (no sex folder), under names of their own.
+        const CreatureProfile kFourthProfiles[] = {
+            // Steam centurion: its sidecar names the cycles `DefaultForward` (the clip mtforward, 128 units in 1.33333
+            // s) and `DefaultFastForward` (mtfastforward, 256 in 1.33333 s); the clip `death` stands for the death.
+            // Height 305 and radius 76.7 from steamcenturion.nif (mid-body 153 by 164).
+            { "dwarvensteamcenturion", "actors/dwarvensteamcenturion/character assets/", "steamproject", "mtidle",
+                "mtforward", "mtfastforward", 128.f / 1.33333f, 256.f / 1.33333f, 128.f, 256.f, 305.f,
+                "h2hattackleftslash", "h2hattackforwardpower", "h2hrecoilleft", "stagger_light", "death", 76.7f },
+            // Sphere centurion: MT_Forward 192 units in 1 s, MT_FastForward 384 in 1 s (VERIFIED by the linked
+            // blocks); no death clip (the heavy combat stagger stands in, as for the troll). Height 143 and radius
+            // 46.5 from spherecenturion.nif (mid-body 93 by 106).
+            { "dwarvenspherecenturion", "actors/dwarvenspherecenturion/character assets/", "spherecenturion", "mt_idle",
+                "mt_forward", "mt_fastforward", 192.f / 1.f, 384.f / 1.f, 192.f, 384.f, 143.f, "h2h_attackslash",
+                "h2h_attackforwardpowerchop", "h2h_recoil", "combat_staggerlight", "combat_staggerheavy", 46.5f },
+            // The Solstheim boar riekling (DLC2; skeletonboar.nif). The installed data has NO sidecar for it, so
+            // `boarproject` names a file that does not exist (the clip meta reader logs that once and the clips have no
+            // events) and the strides are ESTIMATES: the front hoof travels 45.3 units along the body over walkforward
+            // (1.06667 s) and 96.2 over runforward (0.533333 s) in the survey; a stride is that travel over the share
+            // of the cycle the foot is on the ground (0.6 for the walk, 0.4 for the run: named guesses). Height 138
+            // and radius 40.5 from boarriekling.nif.
+            { "boarriekling", "actors/dlc02/boarriekling/character assets/", "boarproject", "mt_idle", "walkforward",
+                "runforward", 75.55f / 1.06667f, 240.4f / 0.533333f, 75.55f, 240.4f, 138.f, "attack1",
+                "attackpowerstanding", "recoil", "staggerbacksmall", "death", 40.5f },
+        };
+
         // The rows of tasks 0212 and 0216 come first; creatureProfiles() is exactly these.
         constexpr std::size_t kEarlierCount = 10;
         static_assert(std::size(kProfiles) > kEarlierCount);
@@ -144,6 +171,11 @@ namespace game_skyrimse
     std::span<const CreatureProfile> creatureProfilesAll()
     {
         return std::span<const CreatureProfile>(kProfiles, std::size(kProfiles));
+    }
+
+    std::span<const CreatureProfile> creatureProfilesFourth()
+    {
+        return std::span<const CreatureProfile>(kFourthProfiles, std::size(kFourthProfiles));
     }
 
     std::string_view creatureClipFor(const CreatureProfile& profile, openeden::sdk::game::ClipSlot slot)
@@ -174,13 +206,17 @@ namespace game_skyrimse
     const CreatureProfile* creatureProfileFor(std::string_view skeletonPath)
     {
         const std::string path = normalised(skeletonPath);
-        for (const CreatureProfile& profile : kProfiles)
-        {
+        const auto matches = [&path](const CreatureProfile& profile) {
             // The model root is optional (a path may come with or without it).
             const std::size_t at = path.find(profile.mSkeletonFolder);
-            if (at != std::string::npos && (at == 0 || path.compare(0, at, "meshes/") == 0))
+            return at != std::string::npos && (at == 0 || path.compare(0, at, "meshes/") == 0);
+        };
+        for (const CreatureProfile& profile : kProfiles)
+            if (matches(profile))
                 return &profile;
-        }
+        for (const CreatureProfile& profile : kFourthProfiles) // task 0290
+            if (matches(profile))
+                return &profile;
         return nullptr;
     }
 }

@@ -40,6 +40,36 @@ namespace HavokPack
         return "meshes/" + path;
     }
 
+    std::string skeletonHkxFallbackPath(std::string_view skeletonNifPath)
+    {
+        const std::string path = normalise(skeletonNifPath);
+        if (!endsWith(path, ".nif"))
+            return {};
+        const std::size_t fileSlash = path.rfind('/');
+        if (fileSlash == std::string::npos || fileSlash == 0)
+            return {};
+        const std::string folder = path.substr(0, fileSlash);
+        const std::size_t folderSlash = folder.rfind('/');
+        const std::string_view folderName
+            = folderSlash == std::string::npos ? std::string_view(folder) : std::string_view(folder).substr(folderSlash + 1);
+        // Skyrim keeps the female humanoid skeleton in "<folder> female" under its own name.
+        const std::string file = endsWith(std::string(folderName), " female") ? "skeleton_female.hkx" : "skeleton.hkx";
+        std::string result = "meshes/" + folder + "/" + file;
+        return result == skeletonHkxPath(skeletonNifPath) ? std::string() : result;
+    }
+
+    std::string chooseSkeletonHkx(
+        std::string_view skeletonNifPath, const std::function<bool(const std::string&)>& exists)
+    {
+        std::string derived = skeletonHkxPath(skeletonNifPath);
+        if (derived.empty() || !exists || exists(derived))
+            return derived;
+        std::string fallback = skeletonHkxFallbackPath(skeletonNifPath);
+        if (!fallback.empty() && exists(fallback))
+            return fallback;
+        return derived;
+    }
+
     std::string clipHkxPath(std::string_view skeletonNifPath, std::string_view clipName, std::string_view sexFolder)
     {
         const std::string path = normalise(skeletonNifPath);

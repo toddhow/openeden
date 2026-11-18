@@ -281,6 +281,7 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testfloattracks.cpp
     havokpack/testexportmotion.cpp
     havokpack/testidle.cpp
+    havokpack/testskeletonfallback.cpp
     havokpack/testlocomotion.cpp
     havokpack/testpairedsurvey.cpp
     havokpack/testpaired.cpp
@@ -793,6 +794,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecreaturesmore.cpp
     skyrimse/testskyrimsecreaturesclips.cpp
     skyrimse/testskyrimsecreaturesthirdreal.cpp
+    skyrimse/testskyrimsecreaturesfourthreal.cpp
+    skyrimse/testskyrimsecreaturesfourth.cpp
     skyrimse/testskyrimsedragonsreal.cpp
     skyrimse/testskyrimsedragons.cpp
     skyrimse/testskyrimsewerewolfreal.cpp

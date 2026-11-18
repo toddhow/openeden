@@ -9,6 +9,7 @@
 #include "animation.hpp"
 #include "skeleton.hpp"
 
+#include <functional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -19,6 +20,18 @@ namespace HavokPack
     // "meshes/actors/character/character assets/skeleton.nif" (any case, either slash, with or without "meshes/")
     // to "meshes/actors/character/character assets/skeleton.hkx". Empty when the path is not a .nif.
     std::string skeletonHkxPath(std::string_view skeletonNifPath);
+
+    // Task 0290: a race may name a skeleton MODEL that has no skeleton file of its own name (the beast races'
+    // `skeletonbeast.nif` and `skeletonbeast_female.nif`, the Solstheim boar riekling's `skeletonboar.nif`): the actor
+    // folder holds the shared `skeleton.hkx` (or `skeleton_female.hkx` in a folder whose name ends " female"). This is
+    // that path, in the model's own folder; empty when the model path is not a .nif or the fallback is the derived
+    // path itself.
+    std::string skeletonHkxFallbackPath(std::string_view skeletonNifPath);
+
+    // The skeleton file to read for a model: the derived `skeletonHkxPath` when `exists` says it exists, else the
+    // fallback when that exists, else the derived path (so the loader's error names the file the model asks for).
+    std::string chooseSkeletonHkx(
+        std::string_view skeletonNifPath, const std::function<bool(const std::string&)>& exists);
 
     // The clip file `clipName` beside the actor's skeleton folder: "<actor folder>/animations/<clipName>.hkx", with
     // the actor folder being the skeleton model's folder's parent. Lower case, forward slashes, "meshes/" first.
