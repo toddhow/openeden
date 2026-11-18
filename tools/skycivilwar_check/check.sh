@@ -21,6 +21,14 @@
 # "You survived Helgen?" and "I can handle anything"; Rikke's "Are you ready to test yourself", "What's at Fort Hraggstad?",
 # "Consider that fort already yours." (stage 20, CW01A started, objective 1 displayed); the journal (J) lists both quests.
 #
+# Task 0307, the Stormcloak join (Ulfric, Galmar, CW00B and CW01B): TARGET=skyrimse:b82216 (Galmar), CELLID=WindhelmPalaceoftheKings,
+# INPUT=stormcloak_input.txt (next to this file), 20800 frames, SETTINGS_EXTRA with `civil war = true`, `quest alias packages = true`,
+# `story test quest = E2D29:100` and `story test delay = 62` (the kill of the Ice Wraith is hand-set: stage 100 of CW01B) and
+#   PLAN="{2500,'talk'},{6300,'talk'},{12500,'talk'}"
+# Steps: Galmar's blocking line (stage 7), Goodbye; Ulfric's forced greeting and its choices (stage 10 at its end); Galmar's questions
+# and "I'm off to kill that Ice Wraith" (stages 15 and 20, CW01B started, objective 1 in the journal); (stage 100 set by the aid)
+# Galmar's "You're alive" greeting, Oath?, "I'm ready", the four oath lines, Goodbye (CW01B stages 160 and 200); the journal (J).
+#
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; FRAMES=${5:-6000}
