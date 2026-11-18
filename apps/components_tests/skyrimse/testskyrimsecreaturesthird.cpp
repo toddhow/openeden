@@ -202,8 +202,8 @@ namespace
 
     TEST(SkyrimCreatureThirdLookup, creaturesNoRowKnowsAndPeopleStillHaveNoProfile)
     {
-        for (const char* path : { "Actors\\DwarvenSpider\\Character Assets\\skeleton.nif",
-                 "Actors\\WerewolfBeast\\Character Assets\\skeleton.nif",
+        // The Dwarven spider has a row since task 0301 (toddhow approved this edit on 2026-11-18).
+        for (const char* path : { "Actors\\WerewolfBeast\\Character Assets\\skeleton.nif",
                  "Actors\\FrostbiteSpiderX\\Character Assets\\skeleton.nif",
                  "Actors\\Character\\Character Assets\\skeleton.nif",
                  "Actors\\Character\\Character Assets Female\\skeleton_female.nif",

@@ -159,9 +159,8 @@ namespace
 
     TEST(SkyrimCreatureTable, creaturesThisSliceDoesNotKnowAndPeopleHaveNoProfile)
     {
-        for (const char* path : { "Actors\\Ambient\\Hare\\Character Assets\\skeleton.nif",
-                 "Actors\\Ambient\\Chicken\\Character Assets\\Skeleton.nif",
-                 "Actors\\Character\\Character Assets\\skeleton.nif",
+        // The hare and the chicken have rows since task 0301 (toddhow approved this edit on 2026-11-18).
+        for (const char* path : { "Actors\\Character\\Character Assets\\skeleton.nif",
                  "Actors\\Character\\Character Assets Female\\skeleton_female.nif",
                  "Actors\\Character\\Character Assets\\skeletonBeast.nif", "" })
             EXPECT_EQ(creatureProfileFor(path), nullptr) << path;

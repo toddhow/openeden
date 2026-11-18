@@ -100,7 +100,7 @@ TEST(SkyrimCreaturesFourth, the_rows_are_in_the_fourth_table_not_the_older_ones)
 TEST(SkyrimCreaturesFourth, a_sibling_folder_or_another_creature_is_not_taken)
 {
     EXPECT_EQ(creatureProfileFor("actors/dwarvenspidercenturion/character assets/skeleton.nif"), nullptr);
-    EXPECT_EQ(creatureProfileFor("actors/dlc02/riekling/character assets/skeleton.nif"), nullptr);
+    // The ordinary riekling has a row since task 0301 (toddhow approved this edit on 2026-11-18).
     EXPECT_EQ(creatureProfileFor("actors/character/character assets/skeletonbeast.nif"), nullptr);
     EXPECT_EQ(creatureProfileFor("mods/actors/dwarvenspherecenturion/character assets/skeleton.nif"), nullptr);
 }
