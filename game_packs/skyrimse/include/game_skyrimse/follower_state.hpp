@@ -35,6 +35,11 @@ namespace game_skyrimse
     /// GetActorValue conditions name (VERIFIED by the data: parameter 0x5F in all 21 INFOs of both topics).
     inline constexpr std::string_view kWaitingForPlayerKey = "waitingforplayer";
     inline constexpr std::uint32_t kWaitingForPlayerIndex = 0x5F;
+    /// Task 0302 (draugr ambushes): Variable01, the actor value an ambush draugr's sleep package tests (condition
+    /// function GetActorValue, parameter 0x44: VERIFIED in `ambushSleepPackage` and `AmbushSandboxEditorLocation512`); the
+    /// script's SetAV("Variable01", 1) lets the actor out. Read like WaitingForPlayer, from the host's actor value offsets.
+    inline constexpr std::string_view kVariable01Key = "variable01";
+    inline constexpr std::uint32_t kVariable01Index = 0x44;
 
     /// The most entries of each kind the state keeps (a script cannot grow it without bound).
     inline constexpr std::size_t kMaxFollowerStateEntries = 256;

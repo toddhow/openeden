@@ -89,6 +89,7 @@ openeden_add_game_pack(skyrimse
         src/mining.cpp
         src/mining_service.cpp
         src/sneak.cpp
+        src/ambush.cpp
         src/magic.cpp
         src/magic_status.cpp
         src/combat_status.cpp
@@ -323,6 +324,7 @@ add_library(game_skyrimse_world STATIC
     src/mining.cpp
     src/mining_service.cpp
     src/sneak.cpp
+    src/ambush.cpp
     src/magic.cpp
     src/magic_status.cpp
     src/combat_status.cpp

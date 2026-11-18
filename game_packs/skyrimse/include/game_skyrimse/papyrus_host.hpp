@@ -457,6 +457,13 @@ namespace game_skyrimse
             (void)actor;
             return false;
         }
+        /// Task 0302: a script set an actor value (Actor.SetAV or SetActorValue; `lowerName` is the key as avKey makes it:
+        /// "aggression", "variable01"); `value` is the number the actor value now has. The pack passes Aggression on to the
+        /// combat AI. Called after the host noted the new value itself.
+        virtual void actorValueSet(FormId actor, std::string_view lowerName, double value)
+        {
+            (void)actor, (void)lowerName, (void)value;
+        }
         /// Is the form a concrete item the inventory knows? An inventory event filter that names anything else (a form
         /// list the host cannot expand) is ignored.
         [[nodiscard]] virtual bool isItem(FormId form)
@@ -683,6 +690,15 @@ namespace game_skyrimse
         void onActorDied(FormId victim, FormId killer);
         /// Task 0264: an essential actor collapsed (OnEnterBleedout on the scripts that hold it).
         void onActorBleedout(FormId actor);
+        /// Task 0302 (draugr ambushes): does a script on this placement handle OnGetUp (the name is in its string
+        /// table)? The pack wakes only such sleepers by the player's nearness: the game's own script decides what a
+        /// wake means.
+        [[nodiscard]] bool handlesGetUp(FormId actor) const;
+        /// Task 0302: the engine's OnGetUp(akFurniture) to the scripts that hold the actor (queued; run by the next tick).
+        void onGetUp(FormId actor, FormId furniture);
+        /// Task 0302: OnCombatStateChanged(akTarget, aeCombatState) to the scripts that hold the actor. State 0 left the
+        /// fight, 1 in combat, 2 searching (Papyrus's own numbers).
+        void onCombatStateChanged(FormId actor, FormId target, std::int32_t state);
         /// Notifications (Debug.Notification) shown since the host was made: a ring of the last kMaxNotifications.
         static constexpr std::size_t kMaxNotifications = 16;
         [[nodiscard]] std::uint64_t notificationCount() const;

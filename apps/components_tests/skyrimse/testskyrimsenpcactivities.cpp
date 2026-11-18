@@ -832,4 +832,41 @@ namespace
         EXPECT_TRUE(walker.brain->prepareTalk(0x999));
         EXPECT_TRUE(walker.brain->readyToTalk(0x999));
     }
+
+    // ---- the sleepers the ambush rule looks at (task 0302) ----------------------------------------------------------
+
+    TEST(SkyrimNpcAmbush, aSleeperInItsBedIsListedWithTheBedsPlaceAndNotWhileItGetsUp)
+    {
+        WakeRig wake;
+        PackageBrain& brain = *wake.rig.brain;
+        std::vector<PackageBrain::Sleeper> out;
+        brain.sleepers(out);
+        ASSERT_EQ(out.size(), 1u);
+        EXPECT_EQ(out[0].mReference, 0x10u);
+        EXPECT_DOUBLE_EQ(out[0].mX, 1000.0); // the slot's place, not the actor's estimate
+        EXPECT_DOUBLE_EQ(out[0].mY, 1000.0);
+        EXPECT_DOUBLE_EQ(out[0].mZ, 0.0);
+        ASSERT_FALSE(brain.prepareTalk(0x10)); // asked to get up
+        step(brain, wake.rig.w, 3);
+        out.clear();
+        brain.sleepers(out);
+        EXPECT_TRUE(out.empty()) << "a get-up clip is playing: the sleeper is no longer asleep";
+    }
+
+    TEST(SkyrimNpcAmbush, aSitterAndAnActorOnItsWayToBedAreNotListed)
+    {
+        SeatRig sitter(true); // eats: sits on a chair
+        step(*sitter.brain, sitter.w, 3);
+        sitter.arrive();
+        step(*sitter.brain, sitter.w, 40);
+        ASSERT_TRUE(sitter.brain->view(0x10)->mSeated);
+        std::vector<PackageBrain::Sleeper> out;
+        sitter.brain->sleepers(out);
+        EXPECT_TRUE(out.empty());
+
+        SeatRig walker(true, PackageBehavior::Sleep, FurniturePose::Sleep);
+        step(*walker.brain, walker.w, 3); // walking to the bed
+        walker.brain->sleepers(out);
+        EXPECT_TRUE(out.empty());
+    }
 }

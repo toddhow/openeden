@@ -2,6 +2,7 @@
 #include "game_skyrimse/speech.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
+#include "game_skyrimse/ambush.hpp"
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/character_service.hpp"
@@ -420,6 +421,7 @@ namespace game_skyrimse
                 applyPendingStory(); // task 0217
                 processPlace();
                 updateWordWalls(); // task 0256
+                applyAmbush(); // task 0302
                 raiseTestEvent();
                 applyHouses(); // task 0261
                 replayMainQuestCellLoad(); // task 0268
@@ -453,6 +455,43 @@ namespace game_skyrimse
             {
                 mPlayerState = state;
                 mHavePlayerState = true;
+            }
+
+            // Task 0302 (draugr ambushes): a sleeper whose script handles OnGetUp (masterAmbushScript) is woken when the
+            // player comes near (ambush::Watch: our distance, the data has none): the engine's OnGetUp goes to the script,
+            // which lets the actor out through the game's own SetAV, and the combat AI does the rest.
+            void enableAmbush() { mAmbushOn = true; }
+            void applyAmbush()
+            {
+                SkyrimCellSource* cells = dynamic_cast<SkyrimCellSource*>(&mCells);
+                if (!mAmbushOn || cells == nullptr || !mHavePlayerState || !mHost.started())
+                    return;
+                const PackageBrain* brain = cells->actorTable().packageBrain();
+                if (brain == nullptr)
+                    return;
+                mAmbushBeds.clear();
+                brain->sleepers(mAmbushBeds);
+                mAmbushSleepers.clear();
+                for (const PackageBrain::Sleeper& bed : mAmbushBeds)
+                    if (mHost.handlesGetUp(static_cast<FormId>(bed.mReference)))
+                        mAmbushSleepers.push_back({ bed.mReference, bed.mX, bed.mY, bed.mZ });
+                if (mAmbushSleepers.empty())
+                    return;
+                ambush::Player player;
+                player.mKnown = true;
+                player.mX = mPlayerState.x;
+                player.mY = mPlayerState.y;
+                player.mZ = mPlayerState.z;
+                mAmbushWake.clear();
+                (void)mAmbushWatch.update(mAmbushSleepers, player, mAmbushWake);
+                for (const openeden::sdk::game::WorldId reference : mAmbushWake)
+                {
+                    FormId furniture = 0;
+                    (void)mView.linkedRef(static_cast<FormId>(reference), 0, furniture);
+                    say(openeden::sdk::LogLevel::Info,
+                        "AMBUSH wake " + hexId(reference) + " (the player is near; furniture " + hexId(furniture) + ")");
+                    mHost.onGetUp(static_cast<FormId>(reference), furniture);
+                }
             }
 
             void updateWordWalls()
@@ -1624,6 +1663,11 @@ namespace game_skyrimse
             std::optional<openeden::sdk::game::PlayerPlace> mPendingPlace;
             openeden::sdk::game::SubjectState mPlayerState; ///< task 0256
             bool mHavePlayerState = false;
+            bool mAmbushOn = false; ///< task 0302
+            ambush::Watch mAmbushWatch; ///< task 0302
+            std::vector<PackageBrain::Sleeper> mAmbushBeds;
+            std::vector<ambush::Sleeper> mAmbushSleepers;
+            std::vector<openeden::sdk::game::WorldId> mAmbushWake;
             QuestAliasFiller::PlayerSite mSite;
             std::deque<StoryEvent> mPendingStory;
             std::optional<StoryEvent> mTestEvent;
@@ -2105,6 +2149,15 @@ namespace game_skyrimse
                                 if (!minusOne.empty())
                                     mWorldView.setRankMinusOneMembers(std::move(minusOne));
                             }
+                            if (settings->getBool(kPackId, "ambush", false)) // task 0302
+                            {
+                                mAmbushOn = true;
+                                driver->enableAmbush();
+                                mWorldView.setAmbush(true);
+                                if (logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Info,
+                                        "AMBUSH scripted sleepers wake when the player comes near");
+                            }
                             const bool companions = settings->getBool(kPackId, "companions", false); // task 0264
                             if (companions)
                             {
@@ -2489,6 +2542,15 @@ namespace game_skyrimse
                         : openeden::sdk::game::CombatSubject::of(handleOfActor(actor));
                     return mCellSource.combat().scriptInCombatOf(subject);
                 };
+                // Task 0302: a script's SetAV("Aggression", n) reaches the combat AI (the other actor values stay the host's)
+                env.actorValueSet = [this, handleOfActor](FormId actor, std::string_view name, double value) {
+                    if (!mAmbushOn || name != "aggression")
+                        return;
+                    openeden::sdk::game::ActorHandle handle = handleOfActor(actor);
+                    if (!handle.valid())
+                        handle.reference = static_cast<openeden::sdk::game::WorldId>(actor); // not in the table yet
+                    mCellSource.combat().setAggression(handle, ambush::aggressionFromValue(value));
+                };
                 env.isItem = [this](FormId form) {
                     return mInventory != nullptr && mInventory->table().item(form) != nullptr;
                 };
@@ -2659,6 +2721,11 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Info,
                             "college: spell casts, hits and effects reach the scripts; quests may move actors near the player");
                 }
+                if (mAmbushOn) // task 0302: OnCombatStateChanged on the scripts of the actor that fights
+                    mCellSource.combat().setCombatStateSink(
+                        [&host](openeden::sdk::game::ActorHandle actor, bool engaged) {
+                            host.onCombatStateChanged(actor.reference, engaged ? kPapyrusPlayerReference : 0, engaged ? 1 : 0);
+                        });
                 if (mPapyrus != nullptr && mPapyrus->companionsOn()) // task 0264
                 {
                     mCellSource.combat().setEssentialBleedout(true);
@@ -5901,6 +5968,7 @@ namespace game_skyrimse
             std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
+            bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source

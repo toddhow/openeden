@@ -5,6 +5,7 @@
 // Cost: an unengaged actor that is not hostile on sight costs nothing (it is looked at once, by the scan). A watcher
 // costs one state lookup every kAiSightPeriod. An engaged actor costs two state lookups, one aiThink and, at most
 // every kAiRetargetPeriod, one goal request (the path search is the core's).
+#include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/combat.hpp"
 #include "game_skyrimse/crime.hpp"
 
@@ -313,6 +314,8 @@ namespace game_skyrimse
         mAiMoves.push_back(intent);
         if (mBarkSink)
             mBarkSink(assisted ? barks::Kind::EngageAlerted : barks::Kind::Engage, actor.mHandle); // task 0231
+        if (mCombatStateSink)
+            mCombatStateSink(actor.mHandle, true); // task 0302
         fighter.mCombatUntil = mClock + kCombatLingerSeconds;
         if (mTrace)
         {
@@ -350,6 +353,8 @@ namespace game_skyrimse
         }
         intent.mKind = AiMoveIntent::Kind::Resume;
         mAiMoves.push_back(intent);
+        if (mCombatStateSink)
+            mCombatStateSink(actor.mHandle, false); // task 0302
         if (mBarkSink && std::strcmp(why, "dead") != 0) // task 0231: a death has its own cry
             mBarkSink(std::strcmp(why, "no way to the target") == 0 || std::strcmp(why, "flee over or target gone") == 0
                     ? barks::Kind::Lost
@@ -362,6 +367,45 @@ namespace game_skyrimse
                 if (n.first == actor.mHandle)
                     id = n.second;
             trace("COMBAT ai lost " + id + " " + subjectName(CombatSubject::of(actor.mHandle)) + " (" + why + ")");
+        }
+    }
+
+    // Task 0302: what a script's SetAV("Aggression", n) does to the actor's AI. The number is kept by placement, so an
+    // actor the combat reads later gets it when its profile is read (aiScan); an actor already read is changed now.
+    void SkyrimCombat::setAggression(openeden::sdk::game::ActorHandle actor, std::uint8_t aggression)
+    {
+        if (actor.reference == openeden::sdk::game::kNoWorldId)
+            return;
+        aggression = std::min<std::uint8_t>(aggression, 3);
+        if (mAggressionSet.size() >= kMaxAggressionSet && mAggressionSet.count(actor.reference) == 0)
+            return;
+        mAggressionSet[actor.reference] = aggression;
+        for (Fighter& f : mFighters)
+            if (!f.mSubject.player && f.mSubject.actor.reference == actor.reference && f.mAiScanned && ready(f))
+            {
+                applyAggression(f, aggression);
+                return;
+            }
+    }
+
+    // The same rule an NPC record's own number goes through (computeActorDisposition): the aggression and the relation
+    // to the player decide whether the actor attacks on sight; an actor that now would is a watcher.
+    void SkyrimCombat::applyAggression(Fighter& f, std::uint8_t aggression)
+    {
+        AiProfile& ai = f.mProfile.mAi;
+        ai.mAggression = aggression;
+        ai.mHostileOnSight = wouldAttackOnSight(static_cast<openeden::sdk::game::ActorAggression>(aggression),
+            static_cast<openeden::sdk::game::ActorRelation>(std::min<std::uint8_t>(ai.mRelationToPlayer, 3)));
+        const bool watching = std::any_of(
+            mAiWatchers.begin(), mAiWatchers.end(), [&](const AiWatcher& w) { return w.mHandle == f.mSubject.actor; });
+        if (watching && !ai.mHostileOnSight && !factions())
+            std::erase_if(mAiWatchers, [&](const AiWatcher& w) { return w.mHandle == f.mSubject.actor; });
+        else if (!watching && (ai.mHostileOnSight || factions()))
+        {
+            AiWatcher watcher;
+            watcher.mHandle = f.mSubject.actor;
+            watcher.mNextSight = mClock + 0.1f * static_cast<float>(f.mSubject.actor.reference % 5);
+            mAiWatchers.push_back(watcher);
         }
     }
 
@@ -435,7 +479,15 @@ namespace game_skyrimse
                 continue;
             ++looked;
             f.mAiScanned = true;
-            if (!ready(f) || (!factions() && !f.mProfile.mAi.mHostileOnSight))
+            if (!ready(f))
+                continue;
+            const auto scripted = mAggressionSet.find(f.mSubject.actor.reference); // task 0302: a script's SetAV came first
+            if (scripted != mAggressionSet.end())
+            {
+                applyAggression(f, scripted->second);
+                continue;
+            }
+            if (!factions() && !f.mProfile.mAi.mHostileOnSight)
                 continue;
             AiWatcher watcher;
             watcher.mHandle = f.mSubject.actor;

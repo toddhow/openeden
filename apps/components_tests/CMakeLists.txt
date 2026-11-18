@@ -646,6 +646,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseminingreal.cpp
     skyrimse/testskyrimseminingservice.cpp
     skyrimse/testskyrimsesneak.cpp
+    skyrimse/testskyrimseambush.cpp
     skyrimse/testskyrimsesneakwiring.cpp
     skyrimse/testskyrimsepickpocketcrime.cpp
     skyrimse/testskyrimsecombatskills.cpp
@@ -942,6 +943,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/mining.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/mining_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/sneak.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/ambush.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic_status.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_status.cpp

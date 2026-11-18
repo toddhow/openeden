@@ -1034,6 +1034,17 @@ namespace game_skyrimse
         void setSpellEventSink(SpellEventSink sink) { mSpellEventSink = std::move(sink); }
         using BarkSink = std::function<void(barks::Kind, openeden::sdk::game::ActorHandle)>;
         void setBarkSink(BarkSink sink) { mBarkSink = std::move(sink); }
+        /// Task 0302 (draugr ambushes): told when an actor starts a fight (true) or leaves it (false), so the pack can raise
+        /// OnCombatStateChanged on its scripts. Hook calls only; empty (the default) and nothing is told.
+        using CombatStateSink = std::function<void(openeden::sdk::game::ActorHandle, bool engaged)>;
+        void setCombatStateSink(CombatStateSink sink) { mCombatStateSink = std::move(sink); }
+        /// Task 0302: a script set the actor's Aggression (masterAmbushScript: 0 while it waits, 2 when it is let out).
+        /// From now on the actor is hostile on sight (or not) by the same rule as an NPC record's own number: the
+        /// aggression and its relation to the player (wouldAttackOnSight). An actor the combat does not know yet gets the
+        /// number when its profile is read. A value above 3 is cut to 3.
+        void setAggression(openeden::sdk::game::ActorHandle actor, std::uint8_t aggression);
+        /// The most placements whose aggression a script set that the combat remembers.
+        static constexpr std::size_t kMaxAggressionSet = 4096;
         /// A damage report as it went to the core: a living actor that lost health says a hurt line.
         void barkNoteDamage(const openeden::sdk::game::DamageReport& report)
         {
@@ -1440,6 +1451,7 @@ namespace game_skyrimse
         };
         void runAi(openeden::sdk::game::CombatRequestWriter& writer);
         void aiScan();
+        void applyAggression(Fighter& fighter, std::uint8_t aggression); ///< task 0302
         bool aiBegin(Fighter& fighter, const char* reason,
             openeden::sdk::game::CombatSubject target = openeden::sdk::game::CombatSubject::ofPlayer(),
             bool assisted = false);
@@ -1506,6 +1518,8 @@ namespace game_skyrimse
             if (mSpellEventSink)
                 mSpellEventSink(event);
         }
+        CombatStateSink mCombatStateSink; ///< task 0302
+        std::map<openeden::sdk::game::WorldId, std::uint8_t> mAggressionSet; ///< task 0302: what scripts set, by placement
         BleedoutSink mBleedoutSink; ///< task 0264
         bool mEssentialBleedout = false; ///< task 0264
         KillMoveHook mKillMoveHook; ///< task 0278

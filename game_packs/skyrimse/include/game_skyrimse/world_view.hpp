@@ -615,6 +615,9 @@ namespace game_skyrimse
         }
         /// Task 0271: the packages quest aliases give (ALPC) join an actor's list (off by default).
         void setAliasPackages(bool on) { mAliasPackagesOn = on; }
+        /// Task 0302 (draugr ambushes): the package conditions also see what the game's scripts did to an actor's
+        /// Variable01 (the follower overlay), so a package that tests it stops passing when the script lets the actor out.
+        void setAmbush(bool on) { mAmbushOn = on; }
         [[nodiscard]] bool aliasPackagesOn() const { return mAliasPackagesOn; }
         /// Task 0271 (a developer aid, `OPENEDEN_PACKAGE_TRACE=<decimal base id>`): the packages of this NPC base and
         /// whether each one's conditions pass are written to `log` as they are asked.
@@ -989,6 +992,7 @@ namespace game_skyrimse
         ForcedGreetHooks mForcedGreet; ///< task 0264
         FormId mForcedGreetReference = kNullFormId; ///< task 0264: the open conversation is a ForceGreet package's
         bool mAliasPackagesOn = false; ///< task 0271
+        bool mAmbushOn = false; ///< task 0302
         bool mPlayerPlaceKnown = false;
         bool mPlayerInterior = false;
         FormId mPlayerCell = kNullFormId;

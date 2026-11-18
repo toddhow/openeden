@@ -1384,6 +1384,14 @@ namespace game_skyrimse
         return true;
     }
 
+    void PackageBrain::sleepers(std::vector<Sleeper>& out) const
+    {
+        for (const auto& [reference, a] : mActors) // a std::map: ascending placement order
+            if (a.mSeated && a.mHasSlot && a.mSlot.mPose == sdkgame::FurniturePose::Sleep && !a.mEntering && !a.mExiting
+                && !a.mTalking)
+                out.push_back({ reference, a.mSlot.mX, a.mSlot.mY, a.mSlot.mZ });
+    }
+
     std::optional<PackageBrain::ActorView> PackageBrain::view(sdkgame::WorldId reference) const
     {
         const auto it = mActors.find(reference);

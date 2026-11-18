@@ -284,13 +284,18 @@ namespace game_skyrimse
             mLoaded.insert(name);
             ++mCounters.mScriptsLoaded;
             if (!result.info.parent.empty())
+            {
+                mParentOf[name] = lower(result.info.parent); // task 0302
                 (void)load(lower(result.info.parent), false);
+            }
             const ScriptPapyrus::Pex::ParseResult parsed = ScriptPapyrus::Pex::parse(bytes, name);
             if (parsed.mOk)
             {
                 for (const std::string& text : parsed.mFile.mStrings)
                 {
                     const std::string other = lower(text);
+                    if (other == "ongetup") // task 0302: the script defines the event (the string table names it)
+                        mGetUpScripts.insert(name);
                     if (plausibleScriptName(other) && mLoaded.count(other) == 0 && mNotFile.count(other) == 0)
                         (void)load(other, false);
                 }
@@ -454,6 +459,24 @@ namespace game_skyrimse
             }
             return true;
         }
+
+        // Task 0302: does the instance's script, or one of its parents, define OnGetUp?
+        bool scriptHandlesGetUp(const std::string& script) const
+        {
+            std::string at = script;
+            for (int depth = 0; depth < 16 && !at.empty(); ++depth)
+            {
+                if (mGetUpScripts.count(at) != 0)
+                    return true;
+                const auto parent = mParentOf.find(at);
+                if (parent == mParentOf.end())
+                    return false;
+                at = parent->second;
+            }
+            return false;
+        }
+        std::set<std::string> mGetUpScripts; ///< loaded scripts whose string table names OnGetUp
+        std::map<std::string, std::string> mParentOf; ///< loaded script to its parent (lower case)
 
         std::vector<InstanceId> instancesOf(FormId form) const
         {
@@ -2173,6 +2196,15 @@ namespace game_skyrimse
                     return NativeResult{};
                 });
             }
+            // Task 0302 (masterAmbushScript.OnGetUp): the cell a reference stands in, and whether that cell is attached. The
+            // pack only attaches the scripts of references in cells it built, so a cell that a script asks about for a
+            // reference of its own is loaded.
+            reg("ObjectReference", "GetParentCell", false, [this](const NativeCall& c) {
+                return result(formValue(cellOfReference(formOf(c.self))));
+            });
+            reg("Cell", "IsAttached", false, [this](const NativeCall& c) {
+                return result(PapyrusValue::makeBool(formOf(c.self) != 0));
+            });
             reg("ObjectReference", "GetLinkedRef", false, [this](const NativeCall& c) {
                 const FormId keyword = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 return result(formValue(mData.linkedRef(formOf(c.self), keyword)));
@@ -2555,6 +2587,8 @@ namespace game_skyrimse
             if (mAvOffsets.size() >= kMaxAvOffsets && mAvOffsets.count({ actor, key }) == 0)
                 return;
             mAvOffsets[{ actor, key }] = target - base;
+            if (mHooks != nullptr) // task 0302: the pack passes Aggression on to the combat AI
+                mHooks->actorValueSet(actor, key, target);
         }
     };
 
@@ -3413,6 +3447,35 @@ namespace game_skyrimse
             if (m.sendEvent(instance, "OnDeath", { m.formValue(killer) }))
                 ++m.mCounters.mCombatEvents;
         }
+    }
+
+    bool PapyrusHost::handlesGetUp(FormId actor) const
+    {
+        const Impl& m = *mImpl;
+        if (actor == 0)
+            return false;
+        for (const InstanceId instance : m.instancesOf(actor))
+        {
+            const auto info = m.mInstances.find(instance);
+            if (info != m.mInstances.end() && m.scriptHandlesGetUp(info->second.mScript))
+                return true;
+        }
+        return false;
+    }
+
+    void PapyrusHost::onGetUp(FormId actor, FormId furniture)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(actor))
+            (void)m.sendEvent(instance, "OnGetUp", { m.formValue(furniture) });
+    }
+
+    void PapyrusHost::onCombatStateChanged(FormId actor, FormId target, std::int32_t state)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(actor))
+            if (m.sendEvent(instance, "OnCombatStateChanged", { m.formValue(target), PapyrusValue::makeInt(state) }))
+                ++m.mCounters.mCombatEvents;
     }
 
     void PapyrusHost::onActorBleedout(FormId actor)

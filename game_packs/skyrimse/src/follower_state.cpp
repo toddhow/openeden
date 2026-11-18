@@ -114,9 +114,13 @@ namespace game_skyrimse
 
     std::optional<float> FollowerState::actorValue(FormId reference, std::uint32_t index) const
     {
-        if (index != kWaitingForPlayerIndex || !mActorValues)
+        if (!mActorValues)
             return std::nullopt;
-        return mActorValues(reference, kWaitingForPlayerKey);
+        if (index == kWaitingForPlayerIndex)
+            return mActorValues(reference, kWaitingForPlayerKey);
+        if (index == kVariable01Index) // task 0302: the ambush draugr's sleep package tests it
+            return mActorValues(reference, kVariable01Key);
+        return std::nullopt;
     }
 
     std::optional<float> FollowerState::globalValue(FormId global) const

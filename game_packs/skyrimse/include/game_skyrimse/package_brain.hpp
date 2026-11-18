@@ -398,6 +398,16 @@ namespace game_skyrimse
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] std::optional<ActorView> view(openeden::sdk::game::WorldId reference) const;
 
+        /// Task 0302 (draugr ambushes): an actor lying in a sleeping pose on furniture, no clip playing and not in a
+        /// conversation, with the place of the bed (the slot's, not the actor's estimate).
+        struct Sleeper
+        {
+            openeden::sdk::game::WorldId mReference = openeden::sdk::game::kNoWorldId;
+            double mX = 0, mY = 0, mZ = 0;
+        };
+        /// Appends every such sleeper, in ascending placement order, to `out` (not cleared).
+        void sleepers(std::vector<Sleeper>& out) const;
+
     private:
         struct Actor
         {

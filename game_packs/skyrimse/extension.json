@@ -406,6 +406,11 @@
       "default": false
     },
     {
+      "key": "ambush",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "diseases",
       "type": "bool",
       "default": false

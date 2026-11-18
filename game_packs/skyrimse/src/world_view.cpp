@@ -1801,6 +1801,7 @@ namespace game_skyrimse
             world.setPlacedRefs(nullptr);
         }
         world.setSpeaker(speaker);
+        world.setFollowerOverlay(mAmbushOn ? mFollowerOverlay : nullptr); // task 0302: Variable01 of an ambusher
         // Task 0271: only with `quest alias packages` (else the package conditions are what they were)
         world.setPlayerPlace(mAliasPackagesOn && mPlayerPlaceKnown, mPlayerInterior, mPlayerCell, mPlayerWorld);
         world.setLiveQuestVariable(
@@ -1896,6 +1897,11 @@ namespace game_skyrimse
         if (mFiles->read("meshes\\animationdata\\defaultmale.txt", project)
             && mFiles->read("meshes\\animationdata\\boundanims\\anims_defaultmale.txt", bound))
             mMotion.add(project, bound);
+        // Task 0302: the draugr's own clips (the alcove idles and wakes); their names are not in the male project
+        std::string draugrProject, draugrBound;
+        if (mAmbushOn && mFiles->read("meshes\\animationdata\\draugrproject.txt", draugrProject)
+            && mFiles->read("meshes\\animationdata\\boundanims\\anims_draugrproject.txt", draugrBound))
+            mMotion.add(draugrProject, draugrBound);
     }
 
     bool SkyrimWorldView::locate(FormId reference, double& x, double& y, double& z) const
@@ -2061,6 +2067,26 @@ namespace game_skyrimse
                         ? "right"
                         : (best->mSide == Side::Front && roll ? "front" : "left");
                     slot.mClip = std::string(roll ? "bedroll_" : "bed_") + side + "sleep";
+                    // Task 0302 (draugr ambushes, `ambush`): a creature's alcove marker is not a bed. The draugr lies in it
+                    // with the draugr project's own idle and gets up with its exit clip (a draugr set of the alcove names
+                    // IdleSleepLayEnterInstant: no enter clip, it is placed lying). RECALLED-VERIFY: that the Bg marker is
+                    // the lying one; only the file names and that set tell.
+                    if (mAmbushOn && lowerModel.find("creaturealcovebgmarker") != std::string::npos)
+                    {
+                        slot.mClip = "specialidle_alcovelayingidle";
+                        // the project names the clip AlcoveLayingExit; its file is SpecialIdle_AlcoveLayingExit
+                        if (const ClipMotion* exitMotion = mMotion.find("alcovelayingexit"))
+                        {
+                            slot.mExitClip = "specialidle_alcovelayingexit";
+                            slot.mExitMotion = exitMotion;
+                            slot.mQuickExitClip = slot.mExitClip; // the same get-up for a conversation or a fight
+                            slot.mQuickExitMotion = exitMotion;
+                        }
+                        found.push_back({ std::hypot(seat.mX - fromX, seat.mY - fromY)
+                                + 2.0 * std::abs(seat.mZ - fromZ),
+                            std::move(slot) });
+                        continue;
+                    }
                     const std::string enter = std::string(roll ? "bedroll_" : "bed_") + side + "enter";
                     const std::string exitName = std::string(roll ? "bedroll_" : "bed_") + side + "exit";
                     const ClipMotion* enterMotion = mMotion.find(enter);
