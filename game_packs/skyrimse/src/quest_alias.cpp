@@ -714,13 +714,19 @@ namespace game_skyrimse
                 ++mStats.mMatched;
                 ++count;
             }
-            if (count != before)
+            // the speaker took an alias of this quest now, or holds one already (filled at the quest's start)
+            if (count != before
+                || std::any_of(quest->mAliases.begin(), quest->mAliases.end(), [&](const QuestAlias& a) {
+                       return a.mFill == AliasFillKind::FindMatching && !a.mIsLocation
+                           && state.aliasFill(questId, a.mId).mKnown
+                           && state.aliasFill(questId, a.mId).mReference == reference;
+                   }))
                 joined.push_back(questId);
         }
         // Task 0311: the speaker is now part of the quest, so its other empty aliases (the Falkreath jarl the
         // steward's offer asks about) are filled as at the start of the quest, from the loaded area
         for (const FormId questId : joined)
-            count += fillQuest(questId, state, true);
+            (void)fillQuest(questId, state, true); // not counted: the result is what the speaker took
         return count;
     }
 
