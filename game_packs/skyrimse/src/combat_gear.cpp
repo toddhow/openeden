@@ -53,6 +53,20 @@ namespace game_skyrimse
         return best;
     }
 
+    const WeaponRecord* chooseStaff(const std::vector<const WeaponRecord*>& candidates)
+    {
+        const WeaponRecord* best = nullptr;
+        for (const WeaponRecord* candidate : candidates)
+        {
+            if (candidate == nullptr || !candidate->mHasData || !candidate->mHasDnam || !candidate->isStaff()
+                || candidate->mEnchantment == kNullFormId)
+                continue;
+            if (best == nullptr || candidate->mCommon.mId < best->mCommon.mId)
+                best = candidate;
+        }
+        return best;
+    }
+
     bool isShield(const ArmourPiece& piece)
     {
         return (piece.mSlotMask & ArmourSlot::Shield) != 0;
@@ -155,6 +169,7 @@ namespace game_skyrimse
 
         out.mKnown = true;
         out.mWeapon = chooseMeleeWeapon(weapons);
+        out.mStaff = chooseStaff(weapons); // task 0295
         if (out.mWeapon == nullptr || !isTwoHanded(out.mWeapon->mAnimType))
         {
             if (const ArmourCandidate* shield = chooseShield(shields))

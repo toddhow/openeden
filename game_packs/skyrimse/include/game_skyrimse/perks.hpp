@@ -152,6 +152,10 @@ namespace game_skyrimse
         std::vector<SpellEffect> mEffects;
         /// Task 0234: decoded from a SCRL (scroll.hpp): cost 0, cast type normalised, castable once by the player.
         bool mScroll = false;
+        /// Task 0295: decoded from an ENCH (scroll.hpp): ENIT cast type and delivery, cost 0; `mEnchantType` is ENIT
+        /// +20 (VERIFIED by the five masters: 6 an enchantment of gear, 12 a staff's).
+        bool mEnchantment = false;
+        std::uint32_t mEnchantType = 0;
         static constexpr std::uint32_t kTypeAbility = 4;
         /// Task 0240: SPIT +8 is 1 for the 16 SPELs named Disease... of the five masters (VERIFIED, task 0240 survey).
         static constexpr std::uint32_t kTypeDisease = 1;

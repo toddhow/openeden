@@ -713,6 +713,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecraftingreal.cpp
     skyrimse/testskyrimsebenches.cpp
     skyrimse/testskyrimsepoison.cpp
+    skyrimse/testskyrimsecombatweaponmagic.cpp
     skyrimse/testskyrimsestatuses.cpp
     skyrimse/testskyrimsepoisonsave.cpp
     skyrimse/testskyrimsewiring.cpp

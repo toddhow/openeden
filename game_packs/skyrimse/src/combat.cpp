@@ -280,8 +280,8 @@ namespace game_skyrimse
     {
         if (mPlayerEdges.size() < mPlayerEdges.capacity())
             mPlayerEdges.push_back(pressed);
-        if (!mTestPlayerSpell.empty() && mCastEdges.size() < mCastEdges.capacity())
-            mCastEdges.push_back(pressed); // task 0186: the attack control casts
+        if ((!mTestPlayerSpell.empty() || playerStaffSpell() != nullptr) && mCastEdges.size() < mCastEdges.capacity())
+            mCastEdges.push_back(pressed); // task 0186: the attack control casts (task 0295: with a staff in hand)
     }
 
     SkyrimCombat::SkyrimCombat()
@@ -472,11 +472,58 @@ namespace game_skyrimse
         mPlayerTimingKicked = false;
     }
 
+    // ---- task 0295: enchanted weapons, staves, bound weapons
+
+    // The enchantment of a staff as a spell the cast machinery can run (a staff spends charge, not magicka: the
+    // record's cost is 0; charge is not tracked). Null when the setting is off or the weapon is no enchanted staff.
+    const SpellRecord* SkyrimCombat::staffSpellOf(const WeaponRecord* weapon)
+    {
+        if (!mWeaponMagic || mData == nullptr || weapon == nullptr || !weapon->isStaff()
+            || weapon->mEnchantment == kNullFormId)
+            return nullptr;
+        const SpellRecord* spell = mData->spellById(weapon->mEnchantment);
+        return spell != nullptr && spell->mHasData && !spell->mEffects.empty() ? spell : nullptr;
+    }
+
+    const SpellRecord* SkyrimCombat::playerStaffSpell()
+    {
+        // the equipped weapon, else (a developer aid) the test weapon of `combat test weapon`
+        return staffSpellOf(mEquip.mWeapon != nullptr ? mEquip.mWeapon : weaponFor(mFighters.front()));
+    }
+
+    const WeaponRecord* SkyrimCombat::boundWeaponOf(openeden::sdk::game::CombatSubject subject) const
+    {
+        const Fighter* fighter = find(subject);
+        if (fighter == nullptr || fighter->mBoundWeapon == nullptr || !(mClock < fighter->mBoundUntil))
+            return nullptr;
+        return fighter->mBoundWeapon;
+    }
+
+    // A landed, unblocked blow of an enchanted weapon applies the enchantment's effects to the victim as a touch spell
+    // would (the weapon's enchantments of the data are fire and forget with touch delivery: 230 of 238 of type 6).
+    void SkyrimCombat::applyEnchantOnHit(CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
+        const WeaponRecord* weapon, const openeden::sdk::game::SweepHit& hit)
+    {
+        if (!mWeaponMagic || mData == nullptr || weapon == nullptr || weapon->mEnchantment == kNullFormId
+            || victim.mDead || !(victim.mHealth > 0.f))
+            return;
+        const SpellRecord* spell = mData->spellById(weapon->mEnchantment);
+        if (spell == nullptr || !spell->mHasData || spell->mEffects.empty()
+            || spell->mCastType != MagicCast::FireAndForget || spell->mDelivery != MagicDelivery::Touch)
+            return;
+        if (mTrace)
+            trace("COMBAT enchantment " + spell->mCommon.mEditorId + " of " + weapon->mCommon.mEditorId
+                + " on the blow of " + name(attacker.mSubject));
+        applySpellEffects(writer, attacker, victim, *spell, &hit);
+    }
+
     // The weapon a fighter swings: the player's equipped melee weapon, else the test weapon (as before).
     const WeaponRecord* SkyrimCombat::weaponFor(const Fighter& fighter) const
     {
         if (mBeast && fighter.mSubject.player)
             return nullptr; // task 0259: the claws, whatever he had in his hand
+        if (mWeaponMagic && fighter.mBoundWeapon != nullptr && mClock < fighter.mBoundUntil)
+            return fighter.mBoundWeapon; // task 0295: a conjured weapon
         if (fighter.mSubject.player && mEquip.mWeapon != nullptr && mEquip.mWeapon->isMelee())
             return mEquip.mWeapon;
         // Task 0214: an NPC's own weapon, unless the test weapon overrides it.
@@ -1532,6 +1579,11 @@ namespace game_skyrimse
         Fighter& player = mFighters.front();
         if (!ready(player))
             return;
+        if (playerStaffSpell() != nullptr)
+        {
+            mPlayerAttackPending = false; // task 0295: with a staff the attack control casts (runPlayerCast)
+            return;
+        }
         if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
         {
             // Task 0178: with a bow the attack control draws and shoots (runPlayerBow); there is no melee swing.
@@ -1815,6 +1867,8 @@ namespace game_skyrimse
         soundHit(writer, attacker, victim, blocked, bash); // task 0193
         if (!blocked && !bash)
             applyPoisonOnHit(writer, attacker, victim, hit); // task 0229
+        if (!blocked && !bash)
+            applyEnchantOnHit(writer, attacker, victim, swung, hit); // task 0295
         if (!blocked && !bash && after > 0.f)
             notifyPlayerHit(attacker, victim); // task 0240
         if (mTrace)

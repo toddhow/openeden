@@ -186,6 +186,11 @@
       "default": false
     },
     {
+      "key": "combat weapon magic",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "combat test player bow",
       "type": "float",
       "default": 0.0

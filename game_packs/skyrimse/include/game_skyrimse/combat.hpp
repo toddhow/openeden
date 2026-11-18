@@ -133,6 +133,9 @@ namespace game_skyrimse
     /// spells (the runes) are placed where their projectile lands and go off when an enemy comes near, and an aimed
     /// spell whose effect has an area (the Fireball) hurts everyone within that many feet of where it ended.
     inline constexpr std::string_view kCombatSpellDeliveryKey = "combat spell delivery";
+    /// Task 0295, off by default: a weapon's enchantment applies on a landed blow, a staff casts its enchantment (the
+    /// player's attack control, an NPC with a staff), a Bound Weapon effect puts its weapon in the caster's hand.
+    inline constexpr std::string_view kCombatWeaponMagicKey = "combat weapon magic";
     /// A rune stays this long unless it goes off first, seconds (ours: the data gives no lifetime for a rune).
     inline constexpr float kRuneLifetimeSeconds = 600.f;
     /// The most runes standing at once; a new one replaces the oldest (ours).
@@ -303,6 +306,12 @@ namespace game_skyrimse
         virtual FighterProfile playerFighter() = 0;
         /// The WEAP with this editor id (case-insensitive), or null. The pointer stays valid as long as the data.
         virtual const WeaponRecord* weaponByEditorId(std::string_view editorId) = 0;
+        /// Task 0295: the WEAP with this form id (a Bound Weapon effect names its weapon), null when unknown.
+        virtual const WeaponRecord* weaponById(FormId id)
+        {
+            (void)id;
+            return nullptr;
+        }
         virtual CombatSettings settings() = 0;
         /// Task 0197: how the factions of `a` feel about those of `b` (symmetric: an enemy in either direction is an
         /// enemy). Default: neutral.
@@ -655,6 +664,19 @@ namespace game_skyrimse
         /// left after each blow.
         void setPlayerPoison(SpellRecord spell, int charges);
         [[nodiscard]] int playerPoisonCharges() const { return mPoisonCharges; }
+
+        // ---- task 0295 (weapon magic: enchanted weapons, staves, bound weapons)
+        /// On: a weapon's enchantment (WEAP EITM, a fire and forget touch ENCH) applies its effects to the target of
+        /// each landed, unblocked blow; a staff casts its enchantment (the player's attack control, an NPC's cast
+        /// action) at no magicka; a Bound Weapon effect puts its weapon in the caster's hand for its duration. Off by
+        /// default.
+        void setWeaponMagic(bool on) { mWeaponMagic = on; }
+        [[nodiscard]] bool weaponMagic() const { return mWeaponMagic; }
+        /// The enchantment spell of the player's equipped staff (null: no staff, no enchantment, setting off or data
+        /// not read).
+        [[nodiscard]] const SpellRecord* playerStaffSpell();
+        /// The bound weapon a fighter holds now (null: none, or it has run out).
+        [[nodiscard]] const WeaponRecord* boundWeaponOf(openeden::sdk::game::CombatSubject subject) const;
         void setPoisonSpentHook(std::function<void(int remaining)> hook) { mPoisonSpent = std::move(hook); }
         /// Task 0184: restores `amount` health to the player at the next update, through the engine's own health (a
         /// DamageReport that takes none off). False when there are no combat data: nothing is queued then.
@@ -1070,6 +1092,8 @@ namespace game_skyrimse
             std::vector<FormId> mTimedPerks; ///< task 0248: perks a running Script effect holds (Berserk)
             AbilityNumbers mAbilities; ///< task 0241: the player's held abilities and blessings (player only)
             bool mHasAbilities = false; ///< mAbilities holds something
+            const WeaponRecord* mBoundWeapon = nullptr; ///< task 0295: a Bound Weapon effect's weapon
+            float mBoundUntil = -1.f; ///< the combat clock at which it goes
         };
         [[nodiscard]] bool isEngagedNow(const Fighter& f) const; // task 0244
         /// A bow event (BowDrawn or the release) seen since the last combatUpdate: acted on there.
@@ -1184,6 +1208,11 @@ namespace game_skyrimse
         void notifyPlayerHit(const Fighter& attacker, const Fighter& victim); // task 0240 (combat_disease.cpp)
         void applyPlayerValueModifiers(); // task 0240
         void applySkillPercent(const Fighter& attacker, const WeaponRecord* weapon, MeleeHit& hit) const; // task 0240
+        /// Task 0295: the weapon's own enchantment on a landed blow (applyPoisonOnHit's twin).
+        void applyEnchantOnHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
+            const WeaponRecord* weapon, const openeden::sdk::game::SweepHit& hit);
+        /// Task 0295: the enchantment spell of a staff (null when it is not a staff or carries none).
+        [[nodiscard]] const SpellRecord* staffSpellOf(const WeaponRecord* weapon);
         void applyPoisonOnHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
             const openeden::sdk::game::SweepHit& hit); // task 0229 (combat_poison.cpp)
         void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
@@ -1381,6 +1410,7 @@ namespace game_skyrimse
         const WeaponRecord* mWeapon = nullptr;
         bool mWeaponLooked = false;
         bool mRealGear = false; ///< task 0214
+        bool mWeaponMagic = false; ///< task 0295
         SlotTable mGearSlots; ///< task 0214
         // Task 0184
         PlayerEquipment mEquip;

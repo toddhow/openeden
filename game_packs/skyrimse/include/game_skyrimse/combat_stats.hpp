@@ -83,7 +83,12 @@ namespace game_skyrimse
         FormId mDrawSound = kNullFormId;
         FormId mSheatheSound = kNullFormId;
         FormId mAttackSound = kNullFormId;
+        /// Task 0295: EITM, the enchantment the weapon carries (a 4 byte ENCH id). 0 when none.
+        FormId mEnchantment = kNullFormId;
 
+        /// A staff: anim type 8. It casts its enchantment (a staff enchantment, ENIT type 12) when used.
+        [[nodiscard]] bool isStaff() const { return mAnimType == WeaponAnimType::Staff; }
+        [[nodiscard]] bool isCrossbow() const { return mAnimType == WeaponAnimType::Crossbow; }
         [[nodiscard]] bool isMelee() const
         {
             return mAnimType != WeaponAnimType::Bow && mAnimType != WeaponAnimType::Crossbow
@@ -218,6 +223,7 @@ namespace game_skyrimse
         std::vector<PerkRecord> mPerks; ///< task 0179
         std::vector<SpellRecord> mSpells; ///< task 0179: ability spells only
         std::vector<SpellRecord> mScrolls; ///< task 0234: SCRL records read as spells (scroll.hpp)
+        std::vector<SpellRecord> mEnchantments; ///< task 0295: ENCH records read as spells (scroll.hpp)
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
         std::vector<ShoutRecord> mShouts; ///< task 0205
@@ -372,6 +378,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, PerkRecord> mPerks;
         std::unordered_map<FormId, SpellRecord> mSpells;
         std::unordered_map<FormId, SpellRecord> mScrolls; ///< task 0234
+        std::unordered_map<FormId, SpellRecord> mEnchantments; ///< task 0295
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
         ShoutIndex mShoutIndex;

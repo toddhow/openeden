@@ -46,6 +46,10 @@ namespace game_skyrimse
     /// (Deterministic: no clock, no random number; the order of the list does not matter.)
     [[nodiscard]] const WeaponRecord* chooseMeleeWeapon(const std::vector<const WeaponRecord*>& candidates);
 
+    /// Task 0295: the staff an NPC carries: an anim type 8 weapon with data and an enchantment, the lowest form id
+    /// among them (deterministic). Null when none.
+    [[nodiscard]] const WeaponRecord* chooseStaff(const std::vector<const WeaponRecord*>& candidates);
+
     /// An armour item a fighter could wear: its piece and, for a shield, its block material (ARMO BAMT).
     struct ArmourCandidate
     {
@@ -65,6 +69,7 @@ namespace game_skyrimse
     {
         bool mKnown = false;
         const WeaponRecord* mWeapon = nullptr; ///< valid as long as the data; null: unarmed
+        const WeaponRecord* mStaff = nullptr; ///< task 0295: an enchanted staff it carries (cast with, not swung)
         bool mHasShield = false;
         ArmourPiece mShield;
         FormId mShieldBlockMaterial = kNullFormId;

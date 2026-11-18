@@ -506,6 +506,11 @@ namespace game_skyrimse
         return mCombatIndex == nullptr ? MagicSettings{} : mCombatIndex->settings().magicSettings();
     }
 
+    const WeaponRecord* SkyrimWorldView::weaponById(FormId id)
+    {
+        return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->weapon(id);
+    }
+
     const WeaponRecord* SkyrimWorldView::weaponByEditorId(std::string_view editorId)
     {
         if (mCombatIndex == nullptr)

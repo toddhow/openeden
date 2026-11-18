@@ -189,6 +189,14 @@ namespace game_skyrimse
                     slot = id;
                     break;
                 }
+                case Content::fourCC("EITM"): // task 0295: the enchantment
+                    if (data.size() != 4)
+                    {
+                        fields.odd(type);
+                        break;
+                    }
+                    out.mEnchantment = fields.resolved(readLe<std::uint32_t>(data.data()));
+                    break;
                 case Content::fourCC("KWDA"): // task 0179: the keywords the perk conditions ask about
                     if (data.size() % 4 != 0 || data.size() / 4 > 64)
                     {
@@ -748,6 +756,7 @@ namespace game_skyrimse
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
                     && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO") && t != Content::fourCC("EXPL")
                     && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL")
+                    && t != Content::fourCC("ENCH")
                     && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP") && t != Content::fourCC("IMAD"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
@@ -846,6 +855,13 @@ namespace game_skyrimse
                     ok = decodeScroll(bytes, record, mContext, sp, why);
                     if (ok)
                         mOut.mScrolls.push_back(std::move(sp));
+                }
+                else if (t == Content::fourCC("ENCH"))
+                {
+                    SpellRecord sp; // task 0295: an enchantment is cast as a spell
+                    ok = decodeEnchantment(bytes, record, mContext, sp, why);
+                    if (ok)
+                        mOut.mEnchantments.push_back(std::move(sp));
                 }
                 else if (t == Content::fourCC("SHOU"))
                 {
@@ -1113,6 +1129,13 @@ namespace game_skyrimse
             else
                 mScrolls[sc.mCommon.mId] = sc;
         }
+        for (const SpellRecord& en : records.mEnchantments)
+        {
+            if (en.mCommon.deleted())
+                mEnchantments.erase(en.mCommon.mId);
+            else
+                mEnchantments[en.mCommon.mId] = en;
+        }
         for (const MagicEffectRecord& m : records.mMagicEffects)
         {
             if (m.mCommon.deleted())
@@ -1143,7 +1166,10 @@ namespace game_skyrimse
         if (it != mSpells.end())
             return &it->second;
         const auto scroll = mScrolls.find(id); // task 0234: a scroll is found by its form id too (never by editor id)
-        return scroll == mScrolls.end() ? nullptr : &scroll->second;
+        if (scroll != mScrolls.end())
+            return &scroll->second;
+        const auto enchantment = mEnchantments.find(id); // task 0295: an enchantment too
+        return enchantment == mEnchantments.end() ? nullptr : &enchantment->second;
     }
 
     const MagicEffectRecord* CombatIndex::magicEffect(FormId id) const

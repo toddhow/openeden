@@ -399,6 +399,7 @@ namespace game_skyrimse
         bool fighterFor(openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out) override;
         FighterProfile playerFighter() override;
         const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
+        const WeaponRecord* weaponById(FormId id) override; // task 0295
         CombatSettings settings() override;
         /// Task 0254: iHoursToRespawnCell (240 when the data has none or the records are not read yet).
         [[nodiscard]] double hoursToRespawnCell() const;

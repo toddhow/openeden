@@ -706,6 +706,23 @@ namespace game_skyrimse
                 return;
             case MagicArchetype::AccumulateMagnitude:
                 return; // a ward is charged by its concentration (tickConcentrations)
+            case MagicArchetype::BoundWeapon: // task 0295: the weapon the effect names goes into the caster's hand
+            {
+                ++mEffectsApplied;
+                const WeaponRecord* conjured = mWeaponMagic && mData != nullptr && !hostile && seconds > 0.f
+                    ? mData->weaponById(record.mAssociatedItem)
+                    : nullptr;
+                if (conjured == nullptr || !conjured->mHasData || !conjured->mHasDnam || !active(0.f, 0.f, false))
+                {
+                    trace("COMBAT effect " + record.mCommon.mEditorId + ": a bound weapon is not supported here");
+                    return;
+                }
+                target.mBoundWeapon = conjured;
+                target.mBoundUntil = extendStatus(target.mBoundUntil, mClock, seconds);
+                trace("COMBAT effect bound weapon " + conjured->mCommon.mEditorId + " on " + who(target.mSubject)
+                    + " for " + num(seconds) + " s");
+                return;
+            }
             case SummonArchetype::SummonCreature: // task 0250
                 if (applySummonEffect(writer, caster, spell, effect, record))
                     return;
@@ -773,6 +790,13 @@ namespace game_skyrimse
                 if (e.mArchetype == MagicArchetype::Demoralize)
                     if (Fighter* target = find(e.mTarget))
                         target->mDemoralizedUntil = -1.f;
+                if (e.mArchetype == MagicArchetype::BoundWeapon) // task 0295: the conjured weapon goes
+                    if (Fighter* target = find(e.mTarget))
+                    {
+                        target->mBoundWeapon = nullptr;
+                        target->mBoundUntil = -1.f;
+                        trace("COMBAT bound weapon of " + who(target->mSubject) + " ended");
+                    }
                 trace("COMBAT effect ended " + std::to_string(e.mEffect) + " on " + who(e.mTarget) + " after "
                     + num(e.mElapsed) + " s");
             });
@@ -1378,7 +1402,8 @@ namespace game_skyrimse
 
     void SkyrimCombat::runPlayerCast(CombatRequestWriter& writer)
     {
-        if (mTestPlayerSpell.empty())
+        const SpellRecord* const staffSpell = playerStaffSpell(); // task 0295: the equipped staff casts its enchantment
+        if (mTestPlayerSpell.empty() && staffSpell == nullptr)
         {
             mCastEdges.clear();
             return;
@@ -1388,6 +1413,18 @@ namespace game_skyrimse
         {
             mCastEdges.clear();
             return;
+        }
+        if (staffSpell != nullptr)
+        {
+            if (mPlayerSpell != staffSpell)
+                trace("COMBAT player staff casts " + staffSpell->mCommon.mEditorId);
+            mPlayerSpell = staffSpell;
+            mPlayerSpellLooked = true;
+        }
+        else if (mPlayerSpell != nullptr && mPlayerSpell->mEnchantment)
+        {
+            mPlayerSpell = nullptr; // the staff was put away: the test spell is looked up again
+            mPlayerSpellLooked = false;
         }
         if (!mPlayerSpellLooked)
         {

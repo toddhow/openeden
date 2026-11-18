@@ -1,0 +1,9 @@
+# one tap of the attack control, four times: a staff casts, a sword swings (task 0295)
+3000 down L 640 360
+3004 up L 640 360
+3300 down L 640 360
+3304 up L 640 360
+3600 down L 640 360
+3604 up L 640 360
+3900 down L 640 360
+3904 up L 640 360

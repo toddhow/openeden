@@ -31,6 +31,17 @@ namespace game_skyrimse
     [[nodiscard]] bool decodeScroll(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, SpellRecord& out, std::string& why);
 
+    /// ENIT of an ENCH is 36 bytes (VERIFIED on the five masters: 0 other sizes).
+    inline constexpr std::size_t kEnchantEnitBytes = 36;
+
+    /// Task 0295: decodes an ENCH as a SpellRecord with mEnchantment set. ENIT (36 bytes, VERIFIED on the masters):
+    /// cost +0, flags +4, cast type +8 (0 constant, 1 fire and forget, 2 concentration), enchant amount +12, delivery
+    /// +16 (0 self, 1 touch, 2 aimed, 3 target actor, 4 target location), enchant type +20 (6 gear, 12 staff). The
+    /// effects are EFID and EFIT as a SPEL's. The copy that casts has cost 0 (a staff and a weapon spend charge, not
+    /// magicka; charge is not tracked).
+    [[nodiscard]] bool decodeEnchantment(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, SpellRecord& out, std::string& why);
+
     /// How much of a scroll the magic runtime applies, by its effect archetypes (the cases of
     /// SkyrimCombat::applyOneEffect when this was written: value modifier, peak value modifier, dual value modifier,
     /// absorb, stagger, demoralize and accumulate magnitude). Pure; used by the survey and the log.

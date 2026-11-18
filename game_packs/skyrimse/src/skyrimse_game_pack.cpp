@@ -5300,6 +5300,8 @@ namespace game_skyrimse
                     mCellSource.combat().setSpellVisuals(settings->getBool(kPackId, kCombatSpellVisualsKey, false));
                     // Task 0242: target actor, target location (runes) and area delivery (off by default).
                     mCellSource.combat().setSpellDelivery(settings->getBool(kPackId, kCombatSpellDeliveryKey, false));
+                    // Task 0295: enchanted weapons, staves and bound weapons (off by default).
+                    mCellSource.combat().setWeaponMagic(settings->getBool(kPackId, kCombatWeaponMagicKey, false));
                     // Task 0179 (stage S5-7): perks. The switch defaults to on; the two lists to none.
                     mCellSource.combat().setUsePerks(settings->getBool(kPackId, kCombatPerksKey, true));
                     mCellSource.combat().setUseSounds(settings->getBool(kPackId, kCombatSoundsKey, true));

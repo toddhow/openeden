@@ -27,7 +27,7 @@ namespace game_skyrimse
     /// 603 ValueModifier, 205 Dual, 139 Stagger, 127 Absorb, 500 Peak; what Absorb DOES is RECALLED-VERIFY).
     namespace MagicArchetype
     {
-        inline constexpr std::uint32_t ValueModifier = 0, Absorb = 4, Dual = 5, Demoralize = 7,
+        inline constexpr std::uint32_t ValueModifier = 0, Absorb = 4, Dual = 5, Demoralize = 7, BoundWeapon = 17,
                                        AccumulateMagnitude = 32, Stagger = 33, PeakValueModifier = 34;
     }
 

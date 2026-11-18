@@ -450,6 +450,15 @@ namespace game_skyrimse
         if (actor.mSpellLooked || mData == nullptr)
             return;
         actor.mSpellLooked = true;
+        // Task 0295: an NPC that carries an enchanted staff casts it (no magicka, no cost to look at).
+        if (const SpellRecord* staff = staffSpellOf(fighter.mGear.mStaff))
+        {
+            if (staff->mCastType == MagicCast::FireAndForget && staff->mDelivery == MagicDelivery::Aimed)
+            {
+                actor.mSpell = staff;
+                return;
+            }
+        }
         // The first spell of the NPC (form id order) that it can cast at a target: aimed, fire and forget, a cost, an
         // effect, a hostile first effect.
         for (const FormId id : fighter.mProfile.mSpells)
