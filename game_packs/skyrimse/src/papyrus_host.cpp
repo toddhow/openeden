@@ -1390,6 +1390,13 @@ namespace game_skyrimse
             reg("ObjectReference", "Enable", false, enable(true));
             reg("ObjectReference", "EnableNoWait", false, enable(true));
             reg("ObjectReference", "Disable", false, enable(false));
+            // Task 0296: the Bards College's stage 75 shows Dead Men's Respite on the map.
+            reg("ObjectReference", "AddToMap", false, [this](const NativeCall& c) {
+                const FormId reference = formOf(c.self);
+                if (mHooks != nullptr && reference != 0)
+                    (void)mHooks->addToMap(reference);
+                return NativeResult{};
+            });
             reg("ObjectReference", "DisableNoWait", false, enable(false));
             reg("ObjectReference", "IsDisabled", false, [this](const NativeCall& c) {
                 return result(PapyrusValue::makeBool(!referenceEnabled(formOf(c.self))));

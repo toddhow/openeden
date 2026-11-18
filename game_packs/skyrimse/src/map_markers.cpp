@@ -329,6 +329,15 @@ namespace game_skyrimse::map
         return added;
     }
 
+    bool Discovery::add(const MarkerIndex& index, FormId marker)
+    {
+        if (marker == kNullFormId || index.find(marker) == nullptr || discovered(marker) || mFound.size() >= kMaxDiscovered)
+            return false;
+        mFound.insert(std::lower_bound(mFound.begin(), mFound.end(), marker), marker);
+        ++mRevision;
+        return true;
+    }
+
     void Discovery::restore(std::vector<FormId> found)
     {
         std::sort(found.begin(), found.end());

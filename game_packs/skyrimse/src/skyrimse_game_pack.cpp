@@ -2544,6 +2544,7 @@ namespace game_skyrimse
                     return true;
                 };
                 env.teachWord = [this](FormId word) { return mShouts != nullptr && mShouts->teachWord(word); };
+                env.addToMap = [this](FormId reference) { return mMap != nullptr && mMap->addMarker(reference); };
                 env.unlockWord = [this](FormId word) { return mShouts != nullptr && mShouts->unlockWord(word); };
                 env.isWordUnlocked
                     = [this](FormId word) { return mShouts != nullptr && mShouts->isWordUnlocked(word); };

@@ -153,6 +153,8 @@ namespace game_skyrimse::map
         [[nodiscard]] std::vector<FormId> markerWorlds(FormId world) const;
         /// Marks what is near (x, y) in `world` (the Mutate binding `visit`). Returns how many markers were new.
         std::size_t visit(FormId world, float x, float y);
+        /// Task 0296: marks one map marker (by its reference) discovered; false when not ready, unknown or already known.
+        bool addMarker(FormId reference);
         [[nodiscard]] const Access& access() const { return mAccess; }
 
         [[nodiscard]] openeden::sdk::DeclareResult declare(openeden::sdk::BindingsService& service);

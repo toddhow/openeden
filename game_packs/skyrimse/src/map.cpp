@@ -264,6 +264,15 @@ namespace game_skyrimse::map
         return added;
     }
 
+    bool MapService::addMarker(FormId reference)
+    {
+        if (!poll() || !mDiscovery.add(*mAccess.mMarkers, reference))
+            return false;
+        if (mHooks.mLog)
+            mHooks.mLog("MAP discovered by a script: " + std::to_string(reference));
+        return true;
+    }
+
     openeden::sdk::DeclareResult MapService::declare(openeden::sdk::BindingsService& service)
     {
         Impl& m = *mImpl;

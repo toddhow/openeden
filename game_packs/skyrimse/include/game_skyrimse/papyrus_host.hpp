@@ -453,6 +453,13 @@ namespace game_skyrimse
             (void)word;
             return false;
         }
+        /// Task 0296 (ObjectReference.AddToMap): the map marker is shown on the world map and the compass. False when the
+        /// pack cannot (the map is off, or the reference is no map marker).
+        virtual bool addToMap(FormId reference)
+        {
+            (void)reference;
+            return false;
+        }
         [[nodiscard]] virtual bool isWordUnlocked(FormId word)
         {
             (void)word;

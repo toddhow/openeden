@@ -48,6 +48,7 @@ namespace game_skyrimse
         std::function<bool(FormId word)> teachWord; ///< task 0205
         std::function<bool(FormId word)> unlockWord;
         std::function<bool(FormId word)> isWordUnlocked;
+        std::function<bool(FormId reference)> addToMap; ///< task 0296
         /// Task 0258: the arrest dialogue's fragments (see PapyrusWorldHooks).
         std::function<FormId(FormId actor)> crimeFactionOf;
         std::function<bool(FormId faction, bool removeStolenItems, bool goToJail)> payCrimeGold;
@@ -160,6 +161,7 @@ namespace game_skyrimse
         bool stopCombat(FormId actor) override { return mEnv.stopCombat && mEnv.stopCombat(actor); }
         bool resetHealth(FormId actor) override { return mEnv.resetHealth && mEnv.resetHealth(actor); }
         bool inCombat(FormId actor) override { return mEnv.inCombat && mEnv.inCombat(actor); }
+        bool addToMap(FormId reference) override { return mEnv.addToMap && mEnv.addToMap(reference); }
         bool teachWord(FormId word) override { return mEnv.teachWord && mEnv.teachWord(word); }
         bool unlockWord(FormId word) override { return mEnv.unlockWord && mEnv.unlockWord(word); }
         bool isWordUnlocked(FormId word) override { return mEnv.isWordUnlocked && mEnv.isWordUnlocked(word); }

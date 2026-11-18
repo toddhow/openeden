@@ -127,6 +127,9 @@ namespace game_skyrimse::map
         std::size_t visit(const MarkerIndex& index, FormId world, float x, float y, float radius);
         /// The same over several worlds (a world and the parents it borrows its land from share coordinates).
         std::size_t visit(const MarkerIndex& index, std::span<const FormId> worlds, float x, float y, float radius);
+        /// Task 0296 (ObjectReference.AddToMap): marks one known marker discovered. False for a reference that is not a
+        /// map marker of `index`, one already discovered, or a full list.
+        bool add(const MarkerIndex& index, FormId marker);
         [[nodiscard]] std::size_t count() const { return mFound.size(); }
         [[nodiscard]] std::uint64_t revision() const { return mRevision; }
         [[nodiscard]] const std::vector<FormId>& found() const { return mFound; } ///< ascending

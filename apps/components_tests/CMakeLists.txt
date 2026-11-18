@@ -674,6 +674,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecellmoves.cpp
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsehouses2.cpp
+    skyrimse/testskyrimsebards.cpp
     skyrimse/testskyrimsemarriage.cpp
     skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsespeech.cpp
