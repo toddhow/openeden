@@ -305,6 +305,38 @@ namespace openeden::extension
         return id;
     }
 
+    bool WorldSourceServiceImpl::playObjectAnimation(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, std::string_view event)
+    {
+        const Entry* entry = entryOf(source);
+        if (entry == nullptr || placement == openeden::sdk::game::kNoWorldId || event.empty()
+            || event.size() > kMaxAnimationNameLength)
+            return false;
+        if (mObjectOps.size() >= kMaxPendingObjectChanges)
+        {
+            ++mDroppedObjectChanges;
+            return false;
+        }
+        ObjectOp op;
+        op.kind = ObjectOp::Kind::Animate;
+        op.gameId = entry->mGameId;
+        op.cell = cellHint;
+        op.placement = placement;
+        op.animation = std::string(event);
+        mObjectOps.push_back(std::move(op));
+        return true;
+    }
+
+    float WorldSourceServiceImpl::objectAnimationSeconds(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, std::string_view event)
+    {
+        const Entry* entry = entryOf(source);
+        if (entry == nullptr || !mAnimationSeconds || event.empty() || event.size() > kMaxAnimationNameLength)
+            return 0.f;
+        const float seconds = mAnimationSeconds(entry->mGameId, cellHint, placement, event);
+        return std::isfinite(seconds) && seconds > 0.f ? std::min(seconds, 60.f) : 0.f;
+    }
+
     std::size_t WorldSourceServiceImpl::takeObjectOps(std::vector<ObjectOp>& out)
     {
         const std::size_t count = mObjectOps.size();

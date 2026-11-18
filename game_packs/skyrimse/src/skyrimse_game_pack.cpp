@@ -19,6 +19,7 @@
 #include "game_skyrimse/marriage.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/mining_service.hpp"
+#include <openeden/game/object_animation.hpp>
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -1346,6 +1347,25 @@ namespace game_skyrimse
                 return pushMoveToCell(static_cast<FormId>(actor), where->mCell, request);
             }
 
+            // Task 0289 (dungeon mechanics): PlayAnimation on a placed object goes to the host's object animation
+            // service (found on the world source service); `seconds` is how long the animation takes there.
+            bool pushAnimation(FormId reference, const std::string& event, double& seconds)
+            {
+                seconds = 0.0;
+                if (mSources == nullptr)
+                    return false;
+                auto* const animation = dynamic_cast<openeden::sdk::game::ObjectAnimationService*>(mSources);
+                if (animation == nullptr)
+                    return false;
+                const FormId cell = cellOfReference(reference);
+                const bool queued = animation->playObjectAnimation(mCells, cell, reference, event);
+                seconds = static_cast<double>(animation->objectAnimationSeconds(mCells, cell, reference, event));
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS animation '" + event + "' of " + hexId(reference) + " in cell " + hexId(cell) + " for "
+                        + std::to_string(seconds) + " s" + (queued ? " sent to the world" : " not sent"));
+                return queued;
+            }
+
             // Task 0202: PlaceAtMe. The base is described by the view, the object is built as the pack builds a placed
             // one
             // and handed to the host service, which mints its id.
@@ -2445,6 +2465,10 @@ namespace game_skyrimse
                 env.moveToCell = [this](FormId reference, FormId cell, const ObjectMoveRequest& request) {
                     return mPapyrus != nullptr && mPapyrus->pushMoveToCell(reference, cell, request);
                 };
+                env.playObjectAnimation = [this](FormId reference, const std::string& event, double& seconds) {
+                    seconds = 0.0;
+                    return mDungeonMechanics && mPapyrus != nullptr && mPapyrus->pushAnimation(reference, event, seconds);
+                };
                 env.tetherCart = [this, logger](FormId cart, FormId horse, const double (&at)[3], double heading) {
                     if (mPapyrus == nullptr || !mPapyrus->mainQuestOn())
                         return false;
@@ -2651,7 +2675,9 @@ namespace game_skyrimse
                         std::string name = mMining != nullptr
                             ? mMining->nameOf(static_cast<FormId>(placement), static_cast<FormId>(base))
                             : std::string();
-                        return name.empty() ? mWorldView.stoneNameOf(static_cast<FormId>(base)) : name;
+                        if (name.empty())
+                            name = mWorldView.stoneNameOf(static_cast<FormId>(base));
+                        return name.empty() ? dungeonNameOf(placement, base) : name;
                     });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
@@ -3389,15 +3415,44 @@ namespace game_skyrimse
             // script says (MineOreScript, ResourceFurnitureScript), the player's tool, the inventory, the vein book
             // and the save chunk `mining`. The engine sends the activation of an Activator (and, as ever, of a
             // Furniture); nothing is hidden: a depleted vein only reads as depleted.
+            // Task 0289: the tooltip of a placed activator or furniture that has scripts of its own (a puzzle pillar,
+            // a lever): the base's display name, else the word "Activate" so that the real key reaches it.
+            std::string dungeonNameOf(openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base)
+            {
+                if (!mDungeonMechanics || mPapyrus == nullptr
+                    || !mPapyrus->host().hasInstances(static_cast<FormId>(placement)))
+                    return {};
+                std::string name = mWorldView.displayNameOf(base);
+                return name.empty() ? std::string("Activate") : name;
+            }
+
             void startMining(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
-                if (settings == nullptr || !settings->getBool(kPackId, "harvest", false) || mInventory == nullptr)
+                // Task 0289: with `dungeon mechanics` the service also carries the activation of every other placed
+                // activator and furniture to the Papyrus host (the lever, the pillars), whether or not `harvest` is on.
+                const bool harvestOn = settings != nullptr && settings->getBool(kPackId, "harvest", false);
+                mDungeonMechanics = settings != nullptr && settings->getBool(kPackId, "dungeon mechanics", false)
+                    && mPapyrus != nullptr;
+                if (settings == nullptr || (!harvestOn && !mDungeonMechanics) || mInventory == nullptr)
                     return;
                 mining::Hooks hooks;
-                hooks.mResource = [this](FormId base, mining::ResourceInfo& out, std::string& name, std::string& verb) {
-                    return mWorldView.resourceOf(base, out, name, verb);
-                };
+                hooks.mResource
+                    = [this, harvestOn](FormId base, mining::ResourceInfo& out, std::string& name, std::string& verb) {
+                          return harvestOn && mWorldView.resourceOf(base, out, name, verb);
+                      };
+                if (mDungeonMechanics)
+                    hooks.mOther = [this, logger](FormId placement, FormId base) {
+                        // a standing stone or shrine is a scripted activator too: its own hook already runs it
+                        if (mPapyrus == nullptr || !mPapyrus->host().hasInstances(placement)
+                            || !mWorldView.stoneNameOf(base).empty())
+                            return;
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "DUNGEON activated " + hexOf(placement) + " (base " + hexOf(base) + ")");
+                        mPapyrus->host().onActivate(placement, kPapyrusPlayerReference);
+                        (void)base;
+                    };
                 hooks.mToolCount = [this](FormId list) {
                     std::vector<FormId> entries;
                     if (!mWorldView.formListEntries(list, entries))
@@ -3440,8 +3495,9 @@ namespace game_skyrimse
                             ? mMining->nameOf(static_cast<FormId>(placement), static_cast<FormId>(base))
                             : std::string();
                         // task 0237: a standing stone or shrine shows its name too
-                        return name.empty() && mStones != nullptr ? mWorldView.stoneNameOf(static_cast<FormId>(base))
-                                                                  : name;
+                        if (name.empty() && mStones != nullptr)
+                            name = mWorldView.stoneNameOf(static_cast<FormId>(base));
+                        return name.empty() ? dungeonNameOf(placement, base) : name;
                     });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
@@ -5730,6 +5786,7 @@ namespace game_skyrimse
             FormId mStonesTestCast = kNullFormId; // task 0248: a proof aid, a hex form id cast once as a blessing
             std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
+            bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source

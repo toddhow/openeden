@@ -40,6 +40,10 @@ namespace game_skyrimse::mining
         /// The text of a MESG record; empty when it cannot be read (the default line is used).
         std::function<std::string(FormId message)> mMessage;
         std::function<void(const std::string&)> mLog;
+        /// Task 0289: the placement is no resource of this service (an ore vein or a block); the activation of any
+        /// other placed activator or furniture reaches this hook, which the pack uses to run the object's own
+        /// OnActivate scripts. Optional.
+        std::function<void(FormId placement, FormId base)> mOther;
     };
 
     enum class MiningStatus : std::uint8_t

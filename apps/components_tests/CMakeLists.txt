@@ -282,6 +282,7 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testexportmotion.cpp
     havokpack/testidle.cpp
     havokpack/testskeletonfallback.cpp
+    havokpack/testobjectproject.cpp
     havokpack/testlocomotion.cpp
     havokpack/testpairedsurvey.cpp
     havokpack/testpaired.cpp
@@ -766,6 +767,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsewordwallcombat.cpp
     skyrimse/testskyrimsepapyrusslice2.cpp
     skyrimse/testskyrimsepapyrusnatives2.cpp
+    skyrimse/testskyrimsedungeon.cpp
     skyrimse/testskyrimsemainquest.cpp
     skyrimse/testskyrimsepapyrusobjects.cpp
     skyrimse/testskyrimsedescribebase.cpp

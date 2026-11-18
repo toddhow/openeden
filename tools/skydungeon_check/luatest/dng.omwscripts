@@ -1,0 +1,2 @@
+GLOBAL: scripts/dng/global.lua
+PLAYER: scripts/dng/player.lua

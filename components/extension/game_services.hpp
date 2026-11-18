@@ -1,6 +1,7 @@
 #pragma once
 
 #include <openeden/game/content.hpp>
+#include <openeden/game/object_animation.hpp>
 #include <openeden/game/records.hpp>
 #include <openeden/game/script_host.hpp>
 #include <openeden/game/ui.hpp>
@@ -38,6 +39,7 @@ namespace openeden::extension
             Move,
             Enable,
             Place,
+            Animate, ///< task 0289: play the animation `animation` on the placement
         };
         Kind kind = Kind::Move;
         std::string gameId;
@@ -47,6 +49,7 @@ namespace openeden::extension
         bool enabled = true; ///< Enable
         float fadeSeconds = 0.f; ///< Enable
         openeden::sdk::game::WorldObject object; ///< Place: the prototype, its id already the minted one
+        std::string animation; ///< Animate: the event name a game script gave
     };
 
     /**
@@ -141,7 +144,8 @@ namespace openeden::extension
     /// pointers to the sources, which the packs own and withdraw; the game id of each is copied when it is registered,
     /// so that the listener can be told about a source that is gone. The listener is the host's side (the engine's
     /// neutral world store); with none set, sources are only recorded. Main thread only. Owned by HostImpl.
-    class WorldSourceServiceImpl final : public openeden::sdk::game::WorldSourceService
+    class WorldSourceServiceImpl final : public openeden::sdk::game::WorldSourceService,
+                                         public openeden::sdk::game::ObjectAnimationService
     {
     public:
         /// The host's side of the service. The listener must outlive the service's use of it (set it to nullptr, or
@@ -191,6 +195,18 @@ namespace openeden::extension
         /// Task 0250: a created actor (see WorldSourceService::placeActor).
         [[nodiscard]] openeden::sdk::game::WorldId placeActor(openeden::sdk::game::WorldCellSource& source,
             openeden::sdk::game::WorldId cellHint, const openeden::sdk::game::WorldObject& prototype) override;
+        /// Task 0289 (openeden/game/object_animation.hpp): queued with the other ordered operations.
+        [[nodiscard]] bool playObjectAnimation(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement,
+            std::string_view event) override;
+        [[nodiscard]] float objectAnimationSeconds(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement,
+            std::string_view event) override;
+        /// The host's answer to objectAnimationSeconds (the engine looks the object up); empty: 0 seconds.
+        using AnimationSecondsFn = std::function<float(std::string_view gameId, openeden::sdk::game::WorldId cell,
+            openeden::sdk::game::WorldId placement, std::string_view event)>;
+        void setAnimationSeconds(AnimationSecondsFn fn) { mAnimationSeconds = std::move(fn); }
+        static constexpr std::size_t kMaxAnimationNameLength = 64;
         /// Moves the queued operations, in order, to the end of out and empties the queue. Returns how many.
         std::size_t takeObjectOps(std::vector<ObjectOp>& out);
         /// The index the next created object gets (1 at first); a load sets it from the save so that no id is minted
@@ -225,6 +241,7 @@ namespace openeden::extension
         std::vector<Entry> mSources;
         std::vector<ObjectEnableChange> mObjectChanges;
         std::vector<ObjectOp> mObjectOps;
+        AnimationSecondsFn mAnimationSeconds;
         std::uint32_t mNextCreatedIndex = 1;
         std::size_t mDroppedObjectChanges = 0;
         std::vector<SessionContentEntry> mSessionContent;

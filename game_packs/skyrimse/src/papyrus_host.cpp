@@ -1032,6 +1032,34 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxAnimRegistrations = 256;
         std::map<FormId, FormId> mPackageQuest; ///< task 0274: package -> the quest its fragment answers
         std::vector<AnimRegistration> mAnimRegistrations;
+        // Task 0289: the open state (GetOpenState: 1 open, 3 closed) of the objects that scripts opened or closed
+        static constexpr std::int32_t kOpenStateOpen = 1;
+        static constexpr std::int32_t kOpenStateClosed = 3;
+        static constexpr double kMaxAnimationWaitSeconds = 30.0;
+        static constexpr std::size_t kMaxOpenStates = 4096;
+        std::map<FormId, std::int32_t> mOpenStates;
+        std::map<FormId, std::uint32_t> mDartShots; // task 0289: Weapon.Fire calls per source reference
+
+        // An animation named Open or Close was asked of a reference: its open state follows.
+        void noteOpenState(FormId reference, const std::string& event)
+        {
+            const std::string key = lower(event);
+            if (key != "open" && key != "close")
+                return;
+            if (mOpenStates.size() >= kMaxOpenStates && mOpenStates.find(reference) == mOpenStates.end())
+                return;
+            mOpenStates[reference] = key == "open" ? kOpenStateOpen : kOpenStateClosed;
+        }
+
+        // The game's activation of an openable object without a script of its own: it plays Open or Close.
+        void defaultActivation(FormId reference, bool open)
+        {
+            const std::string event = open ? "Open" : "Close";
+            double seconds = 0.0;
+            if (mHooks != nullptr)
+                (void)mHooks->playObjectAnimation(reference, event, seconds);
+            noteOpenState(reference, event);
+        }
         std::vector<PendingAnimEvent> mAnimEvents;
 
         void fireAnimEvents()
@@ -1081,9 +1109,10 @@ namespace game_skyrimse
 
         using Handler = std::function<NativeResult(const NativeCall&)>;
 
-        void reg(const char* className, const char* function, bool global, Handler handler)
+        void reg(const char* className, const char* function, bool global, Handler handler, bool latent = false)
         {
             NativeDescriptor descriptor;
+            descriptor.latent = latent; // task 0289: the script parks for the result's waitSeconds
             descriptor.className = className;
             descriptor.functionName = function;
             descriptor.global = global;
@@ -1168,8 +1197,44 @@ namespace game_skyrimse
             reg("Message", "Show", false,
                 [this](const NativeCall& c) { return result(PapyrusValue::makeInt(showMessage(formOf(c.self)))); });
             reg("Game", "AddAchievement", true, [](const NativeCall&) { return NativeResult{}; });
+            // Task 0289 (dungeon mechanics): PlayAnimation and PlayAnimationAndWait go to the game through the hooks.
+            // The latent form parks the script for the animation's own length (the hook says it), which stands for
+            // the animation event the script names as the second argument.
+            const auto playObjectAnimation = [this](const NativeCall& c, bool wait) {
+                const FormId reference = formOf(c.self);
+                const std::string event = !c.arguments.empty() && c.arguments[0].kind == PapyrusKind::String
+                    ? std::string(c.arguments[0].text)
+                    : std::string();
+                NativeResult r;
+                r.value = PapyrusValue::makeBool(true);
+                if (reference == 0 || event.empty())
+                    return r;
+                double seconds = 0.0;
+                const bool played
+                    = mHooks != nullptr && mHooks->playObjectAnimation(reference, event, seconds);
+                noteOpenState(reference, event);
+                if (wait && played && std::isfinite(seconds) && seconds > 0.0)
+                    r.waitSeconds = std::min(seconds, kMaxAnimationWaitSeconds);
+                return r;
+            };
             reg("ObjectReference", "PlayAnimation", false,
-                [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+                [playObjectAnimation](const NativeCall& c) { return playObjectAnimation(c, false); });
+            reg("ObjectReference", "PlayAnimationAndWait", false,
+                [playObjectAnimation](const NativeCall& c) { return playObjectAnimation(c, true); }, true);
+            reg("ObjectReference", "GetOpenState", false, [this](const NativeCall& c) {
+                const auto found = mOpenStates.find(formOf(c.self));
+                return result(PapyrusValue::makeInt(found != mOpenStates.end() ? found->second : kOpenStateClosed));
+            });
+            reg("ObjectReference", "SetNoFavorAllowed", false, [](const NativeCall&) { return NativeResult{}; });
+            // Task 0289: a dart trap's shot (Weapon.Fire(source, ammo), the `DartTrap` script). No projectile flies and
+            // nothing is hurt in this slice: the shot is counted and the first of each trap port is logged.
+            reg("Weapon", "Fire", false, [this](const NativeCall& c) {
+                const FormId source = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const std::uint32_t seen = mDartShots[source]++;
+                if (seen == 0)
+                    say(false, "Papyrus: a dart is fired from " + hex(source) + " (no projectile in this slice)");
+                return NativeResult{};
+            });
         }
 
         // Message.Show: a corner text shows at once and answers 0; a message box asks the player (once) and answers
@@ -1475,8 +1540,13 @@ namespace game_skyrimse
                 const FormId activator = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 mLastTarget = target; // task 0237
                 mLastActor = activator;
-                for (const InstanceId instance : instancesOf(target))
+                const std::vector<InstanceId> instances = instancesOf(target);
+                for (const InstanceId instance : instances)
                     (void)sendEvent(instance, "OnActivate", { formValue(activator) });
+                // Task 0289: an object with no script of its own opens or closes by the game's default activation (a
+                // portcullis the pillar puzzle's lever activates through its activator marker)
+                if (instances.empty() && target != 0 && target != kPlayerReference)
+                    defaultActivation(target, mOpenStates[target] != kOpenStateOpen);
                 return result(PapyrusValue::makeBool(true));
             });
             // Quest
@@ -1931,7 +2001,14 @@ namespace game_skyrimse
             for (const char* name :
                 { "SetHudCartMode", "StartTitleSequence", "ShowTitleSequenceMenu", "HideTitleSequenceMenu" })
                 reg("Game", name, true, nothing);
-            reg("ObjectReference", "SetOpen", false, nothing);
+            // Task 0289: SetOpen(true) plays the object's Open animation, SetOpen(false) its Close
+            reg("ObjectReference", "SetOpen", false, [this](const NativeCall& c) {
+                const FormId reference = formOf(c.self);
+                const bool open = c.arguments.empty() || argNumber(c, 0) != 0.0;
+                if (reference != 0)
+                    defaultActivation(reference, open);
+                return NativeResult{};
+            });
             reg("ObjectReference", "TetherToHorse", false, [this](const NativeCall& c) {
                 const FormId cart = liveReference(formOf(c.self));
                 const FormId horse = c.arguments.empty() ? 0 : liveReference(formOf(c.arguments[0]));
@@ -3469,6 +3546,7 @@ namespace game_skyrimse
             {
                 (void)m.sendEvent(instance, "OnCellLoad");
                 (void)m.sendEvent(instance, "OnLoad");
+                (void)m.sendEvent(instance, "OnCellAttach"); // task 0289: the dart traps load their ports with it
             }
     }
 
@@ -3675,6 +3753,11 @@ namespace game_skyrimse
             return false;
         value = found->second;
         return true;
+    }
+
+    bool PapyrusHost::hasInstances(FormId reference) const
+    {
+        return mImpl->mByForm.count(reference) != 0;
     }
 
     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const

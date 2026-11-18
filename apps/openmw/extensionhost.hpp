@@ -253,6 +253,8 @@ namespace OMW
         bool mNeutralSaves = false; // Config::neutralSaves (task 0177)
         MWWorld::NeutralFades mFades; // task 0202: the fades of neutral objects
         std::map<std::uint32_t, std::string> mFadeGames; // the game of each fading placement
+        std::vector<std::pair<openeden::extension::ObjectOp, int>> mPendingAnimations; // task 0289: asked too early
+        std::map<std::uint64_t, float> mSunkGates; // task 0289: placement -> the height of a gate whose body is lowered
         std::map<std::uint64_t, std::uint32_t> mMoveLogCount; // task 0274: moves logged per placement (throttle)
         std::vector<MWWorld::NeutralFades::Update> mFadeUpdates; // reused every frame
         bool mRulesFromPack = false;

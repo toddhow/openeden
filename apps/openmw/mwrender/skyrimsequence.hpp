@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -44,6 +45,9 @@ namespace MWRender::SkyrimSequence
         std::size_t mOpen = NifScene::Sequences::sNoSequence;
         std::size_t mClose = NifScene::Sequences::sNoSequence;
         float mSeconds = 1.f; ///< how long a full opening takes, from the sequence (clamped to a sane range)
+        /// Task 0289: the sequences come from Havok clips (a puzzle pillar, a portcullis). Such a model is drawn in the
+        /// file's rest pose until a named animation plays: the door progress (setProgress, setTarget) does not apply.
+        bool mHavok = false;
         NifScene::Flat::FlatModel mStatic; ///< everything no sequence moves
         struct Part
         {
@@ -61,12 +65,12 @@ namespace MWRender::SkyrimSequence
     /// The model for a Skyrim NIF path, or null when the file cannot be read or has no usable Open sequence. Cached by
     /// path (a null answer too). Thread safe. Never throws.
     [[nodiscard]] std::shared_ptr<const Model> loadModel(
-        const VFS::Manager& vfs, const std::string& path, bool surfaceMaps);
+        const VFS::Manager& vfs, const std::string& path, bool surfaceMaps, bool havokClips = false);
 
     /// The pure half of loadModel: from a scene and the flattener's limits. Null when there is no Open sequence or
     /// nothing it moves draws.
     [[nodiscard]] std::shared_ptr<const Model> makeModel(
-        NifScene::Scene scene, const NifScene::Flat::Limits& baseLimits);
+        NifScene::Scene scene, const NifScene::Flat::Limits& baseLimits, bool havok = false);
 
     /// The sequence driver of one door or chest. `parts` pairs a model node with the transform that draws it.
     class Instance : public Anim::Controller
@@ -87,6 +91,14 @@ namespace MWRender::SkyrimSequence
 
         /// Sets every part's transform for a state. Public so a test can drive it without a clock.
         void apply(float progress, bool closing) const;
+        /// Task 0289. Sets every part's transform from `sequence` at its own time `time`. Public for tests.
+        void applyAt(const NifScene::Sequence& sequence, float time) const;
+        /// Task 0289, main thread. Starts the animation a game script calls `event` (a sequence name such as
+        /// "trigger01" or "open", ASCII case-insensitive; "StartState02" holds the first pose of "trigger02"). It plays
+        /// once from the next run and holds its end. False when the model has no such sequence.
+        bool play(std::string_view event);
+        /// Seconds the animation takes; 0 when there is none of that name or it is a held start state.
+        [[nodiscard]] float secondsOf(std::string_view event) const;
 
         void run(vsg::Object& target, float time) const override;
 
@@ -97,12 +109,22 @@ namespace MWRender::SkyrimSequence
         std::atomic<bool> mClosing{ false };
         std::atomic<bool> mTimed{ false };
         std::atomic<bool> mTargetOpen{ false };
+        std::atomic<std::size_t> mNamedSequence{ 0 }; ///< task 0289
+        std::atomic<bool> mNamedHold{ false };
+        std::atomic<std::uint32_t> mNamedSerial{ 0 };
+        mutable std::uint32_t mNamedSeen = 0;
+        mutable bool mNamedActive = false;
+        mutable bool mNamedDone = false;
+        mutable float mNamedStart = 0.f;
         mutable std::atomic<float> mApplied{ 0.f };
         mutable bool mHaveApplied = false;
         mutable bool mAppliedClosing = false;
         mutable float mLastTime = -1.f;
         mutable float mTimedProgress = 0.f;
     };
+
+    /// The sequence driver among an animation object's kept references (MWAnim::Object::keepAlive), or null.
+    [[nodiscard]] Instance* findInstance(const std::vector<vsg::ref_ptr<vsg::Object>>& keepAlive);
 
     struct Built
     {

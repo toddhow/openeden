@@ -108,7 +108,11 @@ namespace game_skyrimse::mining
         std::string name;
         std::string verb;
         if (!mHooks.mResource || !mHooks.mResource(base, info, name, verb) || info.mKind == ResourceKind::None)
+        {
+            if (mHooks.mOther)
+                mHooks.mOther(placement, base); // task 0289
             return MiningStatus::NotResource; // silent: every bench and bed activation reaches this check
+        }
         const bool ore = info.mKind == ResourceKind::Ore;
         const std::string tag = "MINING " + inventory::formatId(placement) + (ore ? " vein " : " block ");
         if (ore && mBook.depleted(placement, mNow))

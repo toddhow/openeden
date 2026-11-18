@@ -66,6 +66,8 @@ namespace game_skyrimse
         std::function<bool(FormId cart, FormId horse, const double (&position)[3], double heading)>
             tetherCart; ///< task 0274
         std::function<bool(FormId rider, FormId vehicle)> setVehicle; ///< task 0274
+        std::function<bool(FormId reference, const std::string& event, double& seconds)>
+            playObjectAnimation; ///< task 0289
         std::function<bool(FormId actor, FormId idle, std::string& animationEvent, double& seconds)>
             playIdle; ///< task 0274
         std::function<ObjectPlaceResult(FormId reference, FormId base, const ObjectMoveRequest& request, FormId cell)>
@@ -131,6 +133,10 @@ namespace game_skyrimse
         bool playIdle(FormId actor, FormId idle, std::string& animationEvent, double& seconds) override
         {
             return mEnv.playIdle && mEnv.playIdle(actor, idle, animationEvent, seconds);
+        }
+        bool playObjectAnimation(FormId reference, const std::string& event, double& seconds) override
+        {
+            return mEnv.playObjectAnimation && mEnv.playObjectAnimation(reference, event, seconds);
         }
         bool setVehicle(FormId rider, FormId vehicle) override
         {

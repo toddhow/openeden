@@ -376,6 +376,11 @@
       "default": false
     },
     {
+      "key": "dungeon mechanics",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "diseases",
       "type": "bool",
       "default": false

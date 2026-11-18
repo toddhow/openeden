@@ -204,14 +204,18 @@ namespace MWRender
         const MWWorld::Ptr& ptr, const std::string& mesh, MWAnim::Context& ctx)
     {
         const auto kind = ptr.get<MWWorld::NeutralBase>()->mBase->mKind;
+        // Task 0289: activators and furniture (puzzle pillars, gates, levers) animated by Havok clips too.
         if (mesh.empty()
-            || (kind != openeden::sdk::game::ObjectKind::Door && kind != openeden::sdk::game::ObjectKind::Container))
+            || (kind != openeden::sdk::game::ObjectKind::Door && kind != openeden::sdk::game::ObjectKind::Container
+                && kind != openeden::sdk::game::ObjectKind::Activator
+                && kind != openeden::sdk::game::ObjectKind::Furniture))
             return nullptr;
         Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
         if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
             return nullptr;
         const std::shared_ptr<const SkyrimSequence::Model> model
-            = SkyrimSequence::loadModel(*resources->getVFS(), mesh, Settings::game().mNeutralWorldMaterials);
+            = SkyrimSequence::loadModel(*resources->getVFS(), mesh, Settings::game().mNeutralWorldMaterials,
+                kind == openeden::sdk::game::ObjectKind::Activator || kind == openeden::sdk::game::ObjectKind::Furniture);
         if (!model)
             return nullptr;
         const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,

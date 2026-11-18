@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -25,6 +26,7 @@
 #include "mwbase/statemanager.hpp"
 #include "mwbase/world.hpp"
 #include "mwphysics/physicssystem.hpp"
+#include "mwrender/skyrimsequence.hpp"
 #include "mwrender/transparency.hpp"
 #include "mwworld/cellstore.hpp"
 #include "mwworld/craftingrules.hpp"
@@ -152,6 +154,24 @@ namespace OMW
             mStoreListener = std::make_unique<GameSession::StoreListener>(*mNeutralWorldStore);
             mHost.worldSources().setListener(mStoreListener.get());
             mHost.worldSources().setConsumerEnabled(true);
+            // Task 0289: how long a placed object's animation takes (a script waits for its end). Main thread.
+            mHost.worldSources().setAnimationSeconds([](std::string_view gameId, openeden::sdk::game::WorldId cell,
+                                                         openeden::sdk::game::WorldId placement,
+                                                         std::string_view event) -> float {
+                if (!MWBase::Environment::exists())
+                    return 0.f;
+                MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
+                MWBase::World* const world = MWBase::Environment::get().getWorld();
+                if (model == nullptr || world == nullptr)
+                    return 0.f;
+                const MWWorld::Ptr ptr = model->findLoadedNeutralObject(std::string(gameId), cell, placement);
+                if (ptr.isEmpty())
+                    return 0.f;
+                MWAnim::Object* const object = world->getAnimation(ptr);
+                const MWRender::SkyrimSequence::Instance* const instance
+                    = object != nullptr ? MWRender::SkyrimSequence::findInstance(object->keepAlive) : nullptr;
+                return instance != nullptr ? instance->secondsOf(event) : 0.f;
+            });
         }
 
         std::vector<extension::ExtensionLoadError> errors;
@@ -339,6 +359,10 @@ namespace OMW
         // The alpha of a fading object never goes below this: the dither of the object shader then still draws a few
         // pixels, and the object is taken out of the scene by the disable at the end, not by the alpha.
         constexpr float kMinFadeAlpha = 0.02f;
+        // Task 0289: how far a gate's body is lowered when it opens (units; far below any floor of a dungeon)
+        constexpr float kGateSink = 4000.f;
+        constexpr std::size_t kMaxPendingAnimations = 256;
+        constexpr int kMaxAnimationAge = 1800; // calls (frames) a request waits for its object to be drawn
     }
 
     void ExtensionHost::applyNeutralObjectChanges()
@@ -349,12 +373,64 @@ namespace OMW
         const std::size_t enableCount = mHost.worldSources().takeObjectEnableChanges(changes);
         std::vector<openeden::extension::ObjectOp> ops;
         const std::size_t opCount = mHost.worldSources().takeObjectOps(ops);
-        if (enableCount == 0 && opCount == 0)
+        if (enableCount == 0 && opCount == 0 && mPendingAnimations.empty())
             return;
         MWBase::World* const world = MWBase::Environment::get().getWorld();
         MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
         if (world == nullptr || model == nullptr)
             return;
+        // Task 0289: a script's PlayAnimation on a placed object. The first frames of a cell may ask before the object
+        // is drawn (OnCellLoad's start states), so a request whose object is not there yet waits (kMaxAnimationAge
+        // calls) and is tried again. An object with no such animation ignores it. A gate that opens (the "open" event
+        // of an activator) gives up its collision: the body is lowered out of the way, the drawn object stays where
+        // its animation puts it. True when the request is over (played, or nothing to play it on).
+        const auto tryAnimate = [&](const openeden::extension::ObjectOp& op) -> bool {
+            const MWWorld::Ptr ptr = model->findLoadedNeutralObject(op.gameId, op.cell, op.placement);
+            if (ptr.isEmpty())
+                return false;
+            MWAnim::Object* const object = world->getAnimation(ptr);
+            if (object == nullptr)
+                return false;
+            MWRender::SkyrimSequence::Instance* const instance
+                = MWRender::SkyrimSequence::findInstance(object->keepAlive);
+            const bool played = instance != nullptr && instance->play(op.animation);
+            Log(Debug::Info) << "NANIM " << op.placement << " '" << op.animation << "' "
+                             << (played ? "played" : (instance != nullptr ? "has no such animation" : "has no animation"));
+            if (!played)
+                return true;
+            std::string lowered = op.animation;
+            for (char& c : lowered)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            const auto sunk = mSunkGates.find(op.placement);
+            if (lowered == "open" && sunk == mSunkGates.end()
+                && ptr.get<MWWorld::NeutralBase>()->mBase->mKind == openeden::sdk::game::ObjectKind::Activator)
+            {
+                ESM::Position pos = ptr.getRefData().getPosition();
+                mSunkGates[op.placement] = pos.pos[2];
+                pos.pos[2] -= kGateSink;
+                ptr.getRefData().setPosition(pos);
+                world->getPhysicsSystem()->updatePosition(ptr);
+                Log(Debug::Info) << "NANIM " << op.placement << " collision lowered";
+            }
+            else if (lowered == "close" && sunk != mSunkGates.end())
+            {
+                ESM::Position pos = ptr.getRefData().getPosition();
+                pos.pos[2] = sunk->second;
+                mSunkGates.erase(sunk);
+                ptr.getRefData().setPosition(pos);
+                world->getPhysicsSystem()->updatePosition(ptr);
+                Log(Debug::Info) << "NANIM " << op.placement << " collision restored";
+            }
+            return true;
+        };
+        for (std::size_t i = 0; i < mPendingAnimations.size();)
+        {
+            auto& [pending, age] = mPendingAnimations[i];
+            if (tryAnimate(pending) || ++age > kMaxAnimationAge)
+                mPendingAnimations.erase(mPendingAnimations.begin() + static_cast<std::ptrdiff_t>(i));
+            else
+                ++i;
+        }
         for (const openeden::extension::ObjectEnableChange& change : changes)
         {
             // a cell that is not loaded has nothing to change: the pack builds it with its override when it loads
@@ -464,6 +540,12 @@ namespace OMW
                                      << " into " << destination->getCell()->getDescription() << " at "
                                      << op.move.position.x << ", " << op.move.position.y << ", " << op.move.position.z
                                      << (kept ? "" : " (not saved)");
+                    continue;
+                }
+                if (op.kind == Kind::Animate)
+                {
+                    if (!tryAnimate(op) && mPendingAnimations.size() < kMaxPendingAnimations)
+                        mPendingAnimations.emplace_back(op, 0);
                     continue;
                 }
                 const MWWorld::Ptr ptr = model->findLoadedNeutralObject(op.gameId, op.cell, op.placement);
@@ -610,6 +692,8 @@ namespace OMW
         mHost.worldSources().setNextCreatedIndex(nextCreatedIndex == 0 ? 1 : nextCreatedIndex);
         mFades.clear();
         mFadeGames.clear();
+        mPendingAnimations.clear(); // task 0289
+        mSunkGates.clear();
     }
 
     std::string ExtensionHost::savingRefusal() const

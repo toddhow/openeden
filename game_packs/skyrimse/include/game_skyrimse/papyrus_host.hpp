@@ -320,6 +320,14 @@ namespace game_skyrimse
             (void)actor, (void)idle, (void)animationEvent, (void)seconds;
             return false;
         }
+        /// Task 0289 (dungeon mechanics): `reference.PlayAnimation(event)`. The game plays the animation the scripts
+        /// call `event` on the placed object (a puzzle pillar's Trigger01, a gate's Open) and says in `seconds` how
+        /// long it takes (0: unknown). False: nothing plays (not loaded, no such animation).
+        virtual bool playObjectAnimation(FormId reference, const std::string& event, double& seconds)
+        {
+            (void)reference, (void)event, (void)seconds;
+            return false;
+        }
         /// Task 0274: `rider.SetVehicle(vehicle)`; a vehicle of 0 gets the rider off.
         virtual bool setVehicle(FormId rider, FormId vehicle)
         {
@@ -774,6 +782,8 @@ namespace game_skyrimse
 
         /// Whether Actor.AddSpell recorded the spell for the actor (the pack reads it: `spellsOf`).
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
+        /// Task 0289: a script instance is attached to the reference (its own or its base's).
+        [[nodiscard]] bool hasInstances(FormId reference) const;
 
         // ---- task 0237: standing stones and shrines. Additive.
         /// A Spell.Cast a script made, for the pack to apply (a shrine's blessing). Queued; `takeCasts` empties it.
