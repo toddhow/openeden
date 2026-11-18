@@ -593,6 +593,7 @@ namespace game_skyrimse
 
             [[nodiscard]] bool mainQuestOn() const { return mMainQuest; } // task 0274
             [[nodiscard]] std::string formName(FormId form) const { return mData.nameOf(form); } // task 0274
+            void setSceneParkSeconds(float seconds) { mSceneParkSeconds = seconds; } // task 0287
             void enableMainQuest()
             {
                 mMainQuest = true;
@@ -756,6 +757,8 @@ namespace game_skyrimse
                         [this](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     mHost.setSceneControl(mScenes.get());
                     mScenes->runner().setRetryQuestStart(mMainQuest); // task 0268
+                    if (mSceneParkSeconds > 0.f) // task 0287
+                        mScenes->runner().setParkSeconds(mSceneParkSeconds);
                     if (mForceOn) // task 0264: a ForceGreet package ends with its conversation
                         mScenes->setForceGreet(&mForce);
                 }
@@ -1485,6 +1488,7 @@ namespace game_skyrimse
             bool mHousesPermission = false;
             bool mHousesApplied = false;
             bool mMainQuest = false; ///< task 0268
+            float mSceneParkSeconds = 0.f; ///< task 0287: 0 keeps the runner's default
             bool mMainQuestApplied = false;
             double mNextCartLog = 0.0; ///< task 0274
             bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
@@ -1917,6 +1921,7 @@ namespace game_skyrimse
                                 return driver->host().globalSetByScript(global, value);
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
+                            mPapyrus->setSceneParkSeconds(settings->getFloat(kPackId, "scene park seconds", 0.f)); // 0287
                             if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
                             {
                                 mPapyrus->enableMainQuest();

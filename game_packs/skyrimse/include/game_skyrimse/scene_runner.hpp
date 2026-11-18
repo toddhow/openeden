@@ -154,6 +154,17 @@ namespace game_skyrimse
         ~SceneRunner();
         /// Task 0268: see Options::mRetryQuestStart.
         void setRetryQuestStart(bool on) { mOptions.mRetryQuestStart = on; }
+        // Task 0287: how long a line waits for a speaker who is not loaded (default 120 s, as before); cut to a range
+        static constexpr float kMinParkSeconds = 0.5f;
+        static constexpr float kMaxParkSeconds = 600.f;
+        static constexpr float kDefaultParkSeconds = 120.f;
+        [[nodiscard]] static float clampParkSeconds(float seconds)
+        {
+            if (!(seconds == seconds)) // NaN
+                return kDefaultParkSeconds;
+            return seconds < kMinParkSeconds ? kMinParkSeconds : (seconds > kMaxParkSeconds ? kMaxParkSeconds : seconds);
+        }
+        void setParkSeconds(float seconds) { mOptions.mParkSeconds = clampParkSeconds(seconds); }
         SceneRunner(const SceneRunner&) = delete;
         SceneRunner& operator=(const SceneRunner&) = delete;
 

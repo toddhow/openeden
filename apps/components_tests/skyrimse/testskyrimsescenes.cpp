@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -682,5 +683,36 @@ namespace
         }
         EXPECT_FALSE(logs[0].empty());
         EXPECT_EQ(logs[0], logs[1]);
+    }
+
+    // Task 0287: how long a scene waits for a speaker that is not loaded is a setting; a bad number is cut to a range.
+    TEST(SceneRunnerPark, theDefaultIsTheOldTwoMinutes)
+    {
+        EXPECT_FLOAT_EQ(SceneRunner::Options().mParkSeconds, 120.f);
+        EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(120.f), 120.f);
+    }
+
+    TEST(SceneRunnerPark, aBadNumberIsCutToTheRange)
+    {
+        EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(0.f), SceneRunner::kMinParkSeconds);
+        EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(-4.f), SceneRunner::kMinParkSeconds);
+        EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(1e9f), SceneRunner::kMaxParkSeconds);
+        EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(std::numeric_limits<float>::quiet_NaN()), 120.f);
+        EXPECT_FLOAT_EQ(SceneRunner::clampParkSeconds(5.f), 5.f);
+    }
+
+    TEST(SceneRunnerPark, aShortParkLetsAnAbsentSpeakersLineGoQuickly)
+    {
+        const Parsed p = twoLines();
+        FakeEnv env;
+        env.mLines[kTopicA] = line("hello");
+        env.mLines[kTopicB] = line("goodbye");
+        env.mLoaded = false;
+        SceneRunner runner(p.mIndex, env, SceneRunner::Options());
+        runner.setParkSeconds(4.f);
+        ASSERT_TRUE(runner.start(kScene));
+        tick(runner, 1.f, 12);
+        EXPECT_FALSE(runner.isPlaying(kScene)) << "both lines expired within 12 s";
+        EXPECT_EQ(runner.stats().mParkExpired, 2u);
     }
 }

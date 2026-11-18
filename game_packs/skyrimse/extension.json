@@ -674,6 +674,11 @@
       "key": "quest alias packages",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "scene park seconds",
+      "type": "float",
+      "default": 0.0
     }
   ],
   "licence": "GPL-3.0-or-later"
