@@ -5015,8 +5015,12 @@ namespace game_skyrimse
             void syncEquipment()
             {
                 const std::uint32_t revision = mInventory->model().equipmentRevision();
-                if (revision == mEquipSynced && !mEquipPending)
+                // Task 0300: with a bow or crossbow in hand the ammunition he holds counts too, so any change of the
+                // inventory looks again
+                const std::uint32_t holdings = mInventory->model().revision();
+                if (revision == mEquipSynced && !mEquipPending && !(mEquipRanged && holdings != mEquipHoldings))
                     return;
+                mEquipHoldings = holdings;
                 SkyrimCombat::PlayerEquipment equipment;
                 bool pending = false;
                 for (const inventory::EquippedItem& worn : mInventory->model().equipped())
@@ -5045,6 +5049,28 @@ namespace game_skyrimse
                             equipment.mPieces.push_back(std::move(piece));
                         }
                     }
+                }
+                // Task 0300: the best ammunition that fits the ranged weapon he wields, from what he holds
+                mEquipRanged = equipment.mWeapon != nullptr && isRangedAnimType(equipment.mWeapon->mAnimType);
+                if (mEquipRanged)
+                {
+                    std::vector<const AmmoRecord*> held;
+                    for (const inventory::Stack& stack : mInventory->model().stacks(inventory::kPlayerOwner))
+                    {
+                        if (stack.mCount <= 0)
+                            continue;
+                        const AmmoRecord* shots = nullptr;
+                        if (!mWorldView.lookupAmmo(stack.mItem, shots))
+                            pending = true;
+                        else if (shots != nullptr)
+                            held.push_back(shots);
+                    }
+                    if (!pending)
+                        if (const AmmoRecord* best = chooseAmmo(*equipment.mWeapon, held))
+                        {
+                            equipment.mAmmo = best;
+                            equipment.mAmmoItem = best->mCommon.mId;
+                        }
                 }
                 if (pending && !mEquipPending && mCraftLogger != nullptr && mCrafting != nullptr)
                     mCraftLogger->log(
@@ -5376,6 +5402,18 @@ namespace game_skyrimse
                     mCellSource.combat().setSpellDelivery(settings->getBool(kPackId, kCombatSpellDeliveryKey, false));
                     // Task 0295: enchanted weapons, staves and bound weapons (off by default).
                     mCellSource.combat().setWeaponMagic(settings->getBool(kPackId, kCombatWeaponMagicKey, false));
+                    // Task 0300: crossbows and real bows, dual wielding and dual casting (off by default).
+                    mCellSource.combat().setRangedGear(settings->getBool(kPackId, kCombatRangedGearKey, false));
+                    mCellSource.combat().setDualWield(settings->getBool(kPackId, kCombatDualWieldKey, false));
+                    mCellSource.combat().setDualCast(settings->getBool(kPackId, kCombatDualCastKey, false));
+                    const std::string offHand = settings->getString(kPackId, kCombatTestPlayerOffHandKey, "");
+                    if (!offHand.empty() && !mCellSource.combat().setTestPlayerOffHand(offHand))
+                        say(openeden::sdk::LogLevel::Warning, "combat test player offhand: the name is too long");
+                    // the player's shots spend the ammunition he holds
+                    mCellSource.combat().setAmmoSpentHook([this](FormId item) {
+                        if (mInventory != nullptr)
+                            (void)mInventory->model().consume(inventory::kPlayerOwner, item, 1);
+                    });
                     // Task 0179 (stage S5-7): perks. The switch defaults to on; the two lists to none.
                     mCellSource.combat().setUsePerks(settings->getBool(kPackId, kCombatPerksKey, true));
                     mCellSource.combat().setUseSounds(settings->getBool(kPackId, kCombatSoundsKey, true));
@@ -5894,6 +5932,8 @@ namespace game_skyrimse
             bool mHaveBoosts = false;
             std::function<void(const std::string&)> mCharacterLog;
             bool mEquipPending = false;
+            bool mEquipRanged = false; // task 0300: the player wields a bow or crossbow
+            std::uint32_t mEquipHoldings = 0xFFFFFFFFu;
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; refers to mPapyrus
             std::unique_ptr<SceneSaveChunk> mSceneChunk; // task 0211; refers to mPapyrus

@@ -339,8 +339,8 @@ namespace openeden::sdk::game
 
         /// Plays a clip on the actor (see ClipRequest). False (counted by the core) for a stale handle, a request whose
         /// slot is None, a name that is empty, longer than kMaxCombatClipName or has characters other than letters,
-        /// digits and `_`, a blend that is negative or not finite, or a call outside combatUpdate(). The default
-        /// refuses.
+        /// digits and `_` (task 0300: the one folder prefix `dlc01/` is also allowed, the crossbow clips), a blend
+        /// that is negative or not finite, or a call outside combatUpdate(). The default refuses.
         virtual bool playClip(CombatSubject subject, const ClipRequest& request)
         {
             (void)subject;

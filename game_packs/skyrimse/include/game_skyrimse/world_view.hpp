@@ -412,6 +412,7 @@ namespace game_skyrimse
         const AmmoRecord* ammoByEditorId(std::string_view editorId) override;
         const ProjectileRecord* projectileOf(const AmmoRecord& ammo) override;
         ProjectileSettings projectileSettings() override;
+        DualCastSettings dualCastSettings() override; // task 0300
         /// Task 0186 (stage S5-8): spells by editor id, a PROJ by form id and the magic GMSTs.
         const SpellRecord* spellByEditorId(std::string_view editorId) override;
         const ImageModifierRecord* imageModifierByEditorId(std::string_view editorId) override; // task 0257
@@ -526,6 +527,9 @@ namespace game_skyrimse
         /// A WEAP by form id. False while the combat records are not read (ask again; the combat update starts that
         /// read); true with `out` null for an id that is no weapon. Main thread.
         [[nodiscard]] bool lookupWeapon(FormId id, const WeaponRecord*& out);
+        /// Task 0300: an AMMO by form id, the same way (false while the combat records are not read; true with `out`
+        /// null for an id that is no ammunition) and the projectile it fires (null when it names none).
+        [[nodiscard]] bool lookupAmmo(FormId id, const AmmoRecord*& out);
         /// The armour piece a worn ARMO gives the armour rating (rating, slots, type, keywords), false when the id is
         /// no armour. Reads the actor index like describeActor (main thread).
         [[nodiscard]] bool armourPieceById(FormId id, ArmourPiece& out);

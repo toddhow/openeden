@@ -191,6 +191,26 @@
       "default": false
     },
     {
+      "key": "combat ranged gear",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "combat dual wield",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "combat dual cast",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "combat test player offhand",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "combat test player bow",
       "type": "float",
       "default": 0.0

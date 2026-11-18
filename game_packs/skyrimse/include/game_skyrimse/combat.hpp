@@ -23,6 +23,7 @@
 #include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_factions.hpp>
 #include <game_skyrimse/combat_gear.hpp>
+#include <game_skyrimse/combat_ranged.hpp>
 #include <game_skyrimse/combat_sound.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/creatures.hpp>
@@ -65,6 +66,7 @@ namespace game_skyrimse
     inline constexpr std::uint8_t kWeaponAnimHandToHand = 0;
     inline constexpr std::uint8_t kWeaponAnim1HSword = 1;
     inline constexpr std::uint8_t kWeaponAnimBow = 7;
+    inline constexpr std::uint8_t kWeaponAnimCrossbow = 9; ///< task 0300
 
     inline constexpr std::string_view kCombatTestSwingKey = "combat test swing";
     inline constexpr std::size_t kMaxCombatTestSwingName = 128;
@@ -136,6 +138,12 @@ namespace game_skyrimse
     /// Task 0295, off by default: a weapon's enchantment applies on a landed blow, a staff casts its enchantment (the
     /// player's attack control, an NPC with a staff), a Bound Weapon effect puts its weapon in the caster's hand.
     inline constexpr std::string_view kCombatWeaponMagicKey = "combat weapon magic";
+    /// Task 0300: crossbows and real bows, dual wielding, dual casting (all off by default) and the player's left-hand
+    /// test weapon.
+    inline constexpr std::string_view kCombatRangedGearKey = "combat ranged gear";
+    inline constexpr std::string_view kCombatDualWieldKey = "combat dual wield";
+    inline constexpr std::string_view kCombatDualCastKey = "combat dual cast";
+    inline constexpr std::string_view kCombatTestPlayerOffHandKey = "combat test player offhand";
     /// A rune stays this long unless it goes off first, seconds (ours: the data gives no lifetime for a rune).
     inline constexpr float kRuneLifetimeSeconds = 600.f;
     /// The most runes standing at once; a new one replaces the oldest (ours).
@@ -341,6 +349,8 @@ namespace game_skyrimse
             return nullptr;
         }
         virtual ProjectileSettings projectileSettings() { return {}; }
+        /// Task 0300: the dual casting GMSTs (default: the five masters' values).
+        virtual DualCastSettings dualCastSettings() { return {}; }
         /// Task 0186: the SPEL with this editor id (case-insensitive), or null; a SPEL and an MGEF by form id (default:
         /// the perk library's); a PROJ by form id; the ward and magicka regeneration numbers.
         virtual const SpellRecord* spellByEditorId(std::string_view editorId)
@@ -564,6 +574,27 @@ namespace game_skyrimse
         bool setTestBlock(std::string_view editorId);
         /// Task 0214 (`combat real gear`, off by default): fighters use their own melee weapon and shield and play the
         /// clips of that weapon's class. The test weapon still overrides an NPC's weapon when it is set.
+        // ---- task 0300 (crossbows, real bows, dual wielding, dual casting), all off by default
+        /// On: a fighter shoots the bow or crossbow of its gear (an NPC: the best of its inventory with ammunition that
+        /// fits; the player: the equipped one with the best ammunition he holds); needs `combat real gear` for NPCs.
+        /// The test weapon (`combat test weapon`) still comes first.
+        void setRangedGear(bool on) { mRangedGear = on; }
+        [[nodiscard]] bool rangedGear() const { return mRangedGear; }
+        /// On: an NPC whose combat style allows it and that carries a second one-handed weapon swings both (right
+        /// hand, then left hand, 1HM_AttackLeft); its power attack is the dual wield power attack with both weapons'
+        /// damage. Needs `combat real gear`.
+        void setDualWield(bool on) { mDualWield = on; }
+        [[nodiscard]] bool dualWield() const { return mDualWield; }
+        /// The test weapon of the player's left hand (`combat test player offhand`): the player then dual wields. Empty:
+        /// none. False when the name is too long.
+        bool setTestPlayerOffHand(std::string_view editorId);
+        /// On: a fire and forget spell is cast with both hands when the caster can pay the dual cost (the same
+        /// right-hand clip plays): the magnitude of its value effects is multiplied by fMagicDualCastingEffectivenessBase and the cost
+        /// by fMagicDualCastingCostMult (both read from the GMSTs).
+        void setDualCast(bool on) { mDualCast = on; }
+        [[nodiscard]] bool dualCast() const { return mDualCast; }
+        /// Told of every unit of ammunition the player shoots (the item), so the inventory can spend it. Empty: none.
+        void setAmmoSpentHook(std::function<void(FormId item)> hook) { mAmmoSpent = std::move(hook); }
         void setRealGear(bool on) { mRealGear = on; }
         [[nodiscard]] bool realGear() const { return mRealGear; }
 
@@ -680,6 +711,10 @@ namespace game_skyrimse
         {
             const WeaponRecord* mWeapon = nullptr; ///< valid as long as the data
             std::vector<ArmourPiece> mPieces;
+            /// Task 0300: the ammunition the player would shoot a bow or crossbow with (the best that fits, from what he
+            /// holds) and its item; null with no ranged weapon or none that fits.
+            const AmmoRecord* mAmmo = nullptr;
+            FormId mAmmoItem = kNullFormId;
         };
         void setPlayerEquipment(PlayerEquipment equipment);
         /// Task 0229: the poison on the player's wielded melee weapon. The next `charges` landed blows apply the
@@ -1139,8 +1174,11 @@ namespace game_skyrimse
                 None,
                 Drawing,
                 Releasing,
+                Reloading, ///< task 0300: a crossbow's reload clip plays after the shot
             } mBow
                 = Bow::None;
+            bool mSwingLeft = false; ///< task 0300: the swing now is the left hand's (a dual wielder)
+            std::uint32_t mDualIndex = 0; ///< task 0300: blows begun by a dual wielder, for the hand alternation
             std::uint32_t mBowToken = 0;
             std::uint32_t mArrowsKept = 0;
             float mMagicka = 0.f; ///< task 0186
@@ -1172,6 +1210,8 @@ namespace game_skyrimse
             std::uint32_t mToken = 0;
             openeden::sdk::game::CombatSubject mOwner;
             float mDraw = 1.f;
+            const WeaponRecord* mBow = nullptr; ///< task 0300: what shot it (kits differ per fighter)
+            const AmmoRecord* mAmmo = nullptr;
         };
         struct PendingHit
         {
@@ -1226,7 +1266,27 @@ namespace game_skyrimse
         /// none).
         float sneakAttackFor(Fighter& attacker, Fighter& victim, const WeaponRecord* swung, bool ranged);
         [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
-        [[nodiscard]] bool bowReady();
+        /// Task 0300: the bow or crossbow, ammunition and projectile a fighter shoots now. Empty (not ready) when it has
+        /// none. The test weapon (`combat test weapon` and `combat test ammo`) comes first, so every earlier run is
+        /// unchanged; then, with `combat ranged gear`, the player's equipped one or the NPC's own.
+        struct RangedKit
+        {
+            const WeaponRecord* mBow = nullptr;
+            const AmmoRecord* mAmmo = nullptr;
+            const ProjectileRecord* mProjectile = nullptr;
+            FormId mAmmoItem = kNullFormId; ///< the player's inventory item the shot spends (0: nothing is spent)
+            [[nodiscard]] bool ready() const
+            {
+                return mBow != nullptr && mAmmo != nullptr && mAmmo->mHasData && mProjectile != nullptr
+                    && mProjectile->mHasData;
+            }
+            [[nodiscard]] bool crossbow() const { return mBow != nullptr && mBow->mAnimType == kWeaponAnimCrossbow; }
+        };
+        [[nodiscard]] RangedKit rangedKitFor(const Fighter& fighter) const;
+        [[nodiscard]] bool bowReady(const Fighter& fighter) const { return rangedKitFor(fighter).ready(); }
+        [[nodiscard]] bool isDualWielding(const Fighter& fighter) const; // task 0300 (combat_ranged_run.cpp)
+        void beginReload(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
+        [[nodiscard]] float playerAimSeconds(openeden::sdk::game::CombatRequestWriter& writer, const RangedKit& kit);
         // Task 0186 (stage S5-8): the magic runtime (combat_magic.cpp).
         struct Cast;
         struct Concentration;
@@ -1489,6 +1549,20 @@ namespace game_skyrimse
         const WeaponRecord* mWeapon = nullptr;
         bool mWeaponLooked = false;
         bool mRealGear = false; ///< task 0214
+        bool mRangedGear = false; ///< task 0300
+        bool mDualWield = false; ///< task 0300
+        bool mDualCast = false; ///< task 0300
+        std::string mTestPlayerOffHand; ///< task 0300: lower case editor id
+        const WeaponRecord* mPlayerOffHand = nullptr;
+        bool mPlayerOffHandLooked = false;
+        bool mPlayerDualSwing = false; ///< the player's swing now is the left hand's
+        std::uint32_t mPlayerDualIndex = 0;
+        DualCastSettings mDualCastSettings;
+        bool mDualScale = false; ///< true while the effects of a dual cast are applied (their magnitude scales)
+        std::function<void(FormId)> mAmmoSpent;
+        float mPlayerReloadUntil = 0.f; ///< the combat clock at which a crossbow the player shot is loaded again
+        float mPlayerAimTime = 0.f; ///< a crossbow's aim clip length (the draw time), 0 until read
+        std::string mPlayerAimClip; ///< the clip that length belongs to
         bool mWeaponMagic = false; ///< task 0295
         SlotTable mGearSlots; ///< task 0214
         // Task 0184
@@ -1582,6 +1656,7 @@ namespace game_skyrimse
             float mHold = 0.f; ///< a concentration spell: seconds to hold
             bool mHeldByKey = false; ///< the player's real key: held until the release edge
             bool mFireSeen = false; ///< the SpellFire event came
+            bool mDual = false; ///< task 0300: cast with both hands (DualMagic_*): dearer, stronger
             bool mShout = false; ///< task 0205: a shout, which costs no magicka and starts the cooldown when it goes
             float mRecovery = 0.f; ///< a shout's cooldown seconds
         };
@@ -1601,6 +1676,7 @@ namespace game_skyrimse
             std::uint32_t mToken = 0;
             openeden::sdk::game::CombatSubject mOwner;
             const SpellRecord* mSpell = nullptr;
+            bool mDual = false; ///< task 0300
         };
         struct TestCaster
         {

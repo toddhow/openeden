@@ -1,0 +1,9 @@
+# task 0300: the REAL attack control (left mouse button) for the player's crossbow: aim 1.6 s and release (the aim clip is about 1.3 s), a
+# second press at once (the crossbow is still being reloaded: nothing is shot), then after the reload another full aim and release.
+# Frames count running frames at the fixed frame time of 1/60 s.
+3000 down L 640 360
+3100 up L 640 360
+3110 down L 640 360
+3200 up L 640 360
+3500 down L 640 360
+3600 up L 640 360

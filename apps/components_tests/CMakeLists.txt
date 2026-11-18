@@ -573,6 +573,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombat.cpp
     skyrimse/testskyrimsecombatslots.cpp
     skyrimse/testskyrimsecombatgear.cpp
+    skyrimse/testskyrimsecombatranged.cpp
+    skyrimse/testskyrimsecombatrangedreal.cpp
+    skyrimse/testskyrimsecombatrangedrun.cpp
     skyrimse/testskyrimsecombatgearreal.cpp
     skyrimse/testskyrimsecombatmelee.cpp
     skyrimse/testskyrimsecombatai.cpp
@@ -971,6 +974,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_gear.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ranged.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ranged_run.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_skills.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_stats.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_impact.cpp

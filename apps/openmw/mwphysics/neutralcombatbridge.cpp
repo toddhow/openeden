@@ -48,7 +48,13 @@ namespace MWPhysics
         {
             if (clip.empty() || clip.size() > openeden::sdk::game::kMaxCombatClipName)
                 return false;
-            return std::all_of(clip.begin(), clip.end(), [](char c) {
+            // Task 0300: the crossbow clips are in the DLC folder of the animations (`dlc01/crossbow_aim`): that one
+            // folder name, then a plain name, and nothing else with a separator in it.
+            std::string_view plain = clip;
+            constexpr std::string_view kDlcFolder = "dlc01/";
+            if (clip.size() > kDlcFolder.size() && equalsNoCase(clip.substr(0, kDlcFolder.size()), kDlcFolder))
+                plain = clip.substr(kDlcFolder.size());
+            return std::all_of(plain.begin(), plain.end(), [](char c) {
                 return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
             });
         }

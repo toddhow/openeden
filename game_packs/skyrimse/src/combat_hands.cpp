@@ -96,7 +96,8 @@ namespace game_skyrimse
         hands.bowDrawToken = mHandsBowDraws;
         hands.bowReleaseToken = mHandsBowReleases;
         hands.bowDrawing = mPlayerDrawing;
-        if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+        if (const RangedKit kit = mFighters.empty() ? RangedKit() : rangedKitFor(mFighters.front());
+            kit.mBow != nullptr && kit.mBow->mAnimType == kWeaponAnimBow) // task 0300: a crossbow has no arms clips yet
         {
             hands.bowDrawClip.assign(mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow));
             hands.bowReleaseClip.assign(mBowSlots.clipFor(ClipSlot::BowRelease, kWeaponAnimBow));

@@ -138,6 +138,9 @@ namespace game_skyrimse
             { ClipSlot::BlockHit, kClipClassShield, "SHD_BlockHit" },
             { ClipSlot::Bash, kClipClassShield, "SHD_BlockBash" },
             { ClipSlot::BlockStart, kClipClassShield, "SHD_BlockIdle" },
+            // Task 0300: a dual wielder's power attack (events of defaultmale.txt: DW_AttackPowerForward has
+            // preHitFrame 0.595, weaponLeftSwing 0.699, HitFrame 0.799).
+            { ClipSlot::PowerAttack, kClipClassDualWield, "DW_AttackPowerForward" },
         };
     }
 
@@ -166,6 +169,8 @@ namespace game_skyrimse
     {
         if (!mRealGear)
             return false;
+        if (isDualWielding(fighter))
+            return false; // task 0300: both hands hold a weapon
         const WeaponRecord* weapon = weaponFor(fighter);
         if (weapon != nullptr && isTwoHanded(weapon->mAnimType))
             return false;
@@ -185,6 +190,8 @@ namespace game_skyrimse
             return clipOf(fighter, slot);
         if (!mRealGear)
             return mSlots.clipFor(slot, kWeaponAnim1HSword);
+        if (slot == ClipSlot::PowerAttack && isDualWielding(fighter))
+            return mGearSlots.clipFor(slot, kClipClassDualWield); // task 0300
         const std::uint8_t cls = shieldSlot && hasShield(fighter) ? kClipClassShield : clipClassOf(fighter);
         return mGearSlots.clipFor(slot, cls);
     }
@@ -524,6 +531,13 @@ namespace game_skyrimse
             return nullptr; // task 0259: the claws, whatever he had in his hand
         if (mWeaponMagic && fighter.mBoundWeapon != nullptr && mClock < fighter.mBoundUntil)
             return fighter.mBoundWeapon; // task 0295: a conjured weapon
+        if (fighter.mSwingLeft) // task 0300: the blow of the left hand
+        {
+            if (fighter.mSubject.player && mPlayerOffHand != nullptr)
+                return mPlayerOffHand;
+            if (!fighter.mSubject.player && fighter.mGear.mOffHand != nullptr)
+                return fighter.mGear.mOffHand;
+        }
         if (fighter.mSubject.player && mEquip.mWeapon != nullptr && mEquip.mWeapon->isMelee())
             return mEquip.mWeapon;
         // Task 0214: an NPC's own weapon, unless the test weapon overrides it.
@@ -585,6 +599,7 @@ namespace game_skyrimse
     {
         mCombatSettings = mData->settings();
         mBlockSettings = mData->blockSettings();
+        mDualCastSettings = mData->dualCastSettings(); // task 0300
         mHaveSettings = true;
         CombatData* const data = mData; // task 0193: the sound records and the VFS probe
         mSounds.bind(mData->soundLibrary(), [data](const std::string& path) { return data->soundFileExists(path); });
@@ -1013,6 +1028,11 @@ namespace game_skyrimse
             mWeaponLooked = true;
             mWeapon = mTestWeapon.empty() ? nullptr : mData->weaponByEditorId(mTestWeapon);
         }
+        if (!mPlayerOffHandLooked) // task 0300
+        {
+            mPlayerOffHandLooked = true;
+            mPlayerOffHand = mTestPlayerOffHand.empty() ? nullptr : mData->weaponByEditorId(mTestPlayerOffHand);
+        }
         if (!mAmmoLooked)
         {
             mAmmoLooked = true;
@@ -1210,6 +1230,9 @@ namespace game_skyrimse
                 if (f->mBow == Fighter::Bow::Drawing && how == openeden::sdk::game::ClipEnd::Completed
                     && mPendingBow.size() < mPendingBow.capacity())
                     mPendingBow.push_back({ subject, token, false });
+                else if (f->mBow == Fighter::Bow::Releasing && how == openeden::sdk::game::ClipEnd::Completed
+                    && mPendingBow.size() < mPendingBow.capacity() && rangedKitFor(*f).crossbow())
+                    mPendingBow.push_back({ subject, token, true }); // task 0300: the shot is over, the reload follows
                 else
                     f->mBow = Fighter::Bow::None; // replaced by a hit reaction, failed, or the release clip ended
             }
@@ -1376,8 +1399,14 @@ namespace game_skyrimse
             // The player's clip is never played (no first-person arms): its timing is the sidecar's, asked for by the
             // clip the slot would play. Until it is ready there is no swing (stage S5-3b: no fallback number).
             syncPlayerTimingClass(fighter);
-            const std::string_view playerClip
-                = meleeClip(power ? ClipSlot::PowerAttack : ClipSlot::Attack, fighter, false);
+            // Task 0300: with a left-hand weapon (the test setting) the player's normal blows alternate hands
+            const bool dualPlayer = isDualWielding(fighter);
+            fighter.mSwingLeft = dualPlayer && !power && dualWieldUsesLeft(fighter.mDualIndex);
+            if (dualPlayer)
+                ++fighter.mDualIndex;
+            const std::string_view playerClip = meleeClip(
+                power ? ClipSlot::PowerAttack : (fighter.mSwingLeft ? ClipSlot::AttackLeft : ClipSlot::Attack), fighter,
+                false);
             const int timingSlot = power ? 1 : 0;
             openeden::sdk::game::ClipTiming timing;
             // Once known the timing is kept: the engine is not asked again (review fix of task 0171).
@@ -1418,13 +1447,20 @@ namespace game_skyrimse
             ++mSwingsRequested;
             if (mTrace)
                 trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "")
-                    + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
+                    + (fighter.mSwingLeft ? " left hand" : "") + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
         if (fighter.mDead || fighter.mSwinging || fighter.mStaggered || isParalyzed(fighter)) // task 0233
             return;
+        // Task 0300: a dual wielder swings its right hand, then its left (a bash and a power attack are not
+        // alternated: the power attack uses both).
+        const bool dual = isDualWielding(fighter);
+        fighter.mSwingLeft = dual && kind == AttackKind::Normal && dualWieldUsesLeft(fighter.mDualIndex);
+        if (dual && kind == AttackKind::Normal)
+            ++fighter.mDualIndex;
         const ClipSlot slot = kind == AttackKind::Bash ? ClipSlot::Bash
             : power                                    ? ClipSlot::PowerAttack
+            : fighter.mSwingLeft                       ? ClipSlot::AttackLeft
                                                        : ClipSlot::Attack;
         const std::string_view clip = meleeClip(slot, fighter, kind == AttackKind::Bash);
         if (clip.empty())
@@ -1444,7 +1480,8 @@ namespace game_skyrimse
                 trace("COMBAT swing " + name(fighter.mSubject) + " token " + std::to_string(request.token)
                     + (kind == AttackKind::Bash ? " bash"
                             : power             ? " power"
-                                                : ""));
+                                                : "")
+                    + (fighter.mSwingLeft ? " left hand" : ""));
         }
     }
 
@@ -1542,13 +1579,14 @@ namespace game_skyrimse
                 continue;
             const double dx = target.x - self.x;
             const double dy = target.y - self.y;
-            if (opponent != nullptr && mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+            const RangedKit kit = rangedKitFor(*f); // task 0300: the test weapon first, as before
+            if (opponent != nullptr && kit.mBow != nullptr)
                 continue; // duels are melee only: arrows are aimed at the player
-            if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+            if (kit.mBow != nullptr)
             {
                 // Task 0178: an archer shoots from afar (up to the bow's maximum range) and does not swing.
-                const double range = mWeapon->mMaxRange > 0.f ? mWeapon->mMaxRange : kBowDefaultRange;
-                if (!bowReady() || std::sqrt(dx * dx + dy * dy) > range)
+                const double range = kit.mBow->mMaxRange > 0.f ? kit.mBow->mMaxRange : kBowDefaultRange;
+                if (!kit.ready() || std::sqrt(dx * dx + dy * dy) > range)
                     continue;
                 writer.faceHeading(f->mSubject, static_cast<float>(std::atan2(dx, dy)));
                 beginBowDraw(writer, *f);
@@ -1584,9 +1622,10 @@ namespace game_skyrimse
             mPlayerAttackPending = false; // task 0295: with a staff the attack control casts (runPlayerCast)
             return;
         }
-        if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+        if (rangedKitFor(player).mBow != nullptr)
         {
             // Task 0178: with a bow the attack control draws and shoots (runPlayerBow); there is no melee swing.
+            // Task 0300: the same with a crossbow, and with a bow or crossbow the player has equipped.
             mPlayerAttackPending = false;
             return;
         }
@@ -1741,6 +1780,23 @@ namespace game_skyrimse
         if (swung != nullptr && swung->skillSlot() < attacker.mProfile.mSkills.size())
             input.mAttackerSkill = attacker.mProfile.mSkills[swung->skillSlot()];
         MeleeHit result = preset != nullptr ? *preset : computeMeleeHit(input, mCombatSettings);
+        if (power && !bash && preset == nullptr && isDualWielding(attacker))
+        {
+            // Task 0300: the dual wield power attack (DW_AttackPowerForward) strikes with both weapons: the off-hand
+            // weapon's damage is added to the main weapon's (OURS: the data has no number for it).
+            const WeaponRecord* off = attacker.mSubject.player ? mPlayerOffHand : attacker.mGear.mOffHand;
+            if (off != nullptr)
+            {
+                MeleeInput second = input;
+                second.mWeapon = off;
+                if (off->skillSlot() < attacker.mProfile.mSkills.size())
+                    second.mAttackerSkill = attacker.mProfile.mSkills[off->skillSlot()];
+                const MeleeHit other = computeMeleeHit(second, mCombatSettings);
+                result.mDamageBefore += other.mDamageBefore;
+                result.mDamageAfter += other.mDamageAfter;
+                trace("COMBAT dual wield power attack adds " + fmt(other.mDamageAfter) + " from " + off->mCommon.mEditorId);
+            }
+        }
         if (!bash)
             applyPerksToHit(attacker, victim, power, result);
         const float sneakMult = bash ? 1.f : sneakAttackFor(attacker, victim, swung, preset != nullptr); // task 0227
@@ -1957,17 +2013,15 @@ namespace game_skyrimse
             trace("COMBAT miss " + name(attacker->mSubject) + " token " + std::to_string(delivery.mWho.mToken));
     }
 
-    bool SkyrimCombat::bowReady()
-    {
-        return mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow && mAmmo != nullptr && mAmmo->mHasData
-            && mProjectile != nullptr && mProjectile->mHasData;
-    }
-
     void SkyrimCombat::beginBowDraw(CombatRequestWriter& writer, Fighter& fighter)
     {
         if (isParalyzed(fighter)) // task 0233
             return;
-        const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
+        const RangedKit kit = rangedKitFor(fighter); // task 0300
+        if (kit.mBow == nullptr)
+            return;
+        const std::string_view clip = kit.crossbow() ? crossbowClipsFor(*kit.mBow).mAim
+                                                     : mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
         if (clip.empty())
             return;
         fighter.mNextAttack = mClock + kHostileAttackPeriod;
@@ -1979,11 +2033,11 @@ namespace game_skyrimse
         request.token = mNextToken++;
         if (!writer.playClip(fighter.mSubject, request))
             return;
-        const float speed = fighterBowDrawSpeed(fighter.mProfile, mWeapon->mSpeed, mBowSpeedBonus);
+        const float speed = fighterBowDrawSpeed(fighter.mProfile, kit.mBow->mSpeed, mBowSpeedBonus);
         (void)writer.setClipSpeed(fighter.mSubject, speed);
         fighter.mBow = Fighter::Bow::Drawing;
         fighter.mBowToken = request.token;
-        mSounds.weaponDraw(writer, fighter.mSubject, mWeapon); // task 0193: the bow comes up, once
+        mSounds.weaponDraw(writer, fighter.mSubject, kit.mBow); // task 0193: the bow comes up, once
         mSounds.bowNock(writer, fighter.mSubject); // task 0193
         if (mTrace)
             trace("COMBAT bow draw " + name(fighter.mSubject) + " token " + std::to_string(request.token) + " speed "
@@ -1992,7 +2046,10 @@ namespace game_skyrimse
 
     void SkyrimCombat::releaseBow(CombatRequestWriter& writer, Fighter& fighter, std::uint32_t)
     {
-        const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowRelease, kWeaponAnimBow);
+        const RangedKit kit = rangedKitFor(fighter); // task 0300
+        const std::string_view clip = kit.crossbow() && kit.mBow != nullptr
+            ? crossbowClipsFor(*kit.mBow).mRelease
+            : mBowSlots.clipFor(ClipSlot::BowRelease, kWeaponAnimBow);
         openeden::sdk::game::ClipRequest request;
         request.slot = ClipSlot::BowRelease;
         request.clip = clip;
@@ -2008,18 +2065,27 @@ namespace game_skyrimse
         fighter.mBowToken = request.token;
         if (mTrace)
             trace("COMBAT bow release " + name(fighter.mSubject) + " token " + std::to_string(request.token));
+        if (kit.crossbow())
+        {
+            // Task 0300: the crossbow release clip has no event in the data installed (the DLC project files are not
+            // there), so the bolt goes as the clip begins, as the bow arrowRelease event comes 0.033 s in.
+            openeden::sdk::game::SubjectState target;
+            if (writer.subjectState(fighter.mAimTarget, target))
+                (void)launchArrow(writer, fighter, 1.f, &target);
+        }
     }
 
     bool SkyrimCombat::launchArrow(
         CombatRequestWriter& writer, Fighter& archer, float draw, const openeden::sdk::game::SubjectState* target)
     {
         openeden::sdk::game::SubjectState self;
-        if (!bowReady() || !writer.subjectState(archer.mSubject, self))
+        const RangedKit kit = rangedKitFor(archer); // task 0300
+        if (!kit.ready() || !writer.subjectState(archer.mSubject, self))
             return false;
         const float fraction = std::isfinite(draw) ? std::clamp(draw, 0.f, 1.f) : 0.f;
-        const float speed = mProjectile->mSpeed
+        const float speed = kit.mProjectile->mSpeed
             * (fraction < 1.f ? kMinDrawSpeedFraction + (1.f - kMinDrawSpeedFraction) * fraction : 1.f);
-        const float gravity = std::max(0.f, mProjectile->mGravity) * kProjectileGravityUnits;
+        const float gravity = std::max(0.f, kit.mProjectile->mGravity) * kProjectileGravityUnits;
         openeden::sdk::game::ProjectileRequest request;
         request.token = mNextToken++;
         if (target != nullptr)
@@ -2053,18 +2119,23 @@ namespace game_skyrimse
         }
         request.speed = speed;
         request.gravity = gravity;
-        request.range = mProjectile->mRange;
+        request.range = kit.mProjectile->mRange;
         request.stickDepth = mProjectileSettings.mMissileStickDepth;
         request.stickSeconds = mProjectileSettings.mAttachedArrowAgeMax;
-        const std::string model = projectileModelPath(mProjectile->mModel);
+        const std::string model = projectileModelPath(kit.mProjectile->mModel);
         request.model = model;
         if (!writer.launchProjectile(archer.mSubject, request))
             return false;
         if (mShots.size() >= kMaxShotsRemembered)
             mShots.erase(mShots.begin()); // an arrow whose end never came (its owner left): the oldest is forgotten
-        mShots.push_back({ request.token, archer.mSubject, fraction });
+        mShots.push_back({ request.token, archer.mSubject, fraction, kit.mBow, kit.mAmmo });
         ++mArrowsLaunched;
-        mSounds.bowRelease(writer, archer.mSubject, mWeapon); // task 0193
+        mSounds.bowRelease(writer, archer.mSubject, kit.mBow); // task 0193
+        if (archer.mSubject.player && kit.mAmmoItem != kNullFormId && mAmmoSpent)
+        {
+            mAmmoSpent(kit.mAmmoItem); // task 0300: one unit of what he holds
+            trace("COMBAT ammunition spent by the player: item " + std::to_string(kit.mAmmoItem));
+        }
         if (mTrace)
             trace("COMBAT arrow launch " + name(archer.mSubject) + " token " + std::to_string(request.token) + " from "
                 + fmt(static_cast<float>(request.x)) + " " + fmt(static_cast<float>(request.y)) + " "
@@ -2101,17 +2172,17 @@ namespace game_skyrimse
             ? find(CombatSubject::ofPlayer())
             : find(CombatSubject::of(result.actor));
         if (archer == nullptr || victim == nullptr || archer == victim || victim->mDead || !ready(*archer)
-            || !ready(*victim) || !bowReady())
+            || !ready(*victim) || launched.mBow == nullptr || launched.mAmmo == nullptr)
             return;
         if (!mayHit(*archer, *victim))
             return; // task 0192: an arrow that ends in a friend of the archer (a crowd test) hurts nobody
         BowInput input;
-        input.mBow = mWeapon;
-        input.mAmmo = mAmmo;
+        input.mBow = launched.mBow; // task 0300: what shot it, not what the test setting names
+        input.mAmmo = launched.mAmmo;
         input.mDrawFraction = launched.mDraw;
         input.mTargetMitigationPercent = victim->mProfile.mMitigationPercent;
-        if (mWeapon->skillSlot() < archer->mProfile.mSkills.size())
-            input.mArcherySkill = archer->mProfile.mSkills[mWeapon->skillSlot()];
+        if (launched.mBow->skillSlot() < archer->mProfile.mSkills.size())
+            input.mArcherySkill = archer->mProfile.mSkills[launched.mBow->skillSlot()];
         const BowHit bow = computeBowHit(input, mCombatSettings);
         MeleeHit preset;
         preset.mDamageBefore = bow.mDamageBefore;
@@ -2167,14 +2238,19 @@ namespace game_skyrimse
     void SkyrimCombat::runPlayerBow(CombatRequestWriter& writer)
     {
         Fighter& player = mFighters.front();
-        if (!ready(player) || mWeapon == nullptr || mWeapon->mAnimType != kWeaponAnimBow || !bowReady())
+        const RangedKit kit = rangedKitFor(player); // task 0300: the test weapon, else the equipped bow or crossbow
+        if (!ready(player) || !kit.ready() || mBeast)
         {
             mPlayerEdges.clear();
             mPlayerDrawing = false;
             return;
         }
-        // The draw clip's bowDrawn time: the read starts with the first ask and arrives a few frames later.
-        if (!(mPlayerDrawTime > 0.f))
+        const bool crossbow = kit.crossbow();
+        // The draw clip's bowDrawn time: the read starts with the first ask and arrives a few frames later. A
+        // crossbow has no bowDrawn event in the data: its aim clip's length is the draw time.
+        if (crossbow)
+            mPlayerDrawTime = playerAimSeconds(writer, kit);
+        else if (!(mPlayerDrawTime > 0.f))
         {
             float time = 0.f;
             const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
@@ -2183,7 +2259,13 @@ namespace game_skyrimse
                 mPlayerDrawTime = time;
         }
         const float drawSeconds
-            = mPlayerDrawTime / fighterBowDrawSpeed(player.mProfile, mWeapon->mSpeed, mBowSpeedBonus);
+            = mPlayerDrawTime / fighterBowDrawSpeed(player.mProfile, kit.mBow->mSpeed, mBowSpeedBonus);
+        if (crossbow && mClock < mPlayerReloadUntil)
+        {
+            mPlayerEdges.clear(); // the crossbow is still being reloaded
+            mPlayerDrawing = false;
+            return;
+        }
         // The automatic test: press, hold, release, every kPlayerBowPeriod seconds.
         if (mPlayerBowHold > 0.f && !mPlayerDrawing && mPlayerDrawTime > 0.f && mPlayerEdges.empty()
             && mClock >= mNextPlayerBow)
@@ -2211,7 +2293,7 @@ namespace game_skyrimse
                 mPlayerDrawing = true;
                 ++mHandsBowDraws; // task 0249
                 mPlayerDrawStart = mClock;
-                mSounds.weaponDraw(writer, player.mSubject, mWeapon); // task 0193
+                mSounds.weaponDraw(writer, player.mSubject, kit.mBow); // task 0193
                 mSounds.bowNock(writer, player.mSubject); // task 0193
                 trace("COMBAT player bow draw at " + fmt(mClock) + " full draw takes " + fmt(drawSeconds) + " s");
                 continue;
@@ -2226,8 +2308,20 @@ namespace game_skyrimse
                 continue;
             }
             const float fraction = drawSeconds > 0.f ? std::min(1.f, held / drawSeconds) : 1.f;
+            if (crossbow && fraction < 1.f)
+            {
+                trace("COMBAT player crossbow cancelled after " + fmt(held) + " s: aimed " + fmt(fraction));
+                continue; // task 0300: a crossbow shoots only when it has been aimed all the way
+            }
             ++mHandsBowReleases; // task 0249
-            (void)launchArrow(writer, player, fraction, nullptr);
+            if (launchArrow(writer, player, crossbow ? 1.f : fraction, nullptr) && crossbow)
+            {
+                // Task 0300: the reload is the clip's own length; the player cannot shoot again before it ends.
+                openeden::sdk::game::ClipTiming reload;
+                if (writer.clipTiming(crossbowClipsFor(*kit.mBow).mReload, false, reload) && reload.length > 0.f)
+                    mPlayerReloadUntil = mClock + reload.length;
+                trace("COMBAT player crossbow shot, reload until " + fmt(mPlayerReloadUntil));
+            }
         }
         mPlayerEdges.clear();
     }
@@ -2291,6 +2385,8 @@ namespace game_skyrimse
                     continue;
                 if (!pending.mRelease && f->mBow == Fighter::Bow::Drawing)
                     releaseBow(writer, *f, pending.mToken);
+                else if (pending.mRelease && f->mBow == Fighter::Bow::Releasing && rangedKitFor(*f).crossbow())
+                    beginReload(writer, *f); // task 0300: the bolt went when the release clip began
                 else if (pending.mRelease && f->mBow == Fighter::Bow::Releasing)
                 {
                     f->mBow = Fighter::Bow::None;

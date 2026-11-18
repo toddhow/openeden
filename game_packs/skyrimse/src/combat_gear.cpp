@@ -118,17 +118,19 @@ namespace game_skyrimse
             FormId mItem;
             unsigned mDepth;
             bool mFromOutfit;
+            std::int32_t mCount = 1;
         };
         std::vector<Pending> work;
         for (const InventoryEntry& entry : resolved.mInventory)
             if (entry.mCount > 0)
-                work.push_back({ entry.mItem, 0, false });
+                work.push_back({ entry.mItem, 0, false, entry.mCount });
         if (const OutfitRecord* outfit = actors.outfit(resolved.mDefaultOutfit))
             for (const FormId item : outfit->mItems)
-                work.push_back({ item, 0, true });
+                work.push_back({ item, 0, true, 1 });
         std::reverse(work.begin(), work.end()); // pop from the back in the listed order
 
         std::vector<const WeaponRecord*> weapons;
+        std::vector<const AmmoRecord*> ammunition; // task 0300
         std::vector<ArmourCandidate> shields; // from anywhere
         std::vector<ArmourCandidate> inventoryArmour; // from the inventory only
         std::size_t looked = 0;
@@ -139,6 +141,12 @@ namespace game_skyrimse
             if (const WeaponRecord* weapon = combat.weapon(item.mItem))
             {
                 weapons.push_back(weapon);
+                if (item.mCount >= 2) // task 0300: two of a kind (a pair to dual wield)
+                    weapons.push_back(weapon);
+            }
+            else if (const AmmoRecord* shots = combat.ammo(item.mItem))
+            {
+                ammunition.push_back(shots); // task 0300
             }
             else if (const ArmorExtra* armor = actors.armor(item.mItem))
             {
@@ -170,6 +178,14 @@ namespace game_skyrimse
         out.mKnown = true;
         out.mWeapon = chooseMeleeWeapon(weapons);
         out.mStaff = chooseStaff(weapons); // task 0295
+        // Task 0300: a bow or crossbow only with ammunition that fits it, a second weapon to dual wield.
+        if (const WeaponRecord* ranged = chooseRangedWeapon(weapons))
+            if (const AmmoRecord* shots = chooseAmmo(*ranged, ammunition))
+            {
+                out.mBow = ranged;
+                out.mAmmo = shots;
+            }
+        out.mOffHand = chooseOffHandWeapon(weapons, out.mWeapon);
         if (out.mWeapon == nullptr || !isTwoHanded(out.mWeapon->mAnimType))
         {
             if (const ArmourCandidate* shield = chooseShield(shields))

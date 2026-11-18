@@ -1,0 +1,5 @@
+# task 0300: two taps of the attack control, a dual cast of the player's spell each (the cast is queued by the attack control)
+3000 down L 640 360
+3004 up L 640 360
+3300 down L 640 360
+3304 up L 640 360

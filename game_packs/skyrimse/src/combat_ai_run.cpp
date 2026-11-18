@@ -730,13 +730,14 @@ namespace game_skyrimse
                 continue;
             }
             const WeaponRecord* weapon = weaponFor(*f);
-            const bool bow = weapon != nullptr && weapon->mAnimType == kWeaponAnimBow && bowReady();
+            const RangedKit kit = rangedKitFor(*f); // task 0300: a bow or crossbow of its own gear counts
+            const bool bow = kit.ready();
             const float rawReach = meleeReachUnits(weapon, f->mProfile.mUnarmedReach, mCombatSettings);
             AiView view;
             view.mNow = mClock;
             view.mDistance = distance;
             view.mReach = rawReach + kBodyRadius - 4.f;
-            view.mRange = bow ? (weapon->mMaxRange > 0.f ? weapon->mMaxRange : kBowDefaultRange) : 0.f;
+            view.mRange = bow ? (kit.mBow->mMaxRange > 0.f ? kit.mBow->mMaxRange : kBowDefaultRange) : 0.f;
             view.mHealthFraction
                 = f->mProfile.mHealthMax > 0.f ? std::clamp(f->mHealth / f->mProfile.mHealthMax, 0.f, 1.f) : 1.f;
             view.mStaminaFraction

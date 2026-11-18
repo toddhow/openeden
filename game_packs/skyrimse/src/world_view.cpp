@@ -448,6 +448,11 @@ namespace game_skyrimse
         return mCombatIndex == nullptr ? ProjectileSettings{} : mCombatIndex->settings().projectileSettings();
     }
 
+    DualCastSettings SkyrimWorldView::dualCastSettings()
+    {
+        return mCombatIndex == nullptr ? DualCastSettings{} : dualCastSettingsFrom(mCombatIndex->settings());
+    }
+
     const SpellRecord* SkyrimWorldView::spellByEditorId(std::string_view editorId)
     {
         return mCombatIndex == nullptr ? nullptr : mCombatIndex->spellByEditorId(std::string(editorId));
@@ -3503,6 +3508,15 @@ namespace game_skyrimse
         if (mCombatIndex == nullptr)
             return false;
         out = mCombatIndex->weapon(id);
+        return true;
+    }
+
+    bool SkyrimWorldView::lookupAmmo(FormId id, const AmmoRecord*& out)
+    {
+        out = nullptr;
+        if (mCombatIndex == nullptr)
+            return false;
+        out = mCombatIndex->ammo(id);
         return true;
     }
 

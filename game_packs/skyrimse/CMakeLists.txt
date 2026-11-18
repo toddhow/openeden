@@ -70,6 +70,8 @@ openeden_add_game_pack(skyrimse
         src/combat.cpp
         src/combat_crowd.cpp
         src/combat_gear.cpp
+        src/combat_ranged.cpp
+        src/combat_ranged_run.cpp
         src/combat_skills.cpp
         src/hud.cpp
         src/hud_style.cpp
@@ -198,6 +200,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/combat.hpp
         include/game_skyrimse/combat_crowd.hpp
         include/game_skyrimse/combat_gear.hpp
+        include/game_skyrimse/combat_ranged.hpp
         include/game_skyrimse/hud.hpp
         include/game_skyrimse/progression.hpp
         include/game_skyrimse/progression_service.hpp
@@ -301,6 +304,8 @@ add_library(game_skyrimse_world STATIC
     src/combat.cpp
     src/combat_crowd.cpp
     src/combat_gear.cpp
+    src/combat_ranged.cpp
+    src/combat_ranged_run.cpp
     src/combat_skills.cpp
     src/hud.cpp
     src/hud_style.cpp

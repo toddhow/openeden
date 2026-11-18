@@ -532,6 +532,8 @@ namespace game_skyrimse
         const bool valueEffect = archetype == MagicArchetype::ValueModifier || archetype == MagicArchetype::Dual
             || archetype == MagicArchetype::Absorb;
         float magnitude = signedMagnitude(effect.mMagnitude, record.mFlags);
+        if (mDualScale && valueEffect) // task 0300: a spell cast with both hands
+            magnitude = dualCastMagnitude(magnitude, true, mDualCastSettings);
         if (hostile && valueEffect)
             magnitude = (magnitude < 0.f ? -1.f : 1.f)
                 * weakened(resistedMagnitude(std::abs(magnitude), resistOf(target, record.mResistValue)),
@@ -908,6 +910,11 @@ namespace game_skyrimse
             return false;
         }
         const bool concentration = spell.mCastType == MagicCast::Concentration;
+        // Task 0300: a fire and forget spell that goes at a target or at the caster is cast with both hands when the
+        // caster can pay what that costs (a power and a spell that is held are not).
+        const bool dual = mDualCast && spell.mCastType == MagicCast::FireAndForget && !isPowerType(spell)
+            && (spell.mDelivery == MagicDelivery::Self || spell.mDelivery == MagicDelivery::Aimed)
+            && caster.mMagicka >= dualCastCost(static_cast<float>(spell.mCost), true, mDualCastSettings);
         const float needed = concentration ? 0.f : static_cast<float>(spell.mCost);
         if (caster.mMagicka <= needed && (concentration || caster.mMagicka < needed))
         {
@@ -916,10 +923,14 @@ namespace game_skyrimse
             return false;
         }
         const std::uint8_t column = spell.mDelivery == MagicDelivery::Self ? kMagicSelf : kMagicAimed;
+        // Task 0300: a dual cast plays the same right-hand clip: the archive has no clip file of the DualMagic_* states
+        // (only their sidecar entries, a behavior graph layers MRh_* and MLh_* clips) and the core plays one clip per
+        // actor, so the left hand is not animated.
         const std::string_view clip = mMagicSlots.clipFor(ClipSlot::Cast, column);
         if (clip.empty())
             return false;
         Cast cast;
+        cast.mDual = dual;
         cast.mCaster = caster.mSubject;
         cast.mSpell = &spell;
         cast.mStarted = mClock;
@@ -954,7 +965,7 @@ namespace game_skyrimse
         }
         mCasts.push_back(cast);
         trace("COMBAT cast begin " + name + " by " + who(caster.mSubject) + " clip " + std::string(clip) + " token "
-            + std::to_string(cast.mToken));
+            + std::to_string(cast.mToken) + (dual ? " with both hands" : ""));
         return true;
     }
 
@@ -1021,11 +1032,30 @@ namespace game_skyrimse
             return false;
         if (mSpellShots.size() >= kMaxSpellShots)
             mSpellShots.erase(mSpellShots.begin());
-        mSpellShots.push_back({ request.token, caster.mSubject, &spell });
+        mSpellShots.push_back({ request.token, caster.mSubject, &spell, mDualScale });
         trace("COMBAT spell launch " + spellName(spell) + " " + who(caster.mSubject) + " token "
             + std::to_string(request.token) + " heading " + num(request.heading) + " pitch " + num(request.pitch)
             + " speed " + num(request.speed));
         return true;
+    }
+
+    namespace
+    {
+        // Sets a flag for a scope and puts it back (the dual cast scale of task 0300).
+        struct ScaleGuard
+        {
+            bool& mFlag;
+            bool mOld;
+            ScaleGuard(bool& flag, bool value)
+                : mFlag(flag)
+                , mOld(flag)
+            {
+                mFlag = value;
+            }
+            ~ScaleGuard() { mFlag = mOld; }
+            ScaleGuard(const ScaleGuard&) = delete;
+            ScaleGuard& operator=(const ScaleGuard&) = delete;
+        };
     }
 
     void SkyrimCombat::fireCast(CombatRequestWriter& writer, const Cast& cast)
@@ -1073,8 +1103,10 @@ namespace game_skyrimse
             emitCastEvent(cast.mCaster, spell);
             return;
         }
-        const float cost = cast.mShout ? 0.f : static_cast<float>(spell.mCost); // task 0205: a shout is free
-        if (f->mMagicka < cost)
+        const ScaleGuard dualGuard(mDualScale, cast.mDual); // task 0300: the projectile and the effects see it
+        const float cost = cast.mShout ? 0.f
+                                       : dualCastCost(static_cast<float>(spell.mCost), cast.mDual, mDualCastSettings);
+        if (f->mMagicka < cost) // task 0205: a shout is free
         {
             trace(
                 "COMBAT cast " + name + " refused: not enough magicka (" + num(f->mMagicka) + " of " + num(cost) + ")");
@@ -1220,6 +1252,7 @@ namespace game_skyrimse
         where.z = result.z;
         where.distance = result.distance;
         caster->mCombatUntil = mClock + kCombatLingerSeconds;
+        const ScaleGuard dualGuard(mDualScale, launched.mDual); // task 0300
         applySpellEffects(writer, *caster, *victim, *launched.mSpell, &where);
         return true;
     }

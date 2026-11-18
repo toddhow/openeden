@@ -11,6 +11,7 @@
 // without records.
 
 #include <game_skyrimse/actors.hpp>
+#include <game_skyrimse/combat_ranged.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 
 #include <cstdint>
@@ -27,6 +28,8 @@ namespace game_skyrimse
     inline constexpr std::uint8_t kClipClassTwoHandedSword = 5;
     inline constexpr std::uint8_t kClipClassTwoHandedAxe = 6;
     inline constexpr std::uint8_t kClipClassShield = 10;
+    /// Task 0300: the clips of a dual wielder's power attack (DW_*), OURS like the shield's column.
+    inline constexpr std::uint8_t kClipClassDualWield = 11;
 
     /// The pack setting that switches all of it on.
     inline constexpr std::string_view kCombatRealGearKey = "combat real gear";
@@ -70,6 +73,11 @@ namespace game_skyrimse
         bool mKnown = false;
         const WeaponRecord* mWeapon = nullptr; ///< valid as long as the data; null: unarmed
         const WeaponRecord* mStaff = nullptr; ///< task 0295: an enchanted staff it carries (cast with, not swung)
+        /// Task 0300: the bow or crossbow it carries and the ammunition that fits it (null when it has no ranged
+        /// weapon, or no ammunition for it), and the second one-handed weapon of a dual wielder (null: none).
+        const WeaponRecord* mBow = nullptr;
+        const AmmoRecord* mAmmo = nullptr;
+        const WeaponRecord* mOffHand = nullptr;
         bool mHasShield = false;
         ArmourPiece mShield;
         FormId mShieldBlockMaterial = kNullFormId;

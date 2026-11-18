@@ -1,0 +1,9 @@
+# task 0300: the REAL attack control for the player's two hands (a sword and a dagger): four taps, the hands alternate
+3000 down L 640 360
+3004 up L 640 360
+3200 down L 640 360
+3204 up L 640 360
+3400 down L 640 360
+3404 up L 640 360
+3600 down L 640 360
+3604 up L 640 360
