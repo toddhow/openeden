@@ -764,6 +764,16 @@ namespace game_skyrimse
         [[nodiscard]] bool formHasKeyword(FormId form, FormId keyword) const;
         /// A script set a quest's stage: the package brain's own copy of the quest state follows.
         void setPackageQuestStage(FormId quest, std::uint32_t stage);
+        /// Task 0305: what an alias of a running quest holds now (a script's ForceRefTo / ForceLocationTo; the Papyrus
+        /// host answers) and a number that moves when that may have changed. With them an alias that no data fills
+        /// (DLC1VQ00's Messenger) gives the actor it holds its packages (ALPC), and a package condition run on that
+        /// quest's aliases (GetInCurrentLocAlias) reads them.
+        using AliasLookup = std::function<FormId(FormId quest, std::uint32_t alias)>;
+        void setAliasLookup(AliasLookup lookup, std::function<std::uint32_t()> revision)
+        {
+            mAliasLookup = std::move(lookup);
+            mAliasRevision = std::move(revision);
+        }
         /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
         /// when it is made). Main thread.
         void setInfoFragmentSink(InfoFragmentSink sink);
@@ -988,6 +998,8 @@ namespace game_skyrimse
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         std::function<bool(FormId, double&, double&, double&)> mLiveActorPlace; ///< task 0277
+        AliasLookup mAliasLookup; ///< task 0305
+        std::function<std::uint32_t()> mAliasRevision;
         std::uint32_t mPackagesRevision = 0; ///< task 0277: moves when a quest's stage may change the alias packages
         ArrestDialogueHooks mArrest; ///< task 0258
         CrimeConditionSource mCrimeSource; ///< task 0258

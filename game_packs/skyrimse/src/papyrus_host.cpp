@@ -1773,6 +1773,7 @@ namespace game_skyrimse
                     const auto before = mAliasForced.find({ quest, alias });
                     const FormId old = before != mAliasForced.end() ? before->second : 0;
                     mAliasForced[{ quest, alias }] = now;
+                    ++mAliasRevision; // task 0305
                     aliasFactionChange(quest, alias, old, now); // task 0239
                     if (mState != nullptr && now != 0) // task 0270: conditions run on the alias read the quest state
                         mState->setAliasFill(quest, alias, AliasFill{ true, now, kNullFormId });
@@ -1783,14 +1784,20 @@ namespace game_skyrimse
                 FormId quest = 0;
                 std::uint32_t alias = 0;
                 if (aliasOf(formOf(c.self), quest, alias))
+                {
                     mAliasForced[{ quest, alias }] = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                    ++mAliasRevision; // task 0305
+                }
                 return NativeResult{};
             });
             reg("LocationAlias", "Clear", false, [this](const NativeCall& c) {
                 FormId quest = 0;
                 std::uint32_t alias = 0;
                 if (aliasOf(formOf(c.self), quest, alias))
+                {
                     mAliasForced.erase({ quest, alias });
+                    ++mAliasRevision; // task 0305
+                }
                 return NativeResult{};
             });
             // Task 0217: what scripts store on a location for a keyword; the story manager's conditions read it
@@ -1816,6 +1823,7 @@ namespace game_skyrimse
                     const auto before = mAliasForced.find({ quest, alias });
                     const FormId old = before != mAliasForced.end() ? before->second : 0;
                     mAliasForced.erase({ quest, alias });
+                    ++mAliasRevision; // task 0305
                     aliasFactionChange(quest, alias, old, 0); // task 0239
                     if (mState != nullptr && old != 0)
                         mState->setAliasFill(quest, alias, AliasFill{});
@@ -2469,6 +2477,7 @@ namespace game_skyrimse
         std::vector<std::pair<FormId, std::uint32_t>> mAliasKeys;
         std::map<std::pair<FormId, std::uint32_t>, std::uint32_t> mAliasByKey;
         std::map<std::pair<FormId, std::uint32_t>, FormId> mAliasForced;
+        std::uint32_t mAliasRevision = 0; ///< task 0305: moves when a script forces or clears an alias
         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesDisplayed;
         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesCompleted;
         std::uint64_t mObjectiveRevision = 0;
@@ -3282,6 +3291,16 @@ namespace game_skyrimse
     void PapyrusHost::setCellMoves(bool on)
     {
         mImpl->mCellMoves = on;
+    }
+
+    FormId PapyrusHost::aliasReference(FormId quest, std::uint32_t alias) const
+    {
+        return mImpl->aliasReferenceOf(quest, alias);
+    }
+
+    std::uint32_t PapyrusHost::aliasRevision() const
+    {
+        return mImpl->mAliasRevision;
     }
 
     void PapyrusHost::setRelocation(bool on, double maxPlayerDistance)

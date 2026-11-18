@@ -40,6 +40,10 @@ namespace game_skyrimse
     /// Task 0271: a chosen ForceGreet package asks for its conversation again after this many evaluations (about one
     /// per second each), until the greeting is said and the package's own conditions stop it. An estimate.
     inline constexpr int kGreetAskEvaluations = 5;
+    /// Task 0305: an actor of a ForceGreet package farther than this from the player walks up to him, and stops (and
+    /// asks to greet) once nearer than the stop distance; ours, below the forced greeting's own range of 3,000 units.
+    inline constexpr double kGreetApproachFrom = 2600.0;
+    inline constexpr double kGreetApproachStop = 1800.0;
     /// How often (seconds of frame time) an actor looks again for the package to run. An estimate.
     inline constexpr float kPackageReevaluateSeconds = 1.f;
     /// A sandbox or wander package without a usable radius wanders this far from its anchor. An estimate.
@@ -475,6 +479,9 @@ namespace game_skyrimse
             bool mEndFired = false; ///< task 0274: the package's OnEnd fragment was told
             bool mRider = false; ///< task 0274: sits on a cart (set from mRiderRefs); the brain does nothing with it
             float mFollowPlayerTimer = 0.f;
+            // Task 0305: a ForceGreet package whose actor stands too far from the player first walks up to him
+            bool mGreetApproach = false;
+            bool mGreetApproaching = false; ///< enterFollowPlayer ran for the approach
             // Task 0277
             FormId mElsewhereRef = kNullFormId; ///< the Travel target that stands in another cell (0: none)
             bool mSnapNext = false; ///< a scene's Travel walk failed: put the actor at the anchor at the next update

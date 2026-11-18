@@ -445,6 +445,14 @@ namespace game_skyrimse
             mPlayerCell = cell;
             mPlayerWorld = world;
         }
+        /// Task 0305: the player's level for a world that has no stand-in player (the story manager's and the alias
+        /// filler's: DLC1VQ00Node asks GetLevel of the player >= DLC1VQMinLevel). Only the level is answered, nothing
+        /// else
+        /// about the player.
+        void setPlayerLevel(std::uint16_t level) { mStoryPlayerLevel = level; }
+        /// Task 0305: the location the player stands in (null: not known). fn_360 GetInCurrentLocAlias of the player
+        /// compares it, and its parents, with the location an alias holds (the alias view).
+        void setPlayerLocation(FormId location) { mPlayerLocation = location; }
         /// The packages (for GetOffersServicesNow). Null: unanswered.
         void setPackages(const PackageIndex* packages) { mPackages = packages; }
         /// What package an actor runs now, by the placed reference's id: nullopt when the caller does not know that
@@ -543,6 +551,7 @@ namespace game_skyrimse
         float randomPercent() const override;
         bool inInterior(conditions::Subject subject) const override;
         bool inLocation(conditions::Subject subject, std::uint32_t location) const override;
+        bool inLocationAlias(conditions::Subject subject, std::uint32_t alias) const override; // task 0305
         bool locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const override;
         float keywordDataForLocation(std::uint32_t location, std::uint32_t keyword) const override;
         float keywordDataForCurrentLocation(conditions::Subject subject, std::uint32_t keyword) const override;
@@ -659,6 +668,8 @@ namespace game_skyrimse
         const QuestState* mQuestState = nullptr;
         FormId mContextQuest = kNullFormId;
         const PlayerStandIn* mPlayer = nullptr;
+        std::optional<std::uint16_t> mStoryPlayerLevel; ///< task 0305
+        FormId mPlayerLocation = kNullFormId; ///< task 0305
         // Task 0271: where the player stands (the core tells the pack), for conditions that run on the player
         // (GetInCell, IsInInterior, GetInWorldspace of a package's ForceGreet).
         bool mPlayerPlaceKnown = false;

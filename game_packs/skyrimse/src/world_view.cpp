@@ -231,8 +231,18 @@ namespace game_skyrimse
         };
         std::map<FormId, std::vector<AliasPackages>> mAliasPackages;
         std::map<FormId, std::vector<AliasPackages>> mAliasPackagesOfReference; ///< task 0274: ALFR aliases
+        /// Task 0305: aliases with packages that no data fills (a script forces them), highest quest priority first
+        struct DynamicAliasPackages
+        {
+            FormId mQuest = kNullFormId;
+            std::uint32_t mAlias = 0;
+            std::uint8_t mPriority = 0;
+            std::vector<FormId> mPackages;
+        };
+        std::vector<DynamicAliasPackages> mDynamicAliasPackages;
         mutable std::map<FormId, FormId> mPackageOwner; ///< task 0274: package -> the quest whose alias lists it
         bool mAliasPackagesBuilt = false;
+        bool mDynamicAliasPackagesSorted = false; ///< task 0305
         SkyrimConditionWorld::LiveQuestVariable mLiveQuestVariable; ///< task 0271
     };
 
@@ -595,6 +605,8 @@ namespace game_skyrimse
             player.mLevel = level;
             player.mSkills = skills;
             mDialogue->mRuntime->setPlayer(player);
+            if (mDialogue->mQuestWorld != nullptr)
+                mDialogue->mQuestWorld->setPlayerLevel(level); // task 0305
         }
     }
 
@@ -1351,6 +1363,7 @@ namespace game_skyrimse
         {
             raw->mQuestWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
             SkyrimConditionWorld* world = raw->mQuestWorld.get();
+            world->setPlayerLevel(mHaveProgressionPlayer ? mProgressionLevel : mStandInPlayerLevel); // task 0305
             world->setCreatedActorBase([this](FormId reference) { return createdActorBase(reference); }); // task 0276
             world->setQuests(&raw->mData->mQuests, &raw->mRuntime->questsMutable());
             world->setLocations(&raw->mData->mLocations);
@@ -1689,7 +1702,18 @@ namespace game_skyrimse
                             && !alias.mPackages.empty())
                             mDialogue->mAliasPackagesOfReference[alias.mReference].push_back(
                                 { questId, alias.mPackages });
+                        else if (!alias.mPackages.empty() && !alias.mIsLocation)
+                            mDialogue->mDynamicAliasPackages.push_back(
+                                { questId, alias.mId, quest->mPriority, alias.mPackages });
                     }
+        }
+        if (!mDialogue->mDynamicAliasPackagesSorted)
+        {
+            mDialogue->mDynamicAliasPackagesSorted = true;
+            std::stable_sort(mDialogue->mDynamicAliasPackages.begin(), mDialogue->mDynamicAliasPackages.end(),
+                [](const DialogueState::DynamicAliasPackages& a, const DialogueState::DynamicAliasPackages& b) {
+                    return a.mPriority != b.mPriority ? a.mPriority > b.mPriority : a.mQuest < b.mQuest;
+                });
         }
         if (const auto found = mDialogue->mAliasPackages.find(base); found != mDialogue->mAliasPackages.end())
         {
@@ -1734,7 +1758,28 @@ namespace game_skyrimse
             return false;
         if (!mAliasPackagesOn || mDialogue == nullptr || mDialogue->mData == nullptr)
             return true;
+        // Task 0305: the packages of the running quests' aliases that a script forced this reference into (highest
+        // quest priority first, ahead of the others)
+        std::vector<const PackageRecord*> forced;
+        if (mAliasLookup)
+            for (const auto& entry : mDialogue->mDynamicAliasPackages)
+            {
+                if (!mDialogue->mPackageQuests.running(entry.mQuest)
+                    || mAliasLookup(entry.mQuest, entry.mAlias) != reference)
+                    continue;
+                for (const FormId id : entry.mPackages)
+                    if (const PackageRecord* p = mDialogue->mData->mPackages.package(id))
+                        forced.push_back(p);
+            }
         const auto found = mDialogue->mAliasPackagesOfReference.find(reference);
+        if (!forced.empty())
+        {
+            out.insert(out.begin(), forced.begin(), forced.end());
+            if (mPackageTraceLog && base == mPackageTraceBase)
+                for (const PackageRecord* p : forced)
+                    mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " has forced alias package "
+                        + p->mCommon.mEditorId);
+        }
         if (mPackageTraceLog && base == mPackageTraceBase)
             mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " base list " + std::to_string(out.size())
                 + (found == mDialogue->mAliasPackagesOfReference.end() ? ", no alias entry" : ", alias entry")
@@ -1751,7 +1796,8 @@ namespace game_skyrimse
                 if (const PackageRecord* p = index.package(id))
                     front.push_back(p);
         }
-        out.insert(out.begin(), front.begin(), front.end());
+        // the specific-reference ones go behind the forced ones
+        out.insert(out.begin() + static_cast<std::ptrdiff_t>(forced.size()), front.begin(), front.end());
         if (mPackageTraceLog && base == mPackageTraceBase)
             for (const PackageRecord* p : front)
                 mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " has alias package "
@@ -1780,7 +1826,8 @@ namespace game_skyrimse
     {
         if (!mAliasPackagesOn || mDialogue == nullptr)
             return 0;
-        return mDialogue->mPackageQuests.revision();
+        const std::uint64_t forced = mAliasRevision ? static_cast<std::uint64_t>(mAliasRevision()) << 32 : 0;
+        return mDialogue->mPackageQuests.revision() + forced;
     }
 
     PackageBehavior SkyrimWorldView::behaviorOf(const PackageRecord& package) const
@@ -1826,6 +1873,39 @@ namespace game_skyrimse
         world.setLiveQuestVariable(
             mAliasPackagesOn ? mDialogue->mLiveQuestVariable : SkyrimConditionWorld::LiveQuestVariable());
         world.setPlugin(&mDialogue->mData->mPackages.resolverOf(package));
+        // Task 0305: a package a quest's alias gives reads that quest's aliases (GetInCurrentLocAlias of DLC1VQ00's
+        // Forcegreet) and the location the player stands in; every other package sees neither
+        FormId ownerQuest = kNullFormId;
+        if (mAliasPackagesOn && mAliasLookup)
+            ownerQuest = aliasPackageQuest(package.mCommon.mId);
+        if (ownerQuest != kNullFormId)
+        {
+            world.setQuestContext(ownerQuest);
+            world.setAliasView([this, ownerQuest](std::uint32_t alias) { return mAliasLookup(ownerQuest, alias); });
+            FormId at = kNullFormId;
+            if (mPlayerSite)
+            {
+                const QuestAliasFiller::PlayerSite site = mPlayerSite();
+                if (site.mKnown)
+                {
+                    if (site.mInterior)
+                        at = locationOfCell(site.mCell);
+                    else
+                        at = locationOfGridSquare(site.mWorld,
+                            static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize)),
+                            static_cast<std::int32_t>(std::floor(site.mY / QuestAliasFiller::kCellSize)));
+                }
+            }
+            world.setPlayerLocation(at);
+            if (mPackageTraceLog && actorBase == mPackageTraceBase)
+                mPackageTraceLog("PKTRACE player location " + std::to_string(at) + ", alias 7 holds "
+                    + std::to_string(mAliasLookup(ownerQuest, 7)) + " in quest " + std::to_string(ownerQuest));
+        }
+        else
+        {
+            world.setAliasView({});
+            world.setPlayerLocation(kNullFormId);
+        }
         const bool pass = mDialogue->mPackageEvaluator.evaluate(package.mConditions, world);
         if (mPackageTraceLog && actorBase == mPackageTraceBase)
         {
@@ -1839,6 +1919,11 @@ namespace game_skyrimse
                         + std::to_string(c.mComparison) + (alone ? " ok]" : " no]");
                 }
             mPackageTraceLog(line);
+        }
+        if (ownerQuest != kNullFormId)
+        {
+            world.setAliasView({});
+            world.setPlayerLocation(kNullFormId);
         }
         return pass;
     }

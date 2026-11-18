@@ -1144,6 +1144,19 @@ namespace game_skyrimse
         FormId greetTopic = kNullFormId;
         if (chosen != nullptr && mGreetHook && mSource.forceGreetTopic(*chosen, greetTopic))
         {
+            // Task 0305: the greeting package leads the actor to the player (DLC1VQ00's messenger waits outside the
+            // town); the core's forced greeting only opens within the range the Lua script allows
+            double px = 0, py = 0, pz = 0;
+            if (!actor.mFollowPlayer && !actor.mRider && writer.playerPosition(px, py, pz))
+            {
+                double sx = actor.mX, sy = actor.mY, sz = actor.mZ;
+                (void)writer.actorPosition(actor.mHandle, sx, sy, sz);
+                if (distance2d(px, py, sx, sy) > kGreetApproachFrom)
+                {
+                    actor.mGreetApproach = true;
+                    return;
+                }
+            }
             if (actor.mGreetWait <= 0)
             {
                 actor.mGreetWait = kGreetAskEvaluations;
@@ -1351,6 +1364,42 @@ namespace game_skyrimse
                 else if (!actor.mTalking)
                     runFollowPlayer(actor, seconds, writer);
                 continue;
+            }
+            if (actor.mGreetApproach) // task 0305
+            {
+                double px = 0, py = 0, pz = 0;
+                bool near = true;
+                if (writer.playerPosition(px, py, pz))
+                {
+                    double sx = actor.mX, sy = actor.mY, sz = actor.mZ;
+                    (void)writer.actorPosition(actor.mHandle, sx, sy, sz);
+                    actor.mX = sx;
+                    actor.mY = sy;
+                    actor.mZ = sz;
+                    near = distance2d(px, py, sx, sy) <= kGreetApproachStop;
+                }
+                if (near || actor.mTalking)
+                {
+                    actor.mGreetApproach = false;
+                    if (actor.mGreetApproaching)
+                    {
+                        actor.mGreetApproaching = false;
+                        leaveFollowPlayer(actor, writer);
+                    }
+                }
+                else
+                {
+                    if (!actor.mGreetApproaching)
+                    {
+                        actor.mGreetApproaching = true;
+                        enterFollowPlayer(actor, writer);
+                    }
+                    if (actor.mEntering || actor.mExiting)
+                        run(actor, seconds, writer);
+                    else
+                        runFollowPlayer(actor, seconds, writer);
+                    continue;
+                }
             }
             actor.mSinceEval += seconds;
             if (!actor.mTalking && !actor.mExiting

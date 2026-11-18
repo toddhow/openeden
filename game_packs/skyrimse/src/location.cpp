@@ -92,7 +92,27 @@ namespace game_skyrimse
                         tooMany = true;
                     return !tooMany;
                 };
+                bool ownLists = false, addedLists = false; // task 0305: the L* family against the A* and R* families
                 const bool wellFormed = survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
+                    switch (sub.mType)
+                    {
+                        case Content::fourCC("LCEC"):
+                        case Content::fourCC("LCSR"):
+                        case Content::fourCC("LCPR"):
+                        case Content::fourCC("LCUN"):
+                            ownLists = true;
+                            break;
+                        case Content::fourCC("ACEC"):
+                        case Content::fourCC("RCEC"):
+                        case Content::fourCC("ACSR"):
+                        case Content::fourCC("ACPR"):
+                        case Content::fourCC("RCPR"):
+                        case Content::fourCC("ACUN"):
+                            addedLists = true;
+                            break;
+                        default:
+                            break;
+                    }
                     switch (sub.mType)
                     {
                         case Content::fourCC("EDID"):
@@ -246,6 +266,7 @@ namespace game_skyrimse
                     fail(record, "too many keywords or list entries");
                     return true;
                 }
+                loc.mAddsToLists = addedLists && !ownLists;
                 ++mOut.mCount.mParsed;
                 mOut.mLocations.push_back(std::move(loc));
                 return true;
@@ -317,7 +338,21 @@ namespace game_skyrimse
             if (l.mCommon.deleted())
                 mLocations.erase(l.mCommon.mId);
             else
+            {
+                // task 0305: an override that only adds entries keeps the lists of the record it overrides
+                const auto earlier = mLocations.find(l.mCommon.mId);
+                if (l.mAddsToLists && earlier != mLocations.end())
+                {
+                    LocationRecord& base = earlier->second;
+                    l.mCells.insert(l.mCells.begin(), base.mCells.begin(), base.mCells.end());
+                    l.mSpecialRefs.insert(l.mSpecialRefs.begin(), base.mSpecialRefs.begin(), base.mSpecialRefs.end());
+                    l.mPersistentRefs.insert(
+                        l.mPersistentRefs.begin(), base.mPersistentRefs.begin(), base.mPersistentRefs.end());
+                    l.mUniqueNpcs.insert(l.mUniqueNpcs.begin(), base.mUniqueNpcs.begin(), base.mUniqueNpcs.end());
+                    l.mAddsToLists = false; // the stored record now holds every list
+                }
                 mLocations[l.mCommon.mId] = std::move(l);
+            }
         }
         mGridsDirty = true;
         mRefOwnersDirty = true;

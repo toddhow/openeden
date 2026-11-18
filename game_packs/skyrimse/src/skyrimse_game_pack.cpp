@@ -410,6 +410,11 @@ namespace game_skyrimse
                         mTrainingPending = true;
                 });
                 mHost.setLocationKeywordData(&mView.keywordData()); // task 0217
+                // task 0305: an alias a script forced gives its actor the alias's packages, and a package condition on
+                // the alias reads what it holds
+                mView.setAliasLookup(
+                    [this](FormId quest, std::uint32_t alias) { return mHost.aliasReference(quest, alias); },
+                    [this] { return mHost.aliasRevision(); });
             }
 
             void frame(float dt)

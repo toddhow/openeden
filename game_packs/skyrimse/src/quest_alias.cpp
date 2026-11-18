@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <set>
 #include <unordered_map>
@@ -489,12 +490,23 @@ namespace game_skyrimse
                     listed.push_back(n.mRef);
             }
             std::set<FormId> seen;
+            std::size_t found = 0;
             for (const FormId ref : listed)
             {
                 if (!usable(ref) || !seen.insert(ref).second)
                     continue;
                 if (const PlacedEntry* entry = mRefs.find(ref))
+                {
+                    ++found;
                     consider(*entry);
+                }
+            }
+            if (mTrace) // task 0305: why a reference in a location is not filled
+            {
+                char text[160];
+                std::snprintf(text, sizeof(text), "  alias %s in location %08X: %zu listed, %zu placed, %zu eligible",
+                    alias.mName.c_str(), static_cast<unsigned>(where.mReference), listed.size(), found, order.size());
+                mTrace(text);
             }
         }
         else

@@ -651,6 +651,11 @@ namespace game_skyrimse
         /// Task 0286: MoveTo asks PapyrusWorldHooks::moveToCell first (any distance from the player, any cell); the
         /// relocation above is the fallback when the hook refuses. Off by default.
         void setCellMoves(bool on);
+        /// Task 0305: what an alias holds now (a script's ForceRefTo or ForceLocationTo, else the quest state's fill);
+        /// 0 when nothing. `aliasRevision` moves with every forced or cleared alias, so a reader can tell that the
+        /// answer may have changed (the package lists of DLC1VQ00's Messenger).
+        [[nodiscard]] FormId aliasReference(FormId quest, std::uint32_t alias) const;
+        [[nodiscard]] std::uint32_t aliasRevision() const;
         /// Task 0261: the live value of a number or bool variable of a script attached to `form` (by the name the
         /// condition's CIS2 string gives); nullopt when no instance of it has one.
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;

@@ -956,7 +956,7 @@ namespace game_skyrimse
     float SkyrimConditionWorld::levelOf(conditions::Subject subject) const
     {
         if (mPlayer == nullptr)
-            return 0.f;
+            return subject == kPlayer && mStoryPlayerLevel.has_value() ? static_cast<float>(*mStoryPlayerLevel) : 0.f;
         if (subject == kPlayer)
             return static_cast<float>(mPlayer->mLevel);
         return isSpeaker(subject) && speakerStats() ? static_cast<float>(mStats.level) : 0.f;
@@ -1073,6 +1073,16 @@ namespace game_skyrimse
         }
         return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown && id != kNullFormId
             && mLocations->isWithin(mSpeaker.mLocation, id);
+    }
+
+    // Task 0305 (fn_360 GetInCurrentLocAlias): the player stands in the location an alias holds, or inside it. Only the
+    // player is answered, from the location the pack was told he stands in.
+    bool SkyrimConditionWorld::inLocationAlias(conditions::Subject subject, std::uint32_t alias) const
+    {
+        if (subject != kPlayer || mLocations == nullptr || mPlayerLocation == kNullFormId)
+            return false;
+        const FormId held = aliasReference(alias);
+        return held != kNullFormId && mLocations->isWithin(mPlayerLocation, held);
     }
 
     FormId SkyrimConditionWorld::resolveLocationForm(std::uint32_t stored) const
@@ -1303,6 +1313,8 @@ namespace game_skyrimse
         {
             case 74: // GetGlobalValue: no subject
                 return true;
+            case 360: // GetInCurrentLocAlias (task 0305): answered where the player's location is told
+                return mLocations != nullptr && mPlayerLocation != kNullFormId;
             case 358: // IsPlayerMovingIntoNewSpace (task 0271): always 0, answered only where the player's place is
                       // told
                 return mPlayerPlaceKnown;
@@ -1352,6 +1364,8 @@ namespace game_skyrimse
                     && (c.mFunction == 14 || c.mFunction == 277 || c.mFunction == 80 || c.mFunction == 48
                         || c.mFunction == 182 || c.mFunction == 47))
                     return true;
+                if (c.mFunction == 80 && mStoryPlayerLevel.has_value())
+                    return true; // task 0305: the story world knows the level only
                 if (c.mFunction == 286 || c.mFunction == 263 || c.mFunction == 101)
                     return true; // task 0235: the player's stance is told by the pack
                 if (mPlayer != nullptr && isFreshStateFunction(c.mFunction))

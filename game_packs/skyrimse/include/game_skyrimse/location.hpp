@@ -87,6 +87,11 @@ namespace game_skyrimse
         std::vector<LocationSpecialRef> mSpecialRefs; ///< LCSR, ACSR
         std::vector<LocationPersistentRef> mPersistentRefs; ///< LCPR, ACPR, RCPR
         std::vector<LocationUniqueNpc> mUniqueNpcs; ///< LCUN, ACUN
+        /// Task 0305: the record carries lists of the A* (and R*) families and none of the L* family, which is what an
+        /// override that only ADDS entries to the earlier record's lists looks like (Dawnguard.esm's WhiterunLocation
+        /// holds an ACSR with its spawn marker and no other list); LocationIndex::add appends them to the lists of
+        /// the record it overrides instead of replacing them.
+        bool mAddsToLists = false;
     };
 
     struct LocationLimits
