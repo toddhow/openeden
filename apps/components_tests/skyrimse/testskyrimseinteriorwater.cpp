@@ -28,9 +28,42 @@ namespace
     namespace sdkgame = openeden::sdk::game;
     namespace fs = std::filesystem;
 
-    constexpr std::uint32_t kGrupTop = 0, kGrupInteriorBlock = 2, kGrupInteriorSub = 3, kGrupCellChildren = 6;
+    constexpr std::uint32_t kGrupTop = 0, kGrupInteriorBlock = 2, kGrupInteriorSub = 3, kGrupCellChildren = 6,
+                            kGrupTemporary = 9;
+    constexpr std::uint32_t kStat = 0x801, kDoor = 0x802;
 
-    Bytes interiorCell(std::uint32_t id, const std::string& name, std::uint16_t flags, const std::vector<float>& xclw)
+    Bytes statRecord()
+    {
+        Bytes subs;
+        subs.append(sub4("EDID", Bytes().zstring("Wall")));
+        subs.append(sub4("OBND", Bytes().u16(0xFFF6).u16(0xFFF6).u16(0).u16(10).u16(10).u16(20)));
+        subs.append(sub4("MODL", Bytes().zstring("architecture\wall.nif")));
+        return record4("STAT", 0, kStat, subs);
+    }
+
+    Bytes doorRecord()
+    {
+        Bytes subs;
+        subs.append(sub4("EDID", Bytes().zstring("Door")));
+        subs.append(sub4("OBND", Bytes().u16(0xFFF6).u16(0xFFF6).u16(0).u16(10).u16(10).u16(20)));
+        subs.append(sub4("MODL", Bytes().zstring("architecture\door.nif")));
+        return record4("DOOR", 0, kDoor, subs);
+    }
+
+    // A placed reference at height z; a door also has a teleport (XTEL: door, position, rotation, flags).
+    Bytes refr(std::uint32_t id, std::uint32_t base, float z, bool teleport)
+    {
+        Bytes subs;
+        subs.append(sub4("NAME", Bytes().u32(base)));
+        subs.append(sub4("DATA", Bytes().f32(10).f32(20).f32(z).f32(0).f32(0).f32(0)));
+        if (teleport)
+            subs.append(sub4("XTEL", Bytes().u32(0x0A00).f32(0).f32(0).f32(0).f32(0).f32(0).f32(0).u32(0)));
+        return record4("REFR", 0, id, subs);
+    }
+
+    /// `statZ` and `doorZ` are the heights of the cell's references: a static and a teleport door.
+    Bytes interiorCell(std::uint32_t id, const std::string& name, std::uint16_t flags, const std::vector<float>& xclw,
+        std::vector<float> statZ = { -60.0f }, std::vector<float> doorZ = {})
     {
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring(name)));
@@ -38,7 +71,16 @@ namespace
         for (float w : xclw)
             subs.append(sub4("XCLW", Bytes().f32(w)));
         Bytes sub = record4("CELL", 0, id, subs);
-        sub.append(group4(id, kGrupCellChildren, Bytes()));
+        Bytes refs;
+        std::uint32_t n = id * 16;
+        for (float z : statZ)
+            refs.append(refr(n++, kStat, z, false));
+        for (float z : doorZ)
+            refs.append(refr(n++, kDoor, z, true));
+        Bytes children;
+        if (refs.size() > 0)
+            children.append(group4(id, kGrupTemporary, refs));
+        sub.append(group4(id, kGrupCellChildren, children));
         return group4(id % 10, kGrupInteriorBlock, group4((id / 10) % 10, kGrupInteriorSub, sub));
     }
 
@@ -49,6 +91,8 @@ namespace
     Bytes pluginBytes()
     {
         Bytes bytes = tes4Header(1.7f, Content::sRecMaster, "A", "B", 1, {}, 24, 44);
+        bytes.append(group4(Content::fourCC("STAT"), kGrupTop, statRecord()));
+        bytes.append(group4(Content::fourCC("DOOR"), kGrupTop, doorRecord()));
         Bytes cells = interiorCell(0x900, "WetHall", kWater, { 100.0f });
         cells.append(interiorCell(0x910, "ZeroHall", kWater, { 0.0f }));
         cells.append(interiorCell(0x920, "UnsetHall", kWater, { kUnset }));
@@ -56,7 +100,12 @@ namespace
         cells.append(interiorCell(0x940, "NoHeightHall", kWater, {}));
         cells.append(interiorCell(0x950, "DryHall", kInterior, {}));
         cells.append(interiorCell(0x960, "NanHall", kWater, { std::numeric_limits<float>::quiet_NaN() }));
-        cells.append(interiorCell(0x970, "DeepHall", kWater, { -250.5f }));
+        cells.append(interiorCell(0x970, "DeepHall", kWater, { -250.5f }, { -400.0f }));
+        // The follow-up cases: content far above the plane, a deeply flooded entrance, a door wet up to a Ratway's depth.
+        cells.append(interiorCell(0x980, "HighHall", kWater, { 0.0f }, { 7500.0f, 8400.0f }, { 8800.0f }));
+        cells.append(interiorCell(0x990, "FloodedDoorHall", kWater, { 0.0f }, { -900.0f, 300.0f }, { -1100.0f, 400.0f }));
+        cells.append(interiorCell(0x9A0, "RatwayHall", kWater, { 0.0f }, { -900.0f, 300.0f }, { -125.0f, 264.0f }));
+        cells.append(interiorCell(0x9B0, "BareHall", kWater, { 0.0f }, {}, {}));
         bytes.append(group4(Content::fourCC("CELL"), kGrupTop, cells));
         return bytes;
     }
@@ -87,11 +136,17 @@ namespace
             fs::remove_all(mDir, ec);
         }
         // The answer the game pack's source gives for a cell, through the optional SDK interface.
-        bool water(const char* editorId, sdkgame::CellWater& out)
+        bool water(const char* editorId, sdkgame::CellWater& out, bool loadFirst = true)
         {
             const auto info = view.findCellByEditorId(editorId);
             if (!info)
                 return false;
+            if (loadFirst) // the engine builds the cell first, which is when the view sees its content
+            {
+                sdkgame::WorldCell cell;
+                std::string error;
+                EXPECT_TRUE(loadNeutralCell(view, info->id, cell, error)) << error;
+            }
             SkyrimCellSource source(view);
             const sdkgame::CellWaterSource& iface = source;
             return iface.interiorWater(info->id, out);
@@ -167,6 +222,37 @@ namespace
         }
     }
 
+    TEST(SkyrimInteriorWater, aPlaneUnderAllTheContentIsDry)
+    {
+        Loaded l;
+        sdkgame::CellWater w;
+        EXPECT_FALSE(l.water("HighHall", w));
+        EXPECT_FALSE(l.water("BareHall", w));
+    }
+
+    TEST(SkyrimInteriorWater, aDeeplyFloodedEntranceMakesTheCellDry)
+    {
+        Loaded l;
+        sdkgame::CellWater w;
+        EXPECT_FALSE(l.water("FloodedDoorHall", w));
+    }
+
+    TEST(SkyrimInteriorWater, anEntranceWetToARatwaysDepthKeepsTheWater)
+    {
+        Loaded l;
+        sdkgame::CellWater w;
+        ASSERT_TRUE(l.water("RatwayHall", w));
+        EXPECT_FLOAT_EQ(w.height, 0.0f);
+    }
+
+    TEST(SkyrimInteriorWater, aCellThatWasNotBuiltYetFallsBackToTheFlagAndHeight)
+    {
+        Loaded l;
+        sdkgame::CellWater w;
+        ASSERT_TRUE(l.water("HighHall", w, false)); // no content seen: only the record's own rule
+        EXPECT_FLOAT_EQ(w.height, 0.0f);
+    }
+
     TEST(SkyrimInteriorWater, anUnknownCellHasNone)
     {
         Loaded l;
@@ -189,5 +275,50 @@ namespace
         ASSERT_TRUE(loadNeutralCell(l.view, info->id, cell, error)) << error;
         ASSERT_TRUE(l.water("WetHall", b));
         EXPECT_EQ(a, b);
+    }
+
+    // ---- the plausibility rule (follow-up: dungeons whose content is far from the plane at 0.0) ----
+
+    InteriorWaterEvidence evidence(float minObject, std::optional<float> minDoor)
+    {
+        InteriorWaterEvidence e;
+        e.mAnyObject = true;
+        e.mMinObjectZ = minObject;
+        e.mAnyDoor = minDoor.has_value();
+        e.mMinDoorZ = minDoor.value_or(0.f);
+        return e;
+    }
+
+    TEST(SkyrimInteriorWaterPlausible, contentBelowThePlaneAndDryEntrancesIsBelieved)
+    {
+        EXPECT_TRUE(interiorWaterPlausible(0.f, evidence(-941.f, 264.f)));
+        EXPECT_TRUE(interiorWaterPlausible(0.f, evidence(-300.f, std::nullopt)));
+    }
+
+    TEST(SkyrimInteriorWaterPlausible, aPlaneUnderAllTheContentIsNotBelieved)
+    {
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(7529.f, 8821.f))); // Embershard Mine
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(480.f, 954.f))); // Lost Prospect Mine
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(0.f, std::nullopt))); // nothing strictly under it
+    }
+
+    TEST(SkyrimInteriorWaterPlausible, aPlaneThatFloodsAnEntranceDeeplyIsNotBelieved)
+    {
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(-1154.f, -1153.f))); // Labyrinthian
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(-2208.f, -2048.f))); // Mzulft
+    }
+
+    TEST(SkyrimInteriorWaterPlausible, anEntranceWetUpToOneActorHeightIsStillBelieved)
+    {
+        EXPECT_TRUE(interiorWaterPlausible(0.f, evidence(-941.f, -125.f))); // Riften Ratway
+        EXPECT_TRUE(interiorWaterPlausible(0.f, evidence(-941.f, -kEntranceWetMargin)));
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(-941.f, -kEntranceWetMargin - 1.f)));
+    }
+
+    TEST(SkyrimInteriorWaterPlausible, noContentAndBadNumbersAreNotBelieved)
+    {
+        EXPECT_FALSE(interiorWaterPlausible(0.f, InteriorWaterEvidence{}));
+        EXPECT_FALSE(interiorWaterPlausible(std::numeric_limits<float>::quiet_NaN(), evidence(-5.f, std::nullopt)));
+        EXPECT_FALSE(interiorWaterPlausible(0.f, evidence(std::numeric_limits<float>::quiet_NaN(), std::nullopt)));
     }
 }

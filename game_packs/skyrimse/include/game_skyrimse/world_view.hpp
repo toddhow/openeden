@@ -1050,6 +1050,8 @@ namespace game_skyrimse
         std::unordered_map<std::string, std::vector<FurnitureMarker>> mMarkerCache;
         const std::vector<FurnitureMarker>& markersOf(const std::string& model);
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
+        /// Task 0291 (follow-up): what each interior cell loadCell returned says about its water plane (capped).
+        std::map<openeden::sdk::game::WorldId, InteriorWaterEvidence> mWaterEvidence;
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::unordered_map<FormId, openeden::sdk::game::OwnerComponent>
             mOwners; ///< task 0204: every loaded owned placement

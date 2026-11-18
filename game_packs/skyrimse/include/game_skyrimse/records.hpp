@@ -314,6 +314,27 @@ namespace game_skyrimse
         float mFogFar = 0.0f;
     };
 
+    /// Task 0291 (follow-up): what the content of an interior cell says about whether a water plane at the cell's XCLW
+    /// height can be real. Skyrim.esm has 71 interior cells with the water flag and an XCLW of exactly 0.0 (and none
+    /// with another real height); the flag and the number alone cannot tell the cells whose water is at 0 from the many
+    /// (Labyrinthian, Mzulft, Embershard Mine, Lost Prospect Mine ...) whose content hangs far above or below 0, where
+    /// a plane at 0 floods the entrance or lies under everything.
+    struct InteriorWaterEvidence
+    {
+        bool mAnyObject = false;
+        float mMinObjectZ = 0.f; ///< the lowest placed reference of the cell
+        bool mAnyDoor = false;
+        float mMinDoorZ = 0.f; ///< the lowest teleport door of the cell (its entrances)
+    };
+
+    /// An entrance may be wet up to about one standing actor's height (a Ratway door stands 125 units under 0.0); a
+    /// plane that floods an entrance deeper than that is not believed. Ours, tuned on the 71 cells (see the task log).
+    inline constexpr float kEntranceWetMargin = 128.f;
+
+    /// True when the plane at `level` can be real: some of the cell's content lies under it, and no entrance is flooded
+    /// deeper than kEntranceWetMargin. A cell with no placed content is not believed.
+    [[nodiscard]] bool interiorWaterPlausible(float level, const InteriorWaterEvidence& evidence);
+
     struct CellRecord
     {
         RecordCommon mCommon;

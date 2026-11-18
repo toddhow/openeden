@@ -3788,7 +3788,12 @@ namespace game_skyrimse
         if (!awaitIndex() || cell == kNullFormId)
             return std::nullopt;
         const auto it = mCells.find(cell);
-        if (it == mCells.end() || !it->second.mInfo.interior)
+        if (it == mCells.end() || !it->second.mInfo.interior || !it->second.mInteriorWater)
+            return std::nullopt;
+        // The record's flag and height are not enough (71 cells have 0.0): the cell's content must agree. A cell the
+        // view has not loaded yet is judged by the record alone (the engine builds a cell before it asks).
+        const auto evidence = mWaterEvidence.find(cell);
+        if (evidence != mWaterEvidence.end() && !interiorWaterPlausible(*it->second.mInteriorWater, evidence->second))
             return std::nullopt;
         return it->second.mInteriorWater;
     }
@@ -3930,6 +3935,27 @@ namespace game_skyrimse
                     else if (o.baseKind == sdkgame::BaseKind::Actor && mActorCell.size() < 1024 * 1024)
                         mActorCell[static_cast<FormId>(o.id)] = cell;
                 }
+            }
+            if (entry.mInfo.interior && mWaterEvidence.size() < 65536)
+            {
+                InteriorWaterEvidence evidence;
+                for (const sdkgame::PlacedObject& o : content.objects)
+                {
+                    if (!finite(o.position.z))
+                        continue;
+                    const float z = static_cast<float>(o.position.z);
+                    if (!evidence.mAnyObject || z < evidence.mMinObjectZ)
+                        evidence.mMinObjectZ = z;
+                    evidence.mAnyObject = true;
+                    const auto c = components.find(o.id);
+                    if (c != components.end() && c->second.teleport)
+                    {
+                        if (!evidence.mAnyDoor || z < evidence.mMinDoorZ)
+                            evidence.mMinDoorZ = z;
+                        evidence.mAnyDoor = true;
+                    }
+                }
+                mWaterEvidence[cell] = evidence;
             }
             out = std::move(content);
             mLastCell = cell;

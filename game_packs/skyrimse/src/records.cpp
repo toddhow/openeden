@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -1572,6 +1573,17 @@ namespace game_skyrimse
             return false;
         }
         return parseRecords(*plugin, order, limits, out);
+    }
+
+    bool interiorWaterPlausible(float level, const InteriorWaterEvidence& evidence)
+    {
+        if (!std::isfinite(level) || !evidence.mAnyObject || !std::isfinite(evidence.mMinObjectZ))
+            return false;
+        if (!(evidence.mMinObjectZ < level)) // nothing lies under the plane: it would flood nothing
+            return false;
+        if (evidence.mAnyDoor && (!std::isfinite(evidence.mMinDoorZ) || evidence.mMinDoorZ < level - kEntranceWetMargin))
+            return false;
+        return true;
     }
 
     std::optional<float> CellRecord::interiorWaterHeight() const
