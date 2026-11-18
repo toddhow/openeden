@@ -33,6 +33,8 @@ namespace game_skyrimse
 
     /// ENIT of an ENCH is 36 bytes (VERIFIED on the five masters: 0 other sizes).
     inline constexpr std::size_t kEnchantEnitBytes = 36;
+    /// task 0309: four ENCH records of Skyrim.esm have an ENIT of 32 bytes; every field read lies in the first 24
+    inline constexpr std::size_t kEnchantEnitShortBytes = 32;
 
     /// Task 0295: decodes an ENCH as a SpellRecord with mEnchantment set. ENIT (36 bytes, VERIFIED on the masters):
     /// cost +0, flags +4, cast type +8 (0 constant, 1 fire and forget, 2 concentration), enchant amount +12, delivery

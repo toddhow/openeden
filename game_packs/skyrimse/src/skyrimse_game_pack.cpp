@@ -2197,7 +2197,8 @@ namespace game_skyrimse
                             {
                                 // Task 0278: a stablemaster's lines test JobHostlerFaction, which every hostler holds at rank -1
                                 // (as the stewards hold JobStewardFaction: task 0261): rank -1 counts as a member for those.
-                                std::set<FormId> minusOne;
+                                // task 0309: the bounty quests' Innkeeper alias tests JobInnkeeperFaction
+                                std::set<FormId> minusOne{ kJobInnkeeperFaction };
                                 if (mHousesOn)
                                     minusOne.insert(houses::kJobStewardFaction);
                                 if (settings->getBool(kPackId, kRidingKey, false))

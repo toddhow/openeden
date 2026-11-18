@@ -45,7 +45,7 @@ namespace game_skyrimse
         {
             if (type != Content::fourCC("ENIT"))
                 continue;
-            if (data.size() != kEnchantEnitBytes)
+            if (data.size() != kEnchantEnitBytes && data.size() != kEnchantEnitShortBytes)
             {
                 fields.odd(type);
                 continue;

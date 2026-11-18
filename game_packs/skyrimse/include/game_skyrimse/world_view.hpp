@@ -1022,7 +1022,7 @@ namespace game_skyrimse
         std::function<void(const std::string&)> mPackageTraceLog;
         bool mOpenServices = false; ///< task 0219
         bool mBlockingBranches = false; ///< task 0298
-        std::set<FormId> mRankMinusOneMembers; ///< task 0261
+        std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)
         LocationKeywordData mKeywordData; ///< task 0217

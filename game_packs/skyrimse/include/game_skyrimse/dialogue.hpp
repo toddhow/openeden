@@ -62,6 +62,10 @@
 
 namespace game_skyrimse
 {
+    /// Task 0309: JobInnkeeperFaction (FACT 0x5091B): every innkeeper of the five masters is listed in it at rank -1 and
+    /// the Innkeeper alias of BQ01 to BQ04 tests GetInFaction == 1, so rank -1 counts as a member for it.
+    inline constexpr FormId kJobInnkeeperFaction = 0x0005091B;
+
     namespace TopicCategory
     {
         inline constexpr std::uint8_t Topic = 0;
@@ -692,7 +696,7 @@ namespace game_skyrimse
         bool mCountRefTypes = false; ///< task 0298
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261
-        std::set<FormId> mRankMinusOneMembers; ///< task 0261
+        std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
         const LocationKeywordData* mKeywordData = nullptr;
         const PlacedRefIndex* mPlacedRefs = nullptr;
         const PackageIndex* mPackages = nullptr;
