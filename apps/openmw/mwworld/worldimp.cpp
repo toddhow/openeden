@@ -1726,7 +1726,10 @@ namespace MWWorld
             }
             mPhysics->setNeutralFocus(getPlayerPtr().getRefData().getPosition().asVec3());
             notifyNeutralPlayerPlace();
-            mPhysics->updateNeutralActors(duration);
+            {
+                Misc::LoadTrace::Scope trace("physics.neutral.actors"); // task 0323: the pack's actor, AI and combat update
+                mPhysics->updateNeutralActors(duration);
+            }
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsMoved())
             {
                 mRendering->moveObject(ptr, ptr.getRefData().getPosition().asVec3());
@@ -1880,7 +1883,10 @@ namespace MWWorld
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralDeaths())
                 startNeutralRagdoll(ptr);
         }
-        mPhysics->stepSimulation(duration, mDiscardMovements);
+        {
+            Misc::LoadTrace::Scope trace("physics.step"); // task 0323
+            mPhysics->stepSimulation(duration, mDiscardMovements);
+        }
         if (mPhysics->actorRagdollCount() != 0)
             updateNeutralRagdolls();
         mProjectileManager->processHits();

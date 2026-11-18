@@ -17,6 +17,7 @@
 #include <components/esm3/loadregn.hpp>
 #include <components/esm4/loadwrld.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/world.hpp"
@@ -313,7 +314,10 @@ namespace MWWorld
         if (packCell != openeden::sdk::game::kNoWorldId)
         {
             std::string error;
-            cell = neutral.cell(gameId, packCell, error);
+            {
+                Misc::LoadTrace::Scope trace("neutral.cell.build"); // task 0323: the pack's cell build
+                cell = neutral.cell(gameId, packCell, error);
+            }
             if (cell == nullptr)
                 Log(Debug::Error) << "Neutral exterior (" << location.mX << ", " << location.mY << ") of " << gameId
                                   << " could not be built: " << error;

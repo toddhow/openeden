@@ -217,8 +217,11 @@ namespace OMW
                 {
                     // The game pack's mechanics hook (SDK 4.0): before the other kinds' PreSimulation callbacks
                     mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::GameSimulation, dt);
-                    mEngine.mExtensionHost->applyNeutralObjectChanges(); // task 0181
-                    mEngine.mExtensionHost->advanceNeutralFades(dt); // task 0202
+                    {
+                        Misc::LoadTrace::Scope traceObjects("ext.neutral.apply"); // task 0323
+                        mEngine.mExtensionHost->applyNeutralObjectChanges(); // task 0181
+                        mEngine.mExtensionHost->advanceNeutralFades(dt); // task 0202
+                    }
                     mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::PreSimulation, dt);
                 }
 

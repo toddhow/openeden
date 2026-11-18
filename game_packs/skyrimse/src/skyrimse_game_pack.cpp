@@ -11,6 +11,7 @@
 #include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
+#include "game_skyrimse/frame_split.hpp"
 #include "game_skyrimse/harvest_service.hpp"
 #include "game_skyrimse/houses.hpp"
 #include "game_skyrimse/inventory_service.hpp"
@@ -480,12 +481,23 @@ namespace game_skyrimse
             {
                 if (!mStarted && !tryStart())
                     return;
+                // Task 0323: with OPENEDEN_PACK_FRAME_TRACE the steps of this frame are timed; a slow frame logs a line.
+                const auto at = [this](const char* step) {
+                    if (mMarksOn)
+                        mMarks.mark(step, steadyNowMicroseconds());
+                };
+                if (mMarksOn)
+                    mMarks.start(steadyNowMicroseconds());
                 flushPending();
+                at("flush");
                 applyDragonbornPrerequisite(); // task 0306: before the first story event is walked
                 applyDragonbornTestStage(); // task 0312
                 applyPendingScenes(); // task 0211
+                at("scenes");
                 applyPendingStory(); // task 0217
+                at("pendingstory");
                 processPlace();
+                at("place");
                 updateWordWalls(); // task 0256
                 applyAmbush(); // task 0302
                 raiseTestEvent();
@@ -503,8 +515,11 @@ namespace game_skyrimse
                         "MARRIAGE test: the married-state quest goes to stage " + std::to_string(mMarriageFinStage)
                             + (mHost.startQuestForTest(marriage::kFinQuest, mMarriageFinStage) ? "" : " (refused)"));
                 }
+                at("applies");
                 drainStory();
+                at("story");
                 mHost.tick(dt);
+                at("tick");
                 if (mScenes != nullptr)
                     mScenes->runner().update(dt); // task 0194
                 raiseAmbient(dt);
@@ -513,6 +528,9 @@ namespace game_skyrimse
                     mNextSummary += kSummarySeconds;
                     summary();
                 }
+                at("scenes.ambient");
+                if (mMarksOn && mMarks.total() >= kSlowMarksMicroseconds)
+                    say(openeden::sdk::LogLevel::Info, mMarks.line());
             }
 
             // Task 0256: the combat update reports where the player is and looks; the trigger volumes of the word walls
@@ -1840,6 +1858,10 @@ namespace game_skyrimse
             openeden::sdk::game::WorldSourceService* mSources;
             openeden::sdk::game::WorldCellSource& mCells;
             double mNextSummary = kSummarySeconds;
+            // Task 0323: the steps of a slow frame (OPENEDEN_PACK_FRAME_TRACE; see frame_split.hpp).
+            bool mMarksOn = FrameSplit::wanted(std::getenv("OPENEDEN_PACK_FRAME_TRACE"));
+            SectionMarks mMarks;
+            static constexpr std::int64_t kSlowMarksMicroseconds = 5000;
             LocationChange mLocationChange; ///< the last location a CLOC event named (tasks 0187, 0211)
             static constexpr std::size_t kMaxPendingStory = 64;
             static constexpr int kStoryPerFrame = 4;
@@ -2118,8 +2140,11 @@ namespace game_skyrimse
             void registerServices(openeden::sdk::Registrar& registrar) override
             {
                 registrar.registerPhaseCallback(openeden::sdk::Phase::GameSimulation, [this](float dt) {
+                    // Task 0323: with OPENEDEN_PACK_FRAME_TRACE the callback is split in two (see frame_split.hpp).
+                    const std::int64_t splitBegin = mFrameSplit.on() ? steadyMicroseconds() : 0;
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
+                    const std::int64_t splitMiddle = mFrameSplit.on() ? steadyMicroseconds() : 0;
                     syncFollowerAlias();
                     feedGameClock(); // task 0276
                     syncStones(); // task 0237
@@ -2152,6 +2177,12 @@ namespace game_skyrimse
                         syncPlayerBody(); // task 0222
                     if (mCharacter != nullptr)
                         pollCharacter(); // task 0225
+                    if (mFrameSplit.on())
+                    {
+                        const std::string line = mFrameSplit.add(splitBegin, splitMiddle, steadyMicroseconds());
+                        if (!line.empty() && mFollowerLogger != nullptr)
+                            mFollowerLogger->log(openeden::sdk::LogLevel::Info, line);
+                    }
                 });
             }
 
@@ -2593,6 +2624,8 @@ namespace game_skyrimse
 
             void stop() override
             {
+                if (mFrameSplit.on() && mFollowerLogger != nullptr)
+                    mFollowerLogger->log(openeden::sdk::LogLevel::Info, mFrameSplit.summary()); // task 0323
                 mCellSource.setDeaths(nullptr); // task 0254: before the keeper goes
                 mCellSource.setCrime(nullptr); // task 0204: before the crime service goes
                 mCellSource.setTakenLookup({}); // task 0208: before the pickup service goes
@@ -6391,6 +6424,9 @@ namespace game_skyrimse
             std::unique_ptr<FollowerStateChunk> mFollowerStateChunk; // task 0239; refers to mFollowerState
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             openeden::sdk::Logger* mFollowerLogger = nullptr; // task 0239: where the recruit and dismiss lines go
+            // Task 0323: the split of the GameSimulation callback; on only with OPENEDEN_PACK_FRAME_TRACE (a developer aid).
+            FrameSplit mFrameSplit{ FrameSplit::wanted(std::getenv("OPENEDEN_PACK_FRAME_TRACE")) };
+            static std::int64_t steadyMicroseconds() { return steadyNowMicroseconds(); }
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
             std::uint32_t mBodySynced = 0xFFFFFFFFu; // task 0222
             std::unique_ptr<character::CharacterService> mCharacter; // task 0225; refers to the world view

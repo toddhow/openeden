@@ -317,6 +317,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_version.cpp
     extension/test_resolution.cpp
     extension/test_lifecycle.cpp
+    extension/testphasetrace.cpp
     extension/test_empty_host.cpp
     extension/test_manifest_editor_entry.cpp
     extension/test_manifest_editor_library.cpp
@@ -653,6 +654,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseminingservice.cpp
     skyrimse/testskyrimsesneak.cpp
     skyrimse/testskyrimseambush.cpp
+    skyrimse/testskyrimseframesplit.cpp
     skyrimse/testskyrimsesneakwiring.cpp
     skyrimse/testskyrimsepickpocketcrime.cpp
     skyrimse/testskyrimsecombatskills.cpp

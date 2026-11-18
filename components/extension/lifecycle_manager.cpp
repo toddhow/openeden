@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <components/debug/debuglog.hpp>
+#include <components/misc/loadtrace.hpp>
 
 namespace openeden::extension
 {
@@ -398,6 +399,9 @@ namespace openeden::extension
 
     void LifecycleManager::runPhase(openeden::sdk::Phase phase, float dt)
     {
+        // Task 0323: one load trace scope a phase (a game pack's callbacks run in GameSimulation); off, one atomic read.
+        Misc::LoadTrace::Scope phaseTrace(phaseScopeName(phase));
+
         // Process deferred events targeted for this phase at phase boundary
         if (auto* eb = mHost.getEventBus())
         {

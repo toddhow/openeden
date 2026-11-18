@@ -1,0 +1,2 @@
+export PATH="/i/Projects/OpenEden/deps/vcpkg-x64-windows-2022-2026-02-24/installed/x64-windows/bin/Release:/i/Projects/OpenEden/deps/vcpkg-x64-windows-2022-2026-02-24/installed/x64-windows/bin:/i/Projects/OpenEden/deps/Qt/6.6.3/msvc2019_64/bin:$PATH"
+R() { bash tools/streaming_check/run.sh I:/Projects/OpenEden-work/followers/build I:/Projects/OpenEden-work/integ2/base "I:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data" "I:/Projects/OpenEden-work/streaming/$1" $2 $3; }
