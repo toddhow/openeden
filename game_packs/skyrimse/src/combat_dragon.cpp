@@ -284,7 +284,13 @@ namespace game_skyrimse
                     && dragons::soulAbsorbs(mClock - state.mDiedAt, std::hypot(player.x - self.x, player.y - self.y)))
                 {
                     state.mSoulTaken = true;
-                    if (mShouts != nullptr)
+                    if (mSoulByScript && mSoulByScript(state.mHandle.reference))
+                    {
+                        // Task 0313: the dragon's own script absorbs it (Actor.ModActorValue("dragonsouls"))
+                        if (mTrace)
+                            trace("COMBAT dragon soul of " + who(f->mSubject) + " is left to its death script");
+                    }
+                    else if (mShouts != nullptr)
                     {
                         mShouts->addSouls(1);
                         mShouts->announce(std::string(dragons::kSoulMessage));

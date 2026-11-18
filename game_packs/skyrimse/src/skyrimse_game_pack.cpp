@@ -2501,6 +2501,13 @@ namespace game_skyrimse
                 env.actorValue = [this](FormId actor, std::string_view name, double& current, double& maximum) {
                     if (actor == kPapyrusPlayerReference)
                     {
+                        if (mWhiterunQuest && name == "dragonsouls" && mShouts != nullptr)
+                        {
+                            // Task 0313: the soul count is the shout state's (the game's death sequence adds to it)
+                            current = static_cast<double>(mShouts->state().souls());
+                            maximum = 0.0;
+                            return true;
+                        }
                         // Task 0206: the player's skills are the progression's (with the maximum left 0 so that a
                         // script's ModActorValue is not clamped back to it)
                         float skill = 0.f;
@@ -2603,7 +2610,32 @@ namespace game_skyrimse
                     return mCellSource.combat().scriptInCombatOf(subject);
                 };
                 // Task 0302: a script's SetAV("Aggression", n) reaches the combat AI (the other actor values stay the host's)
-                env.actorValueSet = [this, handleOfActor](FormId actor, std::string_view name, double value) {
+                env.livePosition = [this, logger, noted = std::set<FormId>()](
+                                       FormId reference, double& x, double& y, double& z) mutable { // task 0313
+                    if (!mWhiterunQuest
+                        || !mCellSource.livePlaceOf(static_cast<openeden::sdk::game::WorldId>(reference), x, y, z))
+                        return false;
+                    if (logger != nullptr && noted.size() < 32 && noted.insert(reference).second)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "LIVEPLACE " + hexOf(reference) + " is at " + std::to_string(x) + " " + std::to_string(y)
+                                + " " + std::to_string(z));
+                    return true;
+                };
+                env.actorValueSet = [this, handleOfActor, logger](FormId actor, std::string_view name, double value) {
+                    if (name == "dragonsouls") // task 0313: the game's own absorption (MQKillDragonScript.DeathSequence)
+                    {
+                        const double have = mShouts != nullptr ? static_cast<double>(mShouts->state().souls()) : 0.0;
+                        if (mWhiterunQuest && actor == kPapyrusPlayerReference && mShouts != nullptr && value > have)
+                        {
+                            mShouts->state().addSouls(static_cast<std::uint32_t>(value - have));
+                            mShouts->state().announce(std::string(dragons::kSoulMessage));
+                            if (logger != nullptr)
+                                logger->log(openeden::sdk::LogLevel::Info,
+                                    "SHOUTS the dragon's death sequence gave a soul: "
+                                        + std::to_string(mShouts->state().souls()) + " souls");
+                        }
+                        return;
+                    }
                     if (!(mAmbushOn || mDragonbornOn) || name != "aggression") // task 0306: the cultists' Aggression
                         return;
                     openeden::sdk::game::ActorHandle handle = handleOfActor(actor);
@@ -2764,6 +2796,13 @@ namespace game_skyrimse
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
+                    // task 0313: a dragon's death goes through the game's own sequence, which takes the soul
+                    mWhiterunQuest = true;
+                    mCellSource.setLivePlaces(true);
+                    mCellSource.combat().setDragonSoulByScript([this](openeden::sdk::game::WorldId reference) {
+                        return mPapyrus != nullptr
+                            && mPapyrus->host().hasScript(static_cast<FormId>(reference), "dragonactorscript");
+                    });
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {
@@ -6091,6 +6130,7 @@ namespace game_skyrimse
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
             bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush
             bool mDragonbornOn = false; // task 0306: [extension.skyrimse] dragonborn
+            bool mWhiterunQuest = false; // task 0313: [extension.skyrimse] main quest whiterun
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source

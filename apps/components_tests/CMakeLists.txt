@@ -679,6 +679,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecompanions2.cpp
     skyrimse/testskyrimsetravelmove.cpp
     skyrimse/testskyrimsecellmoves.cpp
+    skyrimse/testskyrimsedragonrising.cpp
     skyrimse/testskyrimsehouses.cpp
     skyrimse/testskyrimsehouses2.cpp
     skyrimse/testskyrimsebards.cpp

@@ -465,6 +465,14 @@ namespace game_skyrimse
         {
             (void)actor, (void)lowerName, (void)value;
         }
+        /// Task 0313: where an actor is now, as the world has it (a dead dragon lies where it fell, not at its
+        /// placement). The pack asks the cell source, which keeps the place of every reference a script has asked
+        /// about. False when it is unknown: GetDistance and GetPosition then use the older answers.
+        virtual bool livePosition(FormId reference, double& x, double& y, double& z)
+        {
+            (void)reference, (void)x, (void)y, (void)z;
+            return false;
+        }
         /// Is the form a concrete item the inventory knows? An inventory event filter that names anything else (a form
         /// list the host cannot expand) is ignored.
         [[nodiscard]] virtual bool isItem(FormId form)
@@ -854,6 +862,8 @@ namespace game_skyrimse
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
         /// Task 0289: a script instance is attached to the reference (its own or its base's).
         [[nodiscard]] bool hasInstances(FormId reference) const;
+        /// Task 0313: a script of this name (any case) is attached to the reference.
+        [[nodiscard]] bool hasScript(FormId reference, std::string_view script) const;
 
         // ---- task 0237: standing stones and shrines. Additive.
         /// A Spell.Cast a script made, for the pack to apply (a shrine's blessing). Queued; `takeCasts` empties it.

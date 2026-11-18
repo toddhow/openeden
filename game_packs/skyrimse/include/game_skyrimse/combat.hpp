@@ -697,6 +697,13 @@ namespace game_skyrimse
         /// by itself every N seconds (0, negative or not finite: the real key only) and holds it `setTestShoutHold`
         /// seconds.
         void setShoutState(shouts::ShoutState* state) { mShouts = state; }
+        /// Task 0313: asks whether the game's own death sequence (dragonActorSCRIPT, which ends in
+        /// `ModActorValue("dragonsouls")`) gives the soul of this dragon (the reference). When it says yes the
+        /// hand-written absorption below steps aside, so the player does not get two souls. Empty: it never does.
+        void setDragonSoulByScript(std::function<bool(openeden::sdk::game::WorldId reference)> hook)
+        {
+            mSoulByScript = std::move(hook);
+        }
         void onPlayerShoutEdge(bool pressed) override;
         bool setTestPlayerShout(std::string_view editorId);
         void setTestShoutEvery(float seconds);
@@ -1751,6 +1758,7 @@ namespace game_skyrimse
         float mPlayerCastWantedAt = 0.f;
         // Task 0205: the player's shout.
         shouts::ShoutState* mShouts = nullptr; ///< not owned
+        std::function<bool(openeden::sdk::game::WorldId)> mSoulByScript; ///< task 0313
         std::string mTestPlayerShout;
         float mShoutEvery = 0.f;
         float mShoutHold = 1.f;

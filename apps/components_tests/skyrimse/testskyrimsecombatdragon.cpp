@@ -598,4 +598,35 @@ namespace
         state.announce("");
         EXPECT_EQ(state.noticeCount(), 43u) << "an empty text is not an announcement";
     }
+
+    TEST_F(CombatDragon, whenTheDragonsOwnScriptTakesTheSoulTheHandWrittenAbsorptionStepsAside)
+    {
+        // task 0313: the game's death sequence ends in Actor.ModActorValue("dragonsouls"); two souls would be one too many
+        std::vector<openeden::sdk::game::WorldId> asked;
+        mCombat.setDragonSoulByScript([&asked](openeden::sdk::game::WorldId reference) {
+            asked.push_back(reference);
+            return true;
+        });
+        addDragon(900.0);
+        run(5);
+        ASSERT_TRUE(mCombat.setFighterHealth(CombatSubject::of(mD), 0.f));
+        run(60);
+        EXPECT_EQ(mShouts.souls(), 0u);
+        EXPECT_EQ(mCombat.dragonSouls(), 0u);
+        EXPECT_EQ(mShouts.noticeCount(), 0u);
+        ASSERT_EQ(asked.size(), 1u) << "asked once, then it is settled";
+        EXPECT_EQ(asked[0], mD.reference);
+        EXPECT_TRUE(traced("left to its death script"));
+    }
+
+    TEST_F(CombatDragon, whenNoScriptTakesTheSoulTheOlderAbsorptionStillRuns)
+    {
+        mCombat.setDragonSoulByScript([](openeden::sdk::game::WorldId) { return false; });
+        addDragon(900.0);
+        run(5);
+        ASSERT_TRUE(mCombat.setFighterHealth(CombatSubject::of(mD), 0.f));
+        run(60);
+        EXPECT_EQ(mShouts.souls(), 1u);
+        EXPECT_EQ(mCombat.dragonSouls(), 1u);
+    }
 }

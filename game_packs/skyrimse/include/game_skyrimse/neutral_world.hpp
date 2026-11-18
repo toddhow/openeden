@@ -21,6 +21,7 @@
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/killmove.hpp>
+#include <game_skyrimse/live_places.hpp>
 #include <game_skyrimse/riding.hpp>
 #include <game_skyrimse/werewolf.hpp>
 #include <game_skyrimse/sneak.hpp>
@@ -408,6 +409,8 @@ namespace game_skyrimse
             updateCarts(seconds, writer); // task 0274
             if (mBarks != nullptr)
                 updateBarks(seconds, writer); // task 0231
+            // task 0313
+            mLivePlaces.update([this](openeden::sdk::game::WorldId r) { return mActors.handleOf(r); }, writer);
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
             {
                 if (move.mKind == Kind::GoTo && move.mDirect)
@@ -518,6 +521,16 @@ namespace game_skyrimse
         {
             out.insert(out.end(), mCartMoves.begin(), mCartMoves.end());
             mCartMoves.clear();
+        }
+        /// Task 0313 (off by default): where an actor is now as the core has it. The first ask for a reference
+        /// marks it; the place is read from the core at each update from then on (at most `kMaxWatchedPlaces`
+        /// references; a dead dragon lies where it fell). False until the first update after the ask.
+        void setLivePlaces(bool on) { mLivePlaces.setOn(on); }
+        /// Only an actor the core knows is watched: scripts ask for the distance of hundreds of objects at start-up and
+        /// those would fill the 64 places before the dragon is asked about.
+        [[nodiscard]] bool livePlaceOf(openeden::sdk::game::WorldId reference, double& x, double& y, double& z)
+        {
+            return mActors.handleOf(reference).valid() && mLivePlaces.placeOf(reference, x, y, z);
         }
         /// Where the horses of the rigs were at the last update (for the trigger tracker).
         [[nodiscard]] const std::vector<HorsePlace>& horsePlaces() const { return mHorsePlaces; }
@@ -762,6 +775,7 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         void updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer); ///< task 0231
+        LivePlaces mLivePlaces; ///< task 0313
         barks::BarkSystem* mBarks = nullptr;
         std::vector<barks::Actor> mBarkRoster; ///< reused
         SkyrimCombat mCombat;

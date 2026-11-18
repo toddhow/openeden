@@ -290,6 +290,7 @@ namespace game_skyrimse::shouts
             if (name.size() > 4 && name.compare(0, 4, "Word") == 0 && name[4] >= 'A' && name[4] <= 'Z')
                 name.erase(0, 4);
             m.mState.announce("Word of Power learned: " + name);
+            m.log("SHOUTS word learned: " + name);
         }
         return true;
     }

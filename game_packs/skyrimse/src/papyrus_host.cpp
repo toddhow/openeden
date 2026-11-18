@@ -816,6 +816,9 @@ namespace game_skyrimse
                 xyz[2] = created->second.mPosition[2];
                 return true;
             }
+            // Task 0313: an actor is where the world has it now (a dead dragon lies where it fell)
+            if (mHooks != nullptr && mHooks->livePosition(reference, xyz[0], xyz[1], xyz[2]))
+                return true;
             return mData.referencePosition(reference, xyz[0], xyz[1], xyz[2]);
         }
 
@@ -2299,6 +2302,13 @@ namespace game_skyrimse
                 if (!positionOf(formOf(c.self), a) || !positionOf(other, b))
                     return result(PapyrusValue::makeFloat(0.f));
                 const double dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+                if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0313: where the two were taken to be
+                {
+                    ++mTraceCount;
+                    say(false, "Papyrus GetDistance " + hex(formOf(c.self)) + " at " + std::to_string(a[0]) + " "
+                            + std::to_string(a[1]) + " " + std::to_string(a[2]) + " to " + hex(other) + " at "
+                            + std::to_string(b[0]) + " " + std::to_string(b[1]) + " " + std::to_string(b[2]));
+                }
                 return result(PapyrusValue::makeFloat(static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz))));
             });
         }
@@ -2656,6 +2666,14 @@ namespace game_skyrimse
             if (maximum > 0.0)
                 target = std::min(target, maximum);
             target = std::max(target, 0.0);
+            if (key == "dragonsouls" && actor == kPlayerReference && known)
+            {
+                // Task 0313: when the pack knows the soul count (the shout state) it is that number: the script's
+                // change goes to it and nothing stays here, as with health
+                if (mHooks != nullptr)
+                    mHooks->actorValueSet(actor, key, target);
+                return;
+            }
             double base = 0.0, ignore = 0.0;
             if (mHooks == nullptr || !mHooks->actorValue(actor, key, base, ignore))
                 base = 0.0;
@@ -4043,6 +4061,11 @@ namespace game_skyrimse
     bool PapyrusHost::hasInstances(FormId reference) const
     {
         return mImpl->mByForm.count(reference) != 0;
+    }
+
+    bool PapyrusHost::hasScript(FormId reference, std::string_view script) const
+    {
+        return mImpl->findInstance(reference, script) != 0;
     }
 
     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const

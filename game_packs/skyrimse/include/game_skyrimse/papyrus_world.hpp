@@ -79,6 +79,7 @@ namespace game_skyrimse
         std::function<bool(FormId actor)> resetHealth;
         std::function<bool(FormId actor)> inCombat;
         std::function<void(FormId actor, std::string_view lowerName, double value)> actorValueSet; ///< task 0302
+        std::function<bool(FormId reference, double& x, double& y, double& z)> livePosition; ///< task 0313
     };
 
     class PackWorldHooks final : public PapyrusWorldHooks
@@ -171,6 +172,10 @@ namespace game_skyrimse
         {
             if (mEnv.actorValueSet)
                 mEnv.actorValueSet(actor, lowerName, value); // task 0302
+        }
+        bool livePosition(FormId reference, double& x, double& y, double& z) override
+        {
+            return mEnv.livePosition && mEnv.livePosition(reference, x, y, z); // task 0313
         }
         bool addToMap(FormId reference) override { return mEnv.addToMap && mEnv.addToMap(reference); }
         bool teachWord(FormId word) override { return mEnv.teachWord && mEnv.teachWord(word); }
