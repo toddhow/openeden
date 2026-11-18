@@ -1327,6 +1327,11 @@ namespace game_skyrimse
             if (f != nullptr && !f->mDead && !actor.mGiveUp && actor.mTarget.player)
                 return true;
         }
+        // Task 0316: with the combat AI on a named hostile counts only once it is ENGAGED (the loop above); one that never
+        // engaged (not loaded, out of sight after a loss, or the player dead) is not a fight. With the AI off the hostile
+        // attacks by `startHostiles`, so a living one counts as before.
+        if (mAiOn)
+            return false;
         for (const ActorHandle& handle : mHostiles)
         {
             const Fighter* f = find(CombatSubject::of(handle));

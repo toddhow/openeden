@@ -315,6 +315,16 @@ namespace
         EXPECT_TRUE(mCombat.enemiesNear());
     }
 
+    // Task 0316: with the combat AI on, a named hostile that never engaged is not a fight.
+    TEST_F(CombatRest, withTheAiOnAHostileThatNeverEngagedIsNotNear)
+    {
+        mCombat.setCombatAi(true);
+        ASSERT_TRUE(mCombat.setTestHostile("Attacker"));
+        mCombat.onActorAdded(info(11, kAttackerBase, "Attacker"));
+        EXPECT_FALSE(mCombat.enemiesNear()); // added, no update yet: nothing engaged
+        EXPECT_FALSE(mCombat.scriptInCombatOf(CombatSubject::ofPlayer()));
+    }
+
     // ---- task 0282: Actor.IsInCombat of a script (the word walls refuse to teach during a fight)
 
     TEST_F(CombatRest, aScriptSeesThePlayerOutOfCombatWhenNothingHappened)
