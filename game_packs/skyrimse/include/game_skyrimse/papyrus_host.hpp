@@ -371,6 +371,9 @@ namespace game_skyrimse
             (void)item;
             return -1;
         }
+        /// Task 0318: a quest alias creates an item IN an inventory (the Jarl's reward axe: a leveled list). The item the
+        /// list resolves to, for the alias to hold (0: none). A world that does not know leveled items keeps the form.
+        [[nodiscard]] virtual FormId resolveLeveledItem(FormId base) { return base; }
         /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
         virtual bool addItem(FormId owner, FormId item, std::int32_t count)
         {
@@ -715,6 +718,13 @@ namespace game_skyrimse
         void onMagicEffectApplied(FormId caster, FormId target, FormId effect);
         /// OnSpellCast(akSpell) goes to the scripts that hold `caster`.
         void onSpellCast(FormId caster, FormId spell);
+        /// Task 0318: OnLocationChange(akOldLoc, akNewLoc) goes to the scripts that hold `actor` (the player's alias
+        /// scripts: MQ104PlayerScript sets the Greybeards' call when he enters Solitude or Windhelm, MQ105PlayerScript
+        /// stage 15 when he enters High Hrothgar). A location the pack does not know is 0 (none).
+        void onLocationChange(FormId actor, FormId oldLocation, FormId newLocation);
+        /// Task 0318: OnObjectEquipped(akBaseObject, akReference) goes to the scripts that hold `actor` (a shout equipped
+        /// from the shout menu: MQ104's stage 92 and MQ105's stage 85 wait for it).
+        void onObjectEquipped(FormId actor, FormId baseObject, FormId reference);
         /// OnDying and OnDeath go to the victim's scripts; the actor counts as dead for IsDead.
         void onActorDied(FormId victim, FormId killer);
         /// Task 0264: an essential actor collapsed (OnEnterBleedout on the scripts that hold it).

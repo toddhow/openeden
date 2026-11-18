@@ -96,6 +96,11 @@ namespace game_skyrimse
         return mEnv.ensureOwner && mEnv.ensureOwner(owner, reference) && model->hasOwner(owner);
     }
 
+    FormId PackWorldHooks::resolveLeveledItem(FormId base)
+    {
+        return mEnv.resolveItem ? mEnv.resolveItem(base) : base;
+    }
+
     bool PackWorldHooks::addItem(FormId owner, FormId item, std::int32_t count)
     {
         InventoryModel* m = nullptr;

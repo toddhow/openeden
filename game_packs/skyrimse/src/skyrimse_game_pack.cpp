@@ -628,6 +628,14 @@ namespace game_skyrimse
             void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
             void enableForceGreet() { mForceOn = true; }
             void enableHelloGreetings() { mHelloOn = true; } // task 0308
+            /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
+            /// OnObjectEquipped (a shout equipped from the menu).
+            void enablePlayerEvents() { mPlayerEvents = true; }
+            void playerEquipped(FormId baseObject)
+            {
+                if (mPlayerEvents)
+                    mHost.onObjectEquipped(kPapyrusPlayerReference, baseObject, kNullFormId);
+            }
             [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
             void enableCompanions() { mCompanionsOn = true; }
             [[nodiscard]] bool companionsOn() const { return mCompanionsOn; }
@@ -843,7 +851,8 @@ namespace game_skyrimse
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
                 mHost.setStoryEventSink(access.mStory);
-                if ((mHouses || mMainQuest || mDragonborn) && access.mQuestConditions)
+                // task 0318: a stage's fragments also honour their log entry's conditions in the main quest's chain
+                if ((mHouses || mMainQuest || mDragonborn || mPlayerEvents) && access.mQuestConditions)
                 {
                     const QuestIndex* quests = access.mQuests;
                     const auto conditions = access.mQuestConditions;
@@ -1022,6 +1031,8 @@ namespace game_skyrimse
                 const std::optional<LocationChange::Change> change = mLocationChange.arrive(location);
                 if (!change)
                     return;
+                if (mPlayerEvents)
+                    mHost.onLocationChange(kPapyrusPlayerReference, change->mFrom, change->mTo);
                 StoryEvent event;
                 event.mType = "CLOC";
                 event.mLocation1 = change->mFrom;
@@ -1765,6 +1776,7 @@ namespace game_skyrimse
             bool mTrainingPending = false;
             ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
             bool mHelloOn = false; ///< task 0308
+            bool mPlayerEvents = false; ///< task 0318
             bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
             bool mCompanionsOn = false; ///< task 0264
             std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
@@ -2561,6 +2573,20 @@ namespace game_skyrimse
                     env.model = [this]() -> inventory::InventoryModel* {
                         return mInventory != nullptr ? &mInventory->model() : nullptr;
                     };
+                    // task 0318: a leveled item list (MQ104's JarlWeapon) resolves to one item, by a pick seeded from the
+                    // list's id at the player's level (the inventory's rule for container contents)
+                    env.resolveItem = [this](FormId base) -> FormId {
+                        if (mInventory == nullptr)
+                            return base;
+                        const inventory::ItemTable& table = mInventory->table();
+                        if (table.item(base) != nullptr)
+                            return base;
+                        inventory::ResolveReport report;
+                        const std::vector<inventory::Stack> stacks = inventory::resolveContents(
+                            { InventoryEntry{ base, 1 } }, table, static_cast<std::uint64_t>(base),
+                            static_cast<std::uint16_t>(kStandInPlayerLevel), &report);
+                        return stacks.empty() ? kNullFormId : stacks.front().mItem;
+                    };
                     env.ensureOwner = [this](std::uint64_t owner, FormId reference) {
                         if (mInventory == nullptr)
                             return false;
@@ -2875,6 +2901,7 @@ namespace game_skyrimse
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
+                    mPapyrus->enablePlayerEvents(); // task 0318
                     // task 0313: a dragon's death goes through the game's own sequence, which takes the soul
                     mWhiterunQuest = true;
                     mCellSource.setLivePlaces(true);
@@ -4169,6 +4196,10 @@ namespace game_skyrimse
                         language.begin(), language.end(), [](unsigned char c) { return std::isalpha(c) != 0; }))
                     mBookLanguage = language;
                 hooks.mText = [this](const LString& text, FormId owner) { return resolveShoutString(text, owner); };
+                hooks.mEquipped = [this](FormId shout) { // task 0318: OnObjectEquipped to the player's scripts
+                    if (mPapyrus != nullptr)
+                        mPapyrus->playerEquipped(shout);
+                };
                 mShouts = std::make_unique<shouts::ShoutService>(std::move(hooks));
                 shouts::TestSettings test;
                 test.mLearn = settings->getString(kPackId, "shouts test learn", "");

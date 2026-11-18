@@ -646,6 +646,10 @@ namespace game_skyrimse
         [[nodiscard]] bool livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
             double& az, double& tx, double& ty, double& tz) const;
         [[nodiscard]] bool distanceToAliasKnown(conditions::Subject subject, std::uint32_t alias) const;
+        /// Task 0318: where a subject (the player or a placed actor) and the reference an alias holds stand, and in which cell.
+        [[nodiscard]] bool aliasSubjectPlace(
+            conditions::Subject subject, std::array<double, 3>& place, FormId& cell) const;
+        [[nodiscard]] bool aliasPlace(std::uint32_t alias, std::array<double, 3>& place, FormId& cell) const;
         /// A placed reference, else (task 0276) a created one as an entry with only its id and base. Null: neither.
         [[nodiscard]] const PlacedEntry* findReference(FormId reference) const;
         std::function<FormId(FormId)> mCreatedBase; // task 0276

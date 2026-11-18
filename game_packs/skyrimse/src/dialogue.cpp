@@ -2076,22 +2076,71 @@ namespace game_skyrimse
         return &mCreatedEntries.emplace(reference, entry).first->second;
     }
 
+    // Task 0318: where a subject stands for an alias distance: the player (his position), else a placed actor (its live
+    // place when the core tells, else where it is placed) and the cell it is in (0: not told).
+    bool SkyrimConditionWorld::aliasSubjectPlace(
+        conditions::Subject subject, std::array<double, 3>& place, FormId& cell) const
+    {
+        if (subject == kPlayer)
+        {
+            if (!mPlayerPositionKnown)
+                return false;
+            place = mPlayerPosition;
+            cell = mPlayerPlaceKnown && mPlayerInterior ? mPlayerCell : kNullFormId;
+            return true;
+        }
+        ActorView view;
+        if (mPlacedRefs == nullptr || !viewOf(subject, view) || view.mRef == nullptr)
+            return false;
+        cell = view.mRef->mCell;
+        if (!mLiveActorPlace || !mLiveActorPlace(view.mRef->mId, place[0], place[1], place[2]))
+            place = { static_cast<double>(view.mRef->mX), static_cast<double>(view.mRef->mY),
+                static_cast<double>(view.mRef->mZ) };
+        return true;
+    }
+
+    bool SkyrimConditionWorld::aliasPlace(std::uint32_t alias, std::array<double, 3>& place, FormId& cell) const
+    {
+        const FormId filled = aliasReference(alias);
+        if (filled == kNullFormId)
+            return false;
+        if (filled == kPlayerReference)
+            return aliasSubjectPlace(kPlayer, place, cell);
+        const PlacedEntry* other = mPlacedRefs != nullptr ? mPlacedRefs->find(filled) : nullptr;
+        if (other == nullptr)
+            return false;
+        cell = other->mCell;
+        place = { static_cast<double>(other->mX), static_cast<double>(other->mY), static_cast<double>(other->mZ) };
+        return true;
+    }
+
     bool SkyrimConditionWorld::distanceToAliasKnown(conditions::Subject subject, std::uint32_t alias) const
     {
-        if (subject != kPlayer || !mPlayerPositionKnown || mPlacedRefs == nullptr)
+        std::array<double, 3> from{};
+        std::array<double, 3> to{};
+        FormId fromCell = kNullFormId;
+        FormId toCell = kNullFormId;
+        if (!aliasSubjectPlace(subject, from, fromCell) || !aliasPlace(alias, to, toCell))
             return false;
-        const FormId filled = aliasReference(alias);
-        return filled != kNullFormId && mPlacedRefs->find(filled) != nullptr;
+        // task 0276: the player is measured to an alias wherever it is placed (the story manager's world has no cell
+        // for him); two placed references must be in one cell, and the player's cell is checked when it is told
+        if (subject == kPlayer || fromCell == kNullFormId || toCell == kNullFormId)
+            return true;
+        return fromCell == toCell;
     }
 
     float SkyrimConditionWorld::distanceToAlias(conditions::Subject subject, std::uint32_t alias) const
     {
-        if (!distanceToAliasKnown(subject, alias))
+        std::array<double, 3> from{};
+        std::array<double, 3> to{};
+        FormId fromCell = kNullFormId;
+        FormId toCell = kNullFormId;
+        if (!distanceToAliasKnown(subject, alias) || !aliasSubjectPlace(subject, from, fromCell)
+            || !aliasPlace(alias, to, toCell))
             return std::numeric_limits<float>::max();
-        const PlacedEntry* other = mPlacedRefs->find(aliasReference(alias));
-        const double dx = mPlayerPosition[0] - other->mX;
-        const double dy = mPlayerPosition[1] - other->mY;
-        const double dz = mPlayerPosition[2] - other->mZ;
+        const double dx = from[0] - to[0];
+        const double dy = from[1] - to[1];
+        const double dz = from[2] - to[2];
         return static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
     }
 

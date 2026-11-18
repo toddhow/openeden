@@ -37,6 +37,8 @@ namespace game_skyrimse::shouts
         /// Task 0266 (optional): the text of a localised string of the record `owner` (the shout menu's word names and
         /// translations). Empty when it cannot be read; without the hook the menu shows the editor id's name.
         std::function<std::string(const LString&, FormId owner)> mText;
+        /// Task 0318 (optional): the player equipped a shout from the menu (the Papyrus OnObjectEquipped event).
+        std::function<void(FormId shout)> mEquipped;
     };
 
     /// Task 0266: one word of a shout in the menu. mState is "unlocked", "learned" (known, not unlocked) or "unknown".

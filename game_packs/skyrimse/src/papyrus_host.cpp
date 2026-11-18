@@ -612,12 +612,34 @@ namespace game_skyrimse
                 if (alias.mFill != AliasFillKind::CreatedObject || alias.mCreateObject == 0
                     || alias.mCreateAt == kNoCreateAt || mState->aliasFill(quest, alias.mId).mReference != 0)
                     continue;
-                const FormId at = aliasReferenceOf(quest, alias.mCreateAt);
+                // Task 0318: ALCA bit 31 is "In": created in the inventory of the alias, not at its feet. The alias then
+                // holds the item (the pack has no item references): the game's own AddItem(alias.GetRef()) hands it over.
+                constexpr std::uint32_t kCreateIn = 0x80000000u;
+                const bool inside = (alias.mCreateAt & kCreateIn) != 0;
+                const std::uint32_t atAlias = alias.mCreateAt & ~kCreateIn;
+                if (inside)
+                {
+                    const FormId item = mHooks->resolveLeveledItem(alias.mCreateObject);
+                    if (item == 0)
+                    {
+                        say(false,
+                            "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " is created in alias "
+                                + std::to_string(atAlias) + ", and " + hex(alias.mCreateObject) + " resolves to nothing");
+                        continue;
+                    }
+                    mState->setAliasFill(quest, alias.mId, AliasFill{ true, item, kNullFormId });
+                    ++mAliasRevision;
+                    say(false,
+                        "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " holds the item " + hex(item)
+                            + " made from " + hex(alias.mCreateObject));
+                    continue;
+                }
+                const FormId at = aliasReferenceOf(quest, atAlias);
                 if (at == 0)
                 {
                     say(false,
                         "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " is created at alias "
-                            + std::to_string(alias.mCreateAt) + ", which holds nothing");
+                            + std::to_string(atAlias) + ", which holds nothing");
                     continue;
                 }
                 // the first stands at the place, the next ones on a spiral round it (110 units, then 155 ...: a capsule
@@ -3644,6 +3666,22 @@ namespace game_skyrimse
         Impl& m = *mImpl;
         for (const InstanceId instance : m.instancesHolding(caster))
             if (m.sendEvent(instance, "OnSpellCast", { m.formValue(spell) }))
+                ++m.mCounters.mCombatEvents;
+    }
+
+    void PapyrusHost::onLocationChange(FormId actor, FormId oldLocation, FormId newLocation)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(actor))
+            if (m.sendEvent(instance, "OnLocationChange", { m.formValue(oldLocation), m.formValue(newLocation) }))
+                ++m.mCounters.mCombatEvents;
+    }
+
+    void PapyrusHost::onObjectEquipped(FormId actor, FormId baseObject, FormId reference)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(actor))
+            if (m.sendEvent(instance, "OnObjectEquipped", { m.formValue(baseObject), m.formValue(reference) }))
                 ++m.mCounters.mCombatEvents;
     }
 

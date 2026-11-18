@@ -36,6 +36,8 @@ namespace game_skyrimse
     {
         /// The model, or null while the inventory is off.
         std::function<inventory::InventoryModel*()> model;
+        /// Task 0318: the item a leveled item list resolves to for a quest alias that creates it in an inventory (0: none).
+        std::function<FormId(FormId)> resolveItem;
         /// Registers the owner of a reference in the model (from its base record) so that an item can go in; true when
         /// the owner exists afterwards.
         std::function<bool(std::uint64_t owner, FormId reference)> ensureOwner;
@@ -102,6 +104,7 @@ namespace game_skyrimse
             return owner == inventory::kPlayerOwner ? kPapyrusPlayerReference : static_cast<FormId>(owner);
         }
 
+        FormId resolveLeveledItem(FormId base) override;
         bool addItem(FormId owner, FormId item, std::int32_t count) override;
         std::int32_t removeItem(FormId owner, FormId item, std::int32_t count) override;
         std::int32_t itemCount(FormId owner, FormId item) override;

@@ -378,6 +378,8 @@ namespace game_skyrimse::shouts
         }
         m.mState.equip(shout->mCommon.mId);
         m.mState.announce(name + " equipped");
+        if (m.mHooks.mEquipped)
+            m.mHooks.mEquipped(shout->mCommon.mId);
         return MenuResult::Done;
     }
 
