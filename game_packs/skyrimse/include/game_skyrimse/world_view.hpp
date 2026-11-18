@@ -501,6 +501,7 @@ namespace game_skyrimse
         void setStandInPlayerGold(float gold) { mStandInGold = gold; }
         /// The stand-in player's sex (task 0156; the pack setting `player female`).
         void setStandInPlayerFemale(bool female) { mStandInFemale = female; }
+        [[nodiscard]] bool standInPlayerFemale() const { return mStandInFemale; } // task 0306: book tags
 
         /// Task 0200: the records the player's progression is built from (false until the combat records are read:
         /// combatReady() starts that).
@@ -754,6 +755,8 @@ namespace game_skyrimse
         /// shared by the journal and the conversation tags; and its sex (1 female, 0 male, -1 unknown).
         [[nodiscard]] std::string aliasDisplayName(FormId quest, std::string_view aliasName);
         [[nodiscard]] int aliasFemale(FormId quest, std::string_view aliasName);
+        /// Task 0306: the scripts a base record's VMAD names (a reference created of it gets them); null when none.
+        [[nodiscard]] const std::vector<vmad::Script>* scriptsOfBase(FormId base) const { return baseScriptsOf(base); }
         /// The scripts of the placed references of a cell (its own placements, not the world's persistent ones).
         /// Main thread.
         /// Task 0181: a placement's own scripts followed by those of its base form (see vmad::combineScripts).
@@ -774,6 +777,8 @@ namespace game_skyrimse
             mAliasLookup = std::move(lookup);
             mAliasRevision = std::move(revision);
         }
+        /// Task 0306: a quest started with no stage (the story manager's start): the package brain's copy runs it.
+        void startPackageQuest(FormId quest);
         /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
         /// when it is made). Main thread.
         void setInfoFragmentSink(InfoFragmentSink sink);

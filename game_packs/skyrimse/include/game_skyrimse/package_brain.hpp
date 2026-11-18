@@ -44,6 +44,9 @@ namespace game_skyrimse
     /// asks to greet) once nearer than the stop distance; ours, below the forced greeting's own range of 3,000 units.
     inline constexpr double kGreetApproachFrom = 2600.0;
     inline constexpr double kGreetApproachStop = 1800.0;
+    /// Task 0306 (`dragonborn`): the same walk-up with both distances at this value: the actor approaches from farther
+    /// than it and asks to greet only once it stands within it (the cultists of the ambush). An estimate.
+    inline constexpr double kGreetAskDistance = 380.0;
     /// How often (seconds of frame time) an actor looks again for the package to run. An estimate.
     inline constexpr float kPackageReevaluateSeconds = 1.f;
     /// A sandbox or wander package without a usable radius wanders this far from its anchor. An estimate.
@@ -397,6 +400,13 @@ namespace game_skyrimse
         /// chosen. The hook only records the wish; opening the conversation is the world's business. Main thread.
         using ForceGreetHook = std::function<void(openeden::sdk::game::WorldId reference, FormId base, FormId topic)>;
         void setForceGreetHook(ForceGreetHook hook) { mGreetHook = std::move(hook); }
+        /// Task 0306: a ForceGreet package walks the actor to the player and asks only when it is near (off: it asks
+        /// at once and stands, as the earlier slices' Brynjolf and Vilkas did).
+        void setApproachGreeters(bool on)
+        {
+            mGreetFrom = on ? kGreetAskDistance : kGreetApproachFrom;
+            mGreetStop = on ? kGreetAskDistance : kGreetApproachStop;
+        }
 
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
@@ -527,6 +537,8 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, Actor> mActors;
         FurnitureSource* mFurniture = nullptr;
         ForceGreetHook mGreetHook;
+        double mGreetFrom = kGreetApproachFrom; ///< tasks 0305 and 0306: the walk-up starts beyond this
+        double mGreetStop = kGreetApproachStop; ///< ... and ends (the ask is made) within this
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
         std::set<openeden::sdk::game::WorldId> mRiderRefs; ///< placements that sit on a cart (task 0274)
         std::map<openeden::sdk::game::WorldId, openeden::sdk::game::ActorHandle> mMounts; ///< rider -> horse (0274)

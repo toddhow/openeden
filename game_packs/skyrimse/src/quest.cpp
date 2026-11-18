@@ -550,9 +550,16 @@ namespace game_skyrimse
                         case Content::fourCC("KNAM"):
                             formField(type, data, alias->mKeyword);
                             return;
-                        case Content::fourCC("ALCO"):
+                        case Content::fourCC("ALCO"): // task 0306: what a created alias makes, where, and at which level
+                            formField(type, data, alias->mCreateObject);
+                            bits |= Seen::Created;
+                            return;
                         case Content::fourCC("ALCA"):
+                            u32Field(type, data, alias->mCreateAt);
+                            bits |= Seen::Created;
+                            return;
                         case Content::fourCC("ALCL"):
+                            u32Field(type, data, alias->mCreateLevel);
                             bits |= Seen::Created;
                             return;
                         case Content::fourCC("ALFE"):

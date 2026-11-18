@@ -158,6 +158,8 @@ namespace game_skyrimse
         std::vector<QuestObjectiveTarget> mTargets;
     };
 
+    inline constexpr std::uint32_t kNoCreateAt = 0xFFFFFFFFu;
+
     struct QuestAlias
     {
         std::uint32_t mId = 0;
@@ -177,6 +179,9 @@ namespace game_skyrimse
         std::vector<FormId> mPackages; ///< ALPC (task 0271): the packages the alias fill runs, most important first
         std::uint32_t mEventData
             = 0; ///< ALFD (task 0194): the event member that fills a FromEvent alias, two characters like 'R1'
+        FormId mCreateObject = kNullFormId; ///< ALCO (task 0306): the base form the alias creates a reference of
+        std::uint32_t mCreateAt = kNoCreateAt; ///< ALCA: the alias whose reference it is created at (kNoCreateAt: none)
+        std::uint32_t mCreateLevel = 0; ///< ALCL: 0 Easy, 1 Medium, 2 Hard, 3 Very Hard, 4 None (leveled actors)
         std::vector<survey::Ctda> mConditions;
         /// The data alone says who fills it: a specific reference or a unique actor.
         [[nodiscard]] bool dataFillable() const

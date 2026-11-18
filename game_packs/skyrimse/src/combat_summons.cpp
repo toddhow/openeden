@@ -8,6 +8,7 @@
 #include <game_skyrimse/combat.hpp>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -258,11 +259,18 @@ namespace game_skyrimse
 
     void SkyrimCombat::tickSummons(CombatRequestWriter& writer)
     {
-        if (!mTestKill.empty() && mClock >= kSummonTestKillSeconds)
+        // Task 0306: `summons test kill = <editor id>@<seconds>` kills it no earlier than that combat second (the cultist
+        // of the ambush is created long after the data was read, and must talk first)
+        const std::size_t killAt = mTestKill.find('@');
+        const std::string killName = killAt == std::string::npos ? mTestKill : mTestKill.substr(0, killAt);
+        const float killAfter = killAt == std::string::npos
+            ? kSummonTestKillSeconds
+            : std::max(kSummonTestKillSeconds, static_cast<float>(std::atof(mTestKill.c_str() + killAt + 1)));
+        if (!mTestKill.empty() && mClock >= killAfter)
         {
             for (const auto& named : mActorNames)
             {
-                if (named.second != mTestKill)
+                if (named.second != killName)
                     continue;
                 Fighter* victim = find(CombatSubject::of(named.first));
                 if (victim != nullptr && !victim->mDead && ready(*victim))

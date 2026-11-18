@@ -2746,6 +2746,15 @@ namespace game_skyrimse
             ++mPackagesRevision; // task 0277: a running quest may now give (or stop giving) an actor packages
     }
 
+    void SkyrimWorldView::startPackageQuest(FormId quest)
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || !mDialogue->mData->mQuests.quest(quest))
+            return;
+        mDialogue->mPackageQuests.start(quest);
+        if (mAliasPackagesOn)
+            ++mPackagesRevision;
+    }
+
     const PlacedRefIndex* SkyrimWorldView::placedRefs() const
     {
         return mDialogue != nullptr && mDialogue->mData != nullptr ? &mDialogue->mData->mPlacedRefs : nullptr;

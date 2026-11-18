@@ -544,13 +544,104 @@ namespace game_skyrimse
         // Task 0187: the aliases of a quest that starts get their references (`matching`: also the find-matching ones).
         void fillAliases(FormId quest, bool matching)
         {
-            if (mFiller == nullptr || mState == nullptr)
+            if (mState == nullptr)
                 return;
-            const std::size_t filled = mFiller->fillQuest(quest, *mState, matching);
-            mCounters.mAliasesFilled += filled;
-            if (filled != 0 && matching)
+            if (mFiller != nullptr)
+            {
+                const std::size_t filled = mFiller->fillQuest(quest, *mState, matching);
+                mCounters.mAliasesFilled += filled;
+                if (filled != 0 && matching)
+                    say(false,
+                        "Papyrus: quest " + hex(quest) + " started with " + std::to_string(filled) + " aliases filled");
+            }
+            if (matching)
+                createAliasObjects(quest);
+        }
+
+        // Task 0306: an alias that creates a reference (ALCO, ALCA: the DLC's cultist ambush makes its cultists and the
+        // note at the town's centre marker) gets one when the quest starts. The new reference is placed as PlaceAtMe
+        // places one (an actor through the actor system) near the reference of the alias the data names.
+        void createAliasObjects(FormId quest)
+        {
+            if (mIndex == nullptr || mState == nullptr || mHooks == nullptr)
+                return;
+            const QuestRecord* record = mIndex->quest(quest);
+            if (record == nullptr)
+                return;
+            std::uint32_t madeHere = 0; // how many this call has put at the same place: they do not stand on each other
+            for (const QuestAlias& alias : record->mAliases)
+            {
+                if (alias.mFill != AliasFillKind::CreatedObject || alias.mCreateObject == 0
+                    || alias.mCreateAt == kNoCreateAt || mState->aliasFill(quest, alias.mId).mReference != 0)
+                    continue;
+                const FormId at = aliasReferenceOf(quest, alias.mCreateAt);
+                if (at == 0)
+                {
+                    say(false,
+                        "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " is created at alias "
+                            + std::to_string(alias.mCreateAt) + ", which holds nothing");
+                    continue;
+                }
+                // the first stands at the place, the next ones on a spiral round it (110 units, then 155 ...: a capsule
+                // is 44 wide, and two actors in one spot would block each other's first step)
+                const double turn = static_cast<double>(madeHere) * 2.399963229728653; // the golden angle
+                const double reach = 110.0 * std::sqrt(static_cast<double>(madeHere));
+                const FormId made = placeNear(
+                    alias.mCreateObject, at, false, true, reach * std::cos(turn), reach * std::sin(turn));
+                if (made == 0)
+                    continue;
+                ++madeHere;
+                mState->setAliasFill(quest, alias.mId, AliasFill{ true, made, kNullFormId });
+                ++mAliasRevision; // task 0305's lookup: the alias now holds a reference
+                aliasFactionChange(quest, alias.mId, 0, made); // ALFC: the alias fill joins its factions
                 say(false,
-                    "Papyrus: quest " + hex(quest) + " started with " + std::to_string(filled) + " aliases filled");
+                    "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " holds the new "
+                        + hex(alias.mCreateObject) + " " + hex(made));
+            }
+        }
+
+        // PlaceAtMe's one placement: a new reference of `base` at the place of `self`; the host keeps it. 0: refused.
+        FormId placeNear(FormId base, FormId self, bool disabled, bool allowActor, double offsetX = 0.0,
+            double offsetY = 0.0)
+        {
+            double where[3] = { 0.0, 0.0, 0.0 };
+            if (self == 0 || base == 0 || mHooks == nullptr || !positionOf(self, where))
+            {
+                if (self != 0 && base != 0 && mHooks != nullptr)
+                    say(false, "Papyrus: PlaceAtMe near " + hex(self) + " has no position to place at");
+                return 0;
+            }
+            std::array<double, 3> angles{};
+            (void)anglesOf(self, angles);
+            const auto nearCreated = mCreated.find(self);
+            ObjectPlaceRequest request;
+            request.base = base;
+            request.nearReference = self;
+            request.nearCell = nearCreated != mCreated.end() ? nearCreated->second.mCell : 0;
+            request.allowActor = allowActor;
+            where[0] += offsetX;
+            where[1] += offsetY;
+            for (std::size_t k = 0; k < 3; ++k)
+            {
+                request.position[k] = where[k];
+                request.angles[k] = angles[k];
+            }
+            const ObjectPlaceResult placed = mHooks->placeObject(request);
+            if (placed.reference == 0 || mCreated.size() >= kMaxCreatedKept)
+                return 0;
+            CreatedObject created;
+            created.mReference = placed.reference;
+            created.mBase = base;
+            created.mCell = placed.cell;
+            created.mPosition = { where[0], where[1], where[2] };
+            created.mAngles = angles;
+            mCreated[placed.reference] = created;
+            if (placed.actor)
+                mCreatedActors.insert(placed.reference); // task 0306: a quest alias's actor is a script Actor
+            say(false, "Papyrus: " + hex(base) + " placed as " + hex(placed.reference) + " near " + hex(self));
+            if (disabled)
+                setEnabled(placed.reference, false, 0.f);
+            return placed.reference;
         }
 
         // Task 0187: the runtime refuses to load a script from inside a native, and attaching a quest that no script
@@ -631,6 +722,8 @@ namespace game_skyrimse
                 return;
             fillAliases(quest, true);
             mState->start(quest);
+            if (mQuestStarted)
+                mQuestStarted(quest); // task 0306: the package brain's copy of the quests runs it
             afterNative([this, quest] {
                 (void)attachQuest(quest);
                 runStartUpStage(quest);
@@ -1542,46 +1635,16 @@ namespace game_skyrimse
             reg("ObjectReference", "PlaceAtMe", false, [this](const NativeCall& c) {
                 const FormId self = formOf(c.self);
                 const FormId base = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
-                double where[3] = { 0.0, 0.0, 0.0 };
-                if (self == 0 || base == 0 || mHooks == nullptr || !positionOf(self, where))
-                {
-                    if (self != 0 && base != 0 && mHooks != nullptr)
-                        say(false, "Papyrus: PlaceAtMe near " + hex(self) + " has no position to place at");
-                    return result(PapyrusValue::makeNone());
-                }
-                std::array<double, 3> angles{};
-                (void)anglesOf(self, angles);
-                const auto nearCreated = mCreated.find(self);
-                const FormId nearCell = nearCreated != mCreated.end() ? nearCreated->second.mCell : 0;
                 const std::int32_t count = std::clamp<std::int32_t>(argInt(c, 1), 1, kMaxPlaceCount);
                 const bool disabled = argNumber(c, 3) != 0.0;
                 FormId first = 0;
                 for (std::int32_t i = 0; i < count; ++i)
                 {
-                    ObjectPlaceRequest request;
-                    request.base = base;
-                    request.nearReference = self;
-                    request.nearCell = nearCell;
-                    for (std::size_t k = 0; k < 3; ++k)
-                    {
-                        request.position[k] = where[k];
-                        request.angles[k] = angles[k];
-                    }
-                    const ObjectPlaceResult placed = mHooks->placeObject(request);
-                    if (placed.reference == 0 || mCreated.size() >= kMaxCreatedKept)
+                    const FormId made = placeNear(base, self, disabled, false);
+                    if (made == 0)
                         break;
-                    CreatedObject created;
-                    created.mReference = placed.reference;
-                    created.mBase = base;
-                    created.mCell = placed.cell;
-                    created.mPosition = { where[0], where[1], where[2] };
-                    created.mAngles = angles;
-                    mCreated[placed.reference] = created;
-                    say(false, "Papyrus: " + hex(base) + " placed as " + hex(placed.reference) + " near " + hex(self));
-                    if (disabled)
-                        setEnabled(placed.reference, false, 0.f);
                     if (first == 0)
-                        first = placed.reference;
+                        first = made;
                 }
                 return first != 0 ? result(PapyrusValue::makeForm(intern("ObjectReference"), first))
                                   : result(PapyrusValue::makeNone());
@@ -1650,6 +1713,8 @@ namespace game_skyrimse
                     startQuest(quest);
                 return result(PapyrusValue::makeBool(!was));
             });
+            // Task 0306: the journal's active quest (the DLC's quest sets it at stage 5): no journal marker is kept
+            reg("Quest", "SetActive", false, [](const NativeCall&) { return NativeResult{}; });
             reg("Quest", "Stop", false, [this](const NativeCall& c) {
                 if (mState != nullptr)
                     mState->stop(formOf(c.self));
@@ -2422,6 +2487,7 @@ namespace game_skyrimse
         PapyrusHostCounters mCounters;
         LogFunction mLog;
         QuestChanged mQuestChanged;
+        QuestStarted mQuestStarted; // task 0306
         StoryStarted mStoryStarted; ///< task 0217
         EnableChanged mEnableChanged;
         const QuestIndex* mIndex = nullptr;
@@ -3388,6 +3454,23 @@ namespace game_skyrimse
         for (const InstanceId instance : m.instancesOf(item))
             if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
                 ++m.mCounters.mItemEvents;
+        // Task 0306: a script on a reference a quest alias created of this base (the cultists' orders) hears of it too
+        for (const auto& [reference, created] : m.mCreated)
+            if (created.mBase == item)
+                for (const InstanceId instance : m.instancesOf(reference))
+                    if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
+                        ++m.mCounters.mItemEvents;
+    }
+
+    void PapyrusHost::onItemRead(FormId base)
+    {
+        Impl& m = *mImpl;
+        if (base == 0)
+            return;
+        for (const auto& [reference, created] : m.mCreated)
+            if (created.mBase == base)
+                for (const InstanceId instance : m.instancesOf(reference))
+                    (void)m.sendEvent(instance, "OnRead");
     }
 
     void PapyrusHost::onActorHit(FormId victim, FormId attacker, bool blocked, bool bash)
@@ -3669,6 +3752,11 @@ namespace game_skyrimse
     void PapyrusHost::setQuestChanged(QuestChanged changed)
     {
         mImpl->mQuestChanged = std::move(changed);
+    }
+
+    void PapyrusHost::setQuestStarted(QuestStarted started)
+    {
+        mImpl->mQuestStarted = std::move(started);
     }
 
     void PapyrusHost::setEnableChanged(EnableChanged changed)

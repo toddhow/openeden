@@ -256,6 +256,7 @@ namespace game_skyrimse
         double position[3] = {};
         double angles[3] = {};
         float scale = 1.f;
+        bool allowActor = false; ///< task 0306: a quest alias creates an actor (PlaceAtMe never does)
     };
 
     struct ObjectPlaceResult
@@ -624,6 +625,10 @@ namespace game_skyrimse
 
         void setLog(LogFunction log);
         void setQuestChanged(QuestChanged changed);
+        /// Task 0306: a quest started (not by a stage: the story manager's start): the package brain learns of it. What a
+        /// quest created for an alias is read through `aliasReference` (task 0305's lookup) and moves `aliasRevision`.
+        using QuestStarted = std::function<void(FormId quest)>;
+        void setQuestStarted(QuestStarted started);
         /// Task 0217: told after the story manager's event started a quest and its aliases were filled (a developer's
         // log).
         using StoryStarted = std::function<void(FormId quest, const StoryEvent& event)>;
@@ -779,6 +784,9 @@ namespace game_skyrimse
 
         /// Task 0234: the player read a placed book: sends OnRead to its instances.
         void onRead(FormId target);
+        /// Task 0306: the player read a book from the inventory: sends OnRead to the scripts on the references scripts
+        /// created of that base (the cultists' orders; an inventory item has no reference of its own here).
+        void onItemRead(FormId base);
 
         /// Advances script time by \a dt seconds: fires the updates that are due, runs the queued events and wakes
         /// the waiting scripts.

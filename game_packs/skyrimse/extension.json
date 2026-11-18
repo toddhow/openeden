@@ -706,6 +706,16 @@
       "default": 0
     },
     {
+      "key": "dragonborn",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "dragonborn test prerequisites",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "civil war",
       "type": "bool",
       "default": false

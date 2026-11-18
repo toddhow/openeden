@@ -9,6 +9,7 @@
 #include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/diseases.hpp"
+#include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/harvest_service.hpp"
 #include "game_skyrimse/houses.hpp"
@@ -409,6 +410,7 @@ namespace game_skyrimse
                     if (mCompanionsTraining && quest == kCompanionsQuest && stage == 20)
                         mTrainingPending = true;
                 });
+                mHost.setQuestStarted([this](FormId quest) { mView.startPackageQuest(quest); }); // task 0306
                 mHost.setLocationKeywordData(&mView.keywordData()); // task 0217
                 // task 0305: an alias a script forced gives its actor the alias's packages, and a package condition on
                 // the alias reads what it holds
@@ -422,6 +424,7 @@ namespace game_skyrimse
                 if (!mStarted && !tryStart())
                     return;
                 flushPending();
+                applyDragonbornPrerequisite(); // task 0306: before the first story event is walked
                 applyPendingScenes(); // task 0211
                 applyPendingStory(); // task 0217
                 processPlace();
@@ -717,6 +720,25 @@ namespace game_skyrimse
 
             // One frame after the start (the scripts of the quest attach right after it): the cells of the start were
             // loaded before the quest, so the quest's cell-load registrations are told now (stage 12 waits for them)
+            // Task 0306 (a developer aid): MQ105 stage 160 is marked done once, as soon as the host runs, so the story
+            // manager's cultist ambush node can pass (its condition GetStage(MQ105) >= 160)
+            void enableDragonbornPrerequisite() { mDragonbornPrerequisite = true; }
+            // task 0306: a stage's fragments run only when their log entry's conditions hold (DLC2MQ01's stage 10 has three,
+            // by where the player is), as with `houses`
+            void enableDragonborn() { mDragonborn = true; }
+            void itemRead(FormId base) { mHost.onItemRead(base); } // task 0306
+            void applyDragonbornPrerequisite()
+            {
+                if (!mDragonbornPrerequisite || mDragonbornApplied || !mHost.started())
+                    return;
+                mDragonbornApplied = true;
+                const dragonborn::Prerequisite& need = dragonborn::kPrerequisite;
+                const FormId quest = mData.formFromFile(need.mFile, need.mLocal);
+                say(openeden::sdk::LogLevel::Info,
+                    "DRAGONBORN test prerequisites: quest " + hexId(quest) + " stage " + std::to_string(need.mStage)
+                        + (quest != 0 && mHost.markStageDoneForTest(quest, need.mStage) ? " marked done" : " was refused"));
+            }
+
             void replayMainQuestCellLoad()
             {
                 if (!mMainQuestReplay)
@@ -759,7 +781,7 @@ namespace game_skyrimse
                 // fragments of a dialogue line the player picks run here
                 mHost.setAliasFiller(access.mAliases);
                 mHost.setStoryEventSink(access.mStory);
-                if ((mHouses || mMainQuest) && access.mQuestConditions)
+                if ((mHouses || mMainQuest || mDragonborn) && access.mQuestConditions)
                 {
                     const QuestIndex* quests = access.mQuests;
                     const auto conditions = access.mQuestConditions;
@@ -1437,8 +1459,9 @@ namespace game_skyrimse
                         "PAPYRUS PlaceAtMe: " + hexId(request.base) + " is not a base form");
                     return none;
                 }
-                if (placed.baseKind == openeden::sdk::game::BaseKind::Actor
-                    || placed.baseKind == openeden::sdk::game::BaseKind::LeveledList
+                // task 0306: a quest alias may create an actor (the cultist ambush); PlaceAtMe never does
+                const bool actorBase = placed.baseKind == openeden::sdk::game::BaseKind::Actor;
+                if ((actorBase && !request.allowActor) || placed.baseKind == openeden::sdk::game::BaseKind::LeveledList
                     || placed.baseKind == openeden::sdk::game::BaseKind::Unknown)
                 {
                     say(openeden::sdk::LogLevel::Info,
@@ -1459,7 +1482,9 @@ namespace game_skyrimse
                     return none;
                 }
                 const FormId cell = request.nearCell != 0 ? request.nearCell : cellOfReference(request.nearReference);
-                const openeden::sdk::game::WorldId id = mSources->placeObject(mCells, cell, object);
+                const FormId hint = actorBase && cell != 0 && mData.cellIsInterior(cell) ? cell : 0;
+                const openeden::sdk::game::WorldId id = actorBase ? mSources->placeActor(mCells, hint, object)
+                                                                  : mSources->placeObject(mCells, cell, object);
                 if (id == openeden::sdk::game::kNoWorldId)
                 {
                     say(openeden::sdk::LogLevel::Info,
@@ -1468,8 +1493,15 @@ namespace game_skyrimse
                 }
                 say(openeden::sdk::LogLevel::Info,
                     "PAPYRUS placed " + hexId(request.base) + " as " + hexId(static_cast<FormId>(id)) + " in cell "
-                        + hexId(cell));
-                return { static_cast<FormId>(id), cell };
+                        + hexId(cell) + (actorBase ? " (an actor)" : ""));
+                if (actorBase)
+                    mView.noteCreatedActor(static_cast<FormId>(id), request.base); // speaks as its base does
+                ObjectPlaceResult made{ static_cast<FormId>(id), cell };
+                made.actor = actorBase;
+                // task 0306: the scripts of the base (the cultists' orders have one) attach when the next frame runs, as
+                // a native cannot load a script
+                mPendingCreatedAttach.push_back({ static_cast<FormId>(id), request.base, actorBase });
+                return made;
             }
 
             // Task 0268: a script moved an actor, or an object of another cell, to a place near the player: the world
@@ -1563,6 +1595,11 @@ namespace game_skyrimse
         private:
             void flushPending()
             {
+                for (const CreatedAttach& made : mPendingCreatedAttach) // task 0306
+                    if (const std::vector<vmad::Script>* scripts = mView.scriptsOfBase(made.mBase);
+                        scripts != nullptr && !scripts->empty())
+                        mHost.attachReference(made.mReference, made.mBase, made.mActor, *scripts);
+                mPendingCreatedAttach.clear();
                 while (!mPendingCells.empty())
                 {
                     const openeden::sdk::game::WorldId cell = mPendingCells.front();
@@ -1632,6 +1669,16 @@ namespace game_skyrimse
             const QuestIndex* mHouseQuests = nullptr; ///< task 0269
             bool mHousesPermission = false;
             bool mHousesApplied = false;
+            struct CreatedAttach
+            {
+                FormId mReference = 0;
+                FormId mBase = 0;
+                bool mActor = false;
+            };
+            std::vector<CreatedAttach> mPendingCreatedAttach; ///< task 0306: created references waiting for their scripts
+            bool mDragonbornPrerequisite = false; ///< task 0306
+            bool mDragonborn = false; ///< task 0306
+            bool mDragonbornApplied = false;
             bool mMainQuest = false; ///< task 0268
             float mSceneParkSeconds = 0.f; ///< task 0287: 0 keeps the runner's default
             std::map<FormId, FormId> mMovedCells; ///< task 0286: a reference the world moved -> the cell it stands in
@@ -2086,6 +2133,10 @@ namespace game_skyrimse
                                     logger->log(openeden::sdk::LogLevel::Info,
                                         "ACTORMOVES actors and objects move between cells through the world");
                             }
+                            if (settings->getBool(kPackId, std::string(dragonborn::kTestPrerequisitesKey), false)) // task 0306
+                                mPapyrus->enableDragonbornPrerequisite();
+                            if (settings->getBool(kPackId, std::string(dragonborn::kKey), false))
+                                mPapyrus->enableDragonborn();
                             if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
                             {
                                 mPapyrus->enableMainQuest();
@@ -2437,6 +2488,11 @@ namespace game_skyrimse
                             return false;
                         const PlacedRefIndex* refs = mWorldView.placedRefs();
                         const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                        if (entry == nullptr && mPapyrus != nullptr) // task 0306: a reference a script or quest created
+                            for (const PapyrusHost::CreatedObject& created : mPapyrus->host().createdObjects())
+                                if (created.mReference == reference && created.mBase != 0)
+                                    return mInventory->open(owner, created.mBase,
+                                        mPapyrus->isActor(reference) ? "actor" : "container");
                         if (entry == nullptr || entry->mBase == 0)
                             return false;
                         return mInventory->open(
@@ -2549,7 +2605,7 @@ namespace game_skyrimse
                 };
                 // Task 0302: a script's SetAV("Aggression", n) reaches the combat AI (the other actor values stay the host's)
                 env.actorValueSet = [this, handleOfActor](FormId actor, std::string_view name, double value) {
-                    if (!mAmbushOn || name != "aggression")
+                    if (!(mAmbushOn || mDragonbornOn) || name != "aggression") // task 0306: the cultists' Aggression
                         return;
                     openeden::sdk::game::ActorHandle handle = handleOfActor(actor);
                     if (!handle.valid())
@@ -4821,7 +4877,32 @@ namespace game_skyrimse
                     return true;
                 };
                 hooks.mResolve = [this](const LString& text, std::uint32_t plugin, StringTableKind kind) {
-                    return resolveBookString(text, plugin, kind);
+                    std::string resolved = resolveBookString(text, plugin, kind);
+                    // Task 0306: the cultists' orders name the player and his pronoun by alias tags (`<Alias=Player>`);
+                    // the alias of the quest that made the note is where the name comes from
+                    if (resolved.find("<Alias") != std::string::npos)
+                    {
+                        const FormId quest = mWorldView.formFromFile(
+                            dragonborn::kDragonbornFile, dragonborn::kCultistAmbushLocal);
+                        journal::TagHooks tags;
+                        const auto isPlayer = [](std::string_view alias) {
+                            return alias.size() == 6 && (alias[0] == 'P' || alias[0] == 'p')
+                                && (alias.substr(1) == "layer" || alias.substr(1) == "LAYER");
+                        };
+                        tags.mAlias = [this, quest, isPlayer](std::string_view alias) {
+                            if (isPlayer(alias)) // the player's own name, not the stand-in record's
+                                return mWorldView.playerName().empty() ? std::string("the Dragonborn")
+                                                                       : mWorldView.playerName();
+                            return mWorldView.aliasDisplayName(quest, alias);
+                        };
+                        tags.mAliasFemale = [this, quest, isPlayer](std::string_view alias) {
+                            if (isPlayer(alias))
+                                return mWorldView.standInPlayerFemale() ? 1 : 0;
+                            return mWorldView.aliasFemale(quest, alias);
+                        };
+                        resolved = journal::expandTags(resolved, tags, std::string_view());
+                    }
+                    return resolved;
                 };
                 hooks.mName = [this](FormId id) { return mWorldView.displayNameOf(id); };
                 hooks.mSkill = [this]() {
@@ -4841,6 +4922,10 @@ namespace game_skyrimse
                 hooks.mSpellName = [this](FormId spell) -> std::string {
                     const SpellRecord* record = mWorldView.spellById(spell);
                     return record != nullptr ? progression::prettyPerkName(record->mCommon.mEditorId) : std::string();
+                };
+                hooks.mBookRead = [this](FormId item) { // task 0306: OnRead of a note a quest made (the cultists' orders)
+                    if (mPapyrus != nullptr)
+                        mPapyrus->itemRead(item);
                 };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
@@ -5761,6 +5846,13 @@ namespace game_skyrimse
                             say(openeden::sdk::LogLevel::Info,
                                 "quest alias packages: quests' ALPC packages join the actors' lists, ForceGreet "
                                 "packages greet the player");
+                            if (settings->getBool(kPackId, std::string(dragonborn::kKey), false)) // task 0306
+                            {
+                                mCellSource.actorTable().setApproachGreeters(true);
+                                mDragonbornOn = true;
+                                say(openeden::sdk::LogLevel::Info,
+                                    "dragonborn: ForceGreet packages walk the actor to the player first");
+                            }
                         }
                         // Task 0196: followers need the package brain.
                         const std::string recruits = settings->getString(kPackId, kFollowerTestRecruitKey, "");
@@ -5979,6 +6071,7 @@ namespace game_skyrimse
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
             bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush
+            bool mDragonbornOn = false; // task 0306: [extension.skyrimse] dragonborn
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source

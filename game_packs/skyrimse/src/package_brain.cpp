@@ -1142,7 +1142,8 @@ namespace game_skyrimse
         }
         // Task 0271: a ForceGreet package wants the player talked to
         FormId greetTopic = kNullFormId;
-        if (chosen != nullptr && mGreetHook && mSource.forceGreetTopic(*chosen, greetTopic))
+        const bool greets = chosen != nullptr && mGreetHook && mSource.forceGreetTopic(*chosen, greetTopic);
+        if (greets)
         {
             // Task 0305: the greeting package leads the actor to the player (DLC1VQ00's messenger waits outside the
             // town); the core's forced greeting only opens within the range the Lua script allows
@@ -1151,7 +1152,7 @@ namespace game_skyrimse
             {
                 double sx = actor.mX, sy = actor.mY, sz = actor.mZ;
                 (void)writer.actorPosition(actor.mHandle, sx, sy, sz);
-                if (distance2d(px, py, sx, sy) > kGreetApproachFrom)
+                if (distance2d(px, py, sx, sy) > mGreetFrom)
                 {
                     actor.mGreetApproach = true;
                     return;
@@ -1376,7 +1377,7 @@ namespace game_skyrimse
                     actor.mX = sx;
                     actor.mY = sy;
                     actor.mZ = sz;
-                    near = distance2d(px, py, sx, sy) <= kGreetApproachStop;
+                    near = distance2d(px, py, sx, sy) <= mGreetStop;
                 }
                 if (near || actor.mTalking)
                 {

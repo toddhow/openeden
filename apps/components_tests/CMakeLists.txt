@@ -786,6 +786,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedb01.cpp
     skyrimse/testskyrimsemainquest.cpp
     skyrimse/testskyrimsepapyrusobjects.cpp
+    skyrimse/testskyrimsedragonborn.cpp
     skyrimse/testskyrimsedescribebase.cpp
     skyrimse/testskyrimsepackages.cpp
     skyrimse/testskyrimsepackagebrain.cpp

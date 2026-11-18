@@ -368,6 +368,8 @@ namespace game_skyrimse::lockbooks
                 result = "Nothing is learned from it.";
         }
         mImpl->mResults[item] = result;
+        if (held && mHooks.mBookRead)
+            mHooks.mBookRead(item);
         if (mHooks.mLog)
             mHooks.mLog("LOCKBOOKS read '" + title + "' (" + std::string(bookKindName(b->kind())) + ")"
                 + (result.empty() ? std::string() : ": " + result));

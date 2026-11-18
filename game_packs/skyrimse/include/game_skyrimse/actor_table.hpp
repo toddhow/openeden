@@ -102,6 +102,13 @@ namespace game_skyrimse
                 mBrain->setForceGreetHook(std::move(hook));
         }
 
+        /// Task 0306: see PackageBrain::setApproachGreeters (no brain: nothing).
+        void setApproachGreeters(bool on)
+        {
+            if (mBrain)
+                mBrain->setApproachGreeters(on);
+        }
+
         /// Stage S6f: the player begins or ends a conversation with the actor of this placement (forwarded to the
         /// brain).
         void onConversation(openeden::sdk::game::WorldId reference, bool begins)

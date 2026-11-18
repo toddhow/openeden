@@ -1,0 +1,41 @@
+1900 mouse 640 325
+1904 down L 640 325
+1906 up L 640 325
+2200 mouse 592 397
+2204 down L 592 397
+2206 up L 592 397
+2500 mouse 592 397
+2504 down L 592 397
+2506 up L 592 397
+2800 mouse 660 397
+2804 down L 660 397
+2806 up L 660 397
+2900 shot
+3200 shot
+3500 shot
+3800 shot
+4100 shot
+4400 shot
+5050 mouse 497 511
+5054 down L 497 511
+5056 up L 497 511
+5150 shot
+5200 mouse 560 511
+5204 down L 560 511
+5206 up L 560 511
+5300 key I down
+5302 key I up
+5400 shot
+5450 shot
+5500 mouse 367 232
+5504 down L 367 232
+5506 up L 367 232
+5650 shot
+5700 mouse 630 466
+5704 down L 630 466
+5706 up L 630 466
+5850 key I down
+5852 key I up
+6150 key J down
+6152 key J up
+6350 shot
