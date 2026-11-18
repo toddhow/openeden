@@ -1080,6 +1080,8 @@ namespace game_skyrimse
         const FormId type = resolve(refType);
         return static_cast<float>(mLocations->countSpecialRefs(place, type, [this](FormId reference) {
             const PlacedEntry* entry = mPlacedRefs != nullptr ? mPlacedRefs->find(reference) : nullptr;
+            if (mDeadLookup && mDeadLookup(reference))
+                return false; // killed in this session (task 0326)
             return entry == nullptr || (entry->mFlags & PlacedFlags::Dead) == 0;
         }));
     }

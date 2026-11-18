@@ -1370,6 +1370,8 @@ namespace game_skyrimse
             raw->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
         if (mVendorServicesLookup)
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
+        if (mDeadLookup)
+            raw->mRuntime->setDeadLookup(mDeadLookup); // task 0326
         raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
         if (mLiveActorPlace)
         {
@@ -1384,6 +1386,7 @@ namespace game_skyrimse
         raw->mRuntime->setBlockingBranches(mBlockingBranches); // task 0298
         raw->mRuntime->setQuestGreetings(mQuestGreetings); // task 0304
         raw->mRuntime->setWalkAwayTopics(mWalkAwayTopics); // task 0315
+        raw->mRuntime->setWalkAwayInfos(mWalkAwayInfos); // task 0326
         raw->mRuntime->setTrace(mDialogueTrace);
         raw->mRuntime->setFragmentFlush(mFragmentFlush);
         raw->mRuntime->setRankMinusOneMembers(mRankMinusOneMembers); // task 0261
@@ -2289,6 +2292,13 @@ namespace game_skyrimse
             mDialogue->mRuntime->setVendorServicesLookup(mVendorServicesLookup);
     }
 
+    void SkyrimWorldView::setDeadLookup(std::function<bool(FormId)> lookup)
+    {
+        mDeadLookup = std::move(lookup);
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setDeadLookup(mDeadLookup);
+    }
+
     void SkyrimWorldView::setLiveActorPlace(std::function<bool(FormId, double&, double&, double&)> lookup)
     {
         mLiveActorPlace = std::move(lookup);
@@ -2348,6 +2358,13 @@ namespace game_skyrimse
         mWalkAwayTopics = on;
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setWalkAwayTopics(on);
+    }
+
+    void SkyrimWorldView::setWalkAwayInfos(bool on)
+    {
+        mWalkAwayInfos = on;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setWalkAwayInfos(on);
     }
 
     void SkyrimWorldView::setQuestGreetings(bool on)

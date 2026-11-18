@@ -197,6 +197,7 @@ namespace game_skyrimse
         }
         out.endsConversation = (info.mFlags & InfoFlags::Goodbye) != 0;
         mWalkAway = info.mWalkAwayTopic; // task 0315: the last response decides which walk-away topic waits
+        mLastTopic = info.mTopic; // task 0326
         out.hadUnrunEffects = info.mHasScript;
         // Task 0187: the fragments of the INFO go to the script host (begin, then end).
         if (mFragmentSink && info.mVmad != nullptr && info.mVmad->mHasInfoFragments
@@ -799,6 +800,18 @@ namespace game_skyrimse
                 fillTurn(*s.mInfo, quiet);
             }
         }
+        else if (mWalkAwayInfos && mLastTopic != kNullFormId && mOpen)
+        {
+            // Task 0326: no TWAT; the topic of the last response may hold a walk-away INFO of its own (flag 0x80): the
+            // first INFO that passes runs its fragments if it is that kind (Rikke's INFO 0D5EE9: CW01A stage 160)
+            const Selection s = selectInfo(mDialogue, mLastTopic, mWorld, mSpeaker, options(0));
+            if (s.mInfo != nullptr && (s.mInfo->mFlags & InfoFlags::WalkAway) != 0)
+            {
+                openeden::sdk::game::DialogueTurn quiet;
+                fillTurn(*s.mInfo, quiet);
+            }
+        }
+        mLastTopic = kNullFormId;
         mWalkAway = kNullFormId;
         mChoices.clear();
         mOpen = false;

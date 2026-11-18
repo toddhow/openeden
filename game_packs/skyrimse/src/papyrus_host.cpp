@@ -2087,6 +2087,14 @@ namespace game_skyrimse
                         formOf(c.self), formOf(c.arguments[0]), static_cast<float>(argNumber(c, 1)));
                 return NativeResult{};
             });
+            // Task 0326: CW01Script.checkLocRefTypeAliveCount (run after each of Fort Hraggstad's bandits dies): the
+            // quest reaches its stage 100 when none of the location's CWFortMonster references is left alive
+            reg("Location", "GetRefTypeAliveCount", false, [this](const NativeCall& c) {
+                const float alive = c.arguments.empty()
+                    ? 0.f
+                    : mData.refTypeAliveCount(formOf(c.self), formOf(c.arguments[0]));
+                return result(PapyrusValue::makeInt(static_cast<std::int32_t>(alive)));
+            });
             reg("Location", "GetKeywordData", false, [this](const NativeCall& c) {
                 const float value = mKeywordData != nullptr && !c.arguments.empty()
                     ? mKeywordData->get(formOf(c.self), formOf(c.arguments[0]))

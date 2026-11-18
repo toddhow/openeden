@@ -28,6 +28,15 @@
 # Steps: Galmar's blocking line (stage 7), Goodbye; Ulfric's forced greeting and its choices (stage 10 at its end); Galmar's questions
 # and "I'm off to kill that Ice Wraith" (stages 15 and 20, CW01B started, objective 1 in the journal); (stage 100 set by the aid)
 # Galmar's "You're alive" greeting, Oath?, "I'm ready", the four oath lines, Goodbye (CW01B stages 160 and 200); the journal (J).
+# Task 0326, the rest of the Legion join (Fort Hraggstad, the report, the oath): CELLID='@Tamriel,-111950,115200,-4950' (next to the fort's
+# bandits), INPUT=legion2_input.txt (next to this file), 12200 frames, SETTINGS_EXTRA with `civil war = true`, `quest alias packages = true`,
+# `combat trace = true`, `combat spell delivery = true`, `summons = true`, `summons test kill = lvlbandit*@45` (the 13 bandits die one an update:
+# the kills are the aid's, not a fight), `story test delay = 3`, `story test quest = 0D3C5F:20,0C349B:11@55` (CW00A stage 20 starts CW01A; the
+# armour quest's stage 11 is hand-set) and
+#   PLAN="{3600,'cell','SolitudeCastleDour',-808,1048,0,0},{4000,'talk'}"
+# Steps: the bandits die (CW01A stage 100), the player moves to Castle Dour and talks to Rikke (her stage 100 greeting), Goodbye (walk-away
+# INFO: stage 160), Tullius' forced greeting, "I'm ready to take the Oath.", the four oath lines, Goodbye (stage 200, CW02A started, Rikke's
+# next forced greeting), Goodbye, the journal.
 #
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)

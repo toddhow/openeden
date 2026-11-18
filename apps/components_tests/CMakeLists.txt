@@ -693,6 +693,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsehouses2.cpp
     skyrimse/testskyrimsebards.cpp
     skyrimse/testskyrimsecivilwar.cpp
+    skyrimse/testskyrimsecivilwar2.cpp
+    skyrimse/testskyrimsewalkaway2.cpp
     skyrimse/testskyrimsedawnguard.cpp
     skyrimse/testskyrimsedawnguardfort.cpp
     skyrimse/testskyrimsedaedriccontinue.cpp

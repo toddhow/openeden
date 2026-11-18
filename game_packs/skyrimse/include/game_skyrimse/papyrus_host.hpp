@@ -222,6 +222,13 @@ namespace game_skyrimse
             (void)reference;
             return 0;
         }
+        /// Task 0326: Location.GetRefTypeAliveCount(akRefType): how many of the location's special references of that
+        /// type are alive (not placed dead and not killed in this session). Default 0.
+        [[nodiscard]] virtual float refTypeAliveCount(FormId location, FormId refType) const
+        {
+            (void)location, (void)refType;
+            return 0.f;
+        }
         /// Task 0276: the location of a cell (0: none), and whether a location is the ancestor or inside it
         /// (ObjectReference.IsInLocation). Defaults: none, and only the same location.
         [[nodiscard]] virtual FormId locationOfCell(FormId cell) const

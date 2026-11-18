@@ -573,6 +573,9 @@ namespace game_skyrimse
         /// references of the location with that type that are not placed dead; off, 0 as before.
         float refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const override;
         void setCountRefTypes(bool on) { mCountRefTypes = on; }
+        /// Task 0326: the references that died in this session (the pack's death sink). With it, GetRefTypeAliveCount
+        /// (Fort Hraggstad's bandits) and GetDead on a placed reference also count a killed reference as dead.
+        void setDeadLookup(std::function<bool(FormId)> lookup) { mDeadLookup = std::move(lookup); }
         bool inDialogueWithPlayer(conditions::Subject subject) const override;
         float randomPercent() const override;
         bool inInterior(conditions::Subject subject) const override;
@@ -720,6 +723,7 @@ namespace game_skyrimse
         mutable std::uint64_t mRandomState = 0;
         const LocationIndex* mLocations = nullptr;
         bool mCountRefTypes = false; ///< task 0298
+        std::function<bool(FormId)> mDeadLookup; ///< task 0326
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261
         TalkedLookup mTalkedLookup; ///< task 0324

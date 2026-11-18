@@ -250,6 +250,29 @@ namespace game_skyrimse
                 *writer, nullptr, *f, kHealthValue, -(f->mProfile.mHealthMax + f->mHealth + 1.f), nullptr);
     }
 
+    bool testKillMatches(std::string_view spec, std::string_view actor, bool& multi)
+    {
+        multi = spec.find(',') != std::string_view::npos || (!spec.empty() && spec.back() == '*');
+        while (!spec.empty())
+        {
+            const std::size_t comma = spec.find(',');
+            std::string_view name = spec.substr(0, comma);
+            spec = comma == std::string_view::npos ? std::string_view() : spec.substr(comma + 1);
+            if (name.empty())
+                continue;
+            if (name.back() == '*')
+            {
+                multi = true;
+                name.remove_suffix(1);
+                if (actor.substr(0, name.size()) == name && !actor.empty())
+                    return true;
+            }
+            else if (name == actor && !actor.empty())
+                return true;
+        }
+        return false;
+    }
+
     void SkyrimCombat::setTestKill(std::string_view editorId)
     {
         mTestKill.assign(editorId);
@@ -270,18 +293,23 @@ namespace game_skyrimse
         {
             for (const auto& named : mActorNames)
             {
-                if (named.second != killName)
+                bool multi = false;
+                if (!testKillMatches(killName, named.second, multi))
                     continue;
                 Fighter* victim = find(CombatSubject::of(named.first));
-                if (victim != nullptr && !victim->mDead && ready(*victim))
+                const bool alive = victim != nullptr && !victim->mDead && ready(*victim);
+                if (alive)
                 {
                     (void)changeVital(writer, nullptr, *victim, kHealthValue,
                         -(victim->mProfile.mHealthMax + victim->mHealth + 1.f), nullptr);
                     if (mTrace)
                         trace("COMBAT test kill " + subjectText(victim->mSubject));
-                    mTestKill.clear();
+                    if (!multi)
+                        mTestKill.clear();
                 }
-                break;
+                // a list kills one actor an update (a stable order); a single name stops at its first match
+                if (alive || !multi)
+                    break;
             }
         }
         if (!mSummonsOn || mSummons.size() == 0)

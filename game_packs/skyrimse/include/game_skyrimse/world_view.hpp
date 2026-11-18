@@ -581,6 +581,8 @@ namespace game_skyrimse
         /// A merchant's GetOffersServicesNow is true whatever its package (see SkyrimConditionWorld); set before the
         /// first conversation or any time after.
         void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
+        /// Task 0326: the placed references that died in this session (the civil war's kill count).
+        void setDeadLookup(std::function<bool(FormId reference)> lookup);
         /// Task 0239: what the follower scripts changed, read by the dialogue conditions. Not owned.
         void setFollowerOverlay(const FollowerOverlay* overlay);
         /// Task 0277: where an actor stands now (the pack's package brain); the view supplies where a loaded reference
@@ -653,6 +655,7 @@ namespace game_skyrimse
         void setDialogueTrace(std::function<void(const std::string&)> trace); ///< task 0304
         void setQuestGreetings(bool on); ///< task 0304: a quest's nameless branch start greets (College of Winterhold)
         void setWalkAwayTopics(bool on); ///< task 0315: ending a conversation runs the walk-away topic's fragment
+        void setWalkAwayInfos(bool on); ///< task 0326: and the last topic's own walk-away INFO (flag 0x80)
         /// Task 0308: a ForceGreet package whose topic is the subtype HELO makes the actor say its greeting.
         void setHelloGreetings(bool on) { mHelloGreetings = on; }
         /// The class data of an NPC_ base (templates followed): CLAS DATA's trained skill and maximum training level.
@@ -1054,8 +1057,10 @@ namespace game_skyrimse
         std::function<void(const std::string&)> mPackageTraceLog;
         bool mOpenServices = false; ///< task 0219
         bool mBlockingBranches = false; ///< task 0298
+        std::function<bool(FormId)> mDeadLookup; ///< task 0326
         bool mQuestGreetings = false; ///< task 0304
         bool mWalkAwayTopics = false; ///< task 0315
+        bool mWalkAwayInfos = false; ///< task 0326
         std::function<void(const std::string&)> mDialogueTrace;
         std::function<void()> mFragmentFlush;
         bool mHelloGreetings = false; ///< task 0308

@@ -36,6 +36,11 @@ namespace game_skyrimse
 
     using SummonFormId = std::uint32_t;
 
+    /// Task 0326: a `summons test kill` spec may name several actors: names are separated by commas, a name ending in
+    /// '*' matches every actor whose lower case editor id starts with it. `multi` is set when the spec is such a list
+    /// (every match is killed, and the aid is not cleared after the first kill). The spec and the name are lower case.
+    [[nodiscard]] bool testKillMatches(std::string_view spec, std::string_view actor, bool& multi);
+
     /// MGEF DATA +64 of the summoning effects (CommonLibSSE-NG ArchetypeID; the data agrees: see the real-data test).
     namespace SummonArchetype
     {

@@ -111,6 +111,20 @@ namespace game_skyrimse
                 return true;
             }
             void setLocations(const LocationIndex* locations) { mLocations = locations; } // task 0217
+            /// Task 0326: the placements killed in this session (Location.GetRefTypeAliveCount)
+            void setDeadLookup(std::function<bool(FormId)> lookup) { mDead = std::move(lookup); }
+            float refTypeAliveCount(FormId location, FormId refType) const override
+            {
+                if (mLocations == nullptr)
+                    return 0.f;
+                return static_cast<float>(mLocations->countSpecialRefs(location, refType, [this](FormId reference) {
+                    if (mDead && mDead(reference))
+                        return false;
+                    const PlacedRefIndex* refs = mView.placedRefs();
+                    const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                    return entry == nullptr || (entry->mFlags & PlacedFlags::Dead) == 0;
+                }));
+            }
 
             bool readPex(const std::string& lowerName, std::vector<std::uint8_t>& bytes) override
             {
@@ -286,6 +300,7 @@ namespace game_skyrimse
             SkyrimWorldView& mView;
             const QuestIndex* mQuests = nullptr;
             const LocationIndex* mLocations = nullptr;
+            std::function<bool(FormId)> mDead; // task 0326
 
         public:
             std::function<bool(std::int32_t&)> mPlayerLevel; ///< the progression's level; empty or false: stand-in
@@ -1324,6 +1339,8 @@ namespace game_skyrimse
             [[nodiscard]] StoryState storyState() const { return mView.storyState(); }
             void restoreStory(StoryState state) { mLoadedStory = std::move(state); }
             void setLogStoryFills(bool on) { mLogStoryFills = on; }
+            // task 0326
+            void setDeadLookup(std::function<bool(FormId)> lookup) { mData.setDeadLookup(std::move(lookup)); }
             void applyPendingStory()
             {
                 if (!mLoadedStory || !mView.restoreStoryState(*mLoadedStory))
@@ -2987,6 +3004,7 @@ namespace game_skyrimse
                         if (logger != nullptr)
                             logger->log(openeden::sdk::LogLevel::Info,
                                 "PAPYRUS death of " + hexOf(victim) + " killer " + hexOf(killer));
+                        mKilledRefs.insert(victim); // task 0326: the civil war's kill count
                         host.onActorDied(victim, killer);
                         if (mPapyrus != nullptr)
                             mPapyrus->queueKill(
@@ -3005,6 +3023,17 @@ namespace game_skyrimse
                 {
                     // task 0298: Rikke's blocking branch speaks instead of Hello (the Civil War's join chain)
                     mWorldView.setBlockingBranches(true);
+                    // task 0326: Rikke's greeting at CW01A stage 100 names a walk-away INFO (TIF__000D5EE9: stage 160, the
+                    // oath): the same mechanism the Companions' Eorlund uses (task 0315)
+                    mWorldView.setWalkAwayTopics(true);
+                    mWorldView.setWalkAwayInfos(true);
+                    // task 0326: Fort Hraggstad's bandits count as dead once they are killed in this session
+                    auto killed = [this](FormId reference) {
+                        return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
+                    };
+                    mWorldView.setDeadLookup(killed);
+                    if (mPapyrus != nullptr)
+                        mPapyrus->setDeadLookup(killed); // the host's data: Location.GetRefTypeAliveCount
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "main quest whiterun", false))
                 {
@@ -6440,6 +6469,7 @@ namespace game_skyrimse
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             DeathLedger mDeathLedger; // task 0254: who died, for the saves
+            std::set<FormId> mKilledRefs; // task 0326: placements killed in this session (not saved)
             std::unique_ptr<DeathKeeper> mDeathKeeper; // task 0254; refers to the ledger and the cell source
             std::unique_ptr<DeathsChunk> mDeathsChunk; // task 0254; refers to the ledger and the keeper
             FollowerState mFollowerState; // task 0239: what the follower scripts changed
