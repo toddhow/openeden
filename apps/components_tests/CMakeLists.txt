@@ -693,6 +693,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemq308.cpp
     skyrimse/testskyrimsemarriage.cpp
     skyrimse/testskyrimsequestgreeting.cpp
+    skyrimse/testskyrimsewalkaway.cpp
     skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsespeech.cpp
     skyrimse/testskyrimsequestscripts.cpp

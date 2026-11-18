@@ -126,6 +126,41 @@ return {
                         else
                             trace('furn none')
                         end
+                    elseif step[2] == 'talkref' then
+                        -- step[3]: a placement id (decimal). The object whose id is the neutral reference of that placement,
+                        -- looked for in the player's cell and its eight neighbours; activated by the player.
+                        local wanted = string.format('@0x3fffffff%08x', step[3])
+                        local found = nil
+                        local cells = { player.cell }
+                        if player.cell.isExterior then
+                            for dx = -1, 1 do
+                                for dy = -1, 1 do
+                                    if dx ~= 0 or dy ~= 0 then
+                                        local ok, other = pcall(world.getExteriorCell, player.cell.gridX + dx, player.cell.gridY + dy, player.cell)
+                                        if ok and other then cells[#cells + 1] = other end
+                                    end
+                                end
+                            end
+                        end
+                        for _, cell in ipairs(cells) do
+                            for _, o in ipairs(cell:getAll()) do
+                                local ok, id = pcall(function() return o.id end)
+                                if ok and id == wanted then found = o end
+                            end
+                        end
+                        if found ~= nil then
+                            print(string.format('CMP talkref %s at %.0f,%.0f,%.0f dist %.0f', wanted, found.position.x, found.position.y, found.position.z, (found.position - player.position):length()))
+                            found:activateBy(player)
+                        else
+                            print('CMP talkref not found ' .. wanted)
+                        end
+                    elseif step[2] == 'actors' then
+                        for _, o in ipairs(player.cell:getAll()) do
+                            local ok, isActor = pcall(function() return types.Actor.objectIsInstance(o) end)
+                            if ok and isActor then
+                                print(string.format('CMP actor %s at %.0f,%.0f,%.0f dist %.0f', tostring(o.recordId), o.position.x, o.position.y, o.position.z, (o.position - player.position):length()))
+                            end
+                        end
                     elseif step[2] == 'count' then
                         local n = 0
                         for _ in ipairs(player.cell:getAll()) do n = n + 1 end

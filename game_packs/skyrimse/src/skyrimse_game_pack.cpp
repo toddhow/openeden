@@ -2880,6 +2880,17 @@ namespace game_skyrimse
                     });
                     mCellSource.actorTable().setFollowPlayerPackages(true); // Barbas follows by his own packages
                 }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "companions", false))
+                {
+                    // task 0315: Eorlund's "What brings you here?" is the first line of a Blocking branch (C00 stage 30)
+                    // and the chained replies of the Companions' branches want the effects of the line just shown
+                    mWorldView.setBlockingBranches(true);
+                    mWorldView.setWalkAwayTopics(true); // Eorlund's walk-away INFO starts the follow-up scene
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
+                }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)

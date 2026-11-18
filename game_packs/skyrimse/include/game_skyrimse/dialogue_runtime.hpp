@@ -219,6 +219,9 @@ namespace game_skyrimse
             mBlockingBranches = on;
             mWorld.setCountRefTypes(on); // GetRefTypeAliveCount counts the placed references (Fort Hraggstad's bandits)
         }
+        /// Task 0315: with this on, ending a conversation runs the fragment of the walk-away topic (TWAT) of the last
+        /// response that named one: the response itself is not shown (no line, no voice), only its script work.
+        void setWalkAwayTopics(bool on) { mWalkAwayTopics = on; }
         /// Task 0304: a nameless Custom topic that starts a quest's dialogue branch (the quest's own greeting, such as
         /// Faralda's "Welcome to the College") is spoken at the start of a conversation, before the Hello lines, when
         /// one of its INFOs passes. Off by default.
@@ -290,6 +293,8 @@ namespace game_skyrimse
         ScriptNameProbe mScriptProbe;
         bool mOpenServices = false; ///< task 0219
         bool mBlockingBranches = false; ///< task 0298
+        bool mWalkAwayTopics = false; ///< task 0315
+        FormId mWalkAway = 0; ///< the walk-away topic of the last response shown
         InfoFragmentSink mFragmentSink;
         std::map<std::string, std::string> mServiceOfScript; ///< fragment script -> service ("" for none), probed once
         PlayerStandIn mPlayer;

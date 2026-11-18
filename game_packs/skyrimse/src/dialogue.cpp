@@ -404,6 +404,8 @@ namespace game_skyrimse
                             return lstring(type, data, info.mPrompt);
                         case Content::fourCC("DNAM"): // task 0261: the shared info
                             return formField(type, data, info.mSharedInfo);
+                        case Content::fourCC("TWAT"): // task 0315: the walk-away topic
+                            return formField(type, data, info.mWalkAwayTopic);
                         case Content::fourCC("TCLT"):
                             if (data.size() != 4)
                             {

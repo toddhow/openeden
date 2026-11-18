@@ -196,6 +196,7 @@ namespace game_skyrimse
             }
         }
         out.endsConversation = (info.mFlags & InfoFlags::Goodbye) != 0;
+        mWalkAway = info.mWalkAwayTopic; // task 0315: the last response decides which walk-away topic waits
         out.hadUnrunEffects = info.mHasScript;
         // Task 0187: the fragments of the INFO go to the script host (begin, then end).
         if (mFragmentSink && info.mVmad != nullptr && info.mVmad->mHasInfoFragments
@@ -780,6 +781,20 @@ namespace game_skyrimse
 
     void DialogueRuntime::end()
     {
+        // Task 0315: the walk-away topic of the last response is "said" as the conversation ends: its INFO (the first
+        // that passes) runs its fragments; nothing is shown. Once: a second end() finds it spent.
+        if (mWalkAwayTopics && mWalkAway != kNullFormId && mOpen)
+        {
+            const FormId topic = mWalkAway;
+            mWalkAway = kNullFormId;
+            const Selection s = selectInfo(mDialogue, topic, mWorld, mSpeaker, options(0));
+            if (s.mInfo != nullptr)
+            {
+                openeden::sdk::game::DialogueTurn quiet;
+                fillTurn(*s.mInfo, quiet);
+            }
+        }
+        mWalkAway = kNullFormId;
         mChoices.clear();
         mOpen = false;
         mWorld.setConversationOpen(false);

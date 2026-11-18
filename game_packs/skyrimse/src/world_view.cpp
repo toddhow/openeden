@@ -1360,6 +1360,7 @@ namespace game_skyrimse
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         raw->mRuntime->setBlockingBranches(mBlockingBranches); // task 0298
         raw->mRuntime->setQuestGreetings(mQuestGreetings); // task 0304
+        raw->mRuntime->setWalkAwayTopics(mWalkAwayTopics); // task 0315
         raw->mRuntime->setTrace(mDialogueTrace);
         raw->mRuntime->setFragmentFlush(mFragmentFlush);
         raw->mRuntime->setRankMinusOneMembers(mRankMinusOneMembers); // task 0261
@@ -2310,6 +2311,13 @@ namespace game_skyrimse
         mDialogueTrace = trace;
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setTrace(std::move(trace));
+    }
+
+    void SkyrimWorldView::setWalkAwayTopics(bool on)
+    {
+        mWalkAwayTopics = on;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setWalkAwayTopics(on);
     }
 
     void SkyrimWorldView::setQuestGreetings(bool on)

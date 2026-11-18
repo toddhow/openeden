@@ -142,6 +142,9 @@ namespace game_skyrimse
         /// Task 0261: DNAM, the INFO whose responses (text and voice) this INFO shares (xEdit: "Shared Info"); 0 when
         /// it has none. The purchase lines of the Hearthfires houses give their replies this way.
         FormId mSharedInfo = kNullFormId;
+        /// Task 0315: TWAT, the topic whose response the game plays when the player ends the conversation (Eorlund's
+        /// C00EorlundWalkaway INFO starts the follow-up scene through its fragment); 0 when none.
+        FormId mWalkAwayTopic = kNullFormId;
         std::vector<survey::Ctda> mConditions; ///< as stored (plugin-local form ids), see DialogueIndex::resolverOf
         bool mHasScript = false; ///< a VMAD subrecord is present (script fragments, not run; task 0141)
         /// The name of the INFO's fragment script ("TIF__" plus 8 hex digits, the fileName of the VMAD fragment
