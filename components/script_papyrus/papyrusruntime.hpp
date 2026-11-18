@@ -188,6 +188,9 @@ namespace ScriptPapyrus
             (void)instance, (void)name, (void)elements;
             return false;
         }
+        /// Task 0317 (Hearthfire's house lists hold 224 references): raises the longest array a script may make or a
+        /// property may hold (RuntimeOptions::maxArrayLength, 128 by default). The default does nothing.
+        virtual void setMaxArrayLength(std::uint32_t length) noexcept { (void)length; }
     };
 
     std::unique_ptr<PapyrusRuntime> createRuntime(openeden::script::PapyrusWorld& world,

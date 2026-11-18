@@ -113,6 +113,10 @@ namespace game_skyrimse::crafting
         Smelter,
         Cookpot,
         TanningRack,
+        /// Task 0317 (Hearthfire): a furniture that carries a BYOH* keyword (the drafting table, the carpenter's
+        /// workbenches). Which recipes it offers is decided by the data: the furniture carries the recipe's BNAM
+        /// keyword (`CraftingTable::furnitureOffers`).
+        House,
     };
     [[nodiscard]] std::string_view benchKindName(BenchKind kind);
     /// "alchemy", "enchanting", "forge", ... ; None for any other text.
@@ -159,6 +163,7 @@ namespace game_skyrimse::crafting
         std::vector<SoulGem> mSoulGems;
         std::vector<Furniture> mFurniture;
         std::vector<std::pair<std::string, FormId>> mKeywords; ///< the crafting keywords: editor id, form
+        std::vector<FormId> mHouseKeywords; ///< task 0317: every keyword whose editor id starts with "BYOH"
         std::vector<std::pair<FormId, std::string>> mEffectNames; ///< MGEF editor ids
         std::uint64_t mFailed = 0;
         std::uint64_t mOddSubrecords = 0;
@@ -187,7 +192,10 @@ namespace game_skyrimse::crafting
         /// The bench kind a keyword stands for (None for another keyword).
         [[nodiscard]] BenchKind benchOfKeyword(FormId keyword) const;
         /// The kinds a furniture base offers (a Skyforge forge offers Forge and Skyforge), empty when none.
-        [[nodiscard]] std::vector<BenchKind> benchesOf(FormId furniture) const;
+        /// `includeHouse` (task 0317): also House when the furniture carries a house-building keyword.
+        [[nodiscard]] std::vector<BenchKind> benchesOf(FormId furniture, bool includeHouse = false) const;
+        /// Task 0317: does the furniture carry this keyword (the BNAM of a House recipe)?
+        [[nodiscard]] bool furnitureOffers(FormId furniture, FormId keyword) const;
         /// The recipes a bench shows, sorted by id. A Forge bench shows the Forge recipes only, a Skyforge bench the
         /// Skyforge ones; `ignoreConditions` false hides recipes that carry conditions.
         [[nodiscard]] std::vector<const Recipe*> recipesFor(BenchKind kind, bool ignoreConditions) const;
@@ -205,6 +213,7 @@ namespace game_skyrimse::crafting
         std::unordered_map<FormId, SoulGem> mSoulGems;
         std::unordered_map<FormId, std::vector<FormId>> mFurniture;
         std::map<std::string, FormId> mKeywords;
+        std::set<FormId> mHouseKeywords;
         std::unordered_map<FormId, std::string> mEffectNames;
         std::vector<FormId> mRecipeOrder;
     };

@@ -400,7 +400,17 @@ namespace game_skyrimse
                 if (mRuntime->setArrayProperty(instance, property.mName, elements))
                     ++mCounters.mPropertiesSet;
                 else
+                {
                     ++mCounters.mPropertiesRejected;
+                    if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0317: which property, and how long
+                    {
+                        ++mTraceCount;
+                        const auto info = mInstances.find(instance);
+                        say(false, "Papyrus: array property " + property.mName + " of "
+                                + (info != mInstances.end() ? info->second.mScript : std::string("?")) + " rejected ("
+                                + std::to_string(elements.size()) + " elements)");
+                    }
+                }
                 return;
             }
             PapyrusValue value;
@@ -412,7 +422,16 @@ namespace game_skyrimse
             if (mRuntime->setProperty(instance, property.mName, value))
                 ++mCounters.mPropertiesSet;
             else
+            {
                 ++mCounters.mPropertiesRejected;
+                if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0317
+                {
+                    ++mTraceCount;
+                    const auto info = mInstances.find(instance);
+                    say(false, "Papyrus: property " + property.mName + " of "
+                            + (info != mInstances.end() ? info->second.mScript : std::string("?")) + " rejected");
+                }
+            }
         }
 
         bool attachQuest(FormId id)
@@ -504,6 +523,56 @@ namespace game_skyrimse
         }
         std::set<std::string> mGetUpScripts; ///< loaded scripts whose string table names OnGetUp
         std::map<std::string, std::string> mParentOf; ///< loaded script to its parent (lower case)
+
+        /// Task 0317: the entries of a form list, kept after the first read. Null when `list` is no list (or not read).
+        const std::vector<FormId>* formList(FormId list)
+        {
+            if (list == 0)
+                return nullptr;
+            const auto known = mFormLists.find(list);
+            if (known != mFormLists.end())
+                return &known->second;
+            std::vector<FormId> entries;
+            if (!mData.formListEntries(list, entries))
+                return nullptr;
+            return &mFormLists.emplace(list, std::move(entries)).first->second;
+        }
+
+        /// Task 0317 (option `mFormScripts`): attaches the scripts of an unplaced item form once, so its
+        /// OnContainerChanged runs and `(form as script)` finds it. A form without scripts is only looked at once.
+        void attachFormScripts(FormId form)
+        {
+            if (!mOptions.mFormScripts || form == 0 || form == kPlayerReference || mFormScriptTried.count(form) != 0
+                || mFormScriptTried.size() >= mOptions.mMaxFormScripts)
+                return;
+            std::vector<vmad::Script> scripts;
+            if (!mData.baseScripts(form, scripts) || scripts.empty())
+            {
+                mFormScriptTried.insert(form);
+                return;
+            }
+            // a script cannot be loaded from inside a native: a list's entry gets its script only when the class is
+            // loaded already (the script that holds the list names the part's class, so it is); else a later call does
+            if (mNativeDepth > 0)
+                for (const vmad::Script& script : scripts)
+                    if (mLoaded.count(lower(script.mName)) == 0)
+                        return;
+            mFormScriptTried.insert(form);
+            if (mNativeDepth == 0)
+                preloadClasses();
+            std::uint32_t ordinal = 0;
+            for (const vmad::Script& script : scripts)
+            {
+                const std::uint32_t at = ordinal++;
+                if (findInstance(form, script.mName) != 0)
+                    continue;
+                InstanceInfo info;
+                info.mForm = form;
+                const InstanceId made = attachScript(AttachKey{ AttachKind::Form, form, 0, at }, info, script);
+                say(false, "Papyrus: the unplaced form " + hex(form) + " gets its script " + script.mName
+                        + (made != 0 ? "" : " (refused)"));
+            }
+        }
 
         std::vector<InstanceId> instancesOf(FormId form) const
         {
@@ -1067,7 +1136,16 @@ namespace game_skyrimse
                 // fragment ran was refused as a whole ("the game no longer has what its attach key names")
                 if (mData.isScene(key.formId))
                     return true;
-                return !mData.formClass(key.formId).empty();
+                if (!mData.formClass(key.formId).empty())
+                    return true;
+                // task 0317: the script of an unplaced item form (a Hearthfire house part) left by a form list or an
+                // inventory change
+                if (mOptions.mFormScripts)
+                {
+                    std::vector<vmad::Script> scripts;
+                    return mData.baseScripts(key.formId, scripts) && key.effectKey < scripts.size();
+                }
+                return false;
             }
             if (key.kind == AttachKind::Alias)
             {
@@ -1951,6 +2029,21 @@ namespace game_skyrimse
             // Task 0217: what scripts store on a location for a keyword; the story manager's conditions read it
             //   (fn_606,
             // fn_651). Location.SetKeywordData(akKeyword, afData) and GetKeywordData(akKeyword): RECALLED-VERIFY.
+            // Task 0317: IsSameLocation(akOther, akKeyword): the same place, or one inside the other (the game compares
+            // the ancestors that carry the keyword; the pack's locations are a tree, RECALLED-VERIFY the keyword rule).
+            // the shipped Location.psc builds IsSameLocation on the native HasCommonParent(akOther, akFilter)
+            reg("Location", "HasCommonParent", false, [this](const NativeCall& c) {
+                const FormId a = formOf(c.self);
+                const FormId b = c.arguments.empty() ? FormId(0) : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(
+                    a != 0 && b != 0 && (a == b || mData.locationWithin(a, b) || mData.locationWithin(b, a))));
+            });
+            reg("Location", "IsSameLocation", false, [this](const NativeCall& c) {
+                const FormId a = formOf(c.self);
+                const FormId b = c.arguments.empty() ? FormId(0) : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(
+                    a != 0 && b != 0 && (a == b || mData.locationWithin(a, b) || mData.locationWithin(b, a))));
+            });
             reg("Location", "SetKeywordData", false, [this](const NativeCall& c) {
                 if (mKeywordData != nullptr && c.arguments.size() > 1)
                     (void)mKeywordData->set(
@@ -2314,14 +2407,67 @@ namespace game_skyrimse
                 const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 const std::int32_t count = countArgument(c, 1);
                 const FormId other = c.arguments.size() > 3 ? formOf(c.arguments[3]) : 0;
-                if (mHooks != nullptr && owner != 0 && item != 0 && count > 0)
+                if (mHooks == nullptr || owner == 0 || item == 0 || count <= 0)
+                    return NativeResult{};
+                // Task 0317: a form list stands for every form in it: up to `count` of each the owner holds
+                if (const std::vector<FormId>* list = formList(item))
                 {
-                    if (other != 0)
-                        (void)mHooks->transferItem(owner, other, item, count);
-                    else
-                        (void)mHooks->removeItem(owner, item, count);
+                    for (const FormId entry : *list)
+                    {
+                        const std::int32_t held = mHooks->itemCount(owner, entry);
+                        const std::int32_t n = std::min(held, count);
+                        if (n <= 0)
+                            continue;
+                        if (other != 0)
+                            (void)mHooks->transferItem(owner, other, entry, n);
+                        else
+                            (void)mHooks->removeItem(owner, entry, n);
+                    }
+                    return NativeResult{};
                 }
+                if (other != 0)
+                    (void)mHooks->transferItem(owner, other, item, count);
+                else
+                    (void)mHooks->removeItem(owner, item, count);
                 return NativeResult{};
+            });
+            // Task 0317: FormList (Hearthfire's building lists hold hundreds of parts). A list the data cannot give yet
+            // is empty, said once.
+            const auto listOf = [this](const NativeCall& c) -> const std::vector<FormId>* {
+                const std::vector<FormId>* list = formList(formOf(c.self));
+                if (list == nullptr && !mFormListWarned)
+                {
+                    mFormListWarned = true;
+                    say(false, "Papyrus: a form list was asked for before its data was read: " + hex(formOf(c.self)));
+                }
+                return list;
+            };
+            reg("FormList", "GetSize", false, [listOf](const NativeCall& c) {
+                const std::vector<FormId>* list = listOf(c);
+                return result(PapyrusValue::makeInt(list != nullptr ? static_cast<std::int32_t>(list->size()) : 0));
+            });
+            reg("FormList", "GetAt", false, [this, listOf](const NativeCall& c) {
+                const std::vector<FormId>* list = listOf(c);
+                const std::int32_t at = argInt(c, 0);
+                if (list == nullptr || at < 0 || static_cast<std::size_t>(at) >= list->size())
+                    return result(PapyrusValue::makeNone());
+                const FormId entry = (*list)[static_cast<std::size_t>(at)];
+                attachFormScripts(entry);
+                return result(formValue(entry));
+            });
+            reg("FormList", "Find", false, [this, listOf](const NativeCall& c) {
+                const std::vector<FormId>* list = listOf(c);
+                const FormId wanted = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (list == nullptr || wanted == 0)
+                    return result(PapyrusValue::makeInt(-1));
+                const auto at = std::find(list->begin(), list->end(), wanted);
+                return result(PapyrusValue::makeInt(at == list->end() ? -1 : static_cast<std::int32_t>(at - list->begin())));
+            });
+            reg("FormList", "HasForm", false, [this, listOf](const NativeCall& c) {
+                const std::vector<FormId>* list = listOf(c);
+                const FormId wanted = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(
+                    list != nullptr && wanted != 0 && std::find(list->begin(), list->end(), wanted) != list->end()));
             });
             // Task 0261: the owner of a cell (HousePurchaseScript.PurchaseHouse: SetFactionOwner(PlayerFaction)); the
             // pack's house ledger keeps it. Game.IncrementStat is a statistic nobody here reads.
@@ -2539,11 +2685,6 @@ namespace game_skyrimse
             {
                 const openeden::script::TickResult r = mRuntime->tick(mTime);
                 mCounters.mStacksRun += r.stacksRun;
-                for (const openeden::script::ErrorReport& error : r.errors)
-                {
-                    ++mCounters.mScriptErrors;
-                    say(true, "Papyrus: " + error.format());
-                }
                 // work a native left for after it (a quest the stage change attached) queues events: run them now
                 if (!runDeferred())
                     break;
@@ -2678,6 +2819,11 @@ namespace game_skyrimse
         /// AddInventoryEventFilter: per script instance owner (a form id, or an alias handle) the items its events are
         /// limited to. No entry: every item.
         std::map<FormId, std::set<FormId>> mInvFilters;
+        // Task 0317: form lists read once (the data is read by a worker; a list that is not ready is asked again), and
+        // the forms whose own scripts were looked for (an unplaced MISC: Hearthfire's house parts)
+        std::map<FormId, std::vector<FormId>> mFormLists;
+        std::set<FormId> mFormScriptTried;
+        bool mFormListWarned = false;
 
         FormId instanceKey(const InstanceInfo& info)
         {
@@ -3474,6 +3620,15 @@ namespace game_skyrimse
         mImpl->mFiller = filler;
     }
 
+    void PapyrusHost::setFormScripts(bool on)
+    {
+        mImpl->mOptions.mFormScripts = on;
+        // the house lists hold 224 references: the runtime's default of 128 refused every one of them
+        constexpr std::uint32_t kHouseArrayLength = 1024;
+        if (on)
+            mImpl->mRuntime->setMaxArrayLength(kHouseArrayLength);
+    }
+
     void PapyrusHost::setCellMoves(bool on)
     {
         mImpl->mCellMoves = on;
@@ -3576,9 +3731,15 @@ namespace game_skyrimse
                     ++m.mCounters.mItemEvents;
         }
         // scripts on the item form itself (a script on a MISC base) hear of the new container
+        m.attachFormScripts(item); // task 0317: an unplaced form's script is attached the first time it is handed out
         for (const InstanceId instance : m.instancesOf(item))
-            if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
+        {
+            const bool sent = m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) });
+            if (sent)
                 ++m.mCounters.mItemEvents;
+            if (m.mOptions.mFormScripts)
+                m.say(false, "Papyrus: OnContainerChanged of " + hex(item) + (sent ? " queued" : " not handled"));
+        }
         // Task 0306: a script on a reference a quest alias created of this base (the cultists' orders) hears of it too
         for (const auto& [reference, created] : m.mCreated)
             if (created.mBase == item)

@@ -237,6 +237,20 @@ namespace game_skyrimse
             bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
             FormId questOfScene(FormId scene) const override { return mView.questOfScene(scene); }
+            // Task 0317: the entries of a form list and the scripts of an unplaced item form
+            bool formListEntries(FormId list, std::vector<FormId>& out) override
+            {
+                return mView.formListEntries(list, out);
+            }
+            bool baseScripts(FormId form, std::vector<vmad::Script>& out) override
+            {
+                out.clear();
+                const std::vector<vmad::Script>* scripts = mView.scriptsOfBase(form);
+                if (scripts == nullptr || scripts->empty())
+                    return false;
+                out = *scripts;
+                return true;
+            }
             bool initiallyEnabled(FormId reference) const override
             {
                 const PlacedRefIndex* refs = mView.placedRefs();
@@ -2197,6 +2211,10 @@ namespace game_skyrimse
                             mPapyrus->setSceneParkSeconds(SceneRunner::parkSecondsFor( // tasks 0287, 0316
                                 settings->getFloat(kPackId, "scene park seconds", 0.f),
                                 settings->getBool(kPackId, kQuestAliasPackagesKey, false)));
+                            // Task 0317: a Hearthfire house part is a MISC no cell places; its script is attached when a
+                            // form list hands it out or it is first added to an inventory
+                            if (settings->getBool(kPackId, "house building", false))
+                                mPapyrus->host().setFormScripts(true);
                             if (settings->getBool(kPackId, kActorCellMovesKey, false)) // task 0286
                             {
                                 mPapyrus->host().setCellMoves(true);
@@ -5292,6 +5310,12 @@ namespace game_skyrimse
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
+                // Task 0317: a workbench of the house-building furniture runs its own OnActivate (the game's
+                // BYOHWorkbenchScript sets the house the player works on and moves his layout tokens to him)
+                hooks.mBenchOpened = [this](std::uint64_t placement, FormId) {
+                    if (mPapyrus != nullptr && placement != 0 && placement <= 0xFFFFFFFFull)
+                        mPapyrus->host().onActivate(static_cast<FormId>(placement), kPapyrusPlayerReference);
+                };
                 // Task 0206: a craft trains the player's skill, the formulas read the real one and a recipe's perk
                 // conditions are answered from the bought perks (only with the progression on; the progression is
                 // destroyed before the crafting service but is never called from its destructor).
@@ -5300,6 +5324,7 @@ namespace game_skyrimse
                 mCrafting = std::make_unique<crafting::CraftingService>(*mInventory, std::move(hooks),
                     crafting::CraftingSettings(), settings->getBool(kPackId, "crafting ignore conditions", false),
                     settings->getBool(kPackId, "crafting test bench", false));
+                mCrafting->setHouseBuilding(settings->getBool(kPackId, "house building", false)); // task 0317
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
                     const openeden::sdk::DeclareResult declared = mCrafting->declare(*bindings);

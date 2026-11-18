@@ -231,7 +231,9 @@ namespace game_skyrimse::crafting
                         survey::Ctda c;
                         if (r.mConditionList.size() < 32 && survey::decodeCtda(sub.mData, c))
                         {
-                            if ((c.mFunction == 448 || c.mFunction == 74 || c.mFunction == 58 || c.mFunction == 59)
+                            // 47 GetItemCount (task 0317): a DLC recipe names its own item with its own file's index
+                            if ((c.mFunction == 448 || c.mFunction == 74 || c.mFunction == 58 || c.mFunction == 59
+                                    || c.mFunction == 47)
                                 && c.mParam1 != 0)
                                 c.mParam1 = resolved(c.mParam1);
                             r.mConditionList.push_back(std::move(c));
@@ -358,6 +360,8 @@ namespace game_skyrimse::crafting
                     for (const BenchName& bench : kBenches)
                         if (bench.mKeyword == name)
                             mOut.mKeywords.emplace_back(name, id);
+                if (ok && name.rfind("BYOH", 0) == 0) // task 0317
+                    mOut.mHouseKeywords.push_back(id);
                 return ok;
             }
 
@@ -423,6 +427,8 @@ namespace game_skyrimse::crafting
 
     std::string_view benchKindName(BenchKind kind)
     {
+        if (kind == BenchKind::House)
+            return "house";
         for (const BenchName& b : kBenches)
             if (b.mKind == kind)
                 return b.mName;
@@ -431,6 +437,8 @@ namespace game_skyrimse::crafting
 
     BenchKind benchKindFromName(std::string_view name)
     {
+        if (name == "house")
+            return BenchKind::House;
         for (const BenchName& b : kBenches)
             if (b.mName == name)
                 return b.mKind;
@@ -490,6 +498,7 @@ namespace game_skyrimse::crafting
             mFurniture[f.mId] = std::move(f.mKeywords);
         for (auto& [name, id] : records.mKeywords)
             mKeywords[name] = id;
+        mHouseKeywords.insert(records.mHouseKeywords.begin(), records.mHouseKeywords.end());
         for (auto& [id, name] : records.mEffectNames)
             mEffectNames[id] = std::move(name);
     }
@@ -555,10 +564,17 @@ namespace game_skyrimse::crafting
             if (it != mKeywords.end() && it->second == keywordId)
                 return b.mKind;
         }
-        return BenchKind::None;
+        return mHouseKeywords.count(keywordId) != 0 ? BenchKind::House : BenchKind::None; // task 0317
     }
 
-    std::vector<BenchKind> CraftingTable::benchesOf(FormId furniture) const
+    bool CraftingTable::furnitureOffers(FormId furniture, FormId keyword) const
+    {
+        const auto it = mFurniture.find(furniture);
+        return keyword != kNullFormId && it != mFurniture.end()
+            && std::find(it->second.begin(), it->second.end(), keyword) != it->second.end();
+    }
+
+    std::vector<BenchKind> CraftingTable::benchesOf(FormId furniture, bool includeHouse) const
     {
         std::vector<BenchKind> out;
         const auto it = mFurniture.find(furniture);
@@ -567,6 +583,8 @@ namespace game_skyrimse::crafting
         for (const FormId k : it->second)
         {
             const BenchKind kind = benchOfKeyword(k);
+            if (kind == BenchKind::House && !includeHouse)
+                continue;
             if (kind != BenchKind::None && std::find(out.begin(), out.end(), kind) == out.end())
                 out.push_back(kind);
         }

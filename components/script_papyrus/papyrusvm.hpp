@@ -371,6 +371,7 @@ namespace ScriptPapyrus::Vm
         }
         bool setArrayProperty(openeden::script::InstanceId instance, std::string_view name,
             std::span<const openeden::script::PapyrusValue> elements) noexcept override;
+        void setMaxArrayLength(std::uint32_t length) noexcept override { mOptions.maxArrayLength = length; }
         std::string stateOf(openeden::script::InstanceId instance) const override;
         std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const override;
         std::uint32_t suspendedStacks() const noexcept override { return mSuspendedCount; }
@@ -450,7 +451,9 @@ namespace ScriptPapyrus::Vm
         /// Task 0276: the script attached to the object a form handle stands for (a quest alias, a reference) that
         /// declares the function  nameId; an empty value when none does. A property typed as a script class that holds
         /// the alias handle (TIF fragments: `LoveInterest.GiveGold()`) calls through it.
-        Val instanceDefining(const Val& source, std::uint32_t nameId);
+        /// `property` (task 0317): look for an instance whose script has a PROPERTY of that name (a property read or
+        /// write on a form value), else one that has a function of that name.
+        Val instanceDefining(const Val& source, std::uint32_t nameId, bool property = false);
         std::uint32_t classOfForm(const Val& value);
         Val readOp(const Stack& stack, const Frame& frame, const COp& op);
         void writeOp(Stack& stack, const Frame& frame, const COp& op, const Val& value);

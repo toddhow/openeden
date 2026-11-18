@@ -1,6 +1,6 @@
 -- tools/skyhouses_check (task 0261): the global half. cfg.plan is a list of { update, what, ... }: 'talk' (activates the
 -- target actor in the player's cell), 'cell name x y z' (moves the player into a cell), 'go x y z' (inside the cell),
--- 'door x y radius' (the nearest object of the door type), 'furn x y radius [text]' (activates the nearest object whose
+-- 'door x y radius' (the nearest object of the door type), 'furn x y radius [text]', 'inv hexid...' (the player's counts) (activates the nearest object whose
 -- record id contains the text, default cfg.furn; neutral objects are named skyrimse:b<decimal base id>), 'ids text',
 -- 'trace tag' (gold, the Breezehome key, the cell), 'save'. Every line starts with HSE and holds no wall clock.
 local core = require('openmw.core')
@@ -137,6 +137,36 @@ return {
                                 print(string.format('HSE npc %s at %.0f,%.0f,%.0f', tostring(o.recordId), o.position.x, o.position.y, o.position.z))
                             end
                         end
+                    elseif step[2] == 'hour' then
+                        -- task 0317: sets the game hour (a daylight frame)
+                        local ok, err = pcall(function() world.mwscript.getGlobalVariables(player).gamehour = step[3] end)
+                        trace('hour ' .. tostring(step[3]) .. (ok and '' or (' failed: ' .. tostring(err))))
+                    elseif step[2] == 'en' then
+                        -- task 0317: the enabled objects of the player's cell, and (step[3] x, step[4] y, step[5] radius) those
+                        -- near a point; a hash of their ids and places so two runs can be compared
+                        local total, near, hash = 0, 0, 0
+                        for _, o in ipairs(player.cell:getAll()) do
+                            if o.enabled then
+                                total = total + 1
+                                if step[3] then
+                                    local dx, dy = o.position.x - step[3], o.position.y - step[4]
+                                    if dx * dx + dy * dy <= step[5] * step[5] then
+                                        near = near + 1
+                                        local id = tostring(o.recordId)
+                                        for i = 1, #id do hash = (hash * 31 + string.byte(id, i)) % 1000000007 end
+                                    end
+                                end
+                            end
+                        end
+                        trace(string.format('en total=%d near=%d hash=%d', total, near, hash))
+                    elseif step[2] == 'inv' then
+                        -- task 0317: how many of each item (hex id text, step[3..]) the player holds
+                        local parts = {}
+                        for i = 3, #step do
+                            local n = (okInv and inv.ready()) and inv.count('player', step[i]) or -1
+                            parts[#parts + 1] = step[i] .. '=' .. tostring(n)
+                        end
+                        trace('inv ' .. table.concat(parts, ' '))
                     elseif step[2] == 'trace' then
                         trace(step[3] or 'note')
                     elseif step[2] == 'save' then

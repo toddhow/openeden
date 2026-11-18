@@ -233,6 +233,21 @@ namespace game_skyrimse
             (void)form;
             return {};
         }
+        /// Task 0317: the entries of a form list (FLST), in the record's own order. False when `list` is no form list
+        /// or its data is not read yet; `out` is then empty.
+        [[nodiscard]] virtual bool formListEntries(FormId list, std::vector<FormId>& out)
+        {
+            (void)list;
+            out.clear();
+            return false;
+        }
+        /// Task 0317: the scripts the record of an UNPLACED form carries (a MISC item's VMAD); false when it has none.
+        [[nodiscard]] virtual bool baseScripts(FormId form, std::vector<vmad::Script>& out)
+        {
+            (void)form;
+            out.clear();
+            return false;
+        }
     };
 
     /// Task 0202: a script moved or turned a reference. Positions are game units, angles radians in the data's own
@@ -576,6 +591,12 @@ namespace game_skyrimse
         std::uint32_t mMaxLoadedScripts = 4096;
         /// Instances the host attaches in total.
         std::uint32_t mMaxInstances = 65536;
+        /// Task 0317 (`[extension.skyrimse] house building`): the scripts of an unplaced item form (a Hearthfire house
+        /// part) are attached when the form is first handed out by a form list or first added to an inventory, so
+        /// `OnContainerChanged` and `(form as script).ID` work for forms no cell ever placed. At most
+        /// `mMaxFormScripts` forms.
+        bool mFormScripts = false;
+        std::uint32_t mMaxFormScripts = 2048;
     };
 
     /// Counts of what happened since the host was made. Deterministic.
@@ -675,6 +696,8 @@ namespace game_skyrimse
         /// Task 0286: MoveTo asks PapyrusWorldHooks::moveToCell first (any distance from the player, any cell); the
         /// relocation above is the fallback when the hook refuses. Off by default.
         void setCellMoves(bool on);
+        /// Task 0317: the scripts of unplaced item forms (see PapyrusHostOptions::mFormScripts).
+        void setFormScripts(bool on);
         /// Task 0305: what an alias holds now (a script's ForceRefTo or ForceLocationTo, else the quest state's fill);
         /// 0 when nothing. `aliasRevision` moves with every forced or cleared alias, so a reader can tell that the
         /// answer may have changed (the package lists of DLC1VQ00's Messenger).

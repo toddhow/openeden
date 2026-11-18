@@ -523,7 +523,7 @@ namespace ScriptPapyrus::Vm
         return Val{};
     }
 
-    Val Runtime::instanceDefining(const Val& source, std::uint32_t nameId)
+    Val Runtime::instanceDefining(const Val& source, std::uint32_t nameId, bool property)
     {
         if (source.kind != Kind::Form || source.a == 0)
         {
@@ -550,7 +550,11 @@ namespace ScriptPapyrus::Vm
             {
                 continue;
             }
-            if (prepare(other.script) && findFunction(other.script, other.stateId, nameId).found)
+            std::uint32_t propertyOwner = 0;
+            const PropInfo* propertyInfo = nullptr;
+            if (prepare(other.script)
+                && (property ? findProperty(other.script, nameId, propertyOwner, propertyInfo)
+                             : findFunction(other.script, other.stateId, nameId).found))
             {
                 return Val::makeInstance(static_cast<std::uint32_t>(i + 1));
             }
@@ -1147,7 +1151,7 @@ namespace ScriptPapyrus::Vm
     {
         const Frame frame = stack.frames.back();
         const std::uint32_t name = ops[0].n;
-        const Val receiver = readOp(stack, frame, ops[1]);
+        Val receiver = readOp(stack, frame, ops[1]);
         Val value;
         if (set)
         {
@@ -1209,7 +1213,25 @@ namespace ScriptPapyrus::Vm
         }
         std::uint32_t owner = 0;
         const PropInfo* info = nullptr;
-        if (!findProperty(start, name, owner, info))
+        bool haveProperty = findProperty(start, name, owner, info);
+        if (!haveProperty && receiver.kind == Kind::Form)
+        {
+            // Task 0317: a script typed property that holds a form (a quest, filled before its script was attached):
+            // the property belongs to the script instance attached to that form
+            const Val through = instanceDefining(receiver, name, true);
+            if (through.kind == Kind::Instance)
+            {
+                const Instance* viaInstance = instanceOf(through);
+                if (viaInstance != nullptr && prepare(viaInstance->script))
+                {
+                    receiver = through;
+                    start = viaInstance->script;
+                    classId = mScripts[start].mClassId;
+                    haveProperty = findProperty(start, name, owner, info);
+                }
+            }
+        }
+        if (!haveProperty)
         {
             return unresolvedCall(
                 stack, ErrorKind::NoSuchFunction, classId, name, destOp, instr.dest, "has no property");

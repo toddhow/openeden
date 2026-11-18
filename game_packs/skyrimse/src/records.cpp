@@ -409,6 +409,7 @@ namespace game_skyrimse
                     case Content::fourCC("TXST"):
                     case Content::fourCC("MESG"):
                     case Content::fourCC("KYWD"): // task 0270: a script calls Keyword.SendStoryEvent on one
+                    case Content::fourCC("FLST"): // task 0317: a script's property is a form list (class FormList)
                     case Content::fourCC("LGTM"): // task 0303: a lighting template
                         break;
                     default:
@@ -498,6 +499,7 @@ namespace game_skyrimse
                     case Content::fourCC("SPEL"):
                     case Content::fourCC("TXST"):
                     case Content::fourCC("KYWD"): // task 0270
+                    case Content::fourCC("FLST"): // task 0317
                     case Content::fourCC("MESG"): // task 0224: DESC only
                     case Content::fourCC("LGTM"): // task 0303: DATA only
                         ok = readStatic(record, bytes);

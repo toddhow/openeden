@@ -59,6 +59,10 @@ namespace game_skyrimse::crafting
         /// Unset: perk conditions are not evaluated (a forge recipe with conditions is hidden, tempering is shown).
         std::function<bool(std::span<const survey::Ctda> conditions, bool itemEnchanted)> mRecipeConditions;
         std::function<void(const std::string&)> mLog;
+        /// Task 0317: told once a bench session is ready, with the placement (a furniture reference) and its base: the
+        /// game's own `OnActivate` script of a workbench (BYOHWorkbenchScript) runs then. Called for every bench; the
+        /// receiver decides which furniture has a script.
+        std::function<void(std::uint64_t placement, FormId furniture)> mBenchOpened;
     };
 
     /// Task 0206: connects crafting to the player's progression. A craft trains its skill (`amount * boost`, boost the
@@ -135,6 +139,9 @@ namespace game_skyrimse::crafting
         void openBench(std::uint64_t placement, FormId furniture, std::string name);
         void openKind(BenchKind kind);
         void close();
+        /// Task 0317 (`[extension.skyrimse] house building`): furniture with a BYOH keyword is a House bench.
+        void setHouseBuilding(bool on) { mHouseBuilding = on; }
+        [[nodiscard]] bool houseBuilding() const { return mHouseBuilding; }
         [[nodiscard]] State session() const { return mSession; }
         [[nodiscard]] const std::string& reason() const { return mReason; }
         [[nodiscard]] const std::vector<BenchKind>& kinds() const { return mKinds; }
@@ -204,6 +211,7 @@ namespace game_skyrimse::crafting
         CraftingSettings mSettings;
         bool mIgnoreConditions;
         bool mTestBench;
+        bool mHouseBuilding = false;
         CraftingState mState;
         PoisonCoatings mCoatings;
         PoisonChunk mPoisonChunk{ mCoatings };

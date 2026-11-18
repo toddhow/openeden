@@ -739,6 +739,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsebarterreal.cpp
     skyrimse/testskyrimsecrafting.cpp
     skyrimse/testskyrimsecraftingservice.cpp
+    skyrimse/testskyrimsehousebuilding.cpp
     skyrimse/testskyrimsecraftingreal.cpp
     skyrimse/testskyrimsebenches.cpp
     skyrimse/testskyrimsepoison.cpp

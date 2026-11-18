@@ -325,7 +325,7 @@ namespace game_skyrimse::crafting
     {
         if (!mTableReady)
             return "pending";
-        return mTable.benchesOf(furniture).empty() ? "no" : "yes";
+        return mTable.benchesOf(furniture, mHouseBuilding).empty() ? "no" : "yes";
     }
 
     void CraftingService::openBench(std::uint64_t placement, FormId furniture, std::string name)
@@ -344,7 +344,7 @@ namespace game_skyrimse::crafting
     {
         if (!mTableReady)
             return false;
-        std::vector<BenchKind> kinds = mTable.benchesOf(mFurniture);
+        std::vector<BenchKind> kinds = mTable.benchesOf(mFurniture, mHouseBuilding);
         if (kinds.empty())
         {
             refuse("that is not a crafting bench");
@@ -356,6 +356,8 @@ namespace game_skyrimse::crafting
         for (const BenchKind kind : mKinds)
             names.emplace_back(benchKindName(kind));
         log("CRAFT open " + mBenchName + " (" + join(names, ",") + ") placement " + inventory::formatId(mPlacement));
+        if (mHouseBuilding && mHooks.mBenchOpened)
+            mHooks.mBenchOpened(mPlacement, mFurniture); // task 0317: the workbench's own OnActivate
         return true;
     }
 
@@ -557,7 +559,9 @@ namespace game_skyrimse::crafting
             return out;
         for (const BenchKind kind : mKinds)
             for (const Recipe* r : mTable.recipesFor(kind, true))
-                if (mInventory.table().item(r->mResult) != nullptr && conditionsAllow(*r))
+                if (mInventory.table().item(r->mResult) != nullptr
+                    && (kind != BenchKind::House || mTable.furnitureOffers(mFurniture, r->mBench))
+                    && conditionsAllow(*r))
                     out.push_back(r);
         std::sort(out.begin(), out.end(), [](const Recipe* a, const Recipe* b) { return a->mId < b->mId; });
         out.erase(std::unique(out.begin(), out.end()), out.end());
@@ -647,6 +651,8 @@ namespace game_skyrimse::crafting
         const BenchKind kind = mTable.benchOfKeyword(r->mBench);
         if (isTemperBench(kind) || !hasKind(kind))
             return done(Status::NoBench, "craft");
+        if (kind == BenchKind::House && !mTable.furnitureOffers(mFurniture, r->mBench))
+            return done(Status::NoBench, "craft"); // task 0317: this furniture does not carry the recipe's keyword
         if (!conditionsAllow(*r))
             return done(Status::UnknownRecipe, "craft");
         const inventory::ItemStat* result = mInventory.table().item(r->mResult);
@@ -656,6 +662,13 @@ namespace game_skyrimse::crafting
             return done(Status::MissingItems, "craft");
         for (const InventoryEntry& e : r->mItems)
             (void)mInventory.model().consume(inventory::kPlayerOwner, e.mItem, e.mCount);
+        if (kind == BenchKind::House)
+        {
+            // Task 0317: a house part is a MISC whose script hears it come into the player's inventory
+            // (OnContainerChanged with no old container): `add` reports the move, `grant` does not
+            (void)mInventory.model().add(inventory::kPlayerOwner, r->mResult, std::max<std::int32_t>(1, r->mCount));
+            return done(Status::Ok, "craft " + itemName(r->mResult)); // no skill is trained
+        }
         (void)mInventory.model().grant(inventory::kPlayerOwner, r->mResult, std::max<std::int32_t>(1, r->mCount));
         // Task 0229: the smelter and the tanning rack train smithing as the forge does; cooking trains nothing
         // (RECALLED-VERIFY: Skyrim gives the cooking pot no experience).

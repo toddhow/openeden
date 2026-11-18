@@ -4463,6 +4463,8 @@ namespace game_skyrimse
             return "Spell";
         if (type == Content::fourCC("KYWD"))
             return "Keyword"; // task 0270
+        if (type == Content::fourCC("FLST"))
+            return "FormList"; // task 0317
         return type == Content::fourCC("MESG") ? "Message" : std::string();
     }
 

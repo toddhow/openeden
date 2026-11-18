@@ -686,6 +686,11 @@
       "default": false
     },
     {
+      "key": "house building",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "houses test permission",
       "type": "bool",
       "default": false
