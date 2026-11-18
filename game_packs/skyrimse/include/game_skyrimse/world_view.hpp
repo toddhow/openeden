@@ -1043,6 +1043,7 @@ namespace game_skyrimse
         ForcedGreetHooks mForcedGreet; ///< task 0264
         FormId mForcedGreetReference = kNullFormId; ///< task 0264: the open conversation is a ForceGreet package's
         bool mAliasPackagesOn = false; ///< task 0271
+        std::set<FormId> mTalkedTo; ///< task 0324: references whose conversation began (GetTalkedToPC for packages)
         bool mPrimitiveTriggers = false; ///< task 0310
         bool mAmbushOn = false; ///< task 0302
         bool mPlayerPlaceKnown = false;

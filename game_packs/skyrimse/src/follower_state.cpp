@@ -98,6 +98,25 @@ namespace game_skyrimse
         return true;
     }
 
+    bool FollowerState::setFactionRelation(FormId a, FormId b, std::uint8_t relation)
+    {
+        if (a == 0 || b == 0)
+            return false;
+        const std::pair<FormId, FormId> key = a < b ? std::make_pair(a, b) : std::make_pair(b, a);
+        if (mRelations.count(key) == 0 && mRelations.size() >= kMaxFollowerStateEntries)
+            return false;
+        mRelations[key] = relation;
+        return true;
+    }
+
+    std::optional<std::uint8_t> FollowerState::factionRelation(FormId a, FormId b) const
+    {
+        const auto found = mRelations.find(a < b ? std::make_pair(a, b) : std::make_pair(b, a));
+        if (found == mRelations.end())
+            return std::nullopt;
+        return found->second;
+    }
+
     bool FollowerState::waiting(FormId reference) const
     {
         const std::optional<float> value = actorValue(reference, kWaitingForPlayerIndex);

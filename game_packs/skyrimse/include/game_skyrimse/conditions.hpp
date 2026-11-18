@@ -882,6 +882,10 @@ namespace game_skyrimse::conditions
     /// starts; an empty sink clears it.
     using ConditionDebugSink = std::function<void(const std::string&)>;
     void setConditionDebug(std::uint32_t quest, ConditionDebugSink sink);
+    /// Task 0324 (a developer aid): while true every condition list is reported to the sink of `setConditionDebug`.
+    void setConditionDebugAll(bool all);
+    /// Task 0324: one line to the sink of `setConditionDebug` (nothing when there is none).
+    void conditionDebugReport(const std::string& line);
 
     class Evaluator
     {

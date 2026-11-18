@@ -80,6 +80,12 @@ namespace game_skyrimse
         bool setTeammate(FormId reference, bool teammate);
         bool setGlobal(FormId global, float value);
 
+        /// Task 0324: the relation a script gave two factions (`Faction.SetAlly`: 2, `SetEnemy`: 1, the values of
+        /// `ActorRelation`); it holds both ways and the last one wins. Not saved (a quest script that set it runs again
+        /// only when its stage does): `data()` and the chunk do not hold it. False for a zero id or a full table.
+        bool setFactionRelation(FormId a, FormId b, std::uint8_t relation);
+        [[nodiscard]] std::optional<std::uint8_t> factionRelation(FormId a, FormId b) const;
+
         /// Where the WaitingForPlayer value comes from: the Papyrus host's actor value offsets (the same store SetAV
         /// writes). An empty source means no actor ever waits.
         using ActorValueSource = std::function<std::optional<float>(FormId reference, std::string_view key)>;
@@ -100,6 +106,7 @@ namespace game_skyrimse
     private:
         FollowerStateData mData;
         ActorValueSource mActorValues;
+        std::map<std::pair<FormId, FormId>, std::uint8_t> mRelations; ///< task 0324: (lower id, higher id) to relation
     };
 
     /// The pack's save chunk "followerstate" (version 1): u32 count and, per entry, u32 actor, u32 faction, i32 rank

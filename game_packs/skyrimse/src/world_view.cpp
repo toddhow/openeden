@@ -1900,6 +1900,10 @@ namespace game_skyrimse
             world.setPlacedRefs(nullptr);
         }
         world.setSpeaker(speaker);
+        world.setTalkedLookup(mAliasPackagesOn ? SkyrimConditionWorld::TalkedLookup([this](FormId reference) {
+            return mTalkedTo.count(reference) != 0;
+        })
+                                               : SkyrimConditionWorld::TalkedLookup()); // task 0324
         world.setFollowerOverlay(mAmbushOn ? mFollowerOverlay : nullptr); // task 0302: Variable01 of an ambusher
         // Task 0310: the player's level, for a package whose condition reads it (DA03StartGuardStartQuestGreet:
         // GetLevel of the player at least 10); only with `quest alias packages`, like the other player facts here
@@ -2871,6 +2875,8 @@ namespace game_skyrimse
         speaker.mBase = static_cast<FormId>(base);
         speaker.mReference = static_cast<FormId>(reference);
         speaker.mCell = static_cast<FormId>(cell);
+        if (mAliasPackagesOn && speaker.mReference != kNullFormId) // task 0324: the greeting package of Lydia ends
+            mTalkedTo.insert(speaker.mReference);
         // Task 0156: what the cell says about interior and location
         fillSpeakerCell(speaker, speaker.mCell);
         // Task 0230: the running quests' aliases that need the speaker's editor location (Steward, Innkeeper, Jarl)

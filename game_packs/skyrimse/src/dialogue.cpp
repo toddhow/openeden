@@ -792,6 +792,11 @@ namespace game_skyrimse
         constexpr std::uint16_t kFnGetIsAliasRef = 566;
     }
 
+    namespace
+    {
+        FormId sSelectDebugTopic = kNullFormId;
+    }
+
     std::vector<FormId> DialogueIndex::questGreetingTopics() const
     {
         // a topic some INFO links to (TCLT) is a reply inside a conversation: MG01FaraldaYoureInBranchTopic and the
@@ -804,6 +809,11 @@ namespace game_skyrimse
         std::vector<FormId> ids;
         for (const auto& [id, t] : mTopics)
         {
+            if (id == sSelectDebugTopic) // task 0324 (the debug aid): why a topic is or is not a quest greeting
+                conditions::conditionDebugReport("GREETING topic " + std::to_string(id) + ": category "
+                    + std::to_string(static_cast<int>(t.mCategory)) + " subtype " + t.mSubtypeName + " named "
+                    + std::to_string(t.mName.mPresent) + " branch " + std::to_string(t.mBranch) + " linked "
+                    + std::to_string(linked.count(id)));
             if (t.mCategory != TopicCategory::Topic || t.mSubtypeName != "CUST" || t.mName.mPresent
                 || t.mBranch == kNullFormId || linked.count(id) != 0)
                 continue;
@@ -819,6 +829,10 @@ namespace game_skyrimse
                                 namesSpeaker = true;
                                 break;
                             }
+            if (id == sSelectDebugTopic)
+                conditions::conditionDebugReport("GREETING topic " + std::to_string(id) + ": names its speaker "
+                    + std::to_string(namesSpeaker) + ", the start of its branch "
+                    + std::to_string(mBranchStart.count(t.mBranch) != 0 && mBranchStart.at(t.mBranch) == id));
             if (!namesSpeaker)
                 continue;
             const auto branch = mBranchStart.find(t.mBranch);
@@ -1235,7 +1249,9 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::talkedToPlayer(conditions::Subject subject) const
     {
-        return mTalked && isSpeaker(subject);
+        if (!isSpeaker(subject))
+            return false;
+        return mTalked || (mTalkedLookup && mSpeaker.mReference != kNullFormId && mTalkedLookup(mSpeaker.mReference));
     }
 
     float SkyrimConditionWorld::actorValuePercent(conditions::Subject subject, std::uint32_t actorValueIndex) const
@@ -2176,7 +2192,8 @@ namespace game_skyrimse
             return false;
         ActorView view;
         const FormId a = subject == kPlayer ? kPlayerBase : (viewOf(subject, view) ? view.mBase : kNullFormId);
-        const FormId b = baseOfActorReference(resolve(target));
+        // task 0324: a target of 0 is the player (the follow and recruit lines are written that way)
+        const FormId b = target == 0 ? kPlayerBase : baseOfActorReference(resolve(target));
         const bool aActor = a == kPlayerBase || (a != kNullFormId && mActors.npc(a) != nullptr);
         return aActor && b != kNullFormId;
     }
@@ -2204,7 +2221,7 @@ namespace game_skyrimse
         if (!relationKnown(subject, target))
             return 0.f;
         const FormId a = subject == kPlayer ? kPlayerBase : (viewOf(subject, view) ? view.mBase : kNullFormId);
-        const FormId b = baseOfActorReference(resolve(target));
+        const FormId b = target == 0 ? kPlayerBase : baseOfActorReference(resolve(target)); // task 0324: 0 is the player
         const std::optional<std::uint8_t> rank = mPlacedRefs->relationRank(a, b);
         return rank ? relationshipRankValue(*rank) : 0.f; // no record: acquaintances (0)
     }
@@ -2299,6 +2316,11 @@ namespace game_skyrimse
         return n;
     }
 
+    void setSelectDebugTopic(FormId topic)
+    {
+        sSelectDebugTopic = topic;
+    }
+
     Selection selectInfo(const DialogueIndex& index, FormId topicId, SkyrimConditionWorld& world,
         const DialogueSpeaker& speaker, const SelectionOptions& options, conditions::Evaluator* evaluator)
     {
@@ -2311,18 +2333,54 @@ namespace game_skyrimse
 
         const std::vector<const DialogInfo*> infos = index.infosOf(topicId);
         std::vector<const DialogInfo*> randoms;
+        const bool debug = sSelectDebugTopic != kNullFormId && topicId == sSelectDebugTopic;
+        const auto why = [&](const DialogInfo* info, const char* reason) {
+            if (debug)
+                conditions::conditionDebugReport(
+                    "SELECT info " + std::to_string(info->mCommon.mId) + " skipped: " + reason);
+        };
+        struct DebugAll
+        {
+            bool mOn;
+            explicit DebugAll(bool on)
+                : mOn(on)
+            {
+                if (mOn)
+                    conditions::setConditionDebugAll(true);
+            }
+            ~DebugAll()
+            {
+                if (mOn)
+                    conditions::setConditionDebugAll(false);
+            }
+        } debugAll(debug);
+        if (debug)
+            conditions::conditionDebugReport(
+                "SELECT topic " + std::to_string(topicId) + ": " + std::to_string(infos.size()) + " info(s)");
         for (const DialogInfo* info : infos)
         {
             ++result.mConsidered;
             const FormId quest = info->mQuest != kNullFormId ? info->mQuest : (topic != nullptr ? topic->mQuest : 0);
             if (options.mQuestRunning && quest != kNullFormId && !options.mQuestRunning(quest))
+            {
+                why(info, "its quest is not running");
                 continue;
+            }
             if ((info->mFlags & InfoFlags::SayOnce) != 0 && options.mSaid && options.mSaid(info->mCommon.mId))
+            {
+                why(info, "said once");
                 continue;
+            }
             if (info->mSpeaker != kNullFormId && info->mSpeaker != speaker.mBase)
+            {
+                why(info, "another speaker");
                 continue;
+            }
             if (!info->mConditionsOk)
+            {
+                why(info, "damaged conditions");
                 continue;
+            }
             world.setQuestContext(quest);
             // the quest's own dialogue conditions gate all of its dialogue
             bool questUncertain = false;
@@ -2356,7 +2414,10 @@ namespace game_skyrimse
             if (result.mInfo == nullptr && uncertain)
                 ++result.mUncertainBefore;
             if (!pass)
+            {
+                why(info, "its conditions fail");
                 continue;
+            }
             ++result.mPassing;
             if (result.mInfo == nullptr)
             {

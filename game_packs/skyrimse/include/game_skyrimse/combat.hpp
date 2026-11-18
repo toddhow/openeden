@@ -934,6 +934,10 @@ namespace game_skyrimse
         /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every`
         /// and `bash every` fix the attack kind and `combat test block` makes the named actors block always.
         void setCombatAi(bool on);
+        /// Task 0324: answers whether a victim with these factions is the player's ally by what a quest script set
+        /// (Faction.SetAlly). A blow of the PLAYER on such an actor is an accident: it does not provoke it. Off (empty)
+        /// by default.
+        void setAllyOfPlayerHook(std::function<bool(const std::vector<FormId>&)> hook) { mAllyOfPlayer = std::move(hook); }
         /// Task 0197: the target is chosen from relations, followers, guards and sight (needs the AI); off, the AI's
         /// target is the player as before.
         void setCombatFactions(bool on);
@@ -1503,6 +1507,7 @@ namespace game_skyrimse
         void aiCallForHelp(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::ActorHandle engaged);
         [[nodiscard]] bool aiTargetsPlayerSide(const Fighter& fighter) const;
         bool mAiOn = false;
+        std::function<bool(const std::vector<FormId>&)> mAllyOfPlayer; ///< task 0324
         SlotTable mGuardSlots;
         std::vector<AiActor> mAiActors;
         std::vector<AiWatcher> mAiWatchers;

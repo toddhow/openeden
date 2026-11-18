@@ -417,6 +417,8 @@ namespace game_skyrimse
         Fighter* victim = find(CombatSubject::of(report.victim));
         if (victim == nullptr)
             return;
+        if (report.attackerIsPlayer && mAllyOfPlayer && mAllyOfPlayer(victim->mProfile.mFactions)) // task 0324
+            return;
         // Task 0197: an NPC that is hurt by another NPC fights it (an ally's accident included: it is not refused).
         const CombatSubject by
             = report.attackerIsPlayer ? CombatSubject::ofPlayer() : CombatSubject::of(report.attacker);
@@ -427,6 +429,8 @@ namespace game_skyrimse
     {
         if (!mAiOn || (!attacker.mSubject.player && !mFactionsOn) || victim.mSubject.player || victim.mDead
             || victim.mHealth <= 0.f || (!attacker.mSubject.player && attacker.mDead))
+            return;
+        if (attacker.mSubject.player && mAllyOfPlayer && mAllyOfPlayer(victim.mProfile.mFactions)) // task 0324
             return;
         (void)aiBegin(victim, "provoked", attacker.mSubject);
     }

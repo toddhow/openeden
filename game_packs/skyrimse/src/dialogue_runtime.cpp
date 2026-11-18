@@ -335,6 +335,9 @@ namespace game_skyrimse
             for (const FormId start : mDialogue.blockingStarts())
             {
                 greeting = selectInfo(mDialogue, start, mWorld, mSpeaker, greetingOptions);
+                conditions::conditionDebugReport("GREETING blocking start " + hex8(start) + ": "
+                    + std::to_string(greeting.mConsidered) + " considered, " + std::to_string(greeting.mPassing)
+                    + " passing"); // task 0324 (debug aid sinks only)
                 if (greeting.mInfo != nullptr)
                     break;
             }
@@ -349,6 +352,8 @@ namespace game_skyrimse
             for (const FormId id : mGreetingTopics)
             {
                 const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, greetingOptions);
+                conditions::conditionDebugReport("GREETING candidate " + hex8(id) + ": " + std::to_string(s.mConsidered)
+                    + " considered, " + std::to_string(s.mPassing) + " passing"); // task 0324 (debug aid sinks only)
                 if (mTrace && s.mInfo != nullptr)
                     mTrace("quest greeting topic " + hex8(id) + ": " + std::to_string(s.mConsidered)
                         + " considered, " + std::to_string(s.mPassing) + " passing, chosen "

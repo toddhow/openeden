@@ -11,6 +11,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -1654,5 +1655,44 @@ namespace
         ASSERT_FALSE(a.first.empty());
         EXPECT_EQ(a.first, b.first);
         EXPECT_EQ(a.second, b.second);
+    }
+
+    // Task 0324: an ally of the player (a faction a quest script made the player's ally: the Greybeards) takes the
+    // player's blow as an accident and does not fight back; the hook is off by default and only the player's blows count.
+    TEST_F(CombatAi, aVictimAlliedToThePlayerDoesNotFightBackWhenTheHookSaysSo)
+    {
+        mData.mProfiles[kBase].mFactions = { 0x500 };
+        mCombat.onActorAdded(infoOf(10, kBase, "Guard"));
+        mCombat.setAllyOfPlayerHook([](const std::vector<FormId>& factions) {
+            return std::find(factions.begin(), factions.end(), FormId(0x500)) != factions.end();
+        });
+        mWriter.mPlayerState.y = 100.0;
+        run(5); // the fighter's profile is read at its first update
+        DamageReport report;
+        report.attackerIsPlayer = true;
+        report.victim = mA;
+        report.amount = 5.f;
+        report.healthAfter = 50.f;
+        mCombat.aiNoteDamage(report);
+        EXPECT_EQ(mCombat.aiEngaged(), 0u);
+        EXPECT_FALSE(traced("(provoked)"));
+    }
+
+    TEST_F(CombatAi, aVictimThatIsNotTheHooksAllyStillFightsBack)
+    {
+        mData.mProfiles[kBase].mFactions = { 0x501 };
+        mCombat.onActorAdded(infoOf(10, kBase, "Guard"));
+        mCombat.setAllyOfPlayerHook([](const std::vector<FormId>& factions) {
+            return std::find(factions.begin(), factions.end(), FormId(0x500)) != factions.end();
+        });
+        mWriter.mPlayerState.y = 100.0;
+        run(5); // the fighter's profile is read at its first update
+        DamageReport report;
+        report.attackerIsPlayer = true;
+        report.victim = mA;
+        report.amount = 5.f;
+        report.healthAfter = 50.f;
+        mCombat.aiNoteDamage(report);
+        EXPECT_EQ(mCombat.aiEngaged(), 1u);
     }
 }

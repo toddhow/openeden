@@ -985,6 +985,18 @@ namespace game_skyrimse::conditions
     {
         std::uint32_t sDebugQuest = 0;
         ConditionDebugSink sDebugSink;
+        bool sDebugAll = false; // task 0324: every list is reported while one topic is being selected
+    }
+
+    void setConditionDebugAll(bool all)
+    {
+        sDebugAll = all;
+    }
+
+    void conditionDebugReport(const std::string& line)
+    {
+        if (sDebugSink)
+            sDebugSink(line);
     }
 
     void setConditionDebug(std::uint32_t quest, ConditionDebugSink sink)
@@ -996,9 +1008,12 @@ namespace game_skyrimse::conditions
     bool Evaluator::evaluate(std::span<const survey::Ctda> list, const ConditionWorld& world)
     {
         ++mLists;
-        const bool debug = sDebugSink && sDebugQuest != 0
-            && std::any_of(list.begin(), list.end(),
-                [](const survey::Ctda& c) { return (c.mParam1 & 0xFFFFFFu) == (sDebugQuest & 0xFFFFFFu); });
+        const bool debug = sDebugSink
+            && (sDebugAll
+                || (sDebugQuest != 0
+                    && std::any_of(list.begin(), list.end(), [](const survey::Ctda& c) {
+                           return (c.mParam1 & 0xFFFFFFu) == (sDebugQuest & 0xFFFFFFu);
+                       })));
         bool failedClosed = false;
         bool allClausesTrue = true;
         bool clauseTrue = false;

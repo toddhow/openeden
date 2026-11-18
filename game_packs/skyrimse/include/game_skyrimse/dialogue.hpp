@@ -449,6 +449,10 @@ namespace game_skyrimse
         /// thread.
         using LiveQuestVariable = std::function<std::optional<float>(FormId quest, const std::string& name)>;
         void setLiveQuestVariable(LiveQuestVariable source) { mLiveQuestVariable = std::move(source); }
+        /// Task 0324: GetTalkedToPC outside a conversation (a package's condition: Lydia's greeting package waits for
+        /// "not talked to yet"): the actor of this REFERENCE has been talked to. Unset, only the open conversation counts.
+        using TalkedLookup = std::function<bool(FormId reference)>;
+        void setTalkedLookup(TalkedLookup lookup) { mTalkedLookup = std::move(lookup); }
         /// Task 0217: what scripts stored on locations (Location.SetKeywordData); with it fn_606 and fn_651 read it,
         /// else they answer 0 as before.
         void setKeywordData(const LocationKeywordData* data) { mKeywordData = data; }
@@ -718,6 +722,7 @@ namespace game_skyrimse
         bool mCountRefTypes = false; ///< task 0298
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261
+        TalkedLookup mTalkedLookup; ///< task 0324
         std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
         const LocationKeywordData* mKeywordData = nullptr;
         const PlacedRefIndex* mPlacedRefs = nullptr;
@@ -776,6 +781,10 @@ namespace game_skyrimse
     /// and said, or it names another speaker (ANAM); the first whose conditions pass wins; if that one has the Random
     /// flag, the infos with the Random flag that pass (in the topic, from that one on) are collected and `pick`
     /// chooses among them. (RECALLED-VERIFY: the Random rule.)
+    /// Task 0324 (a developer aid, `dialogue debug topic = <hex id>`): the selection of that topic reports, through the
+    /// sink of `conditions::setConditionDebug`, why each INFO passes or fails (every condition list is printed).
+    void setSelectDebugTopic(FormId topic);
+
     [[nodiscard]] Selection selectInfo(const DialogueIndex& index, FormId topic, SkyrimConditionWorld& world,
         const DialogueSpeaker& speaker, const SelectionOptions& options, conditions::Evaluator* evaluator = nullptr);
 

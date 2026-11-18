@@ -9,6 +9,8 @@ local cfg = require('scripts.mq.cfg')
 local updates = 0
 local hourSet = false
 local activated = false
+local activated2 = false
+local activated3 = false
 local okInv, inv = pcall(require, 'core.skyrimse.inventory')
 local steps = {} -- cfg.moves: { update, from, to, item } (hex text ids): a stand-in for the inventory windows' Take and Put clicks
 
@@ -134,6 +136,16 @@ local function sample()
         end
     end
     table.sort(list, function(a, b) return a[1] < b[1] end)
+    -- task 0324: cfg.watch = { 'base', ... } (decimal base ids): their places and the player's distance, whatever the radius
+    for _, o in ipairs(cfg.watch and player.cell:getAll() or {}) do
+        local ok, rec = pcall(function() return o.recordId end)
+        local base = ok and rec ~= nil and tostring(rec):match(':b(%d+)$')
+        for _, w in ipairs(cfg.watch) do
+            if base == w then
+                print(string.format('MQ watch %s d=%.0f at %.0f,%.0f,%.0f', tostring(rec), (o.position - p):length(), o.position.x, o.position.y, o.position.z))
+            end
+        end
+    end
     for i = 1, math.min(cfg.near, #list) do
         local e = list[i]
         print(string.format('MQ   %s d=%.0f at %.0f,%.0f,%.0f', e[2], e[1], e[3].x, e[3].y, e[3].z))
@@ -171,6 +183,15 @@ return {
             if cfg.activate and not activated and updates >= cfg.activate[1] then
                 activated = true
                 activateActor(cfg.activate[2])
+            end
+            -- task 0324: a second activation (cfg.activate2 = { update, base }, then cfg.activate3)
+            if cfg.activate2 and not activated2 and updates >= cfg.activate2[1] then
+                activated2 = true
+                activateActor(cfg.activate2[2])
+            end
+            if cfg.activate3 and not activated3 and updates >= cfg.activate3[1] then
+                activated3 = true
+                activateActor(cfg.activate3[2])
             end
             if cfg.aim and updates >= cfg.aim[1] and updates % 20 == 0 then
                 aimAt(cfg.aim[2]) -- again every 20 updates: the actor walks to its post after the first talk

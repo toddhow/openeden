@@ -2207,6 +2207,18 @@ namespace game_skyrimse
                 }
                 return NativeResult{};
             });
+            // Task 0324: Faction.SetAlly/SetEnemy (the Greybeards become the player's allies at MQ105 stage 5): the relation
+            // goes to the follower state, which the combat AI asks through the pack's hook
+            reg("Faction", "SetAlly", false, [this, factionArgument](const NativeCall& c) {
+                if (mFollowers != nullptr)
+                    (void)mFollowers->setFactionRelation(formOf(c.self), factionArgument(c), 2);
+                return NativeResult{};
+            });
+            reg("Faction", "SetEnemy", false, [this, factionArgument](const NativeCall& c) {
+                if (mFollowers != nullptr)
+                    (void)mFollowers->setFactionRelation(formOf(c.self), factionArgument(c), 1);
+                return NativeResult{};
+            });
             reg("Actor", "GetFactionRank", false, [this, factionArgument](const NativeCall& c) {
                 std::int32_t rank = -2; // not a member
                 if (mFollowers != nullptr)

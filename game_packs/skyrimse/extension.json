@@ -516,6 +516,11 @@
       "default": ""
     },
     {
+      "key": "dialogue debug topic",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "conditions debug quest",
       "type": "string",
       "default": ""

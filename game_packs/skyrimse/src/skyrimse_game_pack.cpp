@@ -2501,6 +2501,17 @@ namespace game_skyrimse
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
                             driver->setTestQuests(settings->getString(kPackId, "story test quest", ""),
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
+                            // Task 0324 (a developer aid): `dialogue debug topic = <hex id>`: every INFO of that topic says why it
+                            // passes or fails (to the same sink)
+                            if (const std::string debugTopic = settings->getString(kPackId, "dialogue debug topic", "");
+                                !debugTopic.empty())
+                            {
+                                setSelectDebugTopic(static_cast<FormId>(std::strtoul(debugTopic.c_str(), nullptr, 16)));
+                                conditions::setConditionDebug(0xFFFFFFFFu, [logger](const std::string& line) {
+                                    if (logger != nullptr)
+                                        logger->log(openeden::sdk::LogLevel::Info, "CONDDEBUG " + line);
+                                });
+                            }
                             // Task 0311 (a developer aid): `conditions debug quest = <hex quest id>` reports every condition of
                             // the lists that name that quest (value, compared value, answer)
                             if (const std::string debugQuest = settings->getString(kPackId, "conditions debug quest", "");
@@ -3003,9 +3014,27 @@ namespace game_skyrimse
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
                     mPapyrus->enablePlayerEvents(); // task 0318
+                    // task 0324: Arngeir's talk after the push (MQ105ArngeirEinarthWordTopic and the other nameless
+                    // branch starts of the quest) is the greeting a quest gives; the fragments of a line run before the
+                    // next choice
+                    mWorldView.setQuestGreetings(true);
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
                     // task 0313: a dragon's death goes through the game's own sequence, which takes the soul
                     mWhiterunQuest = true;
                     mCellSource.setLivePlaces(true);
+                    // task 0324: the Greybeards (a faction MQ105 stage 5 makes the player's ally) do not answer his
+                    // push with a fight
+                    mCellSource.combat().setAllyOfPlayerHook([this](const std::vector<FormId>& factions) {
+                        constexpr FormId kPlayerFaction = 0xDB1;
+                        for (const FormId faction : factions)
+                            if (const auto relation = mFollowerState.factionRelation(kPlayerFaction, faction))
+                                if (*relation == 2 || *relation == 3)
+                                    return true;
+                        return false;
+                    });
                     mCellSource.combat().setDragonSoulByScript([this](openeden::sdk::game::WorldId reference) {
                         return mPapyrus != nullptr
                             && mPapyrus->host().hasScript(static_cast<FormId>(reference), "dragonactorscript");
@@ -3054,18 +3083,12 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
+                // Task 0324: spell casts, hits and applied effects reach the scripts with `college` (task 0292) and with
+                // `main quest whiterun` (MQ105's shout target scripts wait for OnMagicEffectApply): ONE sink
+                if (spellSettings != nullptr
+                    && (spellSettings->getBool(kPackId, "college", false)
+                        || spellSettings->getBool(kPackId, "main quest whiterun", false)))
                 {
-                    mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
-                    mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
-                    mWorldView.setFragmentFlush([this]() {
-                        if (mPapyrus != nullptr)
-                            mPapyrus->flushFragments();
-                    });
-                    mWorldView.setDialogueTrace([logger](const std::string& line) {
-                        if (logger != nullptr)
-                            logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
-                    });
                     mCellSource.combat().setSpellEventSink([&host, logger](const SkyrimCombat::SpellEvent& e) {
                         const auto reference = [](openeden::sdk::game::CombatSubject who) -> FormId {
                             return who.player ? kPapyrusPlayerReference : static_cast<FormId>(who.actor.reference);
@@ -3087,6 +3110,19 @@ namespace game_skyrimse
                                 host.onMagicEffectApplied(reference(e.mCaster), reference(e.mTarget), e.mEffect);
                                 break;
                         }
+                    });
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
+                {
+                    mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
+                    mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
+                    mWorldView.setDialogueTrace([logger](const std::string& line) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
                     });
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info,
