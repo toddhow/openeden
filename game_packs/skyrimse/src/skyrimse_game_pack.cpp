@@ -2331,8 +2331,11 @@ namespace game_skyrimse
                     return h.valid() && mCellSource.combat().scriptResetHealth(h);
                 };
                 env.inCombat = [this, handleOfActor](FormId actor) {
-                    const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
-                    return h.valid() && mCellSource.combat().scriptInCombat(h);
+                    // task 0282: the player is in combat when he fought lately or a living hostile is engaged with him
+                    const openeden::sdk::game::CombatSubject subject = actor == kPapyrusPlayerReference
+                        ? openeden::sdk::game::CombatSubject::ofPlayer()
+                        : openeden::sdk::game::CombatSubject::of(handleOfActor(actor));
+                    return mCellSource.combat().scriptInCombatOf(subject);
                 };
                 env.isItem = [this](FormId form) {
                     return mInventory != nullptr && mInventory->table().item(form) != nullptr;

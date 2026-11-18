@@ -314,4 +314,29 @@ namespace
         mCombat.combatUpdate(0.016f, mWriter);
         EXPECT_TRUE(mCombat.enemiesNear());
     }
+
+    // ---- task 0282: Actor.IsInCombat of a script (the word walls refuse to teach during a fight)
+
+    TEST_F(CombatRest, aScriptSeesThePlayerOutOfCombatWhenNothingHappened)
+    {
+        EXPECT_FALSE(mCombat.scriptInCombatOf(CombatSubject::ofPlayer()));
+        EXPECT_FALSE(mCombat.scriptInCombatOf(CombatSubject::of(mB)));
+    }
+
+    TEST_F(CombatRest, aScriptSeesThePlayerInCombatAfterABlowAndOutOfItOnceTheLingerTimeHasPassed)
+    {
+        playerFights();
+        EXPECT_TRUE(mCombat.scriptInCombatOf(CombatSubject::ofPlayer()));
+        for (int i = 0; i < 400; ++i)
+            mCombat.combatUpdate(0.5f, mWriter); // 200 s
+        EXPECT_FALSE(mCombat.scriptInCombatOf(CombatSubject::ofPlayer()));
+    }
+
+    TEST_F(CombatRest, aScriptSeesThePlayerInCombatWhileALivingHostileIsEngagedWithHim)
+    {
+        ASSERT_TRUE(mCombat.setTestHostile("Attacker"));
+        mCombat.onActorAdded(info(11, kAttackerBase, "Attacker"));
+        mCombat.combatUpdate(0.016f, mWriter);
+        EXPECT_TRUE(mCombat.scriptInCombatOf(CombatSubject::ofPlayer()));
+    }
 }

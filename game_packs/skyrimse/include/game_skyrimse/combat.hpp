@@ -979,6 +979,9 @@ namespace game_skyrimse
         [[nodiscard]] bool playerInCombat() const;
         /// A living hostile is engaged with the player (the combat AI's engaged actors and the test hostiles).
         [[nodiscard]] bool enemiesNear() const;
+        /// Task 0282 (Actor.IsInCombat of a script): is this subject fighting? The player: he fought a moment ago or a
+        /// living hostile is engaged with him. An actor: the combat AI has it engaged (scriptInCombat).
+        [[nodiscard]] bool scriptInCombatOf(const openeden::sdk::game::CombatSubject& subject) const;
         [[nodiscard]] std::size_t restsApplied() const { return mRestsApplied; }
         /// The combat records are read (true too when there is no data at all: nothing is then waited for).
         [[nodiscard]] bool dataReady() const { return mData == nullptr || mData->combatReady(); }

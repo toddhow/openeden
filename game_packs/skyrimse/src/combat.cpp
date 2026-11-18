@@ -1242,6 +1242,13 @@ namespace game_skyrimse
         return player != nullptr && mClock < player->mCombatUntil;
     }
 
+    bool SkyrimCombat::scriptInCombatOf(const CombatSubject& subject) const
+    {
+        if (subject.player)
+            return playerInCombat() || enemiesNear();
+        return subject.actor.valid() && scriptInCombat(subject.actor);
+    }
+
     bool SkyrimCombat::enemiesNear() const
     {
         for (const AiActor& actor : mAiActors)

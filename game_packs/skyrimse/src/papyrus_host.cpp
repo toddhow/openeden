@@ -1835,8 +1835,12 @@ namespace game_skyrimse
             for (const char* name : { "Apply", "PopTo", "Remove", "ApplyCrossFade" })
                 reg("ImageSpaceModifier", name, false, nothing);
             reg("ImageSpaceModifier", "RemoveCrossFade", true, nothing); // task 0256: a static
-            // Task 0256 (a word wall's script): Actor.HasLOS of the player is where he looks. Actor.IsInCombat stays
-            // unanswered (tolerant, false): an existing test uses it as its example of an unanswered native.
+            // Task 0256 (a word wall's script): Actor.HasLOS of the player is where he looks.
+            // Task 0282: Actor.IsInCombat asks the world (the combat AI's engaged state); with no hooks it is false.
+            reg("Actor", "IsInCombat", false, [this](const NativeCall& c) {
+                const FormId actor = formOf(c.self);
+                return result(PapyrusValue::makeBool(mHooks != nullptr && actor != 0 && mHooks->inCombat(actor)));
+            });
             reg("Actor", "HasLOS", false, [this](const NativeCall& c) {
                 const FormId target = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 double t[3] = { 0, 0, 0 };

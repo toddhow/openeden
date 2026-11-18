@@ -162,7 +162,7 @@ namespace
 
         ScriptBuilder actor("Actor");
         actor.parent("ObjectReference");
-        actor.function("IsInCombat", "Bool").native();
+        actor.function("IsGhost", "Bool").native();
         data.add(actor);
 
         ScriptBuilder quest("Quest");
@@ -621,7 +621,7 @@ namespace
             .callMethod("GetFormID", Id("p"), Id("pid"))
             .assign(Id("player"), Id("pid"))
             .local("c", "Bool")
-            .callMethod("IsInCombat", Id("p"), Id("c"))
+            .callMethod("IsGhost", Id("p"), Id("c"))
             .assign(Id("combat"), Id("c"));
         s.function("DisableMe").local("n", "None").callMethod("Disable", Id("self"), Id("n"), { Bool(false) });
         return s;
@@ -692,10 +692,10 @@ namespace
         EXPECT_EQ(rig.number(kRefA, "RefScript", "combat"), 0.0) << "the zero of a Bool";
         const std::vector<std::string> tolerant = rig.mHost->tolerantNatives();
         ASSERT_EQ(tolerant.size(), 1u);
-        EXPECT_EQ(tolerant[0], "actor.isincombat");
+        EXPECT_EQ(tolerant[0], "actor.isghost");
         int logged = 0;
         for (const std::string& line : rig.mLogs)
-            logged += line.find("IsInCombat") != std::string::npos ? 1 : 0;
+            logged += line.find("IsGhost") != std::string::npos ? 1 : 0;
         EXPECT_EQ(logged, 1) << "the runtime logs a tolerant native once";
         EXPECT_GE(rig.mHost->runtimeStats().unregisteredNativeCalls, 2u);
     }

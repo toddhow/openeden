@@ -758,6 +758,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrushost.cpp
     skyrimse/testskyrimsepapyrusbase.cpp
     skyrimse/testskyrimsewordwalls.cpp
+    skyrimse/testskyrimsewordwallcombat.cpp
     skyrimse/testskyrimsepapyrusslice2.cpp
     skyrimse/testskyrimsepapyrusnatives2.cpp
     skyrimse/testskyrimsemainquest.cpp
