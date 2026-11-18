@@ -1442,6 +1442,30 @@ namespace game_skyrimse
         return eligible.empty() ? nullptr : eligible[pick % eligible.size()];
     }
 
+    FormId ActorIndex::scriptSource(FormId npc, std::uint16_t level, std::uint32_t pick) const
+    {
+        FormId current = npc;
+        std::set<FormId> seen;
+        for (std::uint32_t depth = 0; depth < kMaxTemplateDepth; ++depth)
+        {
+            const ActorNpc* record = this->npc(current);
+            if (record == nullptr || (record->mTemplateFlags & TemplateFlags::Script) == 0
+                || record->mTemplate == kNullFormId || record->mTemplate == kUnresolvedFormId
+                || !seen.insert(current).second)
+                break;
+            if (this->npc(record->mTemplate) != nullptr)
+            {
+                current = record->mTemplate;
+                continue;
+            }
+            const LeveledEntry* entry = pickLeveled(record->mTemplate, level, pick);
+            if (entry == nullptr || this->npc(entry->mReference) == nullptr)
+                break;
+            current = entry->mReference;
+        }
+        return current;
+    }
+
     ActorIndex::ResolveStatus ActorIndex::resolve(
         FormId npcId, std::uint16_t level, std::uint32_t pick, Resolved& out) const
     {

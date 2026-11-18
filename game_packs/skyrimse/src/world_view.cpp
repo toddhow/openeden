@@ -2720,6 +2720,15 @@ namespace game_skyrimse
             default:
                 break;
         }
+        // Task 0308: an NPC_ whose template use flags include Script runs its template's scripts (Mirmulnir,
+        // MQ104Dragon, takes dragonActorSCRIPT from its leveled template); only when the actor index is built
+        if (mHelloGreetings && it->second.mTable == BaseTable::Npc && mActorIndex != nullptr)
+        {
+            constexpr std::uint16_t kScriptTemplateLevel = 30; // ours: any entry of such a list carries the same script
+            const FormId source = mActorIndex->scriptSource(base, kScriptTemplateLevel, 0);
+            if (source != base)
+                return baseScriptsOf(source);
+        }
         return scripts != nullptr && !scripts->empty() ? scripts : nullptr;
     }
 
@@ -2822,6 +2831,13 @@ namespace game_skyrimse
         if (mForcedGreet.mTopic)
         {
             const FormId topic = mForcedGreet.mTopic(speaker.mReference);
+            if (topic == kForceGreetHelloTopic) // task 0308: the actor's own greeting (a Blocking branch's start, else Hello)
+            {
+                mForcedGreetReference = speaker.mReference;
+                if (mForcedGreet.mBegan)
+                    mForcedGreet.mBegan(speaker.mReference);
+                return mDialogue->mRuntime->begin(speaker, out, error);
+            }
             if (topic != kNullFormId)
             {
                 if (mDialogue->mRuntime->beginForcedTopic(speaker, topic, out, error))
@@ -2850,7 +2866,9 @@ namespace game_skyrimse
     {
         if (mDialogue == nullptr || mDialogue->mData == nullptr)
             return false;
-        return mDialogue->mData->mPackages.forceGreetTopic(package, out);
+        if (!mDialogue->mData->mPackages.forceGreetTopic(package, out))
+            return false;
+        return out != kForceGreetHelloTopic || mHelloGreetings; // task 0308
     }
 
     void SkyrimWorldView::setArrestDialogue(ArrestDialogueHooks hooks)
@@ -4013,6 +4031,8 @@ namespace game_skyrimse
                 && ref.mEnableParent->mParent != kUnresolvedFormId)
                 result->mEnableParents.emplace(
                     id, std::make_pair(ref.mEnableParent->mParent, (ref.mEnableParent->mFlags & 1) != 0));
+            if (mHelloGreetings) // task 0308: the template scripts of an NPC_ need the actor index
+                (void)ensureActorIndex();
             std::vector<vmad::Script> allScripts = vmad::combineScripts(ref.mScripts, baseScriptsOf(ref.mBase));
             if (!allScripts.empty())
             {

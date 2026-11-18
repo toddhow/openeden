@@ -318,6 +318,7 @@ namespace game_skyrimse
                     if (const PackageRecord* t = mAccess.mPackage(record->mTemplate))
                         shape = t;
                 if (given && mForce != nullptr && record->mForceGreetTopic != kNullFormId
+                    && (record->mForceGreetTopic != kForceGreetHelloTopic || mHello) // task 0308
                     && std::any_of(shape->mProcedures.begin(), shape->mProcedures.end(),
                         [](const std::string& n) { return n == "ForceGreet" || n == "forcegreet"; }))
                 {
@@ -337,6 +338,11 @@ namespace game_skyrimse
                     mForce->cancel(actor);
             }
             void setForceGreet(ForceGreet* force) { mForce = force; }
+            void setHello(bool on) // task 0308: a HELO-subtype ForceGreet package is a greeting; a phase may be skipped
+            {
+                mHello = on;
+                mRunner.setSkipFailedPhases(on);
+            }
             // The brain evaluates a forced package at its next update, so a few answers are not trusted: the actor may
             // still look done with the package it had before.
             bool packageFinished(FormId actor) override
@@ -367,6 +373,7 @@ namespace game_skyrimse
             std::function<void(const std::string&)> mLog;
             std::map<FormId, int> mPackageChecks;
             ForceGreet* mForce = nullptr; ///< task 0264 (owned by the driver)
+            bool mHello = false; ///< task 0308
             SceneRunner mRunner;
         };
 
@@ -610,6 +617,7 @@ namespace game_skyrimse
             }
             void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
             void enableForceGreet() { mForceOn = true; }
+            void enableHelloGreetings() { mHelloOn = true; } // task 0308
             [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
             void enableCompanions() { mCompanionsOn = true; }
             [[nodiscard]] bool companionsOn() const { return mCompanionsOn; }
@@ -842,6 +850,7 @@ namespace game_skyrimse
                         mScenes->runner().setParkSeconds(mSceneParkSeconds);
                     if (mForceOn) // task 0264: a ForceGreet package ends with its conversation
                         mScenes->setForceGreet(&mForce);
+                    mScenes->setHello(mHelloOn); // task 0308
                 }
                 if (mForceOn) // tasks 0264 and 0271: the conversation a ForceGreet package asks for
                 {
@@ -1046,23 +1055,9 @@ namespace game_skyrimse
 
             void setTestQuests(const std::string& text, double delay)
             {
-                std::size_t at = 0;
-                while (at < text.size())
-                {
-                    const std::size_t comma = text.find(',', at);
-                    const std::string part = text.substr(at, comma == std::string::npos ? comma : comma - at);
-                    if (!part.empty())
-                    {
-                        // <hex form id>[:<stage>]
-                        const std::size_t colon = part.find(':');
-                        mTestQuests.push_back(static_cast<FormId>(std::strtoul(part.c_str(), nullptr, 16)));
-                        mTestStages.push_back(colon == std::string::npos
-                                ? -1
-                                : static_cast<std::int32_t>(std::strtol(part.c_str() + colon + 1, nullptr, 10)));
-                    }
-                    at = comma == std::string::npos ? text.size() : comma + 1;
-                }
-                if (!mTestQuests.empty())
+                // <hex form id>[:<stage>][@<seconds after the delay>] (task 0308: the `@` part)
+                mTestEntries = mainquest::parseStoryTestQuests(text);
+                if (!mTestEntries.empty())
                     mTestEventDelay = std::isfinite(delay) && delay >= 0.0 ? delay : 0.0;
             }
 
@@ -1159,16 +1154,17 @@ namespace game_skyrimse
 
             void raiseTestEvent()
             {
-                if (!mTestQuests.empty() && mHost.scriptTime() >= mTestEventDelay)
+                if (!mTestEntries.empty() && mHost.scriptTime() >= mTestEventDelay)
                 {
-                    const std::vector<FormId> quests = std::move(mTestQuests);
-                    const std::vector<std::int32_t> stages = std::move(mTestStages);
-                    mTestQuests.clear();
-                    mTestStages.clear();
-                    for (std::size_t i = 0; i < quests.size(); ++i)
+                    std::vector<mainquest::StoryTestEntry> later;
+                    std::vector<mainquest::StoryTestEntry> due;
+                    for (const mainquest::StoryTestEntry& entry : mTestEntries)
+                        (mHost.scriptTime() >= mTestEventDelay + entry.mAfter ? due : later).push_back(entry);
+                    mTestEntries = std::move(later);
+                    for (const mainquest::StoryTestEntry& entry : due)
                         say(openeden::sdk::LogLevel::Info,
-                            "PAPYRUS story test quest " + hexId(quests[i])
-                                + (mHost.startQuestForTest(quests[i], stages[i]) ? " started" : " refused"));
+                            "PAPYRUS story test quest " + hexId(entry.mQuest)
+                                + (mHost.startQuestForTest(entry.mQuest, entry.mStage) ? " started" : " refused"));
                 }
                 if (!mTestEvent || mHost.scriptTime() < mTestEventDelay)
                     return;
@@ -1704,6 +1700,7 @@ namespace game_skyrimse
             bool mCompanionsTraining = false;
             bool mTrainingPending = false;
             ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
+            bool mHelloOn = false; ///< task 0308
             bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
             bool mCompanionsOn = false; ///< task 0264
             std::unique_ptr<SceneGlue> mScenes; ///< task 0194 (declared after the host it reaches)
@@ -1725,8 +1722,7 @@ namespace game_skyrimse
             QuestAliasFiller::PlayerSite mSite;
             std::deque<StoryEvent> mPendingStory;
             std::optional<StoryEvent> mTestEvent;
-            std::vector<FormId> mTestQuests;
-            std::vector<std::int32_t> mTestStages;
+            std::vector<mainquest::StoryTestEntry> mTestEntries; ///< `story test quest` (task 0308: with delays)
             double mTestEventDelay = 0.0;
             std::optional<std::vector<SceneSaveEntry>> mPendingScenes;
             std::optional<StoryState> mLoadedStory; // task 0217
@@ -2760,6 +2756,14 @@ namespace game_skyrimse
                 {
                     // task 0298: Rikke's blocking branch speaks instead of Hello (the Civil War's join chain)
                     mWorldView.setBlockingBranches(true);
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "main quest whiterun", false))
+                {
+                    // task 0308: Irileth's and Balgruuf's Blocking branches speak instead of Hello, and Irileth's ForceGreet
+                    // package (topic subtype HELO) makes her say hers
+                    mWorldView.setBlockingBranches(true);
+                    mWorldView.setHelloGreetings(true);
+                    mPapyrus->enableHelloGreetings();
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {

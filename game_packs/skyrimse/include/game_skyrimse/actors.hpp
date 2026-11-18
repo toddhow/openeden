@@ -508,6 +508,12 @@ namespace game_skyrimse
         /// record fields each flag covers is in the definitions below, they are not settled by the data).
         [[nodiscard]] ResolveStatus resolve(FormId npc, std::uint16_t level, std::uint32_t pick, Resolved& out) const;
 
+        /// Task 0308: the NPC_ whose VMAD scripts `npc` runs: itself, or, while its template use flags include Script,
+        /// the template (an LVLN template is resolved with `level` and `pick`). Mirmulnir's NPC_ (MQ104Dragon) has no
+        /// script of its own and takes the dragon script of a leveled template. A cycle or a broken link ends at the last
+        /// NPC_ reached.
+        [[nodiscard]] FormId scriptSource(FormId npc, std::uint16_t level, std::uint32_t pick) const;
+
         /// The models an NPC wears by default, in outfit order: the ARMO items of the effective default outfit (leveled
         /// list items are resolved with `level` / `pick`), each with the addon (ARMA) models that apply to `race`.
         struct WornModel

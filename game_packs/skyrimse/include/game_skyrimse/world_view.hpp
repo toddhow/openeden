@@ -638,6 +638,8 @@ namespace game_skyrimse
         void setFragmentFlush(std::function<void()> flush); ///< task 0304
         void setDialogueTrace(std::function<void(const std::string&)> trace); ///< task 0304
         void setQuestGreetings(bool on); ///< task 0304: a quest's nameless branch start greets (College of Winterhold)
+        /// Task 0308: a ForceGreet package whose topic is the subtype HELO makes the actor say its greeting.
+        void setHelloGreetings(bool on) { mHelloGreetings = on; }
         /// The class data of an NPC_ base (templates followed): CLAS DATA's trained skill and maximum training level.
         /// Ready (with `hasData` false for a class with no data), Pending until the actor index is built, NotVendor
         /// when the NPC or its class is unknown. Main thread; reads the actor index like vendorOf.
@@ -1028,6 +1030,7 @@ namespace game_skyrimse
         bool mQuestGreetings = false; ///< task 0304
         std::function<void(const std::string&)> mDialogueTrace;
         std::function<void()> mFragmentFlush;
+        bool mHelloGreetings = false; ///< task 0308
         std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)

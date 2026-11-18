@@ -319,6 +319,11 @@ namespace game_skyrimse
                             if (readLe<std::uint32_t>(data.data()) == 0 && p.mForceGreetTopic == kNullFormId
                                 && readLe<std::uint32_t>(data.data() + 4) != 0)
                                 p.mForceGreetTopic = resolved(readLe<std::uint32_t>(data.data() + 4));
+                            // Task 0308: type 1 names a topic SUBTYPE (VERIFIED on MQ102IrilethForcegreetPlayer: bytes
+                            // 01 00 00 00 'HELO'): the actor says its greeting
+                            else if (readLe<std::uint32_t>(data.data()) == 1 && p.mForceGreetTopic == kNullFormId
+                                && readLe<std::uint32_t>(data.data() + 4) == kForceGreetHelloTopic)
+                                p.mForceGreetTopic = kForceGreetHelloTopic;
                             return;
                         case Content::fourCC("ANAM"):
                             // A data input's type name; a Bool input's value is the CNAM that follows (VERIFIED: 1

@@ -706,6 +706,11 @@
       "default": 0
     },
     {
+      "key": "main quest whiterun",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "dragonborn",
       "type": "bool",
       "default": false

@@ -1,6 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+#include <vector>
 
 #include <game_skyrimse/records.hpp>
 
@@ -29,4 +33,43 @@ namespace game_skyrimse::mainquest
     /// position 22499.803, -94862.59, 13905.831, VERIFIED by the data). The quest itself moves the player to that
     /// marker (stage 10); this spot only has to be in the right cell so the exterior around Helgen loads.
     inline constexpr const char* kHelgenStart = "@Tamriel,22499.8,-94862.6,13905.8";
+
+    /// Task 0308: one entry of the developer aid `story test quest = <hex quest>[:<stage>][@<seconds>],...`: start the
+    /// quest (if it is not running) and set the stage `mStage` (-1: none), `mAfter` script seconds after the aid's own
+    /// delay (0 when no `@` is given: the earlier behaviour).
+    struct StoryTestEntry
+    {
+        FormId mQuest = 0;
+        std::int32_t mStage = -1;
+        double mAfter = 0.0;
+    };
+
+    inline std::vector<StoryTestEntry> parseStoryTestQuests(const std::string& text)
+    {
+        std::vector<StoryTestEntry> out;
+        std::size_t at = 0;
+        while (at < text.size())
+        {
+            const std::size_t comma = text.find(',', at);
+            const std::string part = text.substr(at, comma == std::string::npos ? comma : comma - at);
+            at = comma == std::string::npos ? text.size() : comma + 1;
+            if (part.empty())
+                continue;
+            StoryTestEntry entry;
+            entry.mQuest = static_cast<FormId>(std::strtoul(part.c_str(), nullptr, 16));
+            const std::size_t colon = part.find(':');
+            const std::size_t atSign = part.find('@');
+            if (colon != std::string::npos && (atSign == std::string::npos || colon < atSign))
+                entry.mStage = static_cast<std::int32_t>(std::strtol(part.c_str() + colon + 1, nullptr, 10));
+            if (atSign != std::string::npos)
+            {
+                char* end = nullptr;
+                const double seconds = std::strtod(part.c_str() + atSign + 1, &end);
+                if (end != part.c_str() + atSign + 1 && std::isfinite(seconds) && seconds > 0.0)
+                    entry.mAfter = seconds;
+            }
+            out.push_back(entry);
+        }
+        return out;
+    }
 }

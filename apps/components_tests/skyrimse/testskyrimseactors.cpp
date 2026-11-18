@@ -958,4 +958,49 @@ namespace
         index.addLeveledLists({ makeList(0x600, false, { entry(1, 0x600) }) });
         EXPECT_TRUE(index.wornModels(0x800, 0x13746, Sex::Male, 5, 0).empty());
     }
+
+    // ---- Task 0308: the script source of an NPC_ that takes its scripts from a template
+    TEST(SkyrimActorsScriptSource, anNpcWithoutATemplateOrTheFlagKeepsItsOwnScripts)
+    {
+        ActorRecords r;
+        r.mNpcs = { makeNpc(0x100), makeNpc(0x101, 0x100, TemplateFlags::Traits), makeNpc(0x102) };
+        ActorIndex index;
+        index.add(r);
+        EXPECT_EQ(index.scriptSource(0x100, 10, 0), 0x100u);
+        EXPECT_EQ(index.scriptSource(0x101, 10, 0), 0x101u) << "the Script flag is not set";
+        EXPECT_EQ(index.scriptSource(0x999, 10, 0), 0x999u) << "an unknown id answers itself";
+    }
+
+    TEST(SkyrimActorsScriptSource, theScriptFlagFollowsTheTemplateAndAChainOfThem)
+    {
+        ActorRecords r;
+        r.mNpcs = { makeNpc(0x100), makeNpc(0x101, 0x100, TemplateFlags::Script),
+            makeNpc(0x102, 0x101, TemplateFlags::Script | TemplateFlags::Traits) };
+        ActorIndex index;
+        index.add(r);
+        EXPECT_EQ(index.scriptSource(0x101, 10, 0), 0x100u);
+        EXPECT_EQ(index.scriptSource(0x102, 10, 0), 0x100u);
+    }
+
+    TEST(SkyrimActorsScriptSource, aLeveledTemplateIsPickedByLevelAndPick)
+    {
+        ActorRecords r;
+        r.mNpcs = { makeNpc(0x201), makeNpc(0x202), makeNpc(0x100, 0x400, TemplateFlags::Script) };
+        ActorIndex index;
+        index.add(r);
+        index.addLeveledLists({ makeList(0x400, true, { entry(1, 0x201), entry(10, 0x202) }) });
+        EXPECT_EQ(index.scriptSource(0x100, 5, 0), 0x201u);
+        EXPECT_EQ(index.scriptSource(0x100, 12, 0), 0x202u);
+        EXPECT_EQ(index.scriptSource(0x100, 0, 0), 0x100u) << "nothing eligible: it keeps its own";
+    }
+
+    TEST(SkyrimActorsScriptSource, aTemplateCycleEndsInsteadOfLoopingForever)
+    {
+        ActorRecords r;
+        r.mNpcs = { makeNpc(0x100, 0x101, TemplateFlags::Script), makeNpc(0x101, 0x100, TemplateFlags::Script) };
+        ActorIndex index;
+        index.add(r);
+        const FormId source = index.scriptSource(0x100, 10, 0);
+        EXPECT_TRUE(source == 0x100u || source == 0x101u);
+    }
 }

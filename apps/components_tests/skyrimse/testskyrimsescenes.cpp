@@ -715,4 +715,44 @@ namespace
         EXPECT_FALSE(runner.isPlaying(kScene)) << "both lines expired within 12 s";
         EXPECT_EQ(runner.stats().mParkExpired, 2u);
     }
+
+    // ---- Task 0308: a phase whose start conditions fail is skipped (the Whiterun scene's phase 7 needs stage 82, which
+    // only one dialogue path sets; the scene must still reach its last phase)
+    TEST(SceneRunnerSkip, aPhaseWhoseStartConditionsFailIsSkippedWhenAsked)
+    {
+        const FormId kTopicC = kSelf | 0xA03;
+        const Parsed p({ scenRecord(kScene, 0, { phase(), phase(ctda(59, 1.f, kQuest, 10)), phase() }, { 1 },
+            { dialogueAction(1, 1, 0, kTopicA), dialogueAction(1, 2, 1, kTopicB), dialogueAction(1, 3, 2, kTopicC) },
+            kQuest) });
+        FakeEnv env;
+        env.mLines[kTopicA] = line("one");
+        env.mLines[kTopicB] = line("two");
+        env.mLines[kTopicC] = line("three");
+        SceneRunner runner(p.mIndex, env);
+        runner.setSkipFailedPhases(true);
+        ASSERT_TRUE(runner.start(kScene));
+        tick(runner, 0.1f);
+        env.mConditionResult = false;
+        tick(runner, 0.5f, 20);
+        EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "say 3073 two"), 0);
+        EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "say 3073 three"), 1);
+    }
+
+    TEST(SceneRunnerSkip, withoutTheOptionAFailingStartConditionStillWaits)
+    {
+        const FormId kTopicC = kSelf | 0xA03;
+        const Parsed p({ scenRecord(kScene, 0, { phase(), phase(ctda(59, 1.f, kQuest, 10)), phase() }, { 1 },
+            { dialogueAction(1, 1, 0, kTopicA), dialogueAction(1, 2, 1, kTopicB), dialogueAction(1, 3, 2, kTopicC) },
+            kQuest) });
+        FakeEnv env;
+        env.mLines[kTopicA] = line("one");
+        env.mLines[kTopicB] = line("two");
+        env.mLines[kTopicC] = line("three");
+        SceneRunner runner(p.mIndex, env);
+        ASSERT_TRUE(runner.start(kScene));
+        tick(runner, 0.1f);
+        env.mConditionResult = false;
+        tick(runner, 0.5f, 20);
+        EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "say 3073 three"), 0);
+    }
 }

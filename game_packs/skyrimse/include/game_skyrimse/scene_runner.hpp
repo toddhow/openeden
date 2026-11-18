@@ -126,6 +126,7 @@ namespace game_skyrimse
             /// every `mRetrySeconds` while its quest runs (the opening of the main quest moves its actors after the
             /// quest started). Off by default: other quests' scenes are dropped as before.
             bool mRetryQuestStart = false;
+            bool mSkipFailedPhases = false; ///< task 0308
             std::uint32_t mMaxPlaying = 64;
         };
         struct Stats
@@ -154,6 +155,9 @@ namespace game_skyrimse
         ~SceneRunner();
         /// Task 0268: see Options::mRetryQuestStart.
         void setRetryQuestStart(bool on) { mOptions.mRetryQuestStart = on; }
+        /// Task 0308: a phase whose start conditions fail is skipped, not waited for (the Whiterun scene's phase 7 needs
+        /// quest stage 82, which only one dialogue path sets; RECALLED-VERIFY: the CK's meaning of a start condition)
+        void setSkipFailedPhases(bool on) { mOptions.mSkipFailedPhases = on; }
         // Task 0287: how long a line waits for a speaker who is not loaded (default 120 s, as before); cut to a range
         static constexpr float kMinParkSeconds = 0.5f;
         static constexpr float kMaxParkSeconds = 600.f;

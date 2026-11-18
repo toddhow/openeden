@@ -166,6 +166,11 @@ namespace game_skyrimse
         inline constexpr std::size_t Sitting = 4;
     }
 
+    /// Task 0308: a ForceGreet package whose data names the topic SUBTYPE HELO (MQ102IrilethForcegreetPlayer: PDTO
+    /// type 1, value 'HELO') has no topic of its own: the actor says its greeting. Its `mForceGreetTopic` is this
+    /// pseudo id, never a form.
+    inline constexpr FormId kForceGreetHelloTopic = 0x4F4C4548u; // "HELO" read little endian
+
     struct PackageRecord
     {
         RecordCommon mCommon;

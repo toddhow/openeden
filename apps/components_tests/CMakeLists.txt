@@ -685,6 +685,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecivilwar.cpp
     skyrimse/testskyrimsedawnguard.cpp
     skyrimse/testskyrimsestormcloakreal.cpp
+    skyrimse/testskyrimsemq308.cpp
     skyrimse/testskyrimsemarriage.cpp
     skyrimse/testskyrimsequestgreeting.cpp
     skyrimse/testskyrimsevoice.cpp

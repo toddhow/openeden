@@ -463,7 +463,16 @@ namespace game_skyrimse
                     if (!phase.mConditionsOk
                         || (!phase.mStartConditions.empty()
                             && !mEnv.evaluate(phase.mStartConditions, id, record.mQuest)))
+                    {
+                        if (mOptions.mSkipFailedPhases && phase.mConditionsOk) // task 0308
+                        {
+                            mEnv.log("SCENE " + hex(id) + " phase " + std::to_string(in.mPhase)
+                                + " skipped: its start conditions fail");
+                            ++in.mPhase;
+                            continue;
+                        }
                         break;
+                    }
                     in.mEntered = true;
                     ++mStats.mPhases;
                     mEnv.log("SCENE " + hex(id) + " phase " + std::to_string(in.mPhase));
