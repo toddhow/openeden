@@ -37,6 +37,7 @@
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/convert.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/resource/niffilemanager.hpp>
@@ -2178,6 +2179,7 @@ namespace MWPhysics
                 if (entry.mFollow.active())
                 {
                     const auto followStart = costTrace ? std::chrono::steady_clock::now() : costStart;
+                    Misc::LoadTrace::Scope followTrace("neutral.follow"); // task 0339
                     followNeutralGoal(entry, found->second->getPtr(), stepDt, trace);
                     if (costTrace)
                         mNeutralCostFollowNs += std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -2188,6 +2190,7 @@ namespace MWPhysics
                 {
                     entry.mFaceValid = false; // a walking actor faces where it goes
                     const auto walkStart = costTrace ? std::chrono::steady_clock::now() : costStart;
+                    Misc::LoadTrace::Scope walkTrace("neutral.walk"); // task 0339
                     walkNeutralActor(entry, *found->second, stepDt, trace);
                     if (costTrace)
                         mNeutralCostWalkNs += std::chrono::duration_cast<std::chrono::nanoseconds>(

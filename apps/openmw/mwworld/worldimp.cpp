@@ -540,6 +540,7 @@ namespace MWWorld
         mPhysics->setNeutralPathFinder(
             [this](const vsg::vec3& from, const vsg::vec3& to, const MWPhysics::NeutralActor::Capsule& capsule,
                 std::vector<vsg::vec3>& out) {
+                Misc::LoadTrace::Scope trace("neutral.pathfind"); // task 0339: a walking NPC's path ask (value = status)
                 const DetourNavigator::AgentBounds sessionAgent = getPathfindingAgentBounds(getPlayerConstPtr());
                 // Task 0159: a round capsule is a cylinder agent (a box agent's corner is 1.41 times as wide).
                 const DetourNavigator::AgentBounds bounds
@@ -574,6 +575,7 @@ namespace MWWorld
                             break;
                     }
 
+                trace.setValue(static_cast<std::int64_t>(status));
                 static const bool pathTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
                 if (pathTrace && status != DetourNavigator::Status::Success) // task 0336: the raw answer and the worker queue
                     Log(Debug::Info) << "NACTNAV raw status " << DetourNavigator::getMessage(status) << " from " << from.x
