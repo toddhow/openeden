@@ -941,6 +941,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseweatherambientcube.cpp
     skyrimse/testskyrimsecelllight.cpp
     skyrimse/testskyrimselights.cpp
+    skyrimse/testskyrimselightrefs.cpp
     skyrimse/testskyrimselocallights.cpp
     skyrimse/testskyrimselightflicker.cpp
     skyrimse/testskyrimselighttypes.cpp

@@ -278,6 +278,13 @@ namespace game_skyrimse
         std::vector<vmad::Script> mScripts;
         /// XPRM (task 0256): set when the placement is a primitive volume.
         std::optional<RefPrimitive> mPrimitive;
+        /// XRDS (task 0355 stage i): 4 bytes, the radius delta of a light reference (VERIFIED size 4 on 14,072
+        /// placements of the five masters; also on 401 placements whose base is no light: they are ignored).
+        std::optional<float> mLightRadiusDelta;
+        /// XLIG (task 0355 stage i): 16 bytes (10,102) or 20 (2,438) on light references: FOV, fade offset, end
+        /// distance cap, shadow depth bias (RECALLED-VERIFY names; the data agrees for the fade offset: a delta). Only
+        /// the fade offset is read.
+        std::optional<float> mLightFadeDelta;
 
         [[nodiscard]] bool persistent() const { return (mCommon.mFlags & RecordFlags::Persistent) != 0; }
         [[nodiscard]] bool initiallyDisabled() const { return (mCommon.mFlags & RecordFlags::InitiallyDisabled) != 0; }

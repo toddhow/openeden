@@ -4319,7 +4319,15 @@ namespace game_skyrimse
                 NeutralLimits lightLimits;
                 if (mLightFalloff) // task 0355 stage b
                     lightLimits.mLightRadiusScale = kLightFalloffRadiusScale;
-                components.light = makeLightComponent(*light, mStats.mComponents, lightLimits);
+                if (mLightOverrides && (ref.mLightRadiusDelta || ref.mLightFadeDelta)) // task 0355 stage i
+                {
+                    LightOverrides overrides;
+                    overrides.mRadiusDelta = ref.mLightRadiusDelta;
+                    overrides.mFadeDelta = ref.mLightFadeDelta;
+                    components.light = makeLightComponent(applyLightOverrides(*light, overrides), mStats.mComponents, lightLimits);
+                }
+                else
+                    components.light = makeLightComponent(*light, mStats.mComponents, lightLimits);
             }
             if (!components.empty())
                 result->mComponents.emplace(id, std::move(components));

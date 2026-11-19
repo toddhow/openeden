@@ -636,3 +636,48 @@ with fewer than two lights has no cone; hemisphere and spot shadows are cube map
 on; with it on only about 338 of the 1,740 lights can take shadow slots, so most torches and candles in a dungeon no longer
 cast point light shadows (slots are scarce: 4). (3) `spotConeSoftness` 0.3 and the +X axis. (4) A world model SDK change (two
 trailing fields) without a version bump.
+## Stage i log: placed-light overrides (XRDS, XLIG; XEMI left out)
+
+Survey (`tools/skyrimse_lightrefs_survey/survey.py` over the five masters, base ids resolved through each file's masters; 22,948 placements carry
+XRDS, XLIG or XEMI; 14,816 stand on one of the 494 LIGH bases):
+
+- **XRDS (4 bytes, 14,072 refs; 13,671 on light bases) is a radius DELTA added to the base radius.** Values: p10 -80, p50
+  +123, p90 +604; 3,300 negative, none zero. NOT an absolute radius: correlation with the base radius is -0.0004 (the base
+  radii are 224 to 2,000, 90 percent of the light refs 256 or less), and a delta explains the negatives: **no value is below
+  minus the base radius (0 of 13,671; the most negative is 0.83 of the base)**, which an absolute reading would not give.
+  Base plus delta: p10 191, p50 391, p90 864. 15 values are over 5,000 and 8 over 16,384 (largest 3.7 million: garbage;
+  ignored by the pack above 16,384). XRDS also sits on 401 non-light placements (500, 1,500, 3,500: other uses, ignored).
+  The word "delta" is inferred from this data, not from a document (xEdit's label is RECALLED-VERIFY).
+- **XLIG (16 bytes, 10,102 refs; 20 bytes, 2,438; all 12,540 on light bases):** four floats. [0] 0.0 in 12,259 (the other
+  values are -45, -22 ...): a FOV offset (base FOV is 90 in 12,535 of 12,540). [1] a FADE DELTA: p10 -0.16, p50 +0.91, p90
+  +3.0, base fade p50 1.0; base plus offset is above 0 in all but 1 of 12,540 (p10 1.08, p50 2.0). [2] 0.0 in 12,531: the end
+  distance cap, unused. [3] 1.0 in 9,593, 50.0 in 757: the shadow depth bias (stage g's). The extra float of the 20 byte form
+  is 0.0 or ~1e28 (garbage): not read.
+- **XEMI (4 bytes, 9,326 refs): a form id. Bases: MSTT 4,078, STAT 3,612, LIGH 1,588, others 48; targets: REGN 5,558, LIGH
+  3,768 (200 distinct).** A static or movable static pointing at a region or a light: an emittance tint for a glowing model
+  or its LOD. The data does not say how it is used; **left out, not guessed.**
+
+**Built (pack only; the frozen world model's `LightComponent` is unchanged, the change is in the pack before the component
+is made):** `PlacedRef::mLightRadiusDelta` (XRDS, size 4) and `mLightFadeDelta` (XLIG +4, size 16 or 20), the pure
+`applyLightOverrides` (radius plus delta, never below 0, a delta not finite or past 16,384 ignored; fade plus delta when the
+sum is above 0 and the delta is within 100, else the base fade), used in `SkyrimWorldView::materialiseCell` before the
+falloff scale (stage b), `SkyrimWorldView::setLightOverrides`, pack setting `[extension.skyrimse] light overrides` (default
+TRUE; Skyrim sessions only; `tools/testprofile` profile line and README line, `coverage.sh` ok). Not used: XLIG's FOV and
+shadow bias, the end distance cap, XEMI.
+
+**Tests** (new file `apps/components_tests/skyrimse/testskyrimselightrefs.cpp`, 15; written first and run red against a stub
+rule: 9 of 15 failed, the 6 that passed pin absence and refusals; 15 of 15 pass after; no existing test edited).
+`SkyrimLightRefs*`, `SkyrimLocalLights*`, records, extension and frozen filters: 220 pass.
+
+**In game** (five masters, `OPENEDEN_NEUTRAL_LIGHT_TRACE`, override off against on): Bannered Mare hearth 461 to 347, wall
+sconces 77 to 125, ceiling lights 120 to 197; Dragonsreach braziers 307 to 419, 455, fade 3 to 2 on one light. Frame means
+(`I:/Projects/OpenEden-work/bow6/l55i/keep`): Mare 69/59/42 to 60/52/38 (the hearth shrinks), Dragonsreach 52/45/31 both
+(the pose sees none of the changed lights). 18 and 28 lights in both runs, exit 0, 0 dumps.
+
+**Morrowind unchanged:** `worldobjects_check` 110 OK against the `n6saves` build; Balmora fixed frame `1c5d47ad0b5dc32d`
+(empty settings) and `b451a8a6ca771e79` (`hdr = true`) for that build and this.
+
+**Not checked:** the Linux gate, clang-format 14, clang-tidy, the Lua tests, a fresh review, 3-run determinism, a night or
+dungeon frame, the lights inside model files. **Decisions for toddhow:** XRDS and XLIG[1] as deltas is inferred from data
+(strongly: 0 violations in 13,671 and 1 in 12,540), not from a document; XEMI left out; the 16,384 and 100 garbage cut-offs
+are mine.

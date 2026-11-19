@@ -91,6 +91,26 @@ namespace game_skyrimse
     /// light fields are not used.
     inline constexpr double kLightFalloffRadiusScale = 0.6;
 
+    /// Task 0355 stage i: what a placed light reference changes of its base light, settled from the five masters
+    /// (docs/tasks/0355-skyrim-lighting-parity.md, stage i): XRDS is a radius DELTA (no value is below minus the base
+    /// radius in 13,671 light references; it is no absolute radius: correlation with the base radius 0.0) and XLIG's
+    /// second float is a fade DELTA (the "Fade Offset"; 1 of 12,540 below minus the base fade). Both are added to the
+    /// base light's value.
+    struct LightOverrides
+    {
+        std::optional<float> mRadiusDelta;
+        std::optional<float> mFadeDelta;
+    };
+
+    /// A delta whose size is past this is taken as garbage and ignored (15 of 13,671 XRDS values of Skyrim.esm are
+    /// over 5,000, the largest 3.7 million; the base radii are 224 to 2,000).
+    inline constexpr double kMaxLightRadiusDelta = 16384.0;
+    inline constexpr double kMaxLightFadeDelta = 100.0;
+
+    /// The base light with a reference's overrides applied: the radius plus the delta (never below 0), the fade plus the
+    /// delta when the sum is above 0. A delta that is not finite or beyond the limits above is ignored.
+    [[nodiscard]] LightData applyLightOverrides(const LightData& base, const LightOverrides& overrides);
+
     /// The neutral components of one placement (task 0099 stage N4, the record-decoding half): who owns it, how it is
     /// locked and where it leads. Built from the decoded references by makeComponents; the SDK's WorldView 1.0 has
     /// nowhere to carry them, so they travel beside the placed objects through a pack-internal ComponentSource.

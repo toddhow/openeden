@@ -1001,6 +1001,16 @@ namespace game_skyrimse
                                 r.mPrimitive = primitive;
                             }
                             break;
+                        // XRDS and XLIG (task 0355 stage i): a light reference's radius delta (4 bytes) and light data
+                        // (16 or 20 bytes; the second float is the fade offset). Sizes VERIFIED on the five masters.
+                        case Content::fourCC("XRDS"):
+                            if (data.size() == 4)
+                                r.mLightRadiusDelta = readLe<float>(data.data());
+                            break;
+                        case Content::fourCC("XLIG"):
+                            if (data.size() == 16 || data.size() == 20)
+                                r.mLightFadeDelta = readLe<float>(data.data() + 4);
+                            break;
                         case Content::fourCC("XPRD"):
                             if (data.size() != 4)
                                 odd("XPRD");

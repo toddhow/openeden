@@ -20,6 +20,8 @@ namespace game_skyrimse
     inline constexpr std::string_view kHeldGearKey = "held gear";
     /// Task 0355 stage b: a placed light gets the engine radius that makes its falloff end where Skyrim's does.
     inline constexpr std::string_view kLightFalloffKey = "light falloff";
+    /// Task 0355 stage i: a light reference's own radius and fade (XRDS, XLIG).
+    inline constexpr std::string_view kLightOverridesKey = "light overrides";
 
     struct AppearanceLimits
     {

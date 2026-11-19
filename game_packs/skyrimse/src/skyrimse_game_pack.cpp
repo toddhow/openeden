@@ -6659,6 +6659,12 @@ namespace game_skyrimse
                         mWorldView.setLightFalloff(true);
                         say(openeden::sdk::LogLevel::Info, "light falloff: on");
                     }
+                    // Task 0355 stage i: placed lights take their own radius and fade (on by default, like falloff).
+                    if (settings->getBool(kPackId, kLightOverridesKey, true))
+                    {
+                        mWorldView.setLightOverrides(true);
+                        say(openeden::sdk::LogLevel::Info, "light overrides: on");
+                    }
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");
                     if (!mCellSource.actorTable().setTestGoto(goer))

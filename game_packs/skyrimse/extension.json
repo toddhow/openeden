@@ -351,6 +351,11 @@
       "default": true
     },
     {
+      "key": "light overrides",
+      "type": "bool",
+      "default": true
+    },
+    {
       "key": "follower test recruit",
       "type": "string",
       "default": ""

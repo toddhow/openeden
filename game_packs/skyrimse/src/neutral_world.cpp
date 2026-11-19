@@ -2,6 +2,7 @@
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -144,6 +145,29 @@ namespace game_skyrimse
             }
         }
         return c;
+    }
+
+    LightData applyLightOverrides(const LightData& base, const LightOverrides& overrides)
+    {
+        LightData out = base;
+        if (overrides.mRadiusDelta && std::isfinite(*overrides.mRadiusDelta)
+            && std::abs(static_cast<double>(*overrides.mRadiusDelta)) <= kMaxLightRadiusDelta)
+        {
+            // Never below 0: no value in the masters is below minus the base radius, a hostile one is cut.
+            const double radius = std::max(0.0, static_cast<double>(base.mRadius) + *overrides.mRadiusDelta);
+            out.mRadius = static_cast<std::uint32_t>(std::llround(radius));
+        }
+        if (overrides.mFadeDelta && std::isfinite(*overrides.mFadeDelta)
+            && std::abs(static_cast<double>(*overrides.mFadeDelta)) <= kMaxLightFadeDelta)
+        {
+            const double fade = static_cast<double>(base.mFade) + *overrides.mFadeDelta;
+            if (fade > 0.0)
+            {
+                out.mFade = static_cast<float>(fade);
+                out.mHasFade = true;
+            }
+        }
+        return out;
     }
 
     std::optional<sdkgame::LightComponent> makeLightComponent(

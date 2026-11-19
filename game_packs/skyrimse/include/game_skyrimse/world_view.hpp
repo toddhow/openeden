@@ -489,6 +489,10 @@ namespace game_skyrimse
         /// makes the engine's falloff end where Skyrim's does (kLightFalloffRadiusScale). Set before the first cell.
         void setLightFalloff(bool on) { mLightFalloff = on; }
         [[nodiscard]] bool lightFalloff() const { return mLightFalloff; }
+        /// Task 0355 stage i (`[extension.skyrimse] light overrides`): a light reference's XRDS and XLIG change its
+        /// base light's radius and fade (see LightOverrides). Set before the first cell.
+        void setLightOverrides(bool on) { mLightOverrides = on; }
+        [[nodiscard]] bool lightOverrides() const { return mLightOverrides; }
 
         // ---- openeden::sdk::game::PlayerBodySource (task 0222) ----
         /// `[extension.skyrimse] player body`: the player has a Skyrim body (race Nord, the sex of `player female`).
@@ -1075,6 +1079,7 @@ namespace game_skyrimse
         bool mNpcByEditorIdBuilt = false;
         bool mHeldGear = false; ///< task 0220
         bool mLightFalloff = false; ///< task 0355 stage b
+        bool mLightOverrides = false; ///< task 0355 stage i
         bool mPlayerBodyOn = false; ///< task 0222
         bool mFirstPersonBodyOn = false; ///< task 0245
         bool mBeastForm = false; ///< task 0259
