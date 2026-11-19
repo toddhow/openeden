@@ -296,8 +296,22 @@ namespace MWRender
                 neutralLight = MWWorld::makeNeutralEsmLight(*base->mLight, Settings::game().mNeutralLightFadeGain,
                     Settings::game().mNeutralLightFlicker,
                     MWWorld::neutralLightSeed(static_cast<std::uint32_t>(refNum.mContentFile),
-                        static_cast<std::uint32_t>(refNum.mIndex)));
+                        static_cast<std::uint32_t>(refNum.mIndex)),
+                    Settings::game().mNeutralLightTypes);
                 light = &*neutralLight;
+                // OPENEDEN_NEUTRAL_LIGHT_FORCE_FOV=<degrees> (developer aid, task 0355 stage g): with [Game] neutral
+                // light types on, every neutral light becomes a spot of that opening angle along its local +X axis, so
+                // the cone can be seen in a cell that has no real spot light near a floor.
+                static const char* forcedFov = std::getenv("OPENEDEN_NEUTRAL_LIGHT_FORCE_FOV");
+                if (forcedFov != nullptr && Settings::game().mNeutralLightTypes)
+                {
+                    const float degrees = static_cast<float>(std::atof(forcedFov));
+                    if (degrees >= 1.f && degrees <= 170.f)
+                    {
+                        neutralLight->mData.mFlags |= ESM::Light::NeutralSpot;
+                        neutralLight->mNeutralSpotFov = degrees;
+                    }
+                }
                 // OPENEDEN_NEUTRAL_LIGHT_TRACE=1 (developer aid, task 0355): what each neutral light becomes.
                 static const bool lightTrace = std::getenv("OPENEDEN_NEUTRAL_LIGHT_TRACE") != nullptr;
                 if (lightTrace)

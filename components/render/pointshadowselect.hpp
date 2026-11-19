@@ -19,6 +19,24 @@ namespace Render::PointShadow
      * clock, no pointer order, no unordered container. The caller's `id` only recognises a holder from the last call.
      */
 
+    /// What the game's light record says about a shadow (task 0355 stage g). Unspecified (every Morrowind light) is
+    /// the old behaviour: the light may take a slot.
+    enum class Rule : std::uint8_t
+    {
+        Unspecified = 0,
+        Never = 1,
+        Casts = 2,
+    };
+
+    /// Whether a light with this colour and rule may take a shadow slot: darkness lights and lights with no colour
+    /// never do, and a light whose record says it never casts does not.
+    inline bool lightMayCast(float red, float green, float blue, Rule rule)
+    {
+        if (rule == Rule::Never)
+            return false;
+        return red >= 0.f && green >= 0.f && blue >= 0.f && (red > 0.f || green > 0.f || blue > 0.f);
+    }
+
     struct Candidate
     {
         std::uint64_t id = 0;

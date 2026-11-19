@@ -9,6 +9,8 @@
 #include <vsg/maths/vec3.h>
 #include <vsg/state/ViewDependentState.h>
 
+#include <components/render/pointshadowselect.hpp>
+
 namespace View
 {
     /// A light as the last traversal saw it (task 0077): its place in the view's space, so that nothing needs to read
@@ -20,6 +22,8 @@ namespace View
         vsg::dvec3 eyePosition;
         vsg::vec3 color;
         float intensity = 0.f;
+        /// Task 0355 stage g: the game's shadow rule of a View::TypedPointLight (Unspecified for every other light).
+        Render::PointShadow::Rule shadowRule = Render::PointShadow::Rule::Unspecified;
     };
 
     /// A point light that has a shadow map (task 0077): which slot, and how far its shadow has faded in.
@@ -33,6 +37,7 @@ namespace View
     class CollectLights : public vsg::ViewDependentState
     {
         vsg::ref_ptr<vsg::vec4Array> mData;
+        std::size_t mMaxLights = 0;
         bool mLinear = false;
         // Task 0077: the shadow data buffer's light entries are written here, in the loop that writes the lights, so
         // that an entry always belongs to the light at its index (the list changes from one traversal to the next).
@@ -47,6 +52,9 @@ namespace View
 
     public:
         CollectLights(size_t maxLights);
+
+        /// The number of lights the buffer was made for.
+        std::size_t maxLights() const { return mMaxLights; }
 
         vsg::ref_ptr<vsg::vec4Array> data() { return mData; }
 

@@ -440,10 +440,13 @@ namespace game_skyrimse
     namespace LightFlags
     {
         /// LIGH DATA flag bits. The values below 0x200 agree with the CK documentation, upstream's ESM4 loader
-        /// (97722d48f9, a second reader) and the installed masters (every flag word of 1,740 lights uses only these and
-        /// the bits 0x400 to 0x2000). 0x400 and later are RECALLED-VERIFY: upstream lists 0x200 and 0x400 for the spot
-        /// bits, but 0x200 occurs in none of the 1,740 lights of the five masters, so the CK values (spot light 0x400,
-        /// spot shadow 0x800, hemisphere shadow 0x1000, omnidirectional shadow 0x2000) are used.
+        /// (97722d48f9, a second reader) and the installed masters. **Task 0355 stage g corrected the four bits above
+        /// 0x200**, which stage a had shifted by one place: Mutagen's Skyrim schema (read through houseCARL) names
+        /// SpotLight 0x200, ShadowSpotlight 0x400, ShadowHemisphere 0x800, ShadowOmnidirectional 0x1000 and
+        /// PortalStrict 0x2000 (a portal culling hint, NOT a shadow type), and the editor ids of the records agree:
+        /// DefaultTorch01 (omni, 0x1000), DefaultTorch01HalfOmni (0x800), DefaultTorch01Spot (0x400), every Sunlight
+        /// shaft a 0x400 spot, and 0x2000 on records of every kind. 0x200 occurs in none of the five masters (a spot
+        /// always carries the 0x400 shadow-spotlight bit), so both bits mean a spot cone here.
         inline constexpr std::uint32_t Dynamic = 0x001;
         inline constexpr std::uint32_t Carryable = 0x002;
         inline constexpr std::uint32_t Negative = 0x004;
@@ -452,10 +455,11 @@ namespace game_skyrimse
         inline constexpr std::uint32_t FlickerSlow = 0x040;
         inline constexpr std::uint32_t Pulse = 0x080;
         inline constexpr std::uint32_t PulseSlow = 0x100;
-        inline constexpr std::uint32_t SpotLight = 0x400;
-        inline constexpr std::uint32_t SpotShadow = 0x800;
-        inline constexpr std::uint32_t HemisphereShadow = 0x1000;
-        inline constexpr std::uint32_t OmnidirectionalShadow = 0x2000;
+        inline constexpr std::uint32_t SpotLight = 0x200;
+        inline constexpr std::uint32_t SpotShadow = 0x400;
+        inline constexpr std::uint32_t HemisphereShadow = 0x800;
+        inline constexpr std::uint32_t OmnidirectionalShadow = 0x1000;
+        inline constexpr std::uint32_t PortalStrict = 0x2000;
     }
 
     /// LIGH DATA (48 bytes, VERIFIED on the five masters: 1,740 of 1,740) and FNAM (4 bytes, 1,740 of 1,740). Layout:

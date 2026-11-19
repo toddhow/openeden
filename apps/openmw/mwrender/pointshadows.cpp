@@ -99,8 +99,8 @@ namespace MWRender
             c.position = xyz(inverseView * vsg::dvec4(light.eyePosition, 1.0));
             c.radius = light.intensity;
             // Darkness lights have a negative colour and cast nothing.
-            c.casts = light.color.r >= 0.f && light.color.g >= 0.f && light.color.b >= 0.f
-                && (light.color.r > 0.f || light.color.g > 0.f || light.color.b > 0.f);
+            // Task 0355 stage g: and a light whose game record says it casts no shadow does not take a slot.
+            c.casts = Render::PointShadow::lightMayCast(light.color.r, light.color.g, light.color.b, light.shadowRule);
             mCandidates.push_back(c);
         }
         // A holder whose light the last traversal did not see (it was culled for a moment) keeps its slot for a few

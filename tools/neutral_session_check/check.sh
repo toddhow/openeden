@@ -175,6 +175,10 @@ echo "return { tag = '${F7_TAG:-b108144}', start = ${F7_START:-8}, stand = { ${F
 # Task 0148: "n5loco" is "n5goto" with a picture every 0.2 s (use at least 2400 frames; also set [Game] neutral actor locomotion).
 [ "$SHOT" = n5loco ] && echo "content=n5loco.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0355 stage g: "l55g" visits the camera spots L55G_SPOTS ("{x,y,z,yaw,pitch},{...}"; yaw 0 = +y, pitch down positive) in the start cell and takes a picture
+# 1.2 s after each move (luatest/scripts/l55g/cam.lua; use about 700 frames plus 180 per spot).
+[ "$SHOT" = l55g ] && echo "content=l55gcam.omwscripts" >> "$WORK/config/openmw.cfg"
+echo "return { ${L55G_SPOTS:-} }" > "$WORK/luatest/scripts/l55g/spots.lua"
 # Task 0131 stage N3a-6: "ms0sweep" runs the Lua API sweep over the neutral cell (use at least 1500 frames).
 [ "$SHOT" = ms0sweep ] && echo "content=ms0sweep.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0110 stage N3a-4b: "collision" as the screenshot argument runs the player through the collision script (stands, then
@@ -262,7 +266,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|bqtalk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5kill|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|ne|vamp|n5gear|pbody|seqdoor|seqwalk|swim291) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|bqtalk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5kill|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|ne|vamp|n5gear|pbody|seqdoor|seqwalk|swim291|l55g) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

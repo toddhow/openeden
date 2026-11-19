@@ -141,6 +141,14 @@ namespace openeden::sdk::game
         PulseSlow,
     };
 
+    /// Whether a light casts a point light shadow (task 0355 stage g; added to 1.1 as trailing data).
+    enum class LightShadow : std::uint8_t
+    {
+        Unspecified = 0, ///< the game says nothing: the engine treats the light as before
+        Never = 1,
+        Casts = 2,
+    };
+
     /// A light the object gives (task 0113, stage N3a-5; added in 1.1). A point light at the object's origin; the
     /// engine draws it with the light path it has (the brightness at the centre falls to nothing at `radius`).
     struct LightComponent
@@ -166,6 +174,12 @@ namespace openeden::sdk::game
         double flickerPeriod = 0.0;
         double flickerIntensity = 0.0;
         double flickerMovement = 0.0;
+        /// Task 0355 stage g (trailing, additive, the version number stays 1.1): the full opening angle in degrees of a
+        /// spot light, which shines along the object's local +X axis (Skyrim SE: LIGH FOV on a light with the spot bit;
+        /// 0 for every other light, a value outside 1 to 170 is 0).
+        double spotFov = 0.0;
+        /// Whether the game's record asks for a shadow (Skyrim SE: the spot, hemisphere or omnidirectional shadow bit).
+        LightShadow shadow = LightShadow::Unspecified;
 
         friend bool operator==(const LightComponent&, const LightComponent&) = default;
     };

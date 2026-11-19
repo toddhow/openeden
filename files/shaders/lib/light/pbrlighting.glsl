@@ -13,14 +13,15 @@ void pbrPointLights(vec2 screenCoord, vec3 normal, vec3 viewPos, float roughness
     uint offset = lightGrid[tileIndex].offset;
     for (uint l=0; l<count; ++l)
     {
-        PointLight light = pointLights[lightIndexList[offset+l]];
+        uint lightIdx = lightIndexList[offset+l];
+        PointLight light = pointLights[lightIdx];
         vec4 lightColor = light.colorIntensity;
         vec3 lightVec = light.position.xyz - viewPos;
         float d = length(lightVec);
         if (d <= lightRange(lightColor.w))
         {
             vec3 lightDir = lightVec / d;
-            float illumination = attenuate(lightColor.w, d);
+            float illumination = attenuate(lightColor.w, d) * pointLightCone(lightIdx, -lightDir);
 #ifdef POINT_SHADOW
             // Task 0077: the shadow of this light, if it has a slot (lib/light/pointshadow.*).
             illumination *= pointLightShadow(lightIndexList[offset+l], viewPos);

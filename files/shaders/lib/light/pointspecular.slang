@@ -15,14 +15,15 @@ float3 pointLightSpecular(float2 screenCoord, float3 reflectedViewNormal, float3
     uint offset = lightGrid[tileIndex].offset;
     for (uint l = 0; l < count; ++l)
     {
-        PointLight light = pointLights[lightIndexList[offset + l]];
+        uint lightIdx = lightIndexList[offset + l];
+        PointLight light = pointLights[lightIdx];
         float4 lightColor = light.colorIntensity;
         float3 lightViewPos = light.position.xyz;
         float d = length(light.position.xyz - viewPos.xyz);
         float range = lightRange(light.colorIntensity.w);
         if (d <= range)
             specular += pow(max(dot(reflectedViewNormal, normalize(lightViewPos)), 0.0), shininess) * lightColor.xyz
-                * attenuate(lightColor.w, d);
+                * attenuate(lightColor.w, d) * pointLightCone(lightIdx, (viewPos.xyz - lightViewPos) / max(d, 1e-4));
     }
     return specular;
 }

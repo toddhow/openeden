@@ -8,12 +8,21 @@
 #include <components/render/hdrmath.hpp>
 #include <components/render/lightfade.hpp>
 
+#include "lightdata.hpp"
+#include "typedlight.hpp"
+
 namespace View
 {
     CollectLights::CollectLights(size_t maxLights)
         : vsg::ViewDependentState(0)
     {
-        mData = vsg::vec4Array::create(maxLights * 2); // vsgopenmw-fixme(dont-repeat-yourself(light-data-size))
+        mMaxLights = maxLights;
+        // The lights, then (from two lights up) the spot region; see lightdata.hpp.
+        mData = vsg::vec4Array::create(lightVec4Count(maxLights));
+        for (auto& v : *mData)
+            v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+        if (maxLights >= kMinLightsForSpotRegion)
+            mData->at(3).w = static_cast<float>(maxLights);
         mData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
     }
 
@@ -21,14 +30,15 @@ namespace View
     {
         mShadowData = std::move(data);
         mShadowEntryOffset = entryOffset;
-        mSnapshots.reserve(mData->size() / 2);
+        mSnapshots.reserve(mMaxLights);
         mShadowEntries.reserve(8);
     }
 
     void CollectLights::pack() const
     {
         auto light_itr = mData->begin();
-        size_t maxLights = mData->size() / 2;
+        size_t maxLights = mMaxLights;
+        const bool spotRegion = maxLights >= kMinLightsForSpotRegion;
         size_t lightCount = std::min(maxLights, pointLights.size());
         for (size_t i = 0; i < lightCount; ++i)
         {
@@ -46,8 +56,27 @@ namespace View
                 color *= Render::LightFade::factor(vsg::length(eye_position), mFadeBegin, mFadeEnd);
             (*light_itr++).set(color.x, color.y, color.z, light->intensity);
             (*light_itr++).set(eye_position.x, eye_position.y, eye_position.z, 0);
+            if (spotRegion)
+            {
+                // Task 0355 stage g: the spot vec4 of this light (zero for a light that is not a spot).
+                vsg::vec4 spot(0.f, 0.f, 0.f, 0.f);
+                if (const auto* typed = dynamic_cast<const TypedPointLight*>(light); typed != nullptr
+                    && typed->spotCosHalf > 0.f)
+                {
+                    const vsg::dvec4 rotated
+                        = mv * vsg::dvec4(typed->spotAxis.x, typed->spotAxis.y, typed->spotAxis.z, 0.0);
+                    const vsg::vec3 axis(
+                        static_cast<float>(rotated.x), static_cast<float>(rotated.y), static_cast<float>(rotated.z));
+                    const float length = vsg::length(axis);
+                    if (length > 1e-6f)
+                        spot = vsg::vec4(axis.x / length, axis.y / length, axis.z / length, typed->spotCosHalf);
+                }
+                mData->at(maxLights * 2 + i) = spot;
+            }
         }
         mData->at(1).w = static_cast<float>(lightCount);
+        if (spotRegion)
+            mData->at(3).w = static_cast<float>(maxLights); // the marker of the spot region (lightdata.hpp)
         // OPENEDEN_LIGHT_COUNT_TRACE=1 (developer aid, task 0355): the lights this traversal collected, every 120 packs.
         static const bool countTrace = std::getenv("OPENEDEN_LIGHT_COUNT_TRACE") != nullptr;
         if (countTrace)
@@ -77,6 +106,8 @@ namespace View
                 snapshot.eyePosition = l.first * light->position;
                 snapshot.color = light->color;
                 snapshot.intensity = light->intensity;
+                if (const auto* typed = dynamic_cast<const TypedPointLight*>(light))
+                    snapshot.shadowRule = typed->shadowRule;
                 mSnapshots.push_back(snapshot);
                 float slot = -1.f;
                 float fade = 0.f;

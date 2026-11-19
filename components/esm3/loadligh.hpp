@@ -43,7 +43,13 @@ namespace ESM
             // OpenEden (task 0355 stage h), NOT a bit of the file format: the light has its own flicker or pulse (a
             // game pack's period and amplitude, packed in mData.mTime, the seed in mData.mValue; see
             // components/mwanimation/lightflicker.hpp). No file sets it.
-            NeutralFlicker = 0x20000
+            NeutralFlicker = 0x20000,
+            // OpenEden (task 0355 stage g), NOT bits of the file format either: set by MWWorld::makeNeutralEsmLight.
+            // A spot light (the cone is mNeutralSpotFov degrees wide and points along the object's local +X axis),
+            // and the game's shadow rule (casts a point light shadow / never does); neither bit means "as before".
+            NeutralSpot = 0x40000,
+            NeutralShadowCasts = 0x80000,
+            NeutralShadowNever = 0x100000
         };
 
         struct LHDTstruct
@@ -57,6 +63,9 @@ namespace ESM
         }; // Size = 24 bytes
 
         LHDTstruct mData;
+        /// Task 0355 stage g: the full opening angle of a NeutralSpot light, in degrees. Not part of the record's file
+        /// data: blank() sets 0 and load() leaves it 0.
+        float mNeutralSpotFov = 0.f;
 
         uint32_t mRecordFlags;
         std::string mModel, mIcon, mName;

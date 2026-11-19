@@ -1,0 +1,3 @@
+GLOBAL: scripts/l55g/cam.lua
+PLAYER: scripts/mare/shot.lua
+PLAYER: scripts/l55g/probe.lua

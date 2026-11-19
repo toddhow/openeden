@@ -48,7 +48,8 @@ namespace MWWorld
         return gain > 1.0 ? static_cast<float>(std::min(gain, 64.0)) : 1.f;
     }
 
-    ESM::Light makeNeutralEsmLight(const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed)
+    ESM::Light makeNeutralEsmLight(
+        const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed, bool lightTypes)
     {
         ESM::Light record;
         record.blank();
@@ -97,6 +98,18 @@ namespace MWWorld
                 record.mData.mTime = packed;
                 record.mData.mValue = static_cast<std::int32_t>(seed);
             }
+        }
+        if (lightTypes)
+        {
+            if (std::isfinite(light.spotFov) && light.spotFov >= 1.0 && light.spotFov <= 170.0)
+            {
+                flags |= ESM::Light::NeutralSpot;
+                record.mNeutralSpotFov = static_cast<float>(light.spotFov);
+            }
+            if (light.shadow == openeden::sdk::game::LightShadow::Casts)
+                flags |= ESM::Light::NeutralShadowCasts;
+            else if (light.shadow == openeden::sdk::game::LightShadow::Never)
+                flags |= ESM::Light::NeutralShadowNever;
         }
         record.mData.mFlags = flags;
         return record;

@@ -40,8 +40,10 @@ namespace MWWorld
     /// intensity amplitude carries them in the record (ESM::Light::NeutralFlicker, mData.mTime packed by
     /// MWAnim::NeutralFlicker::packTimeField, mData.mValue = `seed`), so MWAnim::addLight runs the light's own flicker
     /// or pulse; without it, or with no usable numbers, the record is as before (Morrowind's rule).
+    /// With `lightTypes` (task 0355 stage g) a spot light's cone (NeutralSpot, mNeutralSpotFov) and the game's shadow
+    /// rule (NeutralShadowCasts or NeutralShadowNever; none for "unspecified") are kept in the record too.
     [[nodiscard]] ESM::Light makeNeutralEsmLight(const openeden::sdk::game::LightComponent& light,
-        bool fadeGain = false, bool ownFlicker = false, std::uint32_t seed = 0);
+        bool fadeGain = false, bool ownFlicker = false, std::uint32_t seed = 0, bool lightTypes = false);
 
     /// A per-light seed from a placement's identity (content file index and reference number): the same placement
     /// always gets the same seed, whatever else is loaded.

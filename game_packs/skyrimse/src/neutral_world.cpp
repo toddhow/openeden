@@ -192,6 +192,15 @@ namespace game_skyrimse
         c.negative = (light.mFlags & LightFlags::Negative) != 0;
         c.offByDefault = (light.mFlags & LightFlags::OffByDefault) != 0;
         c.flags = light.mFlags;
+        // Task 0355 stage g: the spot cone and the shadow rule (the bit meanings are in LightFlags).
+        const bool spot = (light.mFlags & (LightFlags::SpotLight | LightFlags::SpotShadow)) != 0;
+        if (spot && std::isfinite(light.mFov) && light.mFov >= 1.0f && light.mFov <= 170.0f)
+            c.spotFov = static_cast<double>(light.mFov);
+        const bool shadowed = (light.mFlags
+                                  & (LightFlags::SpotShadow | LightFlags::HemisphereShadow
+                                      | LightFlags::OmnidirectionalShadow))
+            != 0;
+        c.shadow = shadowed ? sdkgame::LightShadow::Casts : sdkgame::LightShadow::Never;
         return c;
     }
 

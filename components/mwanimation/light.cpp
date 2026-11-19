@@ -14,6 +14,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/rng.hpp>
+#include <components/view/typedlight.hpp>
 
 #include "color.hpp"
 #include "lightflicker.hpp"
@@ -138,7 +139,24 @@ namespace
 
     vsg::ref_ptr<vsg::PointLight> createLight(const ESM::Light& light)
     {
-        auto node = vsg::PointLight::create();
+        // Task 0355 stage g: a game pack's light that has a spot cone or a shadow rule is a View::TypedPointLight;
+        // every other light (all of Morrowind's) is the plain node it always was.
+        constexpr int typedBits
+            = ESM::Light::NeutralSpot | ESM::Light::NeutralShadowCasts | ESM::Light::NeutralShadowNever;
+        vsg::ref_ptr<vsg::PointLight> node;
+        if (light.mData.mFlags & typedBits)
+        {
+            auto typed = vsg::ref_ptr<View::TypedPointLight>(new View::TypedPointLight);
+            if (light.mData.mFlags & ESM::Light::NeutralSpot)
+                typed->spotCosHalf = View::spotConeCos(light.mNeutralSpotFov);
+            if (light.mData.mFlags & ESM::Light::NeutralShadowCasts)
+                typed->shadowRule = Render::PointShadow::Rule::Casts;
+            else if (light.mData.mFlags & ESM::Light::NeutralShadowNever)
+                typed->shadowRule = Render::PointShadow::Rule::Never;
+            node = typed;
+        }
+        else
+            node = vsg::PointLight::create();
         node->intensity = light.mData.mRadius;
         node->color = MWAnim::rgbColor(light.mData.mColor);
         // OpenEden (task 0355 stage b): the brightness a neutral light has beyond what its colour byte holds.

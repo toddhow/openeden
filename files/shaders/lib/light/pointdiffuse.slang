@@ -15,12 +15,14 @@ float3 pointLightDiffuse(float2 screenCoord, float3 viewNormal, float3 viewPos)
     uint offset = lightGrid[tileIndex].offset;
     for (uint l = 0; l < count; ++l)
     {
-        PointLight light = pointLights[lightIndexList[offset + l]];
+        uint lightIdx = lightIndexList[offset + l];
+        PointLight light = pointLights[lightIdx];
         float4 lightColor = light.colorIntensity;
         float3 lightVec = light.position.xyz - viewPos;
         float d = length(lightVec);
         if (d <= lightRange(light.colorIntensity.w))
-            diffuse += lightColor.xyz * lambert(lightVec / d, viewNormal) * attenuate(lightColor.w, d);
+            diffuse += lightColor.xyz * lambert(lightVec / d, viewNormal) * attenuate(lightColor.w, d)
+                * pointLightCone(lightIdx, -lightVec / d);
     }
     return diffuse;
 }
