@@ -832,6 +832,7 @@ namespace game_skyrimse
         /// Task 0306: a quest started with no stage (the story manager's start): the package brain's copy runs it.
         void startPackageQuest(FormId quest);
         void stopPackageQuest(FormId quest); ///< task 0344: a script stopped the quest (Quest.Stop)
+        void resetPackageQuest(FormId quest); ///< task 0347: the story manager starts it again: its stages are forgotten
         /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
         /// when it is made). Main thread.
         void setInfoFragmentSink(InfoFragmentSink sink);

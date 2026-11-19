@@ -931,6 +931,8 @@ namespace game_skyrimse
                 if (mState->running(quest) || mState->completed(quest))
                     continue;
                 mState->resetStages(quest); // task 0347: a quest the story manager starts again begins clean
+                if (mQuestReset)
+                    mQuestReset(quest);
                 if (mFiller != nullptr)
                     (void)mFiller->fillEventAliases(quest, *mState, event); // task 0194: R1 and R2 of the event
                 startQuest(quest);
@@ -2952,6 +2954,7 @@ namespace game_skyrimse
         QuestChanged mQuestChanged;
         QuestStarted mQuestStarted; // task 0306
         QuestStopped mQuestStopped; // task 0344
+        QuestReset mQuestReset; // task 0347
         bool mCreatedInInventory = false; // task 0335
         FormId mPickupSource = 0; // task 0345: the placed reference being picked up (0: none)
         std::vector<FormId> mPendingCreate; // task 0335: start-game quests whose in-inventory items wait for the item table
@@ -4352,6 +4355,11 @@ namespace game_skyrimse
     void PapyrusHost::setQuestChanged(QuestChanged changed)
     {
         mImpl->mQuestChanged = std::move(changed);
+    }
+
+    void PapyrusHost::setQuestReset(QuestReset reset)
+    {
+        mImpl->mQuestReset = std::move(reset);
     }
 
     void PapyrusHost::setQuestStopped(QuestStopped stopped)

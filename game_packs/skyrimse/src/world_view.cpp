@@ -2984,6 +2984,15 @@ namespace game_skyrimse
             ++mPackagesRevision;
     }
 
+    void SkyrimWorldView::resetPackageQuest(FormId quest) // task 0347
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || !mDialogue->mData->mQuests.quest(quest))
+            return;
+        mDialogue->mPackageQuests.resetStages(quest);
+        if (mAliasPackagesOn)
+            ++mPackagesRevision;
+    }
+
     void SkyrimWorldView::startPackageQuest(FormId quest)
     {
         if (mDialogue == nullptr || mDialogue->mData == nullptr || !mDialogue->mData->mQuests.quest(quest))

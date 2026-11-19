@@ -487,6 +487,7 @@ namespace game_skyrimse
                 });
                 mHost.setQuestStarted([this](FormId quest) { mView.startPackageQuest(quest); }); // task 0306
                 mHost.setQuestStopped([this](FormId quest) { mView.stopPackageQuest(quest); }); // task 0344
+                mHost.setQuestReset([this](FormId quest) { mView.resetPackageQuest(quest); }); // task 0347
                 mHost.setLocationKeywordData(&mView.keywordData()); // task 0217
                 // task 0305: an alias a script forced gives its actor the alias's packages, and a package condition on
                 // the alias reads what it holds

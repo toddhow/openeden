@@ -207,6 +207,44 @@ namespace
         EXPECT_FALSE(view.mDead);
     }
 
+    TEST(SkyrimTg01bBrawl, anActorThatCollapsesIntoBleedoutLeavesTheFightAndCannotBeStartedAgainUntilItStandsUp)
+    {
+        FakeData data;
+        data.mReadyNow = true;
+        data.mProfile.mHealthMax = 3.f;
+        data.mProfile.mEssential = true;
+        SkyrimCombat combat;
+        FakeWriter writer;
+        combat.setData(&data);
+        combat.setTestWeapon("IronSword");
+        combat.setCombatAi(true);
+        combat.setEssentialBleedout(true);
+        const ActorHandle bersi{ 10, 1 };
+        combat.onActorAdded(infoOf(10, kBase, "Bersi"));
+        for (int i = 0; i < 5; ++i)
+            combat.combatUpdate(0.1f, writer);
+        ASSERT_TRUE(combat.scriptStartCombat(bersi));
+        ASSERT_EQ(combat.aiEngaged(), 1u);
+        combat.onPlayerAttack(false);
+        for (int i = 0; i < 6; ++i)
+            combat.combatUpdate(0.1f, writer);
+        ASSERT_FALSE(writer.mSweeps.empty());
+        SweepHit hit;
+        hit.target = SweepTarget::Actor;
+        hit.actor = bersi;
+        hit.distance = 20.f;
+        combat.onSweepResult(CombatSubject::ofPlayer(), writer.mSweeps.back().second.token, &hit, 1);
+        combat.combatUpdate(0.1f, writer);
+        combat.combatUpdate(0.1f, writer);
+        SkyrimCombat::FighterView view;
+        ASSERT_TRUE(combat.fighterView(CombatSubject::of(bersi), view));
+        ASSERT_TRUE(view.mBleedout);
+        EXPECT_EQ(combat.aiEngaged(), 0u) << "a bleeding actor does not go on fighting (the forced greeting waits for it)";
+        EXPECT_FALSE(combat.scriptStartCombat(bersi)) << "nor does it start again while it is down";
+        EXPECT_TRUE(combat.setFighterHealth(CombatSubject::of(bersi), 10.f));
+        EXPECT_TRUE(combat.scriptStartCombat(bersi)) << "standing up again, it can fight";
+    }
+
     TEST(SkyrimTg01bScriptFight, aScriptStartAgainstAnActorTheDataNeverKnowsIsStillRefused)
     {
         FakeData data;
@@ -269,6 +307,8 @@ namespace
     {
         QuestRig rig;
         rig.mHost->setStoryEventSink([](const StoryEvent&) { return std::vector<FormId>{ kBrawlQuest }; });
+        std::vector<FormId> reset;
+        rig.mHost->setQuestReset([&](FormId quest) { reset.push_back(quest); }); // the package brain's copy is told too
         StoryEvent event;
         event.mType = "SCPT";
         EXPECT_EQ(rig.mHost->raiseStoryEvent(event), 1u); // the first brawl
@@ -279,6 +319,8 @@ namespace
         EXPECT_TRUE(rig.mState.running(kBrawlQuest));
         EXPECT_FALSE(rig.mState.stageDone(kBrawlQuest, 15)) << "stage 15 must be settable again";
         EXPECT_FLOAT_EQ(rig.mState.stage(kBrawlQuest), 0.f);
+        ASSERT_EQ(reset.size(), 2u);
+        EXPECT_EQ(reset[1], kBrawlQuest);
     }
 
     TEST(SkyrimTg01bBrawl, aQuestThatIsStillRunningIsNotResetByAnotherEvent)

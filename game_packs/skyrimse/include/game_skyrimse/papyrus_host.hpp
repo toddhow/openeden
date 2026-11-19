@@ -708,6 +708,10 @@ namespace game_skyrimse
         /// giving that quest's alias packages.
         using QuestStopped = std::function<void(FormId quest)>;
         void setQuestStopped(QuestStopped stopped);
+        /// Task 0347: told when the story manager starts a quest again (DGIntimidateQuest, a second brawl) and its stage
+        /// progress was reset, so the package brain's copy forgets the old stages too (GetStage in the packages' conditions).
+        using QuestReset = std::function<void(FormId quest)>;
+        void setQuestReset(QuestReset reset);
         void stopQuestForTest(FormId quest); ///< what the native does
 
         /// Task 0217: told after the story manager's event started a quest and its aliases were filled (a developer's

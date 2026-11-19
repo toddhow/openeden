@@ -278,7 +278,7 @@ namespace game_skyrimse
 
     bool SkyrimCombat::aiBegin(Fighter& fighter, const char* reason, CombatSubject target, bool assisted)
     {
-        if (fighter.mSubject.player || fighter.mDead || aiFind(fighter.mSubject.actor) != nullptr
+        if (fighter.mSubject.player || fighter.mDead || fighter.mBleedout || aiFind(fighter.mSubject.actor) != nullptr
             || mAiActors.size() >= kMaxAiActors || !ready(fighter))
             return false;
         // An actor that gave up the chase rests; a hit by the player still wakes it.
@@ -761,6 +761,11 @@ namespace game_skyrimse
             if (f == nullptr || f->mDead)
             {
                 aiRelease(i, "dead");
+                continue;
+            }
+            if (f->mBleedout) // task 0347: an essential actor that collapsed leaves the fight (and its forced greeting runs)
+            {
+                aiRelease(i, "bleedout");
                 continue;
             }
             if (!playerAlive && a.mTarget.player)
