@@ -165,6 +165,90 @@ DALC wins over the cell's own cube when the ambient inherit flag is set (the dat
 (3) The cube is brightened to the interior minimum luminance on its average, as the flat ambient is. (4) Dragonsreach comes out
 brighter on average than with the flat ambient; no tuning applied.
 
+## Stage k log (2026-11-19): the weather's directional ambient on exteriors
+Branch `extambient-0355k` from `f29fa57e7d` (the stage e tip, not yet on main; main is still `a4238aabd6`, so the planned rebase
+was empty), local commits, not pushed; Windows only. Approved by toddhow. Same hand wrote tests and code; the tests are in NEW
+files (`apps/components_tests/skyrimse/testskyrimseweatherambientcube.cpp` 5, `render/testambientcubeexterior.cpp` 6,
+`vsg/testambientcubecompile.cpp` 6, `apps/openmw_tests/mwworld/testneutralweatherambientcube.cpp` 6); no existing test edited.
+**Red evidence:** the render file and the `openmw-tests` file could not compile against the old code (`flat` and `lerp` of
+`Render::AmbientCube` and `blendAmbientCubes` did not exist: compile errors in both); the pack file compiled (the SDK fields were
+added first) and was run against a build with the pack's fill switched off: 1 of 5 failed (the other 4 pin absence); the
+compile test failed 2 of 6 when the old header-guard condition of `ambientcube.glsl` was put back (the terrain imports GI_SKY
+without GI, so the buffer was declared twice).
+
+**Data (five masters, Python, not committed):** every one of the 177 WTHR records has exactly 4 DALC subrecords (708 in all: 704
+of 32 bytes, 4 of 24 bytes; the first 24 bytes are the six colours), in the order sunrise, day, sunset, night as NAM0 has. Cube
+means against the flat NAM0 ambient (SkyrimClear day: cube mean (112, 150, 162), flat (180, 192, 197); cloudy day (123, 146, 142)
+against (203, 220, 220)): **the cube is darker than the flat colour by about a third at noon**, and brighter at dusk, so
+exteriors change in brightness, not only in direction. The face order +X -X +Y -Y +Z -Z is RECALLED-VERIFY (xEdit) and agrees with
+the data as in stage e (the +Z face is the darkest and -Z the brightest: 191/214/221 against 77/129/136 for SkyrimClear's day).
+
+**Design.** SDK `weather_source.hpp` 0.5 (additive trailing `hasAmbientCube` and `ambientCube` of `WeatherDescription`, default
+none); the pack fills it from the four DALC (fewer than four: none). Engine: `WeatherParams::ambientCube`
+(`[face][time of day]`), `Weather::mAmbientCube`; `calculateResult` interpolates each face by the same "Ambient" transition
+windows as the flat colour; `calculateTransitionResult` blends two weathers' cubes with the pure `blendAmbientCubes` (a weather
+with no cube counts as its own flat ambient on all six faces; neither: no cube); `WeatherResult` carries the cube and the flat
+ambient it was made for (`mAmbientCubeBase`, taken BEFORE the lightning flash is added, so a flash adds to every face through the
+shader's `flat - baseline` term, as it adds to the flat colour; Night Eye and the atmosphere model do the same). The weather
+manager tells the renderer each frame (`RenderManager::setWeatherAmbientCube`: null for a weather with none, with the setting
+off and indoors); the renderer writes the interior cube if there is one, else the weather's, into the stage e header-buffer
+entries (same carrier, same shader function, no new binding or push constant). Objects need nothing new (their pipelines already
+ask for `AMBIENT_CUBE`). **The terrain takes it too:** `terrain/main.frag` and its Slang twin `terrain.frag.slang` gained an
+`AMBIENT_CUBE` path in the PBR branch and the plain branch (cube first, then the sky-visibility field where there is one),
+`Pipeline::terrainDefines(..., ambientCube)` (a new defaulted trailing parameter), `TerrainMapSettings::ambientCube`, set by the
+renderer when the cube setting and the weather setting are on. **A header-buffer fix:** the terrain imports GI_SKY without GI,
+which the cube file's declaration guard did not allow for, so `skyvis.glsl/.slang` now `#define SKY_HEADER_DECLARED` and
+`ambientcube.glsl/.slang` test that macro (no SPIR-V of any existing set changes). Setting `[Game] neutral weather ambient cube`
+(default true, needs `neutral ambient cube` and a restart; profile and README lines added, `coverage.sh` checks it).
+
+**Fog.** Nothing was added: the pack already maps FNAM's near, far, power and max (day and night) onto the engine's fog depth
+(`fogDepthOf`: the fog amount `min(max, ((7168 - near) / (far - near)) ^ power)` at the reference distance; the day value for
+sunrise and sunset, the night value for night) and the FogFar colour table; the engine's ramp is linear, so a power curve in
+the exterior fog needs the fog shader and golden records. The interior fog curve this task was to reuse does not exist (stage d
+applies near and far only: "fog power and maximum are not applied"). Left as one follow-up for both (decision for toddhow).
+
+**Golden data for toddhow:** `files/shaders/terrain/main.frag.interface`, the `defines` line only (`AMBIENT_CUBE` added); no
+set was added to `terrain/main.frag.sets` (the existing `PipelineTerrainDefines` test requires every listed line to be one of the
+sets its model of the settings makes, and its model does not know the new define), so a terrain set with the cube draws with the
+GLSL unless `slang shaders` compiles it at run time. In a run with `slang shaders = true` the run-time compiler compiled the
+terrain set `AMBIENT_CUBE GBUFFER GBUFFER_MATERIAL` (259 ms on the worker) and accepted it against the GLSL's interface, so the
+twin compiles and matches. Every other record file was regenerated by the write test and restored (line endings only).
+
+**Frames** (`I:\Projects\OpenEden-work\followers\l55k\keep`: `sheet_SkyrimClear.png`, `sheet_SkyrimCloudy.png`; left off, right
+on; Whiterun from the Bannered Mare's door, hdr, 800 x 600; noon, dusk (19:00) and night (23:00); forced weather SkyrimClear and
+SkyrimCloudy; viewed): mean luma off to on, clear: noon 72.6 to 69.7 and 73.4 to 70.3, dusk 47.2 to 56.6 and 45.4 to 46.6, night
+42.0 to 47.1 and 53.1 to 44.1; cloudy: noon 82.0 to 67.4 and 80.8 to 66.9, dusk 58.9 to 60.0 and 58.6 to 50.2, night 45.8 to 45.6
+and 40.0 to 42.2 (the player falls to the ground in the first seconds of a run, so the pairs differ a little in pose). Noon is
+darker and a little cooler with the cube (the sun carries more of the light), the undersides of timber and stairs take the
+warmer, brighter ground bounce, vertical faces differ by direction, dusk is brighter and warmer. **Judgement against the real game
+is from memory.**
+
+**Cost** (gpu timing, hdr, SkyrimClear noon, two pairs): main scene median 0.824 ms off against 0.822 on in the first pair; the
+second pair read 0.603 and 0.290 (the machine's GPU clock changed between runs, and the off run was the slower one), so no cost is
+measurable beyond the stage e shader's extra header reads. The terrain adds the same up to four header reads per lit pixel with
+the define.
+
+**Morrowind unchanged** against the `n6saves` build: the Balmora fixed frame (seed 7, fixed frame time, frame 600) hashes equal
+for both builds in six settings: default config (no `[Video]` lines) `0d6dd39995b927fa` and with hdr `0f7f7b30684efaea`; at
+1280 x 720 the same two, and dusk (gamehour 18.7, timescale 0) `0aad4b07a29cfa05`, dusk with hdr `a1cc5cdbcd20b9fc` (the base
+config of this machine gives these hashes, not the `1c5d47ad0b5dc32d` and `b451a8a6ca771e79` of other bases);
+`tools/worldobjects_check` 110 objects OK against the same reference build.
+
+**Tests run:** `components-tests` filter `Slang*:Pipeline*:*Weather*:*Skyrim*:*Terrain*:AmbientCube*:*Settings*:*Extension*:*Frozen*`
+4,176 pass (the real-data ones skip without their gate); `openmw-tests` filter `*Weather*:*Neutral*:*Settings*:*Terrain*:*Render*:*Fog*`
+1,201 pass; `CI/check_extension_sdk.sh`, `CI/check_tests_registered.sh`, `tools/testprofile/coverage.sh` pass.
+
+**Not run:** the Linux gate, clang-format 14 (wrapped by hand to 120 columns), clang-tidy, the Lua tests, a fresh review, GI_SKY and
+CLOUD_SHADOW together in a game frame (the compile of those combinations is a unit test; the in-game runs used neither), a
+weather transition seen in frames (the blend is unit tested; a transition happens in a frame only by the clock), a thunder
+flash with the cube, Winterhold, the whole of `openmw-tests` and `components-tests`.
+
+**Decisions for toddhow.** (1) The cube is ON by default for Skyrim sessions; noon exteriors come out about 4 to 18 percent
+darker than with the flat ambient (the data's DALC is dimmer than NAM0's ambient colour), dusk brighter. (2) The terrain takes the
+cube (a shader path); without it the ground would stay flat-lit beside cube-lit objects. (3) Weathers with fewer than four DALC
+records get none (the data has none). (4) Fog power and maximum are still not applied to exteriors or interiors. (5) No Slang set of
+the terrain cube is listed in `main.frag.sets` because an existing test forbids it; say whether that test may be edited.
+
 ## Open questions for toddhow
 1. Order: stages b to d first, then e (shader work), as proposed? Or the ambient cube (e) first because it moves the whole look?
 2. Reference: can you provide screenshots of the real game (Bannered Mare, Dragonsreach, a dungeon, Whiterun at noon and night, same cameras) so stage b is tuned against something, not memory?
