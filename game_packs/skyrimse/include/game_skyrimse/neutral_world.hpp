@@ -764,6 +764,7 @@ namespace game_skyrimse
         bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
         /// Task 0355 stage c: forwards to the view when it can name the image space of a cell.
         bool imageSpaceForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out) override;
+        bool imageSpacePending() override;
 
         /// Task 0209 (music, M-S7): off unless the pack setting `music` is true (setMusic); the data comes from the
         /// view's MusicRuntime (a worker reads the records) and "the player is in a fight" from the combat rules.

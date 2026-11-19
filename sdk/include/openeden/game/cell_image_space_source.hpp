@@ -27,5 +27,10 @@ namespace openeden::sdk::game
         /// The grade of the cell with the pack's id `cell` (WorldCell::id). False when the cell names no image space,
         /// the record is unknown or has no cinematic values; `out` is then left neutral.
         [[nodiscard]] virtual bool imageSpaceForCell(WorldId cell, ImageSpaceGrade& out) = 0;
+
+        /// True while the pack cannot answer yet (its data is still being read on a worker). imageSpaceForCell() never
+        /// waits: it returns false meanwhile, and the core asks again until this is false. Without it (the default) the
+        /// answer is always known.
+        [[nodiscard]] virtual bool imageSpacePending() { return false; }
     };
 }

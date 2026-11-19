@@ -43,6 +43,7 @@
 #include <game_skyrimse/vmad.hpp>
 #include <game_skyrimse/werewolf.hpp>
 
+#include <game_skyrimse/background_value.hpp>
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
@@ -942,6 +943,7 @@ namespace game_skyrimse
         bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
         /// Task 0355 stage c: the grade of the image space a cell names (CELL XCIM); reads the weather records too.
         bool imageSpaceForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out) override;
+        bool imageSpacePending() override;
 
         // ---- music (task 0209): the runtime reads the music records of every plugin on a worker ----
         music::MusicRuntime* musicRuntime() override;
@@ -1028,6 +1030,16 @@ namespace game_skyrimse
         const FileSource* mFiles = nullptr;
         std::unique_ptr<music::MusicRuntime> mMusic; ///< task 0209; created by the first musicRuntime() call
         std::unique_ptr<WeatherIndex> mWeatherIndex; ///< built by the first weather ask; null before
+        /// Task 0355 stage c: the weather records are read on a worker (started at the first cell image space ask or
+        /// when the world index is built); ensureWeather() takes the result (waiting only if it is still running),
+        /// imageSpacePending() and imageSpaceForCell() never wait.
+        struct WeatherBuild
+        {
+            std::unique_ptr<WeatherIndex> mIndex;
+            std::vector<Content::Error> mErrors;
+        };
+        BackgroundValue<WeatherBuild> mWeatherBuild;
+        void startWeatherPrefetch();
         std::unique_ptr<WeatherTable> mWeatherTable; ///< over mWeatherIndex
         std::function<bool(const std::string&)> mWeatherProbe; ///< does a texture exist (set with the table)
         bool ensureWeather();

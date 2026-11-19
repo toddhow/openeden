@@ -3176,27 +3176,47 @@ namespace game_skyrimse
         }
     }
 
+    void SkyrimWorldView::startWeatherPrefetch()
+    {
+        if (mWeatherBuild.started())
+            return;
+        std::vector<std::filesystem::path> paths;
+        for (const PluginData& plugin : mPlugins)
+            paths.push_back(plugin.mPath);
+        mWeatherBuild.start([paths = std::move(paths), order = mOrder]() {
+            WeatherBuild build;
+            build.mIndex = std::make_unique<WeatherIndex>();
+            const WeatherLimits limits;
+            for (const std::filesystem::path& path : paths)
+            {
+                Content::Error openError;
+                const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(path, openError);
+                if (file == nullptr)
+                {
+                    build.mErrors.push_back(std::move(openError));
+                    continue;
+                }
+                WeatherRecords records;
+                (void)parseWeatherRecords(*file, order, limits, records);
+                build.mIndex->add(records);
+            }
+            return build;
+        });
+    }
+
     bool SkyrimWorldView::ensureWeather()
     {
         if (!awaitIndex())
             return false;
         if (mWeatherTable != nullptr)
             return true;
-        auto index = std::make_unique<WeatherIndex>();
-        const WeatherLimits limits;
-        for (const PluginData& plugin : mPlugins)
-        {
-            Content::Error openError;
-            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
-            if (file == nullptr)
-            {
-                noteError(openError);
-                continue;
-            }
-            WeatherRecords records;
-            (void)parseWeatherRecords(*file, mOrder, limits, records);
-            index->add(records);
-        }
+        startWeatherPrefetch(); // a no-op when it ran already; otherwise this thread waits for the worker
+        WeatherBuild* build = mWeatherBuild.take();
+        if (build == nullptr)
+            return false;
+        for (const Content::Error& error : build->mErrors)
+            noteError(error);
+        std::unique_ptr<WeatherIndex> index = std::move(build->mIndex);
         mWeatherIndex = std::move(index);
         TextureProbe probe;
         SoundProbe soundProbe;
@@ -3247,7 +3267,22 @@ namespace game_skyrimse
         openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out)
     {
         out = {};
+        if (imageSpacePending())
+            return false; // never waits: the engine asks again
         return ensureWeather() && mWeatherTable->imageSpaceForCell(static_cast<FormId>(cell), out);
+    }
+
+    bool SkyrimWorldView::imageSpacePending()
+    {
+        if (mWeatherTable != nullptr)
+            return false;
+        // The world index is read first; while it builds, or while the weather worker runs, the answer is "not yet".
+        if (mBuilding.load(std::memory_order_acquire))
+            return true;
+        if (mFailed.load(std::memory_order_acquire))
+            return false; // nothing will ever come: the answer is "none"
+        startWeatherPrefetch();
+        return !mWeatherBuild.ready();
     }
 
     music::MusicRuntime* SkyrimWorldView::musicRuntime()

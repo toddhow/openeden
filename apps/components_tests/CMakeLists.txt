@@ -903,6 +903,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemusic.cpp
     skyrimse/testskyrimseweathersource.cpp
     skyrimse/testskyrimsecellimagespace.cpp
+    skyrimse/testskyrimsebackgroundvalue.cpp
     skyrimse/testskyrimseweathersound.cpp
     skyrimse/testskyrimseweatherreal.cpp
     skyrimse/testskyrimseterrain.cpp

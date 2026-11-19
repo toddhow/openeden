@@ -779,6 +779,12 @@ namespace game_skyrimse
         return source != nullptr && source->imageSpaceForCell(cell, out);
     }
 
+    bool SkyrimCellSource::imageSpacePending()
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::CellImageSpaceSource*>(&mView);
+        return source != nullptr && source->imageSpacePending();
+    }
+
     // ---- music (task 0209) ----
 
     namespace

@@ -119,10 +119,17 @@ lines (`NLIGHT`, `NIMAGESPACE`) are identical in 3 of 3 runs. The minimap in the
 the settings off: the data's own fog (far 2,000, max 1) is strong for a room 1,500 units wide, and the real game's fog
 power and maximum (not applied here) may soften it.
 
-**Cost:** the first ask for a cell's image space makes the pack read the weather records of every plugin on the main
-thread (`ensureWeather`): `NIMAGESPACE ... lookup 1792 ms` for the Barrow on a warm cache (the freeze monitor allows 5 s;
-a cold cache may be near it). Without `neutral weather` this is new in every Skyrim session. Follow-up: build the weather
-index on the pack's index worker.
+**Cost (fixed in a follow-up):** the first version read the weather records of every plugin on the main thread at the first
+lookup (`lookup 1792 ms` warm). Now they are read on a worker (`BackgroundValue<T>`, `background_value.hpp`: one build
+on its own thread, `ready()` / `tryGet()` never block, `take()` waits only for the old blocking weather path). The
+optional SDK method `CellImageSpaceSource::imageSpacePending()` says "not yet"; `imageSpaceForCell` never waits. The
+engine asks on entering the interior and again every frame in `Scene::update` while the answer is "not yet" (simplest
+route that grades the cell the player starts in: the grade is applied on the first frame the pack is ready, a few
+seconds into the first Skyrim interior of a session, while the cell still loads; later interiors are answered at once).
+Measured: the main-thread ask now logs `NIMAGESPACE ... lookup 772 us` (was 1,792,000 us). New test file
+`testskyrimsebackgroundvalue.cpp` (5 tests, 4 failed red against a stub; "asking while the build is still running returns
+at once" holds the build shut and asserts nothing waited). The engine polling (`mCellGradePending`) has no unit test.
+The worker starts at the first ask, so a session whose settings never ask reads nothing extra.
 
 **Morrowind unchanged:** `tools/worldobjects_check` against `n6saves`' build: 111 result lines, 110 objects, OK;
 `tools/skymap_check/morrowind_check.sh` frames `1eb68236352dc472` and `c819db116f4af8a6` equal for both builds; the
@@ -141,5 +148,4 @@ on the reference build either; the `coc` route was used), a fresh review, bright
 the full value, or make the contrast pivot the scene's average luminance (a tonemap shader change). (2) The defaults are
 ON, which is invisible in a default Skyrim session: the grade needs `hdr` (off by default). (3) A neutral interior with
 no image space is not graded. (4) The cell's fog wins over `[Fog] use distant fog`. (5) Fog power, max and far colour as
-a follow-up (a per-cell fog curve needs the fog shader, golden `.interface` records). (6) Move the weather read to the
-worker.
+a follow-up (a per-cell fog curve needs the fog shader, golden `.interface` records). (6) done: the weather read is on a worker.

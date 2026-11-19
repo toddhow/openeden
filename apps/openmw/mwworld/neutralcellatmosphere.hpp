@@ -80,9 +80,11 @@ namespace MWWorld
     [[nodiscard]] bool neutralGradeShaderWanted(
         bool neutralWorld, bool weatherImageSpace, bool imageSpaceEffects, bool cellImageSpace);
 
-    /// Called when the player enters a cell. Only for a neutral INTERIOR with [Game] neutral world and [Game] neutral
-    /// cell image space: asks the pack for the cell's grade and tells the renderer (the "off" grade when it has none).
-    void applyNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering);
+    /// Called when the player enters a cell, and again every frame while it returns true. Only for a neutral INTERIOR
+    /// with [Game] neutral world and [Game] neutral cell image space: asks the pack for the cell's grade and tells the
+    /// renderer (the "off" grade when it has none). Never waits: returns true while the pack is still reading its data
+    /// ("not yet"; the renderer is told nothing then), false once it has answered or when it does not apply.
+    [[nodiscard]] bool applyNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering);
 
     /// Called when the player enters an exterior of a neutral world: puts the renderer's grade back to "off" (the
     /// weather sets its own every frame when [Game] neutral weather image space is on), so an interior's grade does

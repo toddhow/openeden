@@ -80,6 +80,7 @@ namespace MWWorld
         CellStoreCollection mActiveCells;
         bool mCellChanged;
         bool mCellLoaded = false;
+        bool mCellGradePending = false; // task 0355 stage c: the pack could not name the cell's image space yet
         MWWorld::World& mWorld;
         MWPhysics::PhysicsSystem* mPhysics;
         MWRender::RenderManager& mRendering;

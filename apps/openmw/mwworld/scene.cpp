@@ -421,6 +421,8 @@ namespace MWWorld
     {
         mPreloader->updateCache();
         preloadCells(duration);
+        if (mCellGradePending && mCurrentCell != nullptr)
+            mCellGradePending = applyNeutralCellImageSpace(*mCurrentCell, mRendering);
     }
 
     void Scene::releaseTerrainPreload()
@@ -1152,7 +1154,9 @@ namespace MWWorld
 
         // adjust fog
         mRendering.configureFog(*mCurrentCell->getCell());
-        applyNeutralCellImageSpace(*mCurrentCell, mRendering); // task 0355 stage c: a neutral interior's grade
+        // task 0355 stage c: a neutral interior's grade; true while the pack is still reading its data (asked again in
+        // update)
+        mCellGradePending = applyNeutralCellImageSpace(*mCurrentCell, mRendering);
 
         mRendering.setRenderModeActive(MWRender::Render_Terrain, false);
 
@@ -1179,6 +1183,7 @@ namespace MWWorld
         if (&current != mCurrentCell)
             changePlayerCell(current);
 
+        mCellGradePending = false;
         resetNeutralCellImageSpace(current, mRendering); // task 0355 stage c: no interior grade on the street
 
         mPhysics->optimize();

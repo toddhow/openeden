@@ -89,17 +89,18 @@ namespace MWWorld
         return weatherImageSpace || imageSpaceEffects || (neutralWorld && cellImageSpace);
     }
 
-    void applyNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering)
+    bool applyNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering)
     {
         if (!Settings::game().mNeutralWorld.get() || !Settings::game().mNeutralCellImageSpace.get())
-            return;
+            return false;
         const openeden::sdk::game::WorldCell* neutral = cell.neutralCell();
         if (neutral == nullptr || !neutral->interior)
-            return;
+            return false;
         openeden::sdk::game::ImageSpaceGrade grade;
         openeden::sdk::game::CellImageSpaceSource* source = sourceOf(cell);
-        // The first ask makes the pack read the weather records of every plugin (a second pass over the files); the
-        // time is logged so a slow first entry shows (the freeze monitor allows 5 s on the main thread).
+        if (source != nullptr && source->imageSpacePending())
+            return true; // the pack is reading its records on a worker: nothing waits, we ask again next frame
+        // The ask is timed so a slow one shows in the log (it must stay far below the freeze monitor's 5 s).
         const auto begun = std::chrono::steady_clock::now();
         const bool has = source != nullptr && source->imageSpaceForCell(neutral->id, grade);
         const auto micros
@@ -108,7 +109,8 @@ namespace MWWorld
         tellRenderer(rendering, g);
         Log(Debug::Info) << "NIMAGESPACE " << neutral->editorId << (has ? " grade" : " none") << " saturation "
                          << g.saturation << " stops " << g.stops << " contrast " << g.contrast << " tint "
-                         << g.tintAmount << " lookup " << micros / 1000 << " ms";
+                         << g.tintAmount << " lookup " << micros << " us";
+        return false;
     }
 
     void resetNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering)
