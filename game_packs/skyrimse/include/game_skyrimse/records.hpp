@@ -340,11 +340,20 @@ namespace game_skyrimse
         float mMinObjectZ = 0.f; ///< the lowest placed reference of the cell
         bool mAnyDoor = false;
         float mMinDoorZ = 0.f; ///< the lowest teleport door of the cell (its entrances)
+        std::uint32_t mCount = 0; ///< task 0330: how many references were counted (0: the bulk rule is not applied)
+        float mLowQuarterZ = 0.f; ///< the height under which a quarter of those references lie
     };
 
     /// An entrance may be wet up to about one standing actor's height (a Ratway door stands 125 units under 0.0); a
     /// plane that floods an entrance deeper than that is not believed. Ours, tuned on the 71 cells (see the task log).
     inline constexpr float kEntranceWetMargin = 128.f;
+
+    /// Task 0330: Dimhollow Crypt's two cells have the flag and an XCLW of 0.0, their entrance stands at 0 and 42 percent
+    /// of the second cell's content hangs more than 300 units under 0 (the puzzle room is at -1000): a plane there
+    /// would drown the player (3 health a second). A plane that lies more than this over the height under which a
+    /// QUARTER of the cell's placed content lies is not believed (the Ratway's canal is shallow). Ours, tuned on these
+    /// two cells and the Ratway.
+    inline constexpr float kMaxQuarterSubmersion = 300.f;
 
     /// True when the plane at `level` can be real: some of the cell's content lies under it, and no entrance is flooded
     /// deeper than kEntranceWetMargin. A cell with no placed content is not believed.

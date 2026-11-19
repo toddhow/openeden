@@ -354,6 +354,9 @@ namespace game_skyrimse
             mActors.onActorAdded(info);
             mRiding.onActorAdded(info); // task 0251
             mCombat.onActorAdded(info);
+            // Task 0330: a placement the data starts dead lies dead (it is a corpse, not an ambusher)
+            if (mDeaths != nullptr && mStartsDead && mStartsDead(info.handle.reference))
+                (void)mDeaths->noteStartsDead(static_cast<FormId>(info.handle.reference));
             // Task 0180: the name the enemy bar shows (FULL name when the record has one, else the editor id).
             std::string name = displayNameOf(info.base);
             mHud.actorAdded(info.handle, name.empty() ? info.editorId : std::string_view(name), info.editorId);
@@ -657,6 +660,11 @@ namespace game_skyrimse
         void setCrime(crime::CrimeSystem* system) { mCrime = system; }
         /// Task 0254: who died stays dead across a load (null: off). Must outlive the cell source's use of it.
         void setDeaths(DeathKeeper* keeper) { mDeaths = keeper; }
+        /// Task 0330: whether the data starts this placement dead (set with `dawnguard`; empty: nothing starts dead).
+        void setStartsDeadLookup(std::function<bool(openeden::sdk::game::WorldId)> lookup)
+        {
+            mStartsDead = std::move(lookup);
+        }
         /// Task 0227: sneaking and detection (null: off). The system must outlive the cell source's use of it.
         void setSneak(sneak::SneakSystem* system) { mSneak = system; }
         void setStyleHud(hudstyle::StyleHud* hud) { mStyleHud = hud; } // task 0244; not owned
@@ -819,6 +827,7 @@ namespace game_skyrimse
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204
         DeathKeeper* mDeaths = nullptr; ///< task 0254
+        std::function<bool(openeden::sdk::game::WorldId)> mStartsDead; ///< task 0330
         sneak::SneakSystem* mSneak = nullptr; ///< task 0227
         hudstyle::StyleHud* mStyleHud = nullptr; ///< task 0244
         StanceSink mStanceSink; ///< task 0235

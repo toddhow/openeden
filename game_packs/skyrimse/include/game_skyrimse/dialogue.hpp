@@ -564,8 +564,12 @@ namespace game_skyrimse
         bool baseInList(conditions::Subject subject, std::uint32_t formList) const override;
         conditions::Subject playerSubject() const override { return kPlayer; }
         /// Task 0268 (a scene's phase waits for `HasLoaded3D` of the player): the player always has his 3D; another
-        /// subject is not answered (false).
-        bool hasLoaded3D(conditions::Subject subject) const override { return subject == kPlayer; }
+        /// subject is answered by the lookup of task 0330 (false when none is set).
+        bool hasLoaded3D(conditions::Subject subject) const override;
+        /// Task 0330: whether the 3D of this REFERENCE is loaded (the puzzle room scene's first phase waits for Adalvald
+        /// and the vampire boss: `HasLoaded3D` run on their aliases).
+        using LoadedLookup = std::function<bool(FormId reference)>;
+        void setLoadedLookup(LoadedLookup lookup) { mLoadedLookup = std::move(lookup); }
         float actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float baseActorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float levelOf(conditions::Subject subject) const override;
@@ -730,6 +734,7 @@ namespace game_skyrimse
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261
         TalkedLookup mTalkedLookup; ///< task 0324
+        LoadedLookup mLoadedLookup; ///< task 0330
         std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
         const LocationKeywordData* mKeywordData = nullptr;
         const PlacedRefIndex* mPlacedRefs = nullptr;

@@ -1940,6 +1940,20 @@ namespace game_skyrimse
         return false;
     }
 
+    bool SkyrimConditionWorld::hasLoaded3D(conditions::Subject subject) const
+    {
+        if (subject == kPlayer)
+            return true;
+        if (!mLoadedLookup || subject == 0)
+            return false;
+        // a placed reference (the tagged subject an alias resolves to) or a plain reference id; a base has no 3D
+        const std::uint64_t tag = subject & 0xFFFFFFFF00000000ull;
+        if (tag != kPlacedTag && tag != 0)
+            return false;
+        const FormId reference = static_cast<FormId>(subject & 0xFFFFFFFFull);
+        return reference != kNullFormId && mLoadedLookup(reference);
+    }
+
     FormId SkyrimConditionWorld::referenceOf(conditions::Subject subject) const
     {
         ActorView view;
@@ -2325,6 +2339,8 @@ namespace game_skyrimse
                 return resolvedOf(subject) != nullptr;
             case 72: // GetIsID
                 return true;
+            case 555: // HasLoaded3D (task 0330)
+                return static_cast<bool>(mLoadedLookup);
             case 136: // GetIsReference
                 return view.mRef != nullptr;
             case 46: // GetDead

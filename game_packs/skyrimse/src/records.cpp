@@ -1616,6 +1616,8 @@ namespace game_skyrimse
             return false;
         if (evidence.mAnyDoor && (!std::isfinite(evidence.mMinDoorZ) || evidence.mMinDoorZ < level - kEntranceWetMargin))
             return false;
+        if (evidence.mCount > 0 && level - evidence.mLowQuarterZ > kMaxQuarterSubmersion)
+            return false; // task 0330: the plane lies far over a quarter of the content
         return true;
     }
 

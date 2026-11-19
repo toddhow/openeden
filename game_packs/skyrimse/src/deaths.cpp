@@ -336,6 +336,17 @@ namespace game_skyrimse
         }
     }
 
+    bool DeathKeeper::noteStartsDead(FormId reference)
+    {
+        if (reference == kNullFormId || reference >= static_cast<FormId>(kCreatedObjectBase)
+            || mLedger.find(reference) != nullptr)
+            return false;
+        const bool added = mLedger.add(reference, mClockValid ? mHours : 0.0);
+        if (added && mTrace)
+            mTrace("DEATHS starts dead actor " + std::to_string(reference));
+        return added;
+    }
+
     void DeathKeeper::corpseRaised(WorldId reference)
     {
         (void)mLedger.markRaised(static_cast<FormId>(reference));

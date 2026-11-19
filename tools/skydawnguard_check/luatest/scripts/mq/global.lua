@@ -89,6 +89,33 @@ local function stepTo(s)
         print(string.format('MQ step cell: %s at %.0f,%.0f,%.0f', tostring(s[3]), s[4], s[5], s[6]))
         return
     end
+    if s[2] == 'act' then
+        -- task 0330 { update, 'act', base, x, y, z, radius, n }: the player activates the object of that base (decimal text, '*' any)
+        -- nearest to (x, y, z) within radius, as the activate key would (the same stand-in as `activate`; named in the task
+        -- log). With n, the n-th (1 based) of the candidates within the radius by their ids: five braziers share a place.
+        local list = {}
+        local at = util.vector3(s[4], s[5], s[6])
+        for _, o in ipairs(player.cell:getAll()) do
+            local ok, id = pcall(function() return o.recordId end)
+            if ok and id ~= nil and (s[3] == '*' or tostring(id):match(':b(%d+)$') == s[3]) then
+                local d = (o.position - at):length()
+                if d < (s[7] or 300) then list[#list + 1] = { d, o } end
+            end
+        end
+        table.sort(list, function(a, b)
+            if s[8] ~= nil then
+                local ia, ib = tostring(a[2].id), tostring(b[2].id)
+                if ia ~= ib then return ia < ib end
+            end
+            return a[1] < b[1]
+        end)
+        local best = list[s[8] or 1] and list[s[8] or 1][2] or nil
+        if best == nil then print('MQ act: base ' .. tostring(s[3]) .. ' not found near ' .. s[4] .. ',' .. s[5]) return end
+        print(string.format('MQ act: the player activates %s (id %s) at %.0f,%.0f,%.0f; %d candidates', tostring(best.recordId),
+            tostring(best.id), best.position.x, best.position.y, best.position.z, #list))
+        best:activateBy(player)
+        return
+    end
     if s[2] == 'abs' then
         -- { update, 'abs', x, y, z, yawDegrees (0 looks north, positive turns right), pitchDegrees }
         player:teleport(player.cell, util.vector3(s[3], s[4], s[5]), { onGround = true, rotation = util.transform.rotateZ(math.rad(s[6])) })
@@ -123,7 +150,9 @@ local teleported = false
 local function sample()
     local player = world.players[1]
     local p = player.position
-    print(string.format('MQ u=%d cell=%s player=%.0f,%.0f,%.0f', updates, tostring(player.cell.name), p.x, p.y, p.z))
+    local okh, hp = pcall(function() return require('openmw.types').Actor.stats.dynamic.health(player).current end)
+    print(string.format('MQ u=%d cell=%s player=%.0f,%.0f,%.0f health=%s', updates, tostring(player.cell.name), p.x, p.y, p.z,
+        okh and string.format('%.0f', hp) or '?'))
     local list = {}
     for _, o in ipairs(player.cell:getAll()) do
         local ok, rec = pcall(function() return o.recordId end)
@@ -137,6 +166,35 @@ local function sample()
     for i = 1, math.min(cfg.near, #list) do
         local e = list[i]
         print(string.format('MQ   %s d=%.0f at %.0f,%.0f,%.0f', e[2], e[1], e[3].x, e[3].y, e[3].z))
+    end
+    -- task 0330: in an interior the watch looks through the player's own cell, and cfg.doors lists the teleport doors with
+    -- their destinations (the way on is found from the log, then walked by an 'act' step)
+    if cfg.watch and not player.cell.isExterior then
+        for _, o in ipairs(player.cell:getAll()) do
+            local ok, rec = pcall(function() return o.recordId end)
+            if ok and rec ~= nil then
+                for _, w in ipairs(cfg.watch) do
+                    if tostring(rec):match(':b(%d+)$') == w then
+                        print(string.format('MQ watch %s at %.0f,%.0f,%.0f d=%.0f', tostring(rec), o.position.x, o.position.y,
+                            o.position.z, (o.position - p):length()))
+                    end
+                end
+            end
+        end
+    end
+    if cfg.doors then
+        local okT, types = pcall(require, 'openmw.types')
+        if okT then
+            for _, o in ipairs(player.cell:getAll()) do
+                local okd, tele = pcall(function() return types.Door.isTeleport(o) end)
+                if okd and tele then
+                    local okc, dc = pcall(function() return types.Door.destCell(o) end)
+                    local okp, dp = pcall(function() return types.Door.destPosition(o) end)
+                    print(string.format('MQ door %s at %.0f,%.0f,%.0f -> %s %s', tostring(o.recordId), o.position.x, o.position.y,
+                        o.position.z, okc and tostring(dc and dc.name) or '?', okp and tostring(dp) or '?'))
+                end
+            end
+        end
     end
     -- task 0305: cfg.watch = { 'base', ... }: where those actors are, in the player's cell and the eight around it
     if cfg.watch and player.cell.isExterior then

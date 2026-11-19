@@ -528,7 +528,9 @@ namespace game_skyrimse
                 if (info != mInstances.end())
                 {
                     ++mTraceCount;
-                    say(false, "Papyrus event " + name + " to " + info->second.mScript + " of " + hex(info->second.mForm));
+                    say(false,
+                        "Papyrus event " + name + " to " + info->second.mScript + " of " + hex(info->second.mForm) + " in state '"
+                            + mRuntime->stateOf(instance) + "'");
                 }
             }
             return true;
@@ -2799,6 +2801,14 @@ namespace game_skyrimse
             {
                 const openeden::script::TickResult r = mRuntime->tick(mTime);
                 mCounters.mStacksRun += r.stacksRun;
+                if (mTraceNatives && r.stacksRun != 0 && mTraceCount < kMaxTracedNatives) // task 0330
+                {
+                    ++mTraceCount;
+                    say(false,
+                        "Papyrus tick ran " + std::to_string(r.stacksRun) + " stacks, " + std::to_string(r.stacksFinished)
+                            + " finished, " + std::to_string(r.stacksWaiting) + " waiting, "
+                            + std::to_string(r.errors.size()) + " errors");
+                }
                 // work a native left for after it (a quest the stage change attached) queues events: run them now
                 if (!runDeferred())
                     break;
@@ -4384,8 +4394,16 @@ namespace game_skyrimse
     void PapyrusHost::onRead(FormId target)
     {
         Impl& m = *mImpl;
-        for (const InstanceId instance : m.instancesOf(target))
-            (void)m.sendEvent(instance, "OnRead");
+        std::vector<InstanceId> hearers = m.instancesOf(target);
+        // task 0330: the script of a quest alias that holds the book hears it too (DLC1VQ01BookScript sets stage 17)
+        for (const InstanceId alias : m.aliasInstancesHolding(target))
+            hearers.push_back(alias);
+        std::size_t heard = 0;
+        for (const InstanceId instance : hearers)
+            if (m.sendEvent(instance, "OnRead"))
+                ++heard;
+        m.say(false, "Papyrus: OnRead of " + hex(target) + " sent to " + std::to_string(heard) + " of "
+                + std::to_string(hearers.size()) + " scripts");
     }
 
     void PapyrusHost::tick(float dt)

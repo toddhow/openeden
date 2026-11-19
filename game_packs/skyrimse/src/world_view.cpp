@@ -104,6 +104,8 @@ namespace game_skyrimse
             return p.stem().string();
         }
 
+        constexpr std::uint32_t kRecordStartsDead = 0x200; ///< the ACHR record flag (task 0330)
+
         bool finite(float v)
         {
             return std::isfinite(v);
@@ -1934,6 +1936,7 @@ namespace game_skyrimse
             return mTalkedTo.count(reference) != 0;
         })
                                                : SkyrimConditionWorld::TalkedLookup()); // task 0324
+        world.setLoadedLookup(mLoadedLookup); // task 0330
         world.setFollowerOverlay(mAmbushOn ? mFollowerOverlay : nullptr); // task 0302: Variable01 of an ambusher
         // Task 0310: the player's level, for a package whose condition reads it (DA03StartGuardStartQuestGreet:
         // GetLevel of the player at least 10); only with `quest alias packages`, like the other player facts here
@@ -2655,6 +2658,7 @@ namespace game_skyrimse
         };
         out.mEvaluate = [this, state, data](const std::vector<survey::Ctda>& list, FormId scene, FormId quest) {
             SkyrimConditionWorld* world = state->mQuestWorld.get();
+            world->setLoadedLookup(mLoadedLookup); // task 0330: a phase waits for HasLoaded3D of its actors
             const SceneRecord* record = data->mScenes.scene(scene);
             // Task 0328: a scene's phase waits for "the player alias is in this cell" (MQ105EinarthTeachScene's phase 7:
             // GetInCell(HighHrothgar) on the Player alias): the quest world is told where the player stands, as the
@@ -4175,6 +4179,10 @@ namespace game_skyrimse
             }
             if (missing)
                 ++result->mUnresolvedBases;
+            // task 0330: the ACHR record flag "starts dead" (the corpses lying about a crypt)
+            if (ref.mKind == RefKind::Actor && (ref.mCommon.mFlags & kRecordStartsDead) != 0
+                && mStartsDeadRefs.size() < 1024u * 1024u)
+                mStartsDeadRefs.insert(id);
         }
 
         mCache.emplace_back(cell, result);
@@ -4198,6 +4206,39 @@ namespace game_skyrimse
         return mLastLighting;
     }
 
+    InteriorWaterEvidence SkyrimWorldView::gatherWaterEvidence(
+        const std::vector<sdkgame::PlacedObject>& objects, const std::map<FormId, PlacementComponents>& components)
+    {
+        InteriorWaterEvidence evidence;
+        std::vector<float> heights;
+        heights.reserve(objects.size());
+        for (const sdkgame::PlacedObject& o : objects)
+        {
+            if (!std::isfinite(o.position.z))
+                continue;
+            const float z = static_cast<float>(o.position.z);
+            if (!evidence.mAnyObject || z < evidence.mMinObjectZ)
+                evidence.mMinObjectZ = z;
+            evidence.mAnyObject = true;
+            heights.push_back(z);
+            const auto c = components.find(static_cast<FormId>(o.id));
+            if (c != components.end() && c->second.teleport)
+            {
+                if (!evidence.mAnyDoor || z < evidence.mMinDoorZ)
+                    evidence.mMinDoorZ = z;
+                evidence.mAnyDoor = true;
+            }
+        }
+        if (!heights.empty())
+        {
+            const std::size_t quarter = heights.size() / 4;
+            std::nth_element(heights.begin(), heights.begin() + static_cast<std::ptrdiff_t>(quarter), heights.end());
+            evidence.mCount = static_cast<std::uint32_t>(heights.size());
+            evidence.mLowQuarterZ = heights[quarter];
+        }
+        return evidence;
+    }
+
     std::optional<float> SkyrimWorldView::findInteriorWater(sdkgame::WorldId cell) const
     {
         if (!awaitIndex() || cell == kNullFormId)
@@ -4207,7 +4248,18 @@ namespace game_skyrimse
             return std::nullopt;
         // The record's flag and height are not enough (71 cells have 0.0): the cell's content must agree. A cell the
         // view has not loaded yet is judged by the record alone (the engine builds a cell before it asks).
-        const auto evidence = mWaterEvidence.find(cell);
+        // Task 0330: the engine of a start cell asks before it builds the cell (Dimhollow Crypt's puzzle room drowned
+        // the player at once), so the content is read for the question here (the cell stays cached for the build).
+        auto evidence = mWaterEvidence.find(cell);
+        if (evidence == mWaterEvidence.end() && mJudgeWaterEarly)
+        {
+            std::string error;
+            const std::shared_ptr<const Materialised> own = const_cast<SkyrimWorldView*>(this)->materialise(cell, error);
+            if (own != nullptr && mWaterEvidence.size() < 65536)
+                evidence = const_cast<SkyrimWorldView*>(this)
+                               ->mWaterEvidence.emplace(cell, gatherWaterEvidence(own->mObjects, own->mComponents))
+                               .first;
+        }
         if (evidence != mWaterEvidence.end() && !interiorWaterPlausible(*it->second.mInteriorWater, evidence->second))
             return std::nullopt;
         return it->second.mInteriorWater;
@@ -4352,26 +4404,7 @@ namespace game_skyrimse
                 }
             }
             if (entry.mInfo.interior && mWaterEvidence.size() < 65536)
-            {
-                InteriorWaterEvidence evidence;
-                for (const sdkgame::PlacedObject& o : content.objects)
-                {
-                    if (!finite(o.position.z))
-                        continue;
-                    const float z = static_cast<float>(o.position.z);
-                    if (!evidence.mAnyObject || z < evidence.mMinObjectZ)
-                        evidence.mMinObjectZ = z;
-                    evidence.mAnyObject = true;
-                    const auto c = components.find(o.id);
-                    if (c != components.end() && c->second.teleport)
-                    {
-                        if (!evidence.mAnyDoor || z < evidence.mMinDoorZ)
-                            evidence.mMinDoorZ = z;
-                        evidence.mAnyDoor = true;
-                    }
-                }
-                mWaterEvidence[cell] = evidence;
-            }
+                mWaterEvidence[cell] = gatherWaterEvidence(content.objects, components);
             out = std::move(content);
             mLastCell = cell;
             if (mOwners.size() < 1024u * 1024u)

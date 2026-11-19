@@ -627,6 +627,13 @@ namespace game_skyrimse
         [[nodiscard]] FormId playerLocationNow() const;
         /// Task 0271: the packages quest aliases give (ALPC) join an actor's list (off by default).
         void setAliasPackages(bool on) { mAliasPackagesOn = on; }
+        /// Task 0330: whether the 3D of a reference is loaded (fn_555 HasLoaded3D for a scene's phase), set by the pack.
+        void setLoadedLookup(SkyrimConditionWorld::LoadedLookup lookup) { mLoadedLookup = std::move(lookup); }
+        /// Task 0330: an interior's water is judged by its content even when the engine asks before the cell is built
+        /// (a start cell). Off: a cell not built yet is judged by its record alone (task 0291's rule).
+        void setJudgeWaterEarly(bool on) { mJudgeWaterEarly = on; }
+        /// Task 0330: the placement's record says it starts dead (known once its cell has been read).
+        [[nodiscard]] bool startsDead(FormId reference) const { return mStartsDeadRefs.count(reference) != 0; }
         /// Task 0302 (draugr ambushes): the package conditions also see what the game's scripts did to an actor's
         /// Variable01 (the follower overlay), so a package that tests it stops passing when the script lets the actor out.
         void setAmbush(bool on) { mAmbushOn = on; }
@@ -1046,6 +1053,9 @@ namespace game_skyrimse
         ForcedGreetHooks mForcedGreet; ///< task 0264
         FormId mForcedGreetReference = kNullFormId; ///< task 0264: the open conversation is a ForceGreet package's
         bool mAliasPackagesOn = false; ///< task 0271
+        SkyrimConditionWorld::LoadedLookup mLoadedLookup; ///< task 0330
+        bool mJudgeWaterEarly = false; ///< task 0330
+        std::set<FormId> mStartsDeadRefs; ///< task 0330: placements whose record starts them dead
         std::set<FormId> mTalkedTo; ///< task 0324: references whose conversation began (GetTalkedToPC for packages)
         bool mPrimitiveTriggers = false; ///< task 0310
         bool mAmbushOn = false; ///< task 0302
@@ -1129,6 +1139,8 @@ namespace game_skyrimse
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         /// Task 0291 (follow-up): what each interior cell loadCell returned says about its water plane (capped).
         std::map<openeden::sdk::game::WorldId, InteriorWaterEvidence> mWaterEvidence;
+        static InteriorWaterEvidence gatherWaterEvidence(const std::vector<openeden::sdk::game::PlacedObject>& objects,
+            const std::map<FormId, PlacementComponents>& components); ///< task 0330
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::unordered_map<FormId, openeden::sdk::game::OwnerComponent>
             mOwners; ///< task 0204: every loaded owned placement

@@ -1458,9 +1458,10 @@ namespace game_skyrimse
                 if (mSources == nullptr)
                     return false;
                 // Task 0274: a reference's enable children (XESP) follow it (Skyrim's rule: the second cart, its horse
-                // and the riders' markers are enabled by the first horse). Only with the main quest (a reference's
-                // children are looked for in the whole table).
-                if (mMainQuest && !mEnablingChildren)
+                // and the riders' markers are enabled by the first horse). Only with the main quest or Dawnguard (a
+                // reference's children are looked for in the whole table; task 0330: Dimhollow's vampires are the children
+                // of the marker the quest's first fragment enables).
+                if ((mMainQuest || mDawnguard) && !mEnablingChildren)
                 {
                     mEnablingChildren = true;
                     if (const PlacedRefIndex* placed = mView.placedRefs())
@@ -3109,6 +3110,27 @@ namespace game_skyrimse
                 const bool dawnguardOn = spellSettings != nullptr && spellSettings->getBool(kPackId, "dawnguard", false);
                 if (dawnguardOn)
                     mPapyrus->enableDawnguard(); // task 0319
+                if (dawnguardOn)
+                {
+                    mWorldView.setJudgeWaterEarly(true); // task 0330: a start cell is judged by its content too
+                    // task 0330: HasLoaded3D of an actor is its being held by the actor system (anything else is taken
+                    // to be loaded, as the Is3DLoaded native does)
+                    auto logged = std::make_shared<std::map<FormId, bool>>();
+                    mWorldView.setLoadedLookup([this, logged, logger](FormId reference) {
+                        const bool loaded = mPapyrus == nullptr || !mPapyrus->isActor(reference)
+                            || mCellSource.sceneActorLoaded(reference);
+                        const auto seen = logged->find(reference);
+                        if (logger != nullptr && (seen == logged->end() || seen->second != loaded))
+                        {
+                            char text[16];
+                            std::snprintf(text, sizeof text, "%08X", static_cast<unsigned>(reference));
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                std::string("HASLOADED3D ") + text + (loaded ? " yes" : " no"));
+                        }
+                        (*logged)[reference] = loaded;
+                        return loaded;
+                    });
+                }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false))
                 {
                     // task 0320: Adril's arrival ForceGreet package (topic subtype HELO) makes him say his greeting
@@ -6082,6 +6104,10 @@ namespace game_skyrimse
                         if (settings->getBool(kPackId, kCombatTraceKey, false))
                             mDeathKeeper->setTrace(
                                 [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                        if (settings->getBool(kPackId, "dawnguard", false)) // task 0330
+                            mCellSource.setStartsDeadLookup([this](openeden::sdk::game::WorldId reference) {
+                                return mWorldView.startsDead(static_cast<FormId>(reference));
+                            });
                         mCellSource.combat().setCorpseRaisedSink(
                             [this](openeden::sdk::game::WorldId corpse) { mDeathKeeper->corpseRaised(corpse); });
                         mDeathsChunk = std::make_unique<DeathsChunk>([this] { return mDeathLedger.data(); },

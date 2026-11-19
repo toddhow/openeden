@@ -22,6 +22,7 @@ CFG_LUA="return { every = ${EVERY:-120}, from = 1, near = ${NEAR:-6}, radius = $
 [ -n "${AIM:-}" ] && CFG_LUA="$CFG_LUA, aim = { $AIM }"
 [ -n "${MOVES:-}" ] && CFG_LUA="$CFG_LUA, moves = { $MOVES }"
 [ -n "${ACTIVATE:-}" ] && CFG_LUA="$CFG_LUA, activate = { $ACTIVATE }"
+[ -n "${DOORS:-}" ] && CFG_LUA="$CFG_LUA, doors = true"
 # task 0275: STEPS = "{ 3400,'110717',90,173200,-96590,20 }, { ... }" (see mq/global.lua)
 [ -n "${STEPS:-}" ] && CFG_LUA="$CFG_LUA, steps = { $STEPS }"
 # task 0305: WATCH = "'33641501'" (record base numbers whose positions are logged, MQ watch lines, also from the cells around)
