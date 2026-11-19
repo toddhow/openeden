@@ -1380,6 +1380,8 @@ namespace game_skyrimse
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
         if (mDeadLookup)
             raw->mRuntime->setDeadLookup(mDeadLookup); // task 0326
+        if (mRaceLookup)
+            raw->mRuntime->setRaceLookup(mRaceLookup); // task 0350
         raw->mRuntime->setLinkedRefLookup(
             [this](FormId reference, FormId keyword, FormId& out) { return linkedRef(reference, keyword, out); });
         raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
@@ -2383,6 +2385,13 @@ namespace game_skyrimse
         mVendorServicesLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setVendorServicesLookup(mVendorServicesLookup);
+    }
+
+    void SkyrimWorldView::setRaceLookup(std::function<FormId(FormId)> lookup)
+    {
+        mRaceLookup = std::move(lookup);
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setRaceLookup(mRaceLookup);
     }
 
     void SkyrimWorldView::setDeadLookup(std::function<bool(FormId)> lookup)

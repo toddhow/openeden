@@ -134,6 +134,9 @@ namespace game_skyrimse
             /// Task 0333: a scene with no actions begins although none of its actors is loaded (MS11's opening scene only
             /// runs a phase fragment that moves its actors). Off by default: other scenes are refused as before.
             bool mActionlessStartsUnloaded = false;
+            /// Task 0350: a scene with a begin fragment begins although none of its actors is loaded (SF_DA05FuneralScene's
+            /// begin fragment moves its actors out of the houses they stand in). Off by default.
+            bool mBeginFragmentStartsUnloaded = false;
             std::uint32_t mMaxPlaying = 64;
         };
         struct Stats
@@ -166,6 +169,7 @@ namespace game_skyrimse
         /// quest stage 82, which only one dialogue path sets; RECALLED-VERIFY: the CK's meaning of a start condition)
         void setSkipFailedPhases(bool on) { mOptions.mSkipFailedPhases = on; }
         void setActionlessStartsUnloaded(bool on) { mOptions.mActionlessStartsUnloaded = on; } // task 0333
+        void setBeginFragmentStartsUnloaded(bool on) { mOptions.mBeginFragmentStartsUnloaded = on; } // task 0350
         void setPhaseEnd(PhaseEndRule rule) { mOptions.mPhaseEnd = rule; } // task 0329
         // Task 0287: how long a line waits for a speaker who is not loaded (default 120 s, as before); cut to a range
         static constexpr float kMinParkSeconds = 0.5f;

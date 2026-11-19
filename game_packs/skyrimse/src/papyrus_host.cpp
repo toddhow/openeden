@@ -120,7 +120,16 @@ namespace game_skyrimse
 
         openeden::script::FormId formIdOf(const PapyrusValue& value) const override { return formOf(value); }
         bool actorLevel(FormId actor, std::int32_t& level) const override { return mData.actorLevel(actor, level); }
-        bool raceOf(FormId actor, FormId& race) const override { return mData.actorRace(actor, race); }
+        bool raceOf(FormId actor, FormId& race) const override
+        {
+            const auto set = mRaceOverrides.find(actor); // task 0350: Actor.SetRace
+            if (set != mRaceOverrides.end())
+            {
+                race = set->second;
+                return true;
+            }
+            return mData.actorRace(actor, race);
+        }
         bool formListEntries(FormId list, std::vector<FormId>& entries) const override
         {
             return mData.formListEntries(list, entries);
@@ -1838,6 +1847,18 @@ namespace game_skyrimse
                 return NativeResult{};
             });
             reg("ObjectReference", "DisableNoWait", false, enable(false));
+            // Task 0350: the Falkreath werewolf's escape scene sets Sinding's race; a scene phase tests it
+            reg("Actor", "SetRace", false, [this](const NativeCall& c) {
+                const FormId actor = formOf(c.self);
+                const FormId race = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (actor != 0 && race != 0)
+                {
+                    mRaceOverrides[actor] = race;
+                    if (mHooks != nullptr)
+                        (void)mHooks->setActorRace(actor, race);
+                }
+                return NativeResult{};
+            });
             reg("ObjectReference", "IsDisabled", false, [this](const NativeCall& c) {
                 return result(PapyrusValue::makeBool(!referenceEnabled(formOf(c.self))));
             });
@@ -2998,6 +3019,7 @@ namespace game_skyrimse
         std::set<FormId> mQuestsAttached;
         std::set<FormId> mRefAttached;
         std::map<FormId, std::string> mRefClass;
+        std::map<FormId, FormId> mRaceOverrides; ///< task 0350: Actor.SetRace
         std::map<std::pair<double, std::uint64_t>, Timer> mTimers;
         std::uint64_t mTolerantBase = 0; ///< tolerant calls counted before the state that was restored
         std::map<FormId, bool> mEnabled;

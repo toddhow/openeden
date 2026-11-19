@@ -113,7 +113,11 @@ namespace game_skyrimse
         }
         // a resumed scene waits for its speakers as a started one does: nobody is loaded yet while a save is loading
         // task 0333: a scene with no actions only runs its fragments, so it needs nobody to be loaded
-        const bool needsLoaded = !(mOptions.mActionlessStartsUnloaded && record->mActions.empty());
+        const bool beginFragment = record->mVmad && record->mVmad->mHasSceneFragments
+            && (record->mVmad->mScene.mFlags & 1) != 0 && !record->mVmad->mScene.mBeginFunction.empty();
+        // task 0350: a begin fragment may move the actors (the Falkreath funeral), so with the option such a scene needs nobody
+        const bool needsLoaded = !(mOptions.mActionlessStartsUnloaded && record->mActions.empty())
+            && !(mOptions.mBeginFragmentStartsUnloaded && beginFragment);
         if (resume == nullptr && needsLoaded
             && std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
         {

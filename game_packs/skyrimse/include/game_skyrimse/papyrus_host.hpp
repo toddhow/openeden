@@ -562,6 +562,13 @@ namespace game_skyrimse
             (void)reference;
             return false;
         }
+        /// Task 0350 (Actor.SetRace): the race an actor is now; the pack tells the conditions that run on that reference
+        /// (a scene phase waits for "Sinding is a werewolf"). False when the pack keeps no race.
+        virtual bool setActorRace(FormId reference, FormId race)
+        {
+            (void)reference, (void)race;
+            return false;
+        }
         [[nodiscard]] virtual bool isWordUnlocked(FormId word)
         {
             (void)word;

@@ -1885,6 +1885,16 @@ namespace game_skyrimse
         const FormId id = resolve(race);
         if (mPlayer != nullptr && subject == kPlayer)
             return id != kNullFormId && id == mPlayer->mRace;
+        if (mRaceLookup && isOtherSubject(subject)) // task 0350: a race a script set wins over the record's
+        {
+            ActorView view;
+            if (viewOf(subject, view) && view.mRef != nullptr)
+            {
+                const FormId set = mRaceLookup(view.mRef->mId);
+                if (set != kNullFormId)
+                    return id != kNullFormId && id == set;
+            }
+        }
         const ActorIndex::Resolved* r = resolvedOf(subject);
         return r != nullptr && id != kNullFormId && r->mRace == id;
     }

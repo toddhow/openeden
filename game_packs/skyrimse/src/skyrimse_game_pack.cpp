@@ -714,6 +714,7 @@ namespace game_skyrimse
             void enableSkipFailedPhases() { mSkipPhasesOn = true; }
             void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
             void enableActionlessScenes() { mActionlessScenes = true; } // task 0333
+            void enableBeginFragmentScenes() { mBeginFragmentScenes = true; } // task 0350
             void enableCreatedInInventory() { mHost.setCreatedInInventory(true); } // task 0335
             /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
             /// OnObjectEquipped (a shout equipped from the menu).
@@ -1043,6 +1044,8 @@ namespace game_skyrimse
                         mScenes->runner().setSkipFailedPhases(true);
                     if (mDragonbornScenes) // task 0329: a phase with completion conditions ends by them
                         mScenes->runner().setPhaseEnd(PhaseEndRule::ConditionsWhenPresent);
+                    if (mBeginFragmentScenes) // task 0350: the Falkreath funeral's begin fragment moves its actors
+                        mScenes->runner().setBeginFragmentStartsUnloaded(true);
                     if (mActionlessScenes) // task 0333: MS11's opening scene only runs a fragment
                         mScenes->runner().setActionlessStartsUnloaded(true);
                 }
@@ -1925,6 +1928,7 @@ namespace game_skyrimse
             bool mSkipPhasesOn = false; ///< task 0348
             bool mDragonbornScenes = false; ///< task 0329
             bool mActionlessScenes = false; ///< task 0333
+            bool mBeginFragmentScenes = false; ///< task 0350
             bool mPlayerEvents = false; ///< task 0318
             bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
             bool mCompanionsOn = false; ///< task 0264
@@ -3090,6 +3094,13 @@ namespace game_skyrimse
                 };
                 env.teachWord = [this](FormId word) { return mShouts != nullptr && mShouts->teachWord(word); };
                 env.addToMap = [this](FormId reference) { return mMap != nullptr && mMap->addMarker(reference); };
+                env.setActorRace = [this, logger](FormId reference, FormId race) { // task 0350: GetIsRace on that reference
+                    mActorRaces[reference] = race;
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "ACTORRACE " + hexOf(reference) + " is now race " + hexOf(race));
+                    return true;
+                };
                 env.unlockWord = [this](FormId word) { return mShouts != nullptr && mShouts->unlockWord(word); };
                 env.isWordUnlocked
                     = [this](FormId word) { return mShouts != nullptr && mShouts->isWordUnlocked(word); };
@@ -3331,6 +3342,12 @@ namespace game_skyrimse
                 {
                     if (!dawnguardOn)
                         mPapyrus->enableDaedric(); // task 0310: Barbas is moved to the road, the meeting box fires
+                    mPapyrus->enableBeginFragmentScenes(); // task 0350
+                    enableSceneWalks(); // task 0350: Sinding's escape scene sends him to his home spot (a package he cannot walk)
+                    mWorldView.setRaceLookup([this](FormId reference) { // task 0350: his phase waits for "a werewolf"
+                        const auto it = mActorRaces.find(reference);
+                        return it != mActorRaces.end() ? it->second : kNullFormId;
+                    });
                     // Lod's "There's one out on the road" goes on by itself through a link with no name, and the
                     // fragments of a response run before the next INFO is chosen (task 0304's rules)
                     mWorldView.setQuestGreetings(true);
@@ -6828,6 +6845,7 @@ namespace game_skyrimse
             std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
+            std::map<FormId, FormId> mActorRaces; // task 0350: Actor.SetRace
             bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush
             bool mDragonbornOn = false; // task 0306: [extension.skyrimse] dragonborn
             /// Tasks 0277, 0327, 0328 and 0329, ONE mechanism for scenes whose actors walk: a scene's Travel package that

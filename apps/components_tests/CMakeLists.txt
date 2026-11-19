@@ -835,6 +835,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrusobjects.cpp
     skyrimse/testskyrimsepapyruslocation.cpp
     skyrimse/testskyrimsebloodice.cpp
+    skyrimse/testskyrimsemoonlight.cpp
     skyrimse/testskyrimseforsworn.cpp
     skyrimse/testskyrimselaidtorest.cpp
     skyrimse/testskyrimselaidtorestquest.cpp
