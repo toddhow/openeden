@@ -11,6 +11,8 @@ local updates = 0
 local hourSet = false
 local activated = false
 local activated2 = false
+local activated3 = false
+local activated4 = false
 local okInv, inv = pcall(require, 'core.skyrimse.inventory')
 local steps = {} -- cfg.moves: { update, from, to, item } (hex text ids): a stand-in for the inventory windows' Take and Put clicks
 
@@ -89,6 +91,13 @@ local function stepTo(s)
         player:sendEvent('MQLook', { pitch = math.rad(s[8] or 0) })
         lookAgain = { updates + 20, math.rad(s[8] or 0) }
         print(string.format('MQ step cell: %s at %.0f,%.0f,%.0f', tostring(s[3]), s[4], s[5], s[6]))
+        return
+    end
+    if s[2] == 'same' then
+        -- { update, 'same' } (task 0332): teleports the player to where he stands now, so that the followers carried with
+        -- him are put down at his real ground height (a teleport to a guessed height leaves them in the air)
+        player:teleport(player.cell, player.position, { onGround = true, rotation = player.rotation })
+        print(string.format('MQ step same: the player at %.0f,%.0f,%.0f', player.position.x, player.position.y, player.position.z))
         return
     end
     if s[2] == 'abs' then
@@ -202,6 +211,14 @@ return {
             if cfg.activate2 and not activated2 and updates >= cfg.activate2[1] then
                 activated2 = true
                 activateActor(cfg.activate2[2])
+            end
+            if cfg.activate3 and not activated3 and updates >= cfg.activate3[1] then -- task 0332
+                activated3 = true
+                activateActor(cfg.activate3[2])
+            end
+            if cfg.activate4 and not activated4 and updates >= cfg.activate4[1] then -- task 0332
+                activated4 = true
+                activateActor(cfg.activate4[2])
             end
             if cfg.aim and updates >= cfg.aim[1] and updates % 20 == 0 then
                 aimAt(cfg.aim[2]) -- again every 20 updates: the actor walks to its post after the first talk

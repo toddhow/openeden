@@ -85,6 +85,14 @@ namespace game_skyrimse
     inline constexpr double kFollowerRunDistance = 700.0;
     /// A goal already out is replaced when the player's spot has moved this far from the goal's.
     inline constexpr double kFollowerGoalSlack = 320.0;
+    /// Task 0332: an escort leads the player to its destination; it waits when the player is farther behind than this,
+    /// and has arrived within the package's radius of the destination (at least kEscortMinRadius). Estimates.
+    inline constexpr double kEscortWaitDistance = 1500.0;
+    inline constexpr double kEscortMinRadius = 96.0;
+    /// ... and heads for the destination only when it is this near: the navigator knows the cells round the player.
+    inline constexpr double kEscortReach = 6000.0;
+    /// Where the navigator has no path the escort walks the leg straight, at the walk clip's own speed (task 0148).
+    inline constexpr float kEscortDirectSpeed = 82.45f;
 
     /// The speed a package walks at (stage S6f): Run when the package sets its own speed (PKDT flag bit 13,
     /// `kPreferredSpeedFlag`) and the byte is 1 (jog) or 2 (run), else Walk. There is no jog clip (task 0148 has walk
@@ -265,6 +273,7 @@ namespace game_skyrimse
             std::uint64_t mFollowLegs = 0; ///< goals issued towards a follow target
             std::uint64_t mFollowUnresolved = 0; ///< a follow package whose target is not an actor of the brain
             std::uint64_t mEscortsSkipped = 0; ///< escort packages started (run as Stand)
+            std::uint64_t mEscortsArrived = 0; ///< task 0332: escorts that led the player to their destination
             std::uint64_t mConversations = 0; ///< conversations with an actor of the brain
             std::uint64_t mWakeUps = 0; ///< sleepers a conversation stood up
             std::uint64_t mResumes = 0; ///< actors a finished conversation set back on their package
@@ -498,6 +507,9 @@ namespace game_skyrimse
             bool mGreetApproach = false;
             bool mGreetApproaching = false; ///< enterFollowPlayer ran for the approach
             bool mPackageFollow = false; ///< task 0310: the package in force leads the actor behind the player
+            FormId mEscortRef = kNullFormId; ///< task 0332: the escort's destination reference
+            double mEscortRadius = 0.0;
+            bool mEscortDirect = false; ///< task 0332: the navigator had no path: the leg is walked straight
             // Task 0277
             FormId mElsewhereRef = kNullFormId; ///< the Travel target that stands in another cell (0: none)
             bool mSnapNext = false; ///< a scene's Travel walk failed: put the actor at the anchor at the next update
@@ -532,6 +544,9 @@ namespace game_skyrimse
         void enterFollowPlayer(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void leaveFollowPlayer(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void runFollowPlayer(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+        /// Task 0332: an escort whose destination can be reached leads the player there. False: not yet (follow).
+        bool runEscort(Actor& actor, double playerX, double playerY, double actorX, double actorY,
+            openeden::sdk::game::ActorRequestWriter& writer);
         void beginUse(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void runClip(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
         [[nodiscard]] static bool needsWakeToTalk(const Actor& actor);

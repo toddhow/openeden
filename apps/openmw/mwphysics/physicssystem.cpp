@@ -2565,8 +2565,13 @@ namespace MWPhysics
         const openeden::sdk::game::ActorHandle handle = mNeutralBridge.handleOf(entry.mRef);
         const bool ridden = (mNeutralRidden.valid() && handle == mNeutralRidden)
             || (mNeutralRidingRules != nullptr && handle.valid() && mNeutralRidingRules->usesMountLimits(handle));
-        const NeutralMover::Limits limits
+        NeutralMover::Limits limits
             = NeutralMover::limitsFor(2.f * entry.mCapsule.mCentreZ, entry.mCapsule.mRadius, ridden);
+        // Task 0332: a path that goes down from a raised rim (a hearth's edge the mover climbed) may be walked down:
+        // the navigator's next waypoints say how far.
+        if (entry.mFollow.active())
+            limits.mStepDown
+                = NeutralPath::pathStepDown(feet.z, entry.mFollow.path(), entry.mFollow.reached(), limits.mStepDown);
         const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
             object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, limits, &neutralSightIgnore(),
             &mNeutralSweepIgnore);
@@ -2601,6 +2606,8 @@ namespace MWPhysics
             Log(Debug::Info) << "NACTWALK " << ptr.getCellRef().getRefId() << " frame " << entry.mWalkFrames << " pos "
                              << pos.pos[0] << " " << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2]
                              << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "") << (ridden ? " mount" : " foot")
+                             << (limits.mStepDown > NeutralMover::kStepDown ? " step down " : "")
+                             << (limits.mStepDown > NeutralMover::kStepDown ? std::to_string(limits.mStepDown) : "")
                              << " handle " << handle.reference;
     }
 

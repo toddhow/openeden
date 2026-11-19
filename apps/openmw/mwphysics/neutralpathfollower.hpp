@@ -49,6 +49,15 @@ namespace MWPhysics::NeutralPath
     /// Waypoints the path vector is reserved for.
     inline constexpr std::size_t kReservedWaypoints = 64;
 
+    /// Task 0332: a path the navigator gave leads down from a raised rim (a hearth's edge, a step the mover climbed)
+    /// by at most this much; the mover is allowed to step down that far while the next waypoint is lower.
+    inline constexpr float kMaxPathDrop = 64.f;
+    /// How far down the mover may step while following `path` (the waypoints of the goal, `reached` of them reached) from
+    /// `feetZ`: `baseStepDown`, or, when one of the next two waypoints is lower than that, the drop to it plus a little
+    /// (at most kMaxPathDrop). Pure.
+    [[nodiscard]] float pathStepDown(
+        float feetZ, const std::vector<vsg::vec3>& path, std::size_t reached, float baseStepDown);
+
     enum class FindStatus : std::uint8_t
     {
         Success, ///< a path that reaches the goal

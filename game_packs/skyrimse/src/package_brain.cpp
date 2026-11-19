@@ -323,7 +323,11 @@ namespace game_skyrimse
             else
             {
                 if (result == sdkgame::GoalResult::NoPath)
+                {
                     ++mStats.mNoPath;
+                    if (actor.mEscortRef != kNullFormId)
+                        actor.mEscortDirect = true; // task 0332: no navmesh yet (an exterior): the leg is walked straight
+                }
                 else
                     ++mStats.mBlocked;
                 if (actor.mFollowPlayer)
@@ -779,6 +783,8 @@ namespace game_skyrimse
         actor.mX = sx;
         actor.mY = sy;
         actor.mZ = sz;
+        if (actor.mEscortRef != kNullFormId && runEscort(actor, px, py, sx, sy, writer)) // task 0332
+            return;
         const double d = distance2d(px, py, sx, sy);
         if (d <= kFollowDistance)
             return; // near enough: a goal still out is left to finish
@@ -800,6 +806,74 @@ namespace game_skyrimse
                 ++mStats.mFollowerRuns;
         }
         actor.mPhase = Phase::Following;
+    }
+
+    bool PackageBrain::runEscort(Actor& actor, double playerX, double playerY, double actorX, double actorY,
+        sdkgame::ActorRequestWriter& writer)
+    {
+        double dx = 0, dy = 0, dz = 0;
+        if (mSource.targetIsElsewhere(actor.mEscortRef) || !mSource.locate(actor.mEscortRef, dx, dy, dz))
+            return false; // not reachable yet: the actor follows the player (and is carried through doors)
+        if (distance2d(actorX, actorY, dx, dy) > kEscortReach)
+            return false; // beyond the navmesh: keep to the player until the destination is within reach
+        if (distance2d(actorX, actorY, dx, dy) <= actor.mEscortRadius)
+        {
+            // arrived: the package's end fragment runs (DA16: stage 28) and the actor stays here
+            if (actor.mGoalOut)
+            {
+                if (!writer.cancelGoal(moverOf(actor)))
+                    ++mStats.mWritesRefused;
+                actor.mGoalOut = false;
+            }
+            if (actor.mEscortDirect && !writer.setMovement(moverOf(actor), 0.f, 0.f))
+                ++mStats.mWritesRefused;
+            actor.mEscortDirect = false;
+            actor.mToFollow = false;
+            actor.mPackageFollow = false;
+            actor.mEscortRef = kNullFormId;
+            mTravellerRefs.erase(actor.mHandle.reference);
+            actor.mAnchorX = dx;
+            actor.mAnchorY = dy;
+            actor.mAnchorZ = dz;
+            actor.mPhase = Phase::Done;
+            ++mStats.mEscortsArrived;
+            fireEnd(actor);
+            return true;
+        }
+        if (distance2d(playerX, playerY, actorX, actorY) > kEscortWaitDistance)
+        {
+            // the player is far behind: the escort waits for him where it is
+            if (actor.mEscortDirect && !writer.setMovement(moverOf(actor), 0.f, 0.f))
+                ++mStats.mWritesRefused;
+            if (actor.mGoalOut)
+            {
+                if (!writer.cancelGoal(moverOf(actor)))
+                    ++mStats.mWritesRefused;
+                actor.mGoalOut = false;
+            }
+            actor.mPhase = Phase::Following;
+            return true;
+        }
+        if (actor.mEscortDirect)
+        {
+            // no navmesh answered: straight at the destination, re-aimed every look
+            const double away = distance2d(actorX, actorY, dx, dy);
+            const double ux = (dx - actorX) / away;
+            const double uy = (dy - actorY) / away;
+            if (!writer.setMovement(moverOf(actor), static_cast<float>(ux * kEscortDirectSpeed),
+                    static_cast<float>(uy * kEscortDirectSpeed)))
+                ++mStats.mWritesRefused;
+            actor.mGoalOut = false;
+            actor.mPhase = Phase::Following;
+            return true;
+        }
+        if (actor.mGoalOut && distance2d(dx, dy, actor.mGoalX, actor.mGoalY) < kArriveTolerance)
+            return true; // the goal out already leads to the destination
+        actor.mToAnchor = false;
+        actor.mToFollow = true;
+        goTo(actor, dx, dy, dz, writer, sdkgame::ActorSpeed::Walk);
+        actor.mPhase = Phase::Following;
+        return true;
     }
 
     void PackageBrain::handleTalk(Actor& actor, sdkgame::ActorRequestWriter& writer)
@@ -1052,6 +1126,8 @@ namespace game_skyrimse
         actor.mEndFired = false; // task 0274
         actor.mToFollow = false;
         actor.mPackageFollow = false; // task 0310
+        actor.mEscortRef = kNullFormId; // task 0332
+        actor.mEscortDirect = false;
         actor.mPatrolFirst = kNullFormId;
         actor.mPatrolMarker = kNullFormId;
         actor.mFollowTarget = kNullFormId;
@@ -1067,7 +1143,21 @@ namespace game_skyrimse
             PackageTarget target;
             if (mSource.targetOf(*package, target) && target.mType == PackageTargetType::SpecificReference
                 && target.mValue == kPlayerFormId)
+            {
                 actor.mPackageFollow = true;
+                // Task 0332: the actor goes through the doors the player uses, and an escort to a marker leads him there
+                mTravellerRefs.insert(actor.mHandle.reference);
+                actor.mEscortRef = kNullFormId;
+                if (actor.mActivity == PackageActivity::Escort && !package->mLocations.empty()
+                    && package->mLocations.front().mType == PackageLocationType::NearReference
+                    && package->mLocations.front().mValue != kNullFormId
+                    && package->mLocations.front().mValue != kUnresolvedFormId)
+                {
+                    actor.mEscortRef = static_cast<FormId>(package->mLocations.front().mValue);
+                    actor.mEscortRadius = std::max(
+                        kEscortMinRadius, static_cast<double>(package->mLocations.front().mRadius));
+                }
+            }
         }
         if (actor.mActivity == PackageActivity::Escort)
             ++mStats.mEscortsSkipped;

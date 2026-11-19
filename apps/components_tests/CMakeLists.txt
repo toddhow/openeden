@@ -702,6 +702,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedawnguardfort.cpp
     skyrimse/testskyrimsedaedriccontinue.cpp
     skyrimse/testskyrimsebardspoem.cpp
+    skyrimse/testskyrimsedaedricescort.cpp
     skyrimse/testskyrimsedaedricfollow.cpp
     skyrimse/testskyrimsedaedricreal.cpp
     skyrimse/testskyrimsestormcloakreal.cpp

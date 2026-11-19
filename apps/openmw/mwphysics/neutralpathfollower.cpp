@@ -57,6 +57,25 @@ namespace MWPhysics::NeutralPath
         return result;
     }
 
+    float pathStepDown(float feetZ, const std::vector<vsg::vec3>& path, std::size_t reached, float baseStepDown)
+    {
+        if (!std::isfinite(feetZ) || !std::isfinite(baseStepDown))
+            return baseStepDown;
+        // The waypoint being walked to and the one after it: a stair flight far ahead must not turn every ledge on the
+        // way into a safe drop.
+        constexpr std::size_t kLookAhead = 2;
+        // A little more than the drop itself, so that the floor under the lower waypoint is inside the probe.
+        constexpr float kMargin = 8.f;
+        float lowest = feetZ;
+        for (std::size_t i = reached; i < path.size() && i < reached + kLookAhead; ++i)
+            if (std::isfinite(path[i].z))
+                lowest = std::min(lowest, path[i].z);
+        const float drop = feetZ - lowest;
+        if (drop <= baseStepDown)
+            return baseStepDown;
+        return std::max(baseStepDown, std::min(drop + kMargin, kMaxPathDrop));
+    }
+
     StepResult Follower::step(const vsg::vec3& feet, float dt, const PathFinder& finder)
     {
         if (mState == State::Idle || !std::isfinite(dt) || dt <= 0.f || !finite(feet))
