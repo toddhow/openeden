@@ -4419,10 +4419,6 @@ namespace game_skyrimse
             hearers.push_back(alias);
         for (const InstanceId instance : hearers)
             (void)m.sendEvent(instance, "OnActivate", { m.formValue(actionRef) });
-        // Task 0342: the scripts of a quest alias that holds the activated reference hear it too (MS14's Helgi coffin and
-        // Alva's journal are activators with a ReferenceAlias script and no script of their own)
-        for (const InstanceId alias : m.aliasInstancesHolding(target))
-            (void)m.sendEvent(alias, "OnActivate", { m.formValue(actionRef) });
     }
 
     bool PapyrusHost::hasHearers(FormId reference) const
