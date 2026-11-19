@@ -244,6 +244,8 @@ namespace game_skyrimse
         /// is only reached through the TCLT choices of an INFO, never from the list of topics. True for every other
         /// topic.
         [[nodiscard]] bool isBranchStart(FormId topic) const;
+        /// Task 0346: is the topic the starting topic of a BLOCKING branch (a forced greeting, never a menu button)?
+        [[nodiscard]] bool isBlockingStart(FormId topic) const;
         /// Task 0298: the starting topics of the branches that carry the Blocking flag (DLBR DNAM bit 2), sorted by id.
         /// A blocking branch's first line is what the speaker says instead of the Hello greeting when its conditions pass.
         [[nodiscard]] std::vector<FormId> blockingStarts() const;

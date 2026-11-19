@@ -735,6 +735,9 @@ namespace game_skyrimse
         /// quest's aliases (MS14's burned-house and coffin alias scripts handle OnUpdate and nothing else registers
         /// them). Off by default: an alias has its own registration (task 0325).
         void setQuestUpdatesReachAliases(bool on);
+        /// Task 0346: the player enters a box or sphere trigger with his body, `height` units above his feet (default 0: the
+        /// feet only). The gate box of the Solitude opening scene hangs above the road.
+        void setPlayerBodyTriggers(double height);
         /// Task 0337: `Actor.StartCombat(target)` with an actor other than the player reaches the hook `startCombatAt`
         /// (before, only a fight against the player was built and the native ignored every other target). Off by default.
         void setActorFights(bool on);

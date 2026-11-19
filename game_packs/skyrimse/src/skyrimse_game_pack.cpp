@@ -12,6 +12,7 @@
 #include "game_skyrimse/bloodice.hpp"
 #include "game_skyrimse/forsworn.hpp"
 #include "game_skyrimse/laidtorest.hpp"
+#include "game_skyrimse/solitude.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/frame_split.hpp"
@@ -3240,6 +3241,34 @@ namespace game_skyrimse
                 {
                     mBloodIceOn = true; // task 0333
                     mPapyrus->enableActionlessScenes();
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(solitude::kKey), false))
+                {
+                    // task 0346: the gate's box trigger starts the execution scene; the player enters it with his body
+                    mPapyrus->enableDaedric();
+                    mPapyrus->host().setPlayerBodyTriggers(solitude::kPlayerBodyHeight);
+                    // the execution scene (ExectionScene) waits in phase 13 until GetDead of its Prisoner alias holds: a death
+                    // of this session counts (the kill lookup of tasks 0326 and 0341, ONE mechanism)
+                    auto killed = [this](FormId reference) {
+                        return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
+                    };
+                    mWorldView.setDeadLookup(killed);
+                    if (mPapyrus != nullptr)
+                        mPapyrus->setDeadLookup(killed);
+                    // after the scene SolitudeOpeningScript steps the quest to its end by RegisterForUpdateGameTime(0.1):
+                    // task 0276's game-time updates and clock (ONE mechanism, as the wedding's), fed from the rest clock
+                    mPapyrus->host().enableGameTimers(true);
+                    mPapyrus->host().ignoreGameTimersOf(vampirism::kQuest);
+                    mGameClockOn = true;
+                    // MS06Start: Falk's request is a top-level topic that has a prompt and no name, and the fragments of a
+                    // response run before the next menu is judged (the quest's blocking greetings follow on that)
+                    mWorldView.setPromptStartsAreMenus(true);
+                    mWorldView.setQuestGreetings(true);
+                    mWorldView.setBlockingBranches(true);
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(laidtorest::kKey), false))
                 {

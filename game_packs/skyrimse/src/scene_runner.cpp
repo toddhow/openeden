@@ -452,6 +452,13 @@ namespace game_skyrimse
                 }
             }
         }
+        if (sSceneWaitTrace && !mPlaying.empty())
+        {
+            static std::uint64_t calls = 0; // task 0346: a developer trace, never read
+            if (++calls % 300 == 1)
+                mEnv.log("SCENEWAIT update " + std::to_string(calls) + " dt " + std::to_string(dt) + " playing "
+                    + std::to_string(mPlaying.size()));
+        }
         std::vector<FormId> ids;
         ids.reserve(mPlaying.size());
         for (const auto& [id, in] : mPlaying)
@@ -486,6 +493,9 @@ namespace game_skyrimse
                             ++in.mPhase;
                             continue;
                         }
+                        if (sSceneWaitTrace && ++in.mNote % 300 == 1) // task 0346: a phase that cannot start is said
+                            mEnv.log("SCENEWAIT " + hex(id) + " phase " + std::to_string(in.mPhase)
+                                + " cannot start (conditions " + (phase.mConditionsOk ? "fail" : "undecodable") + ")");
                         break;
                     }
                     in.mEntered = true;

@@ -2731,6 +2731,7 @@ namespace game_skyrimse
         out.mEvaluate = [this, state, data](const std::vector<survey::Ctda>& list, FormId scene, FormId quest) {
             SkyrimConditionWorld* world = state->mQuestWorld.get();
             world->setLoadedLookup(mLoadedLookup); // task 0330: a phase waits for HasLoaded3D of its actors
+            world->setDeadLookup(mDeadLookup); // task 0346: ExectionScene's phase 13 waits for GetDead of the Prisoner alias
             const SceneRecord* record = data->mScenes.scene(scene);
             // Task 0328: a scene's phase waits for "the player alias is in this cell" (MQ105EinarthTeachScene's phase 7:
             // GetInCell(HighHrothgar) on the Player alias): the quest world is told where the player stands, as the

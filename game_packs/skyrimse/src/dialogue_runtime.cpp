@@ -294,7 +294,8 @@ namespace game_skyrimse
             const DialogTopic* topic = mDialogue.topic(id);
             if (topic == nullptr || topic->mCategory != TopicCategory::Topic)
                 continue;
-            if (!topic->mName.mPresent && !choices) // a nameless topic is only ever a choice (task 0270)
+            // a nameless topic is only ever a choice (task 0270), except a top-level start with a prompt (task 0346)
+            if (!topic->mName.mPresent && !choices && !(mPromptStartsAreMenus && !mDialogue.isBlockingStart(id)))
                 continue;
             if (!choices && !mDialogue.isBranchStart(id))
                 continue;

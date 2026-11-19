@@ -241,7 +241,10 @@ namespace game_skyrimse
         /// Faralda's "Welcome to the College") is spoken at the start of a conversation, before the Hello lines, when
         /// one of its INFOs passes. Off by default.
         void setQuestGreetings(bool on) { mQuestGreetings = on; }
-        /// task 0343 (`dark brotherhood`): a quest start whose INFOs all carry prompts is a menu topic, not a greeting
+        /// task 0343 (`dark brotherhood`): a quest start whose INFOs all carry prompts is a menu topic, not a greeting.
+        /// Task 0346 (`solitude`): such a start that has no name of its own and is the top of a branch that is NOT blocking
+        /// is also LISTED in the menu (Falk's MS06FalkInvestigate0 reads "I hear you're looking for some help with
+        /// Wolfskull Cave." in its prompt): one flag, both halves.
         void setPromptStartsAreMenus(bool on) { mPromptStartsAreMenus = on; }
         /// Task 0304: a line of trace for each quest greeting looked at (the topic, how many INFOs were considered and
         /// passed, the INFO chosen); unset: none.

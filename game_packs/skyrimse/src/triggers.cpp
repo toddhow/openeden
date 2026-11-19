@@ -51,6 +51,18 @@ namespace game_skyrimse
         return dx * dx + dy * dy + dz * dz <= radius * radius;
     }
 
+    bool volumeContainsBody(const TriggerVolume& volume, double x, double y, double z, double height)
+    {
+        if (!std::isfinite(height) || height <= 0.0)
+            return volumeContains(volume, x, y, z);
+        if (volumeContains(volume, x, y, z + height))
+            return true;
+        for (double up = 0.0; up < height; up += kBodyStep)
+            if (volumeContains(volume, x, y, z + up))
+                return true;
+        return false;
+    }
+
     bool inViewCone(double eyeX, double eyeY, double eyeZ, float heading, float pitch, double targetX, double targetY,
         double targetZ, double halfAngle)
     {
@@ -100,7 +112,7 @@ namespace game_skyrimse
         {
             const bool placeMatches
                 = entry.mVolume.mInterior ? (place.mInterior && place.mCell == entry.mVolume.mCell) : !place.mInterior;
-            const bool now = placeMatches && volumeContains(entry.mVolume, x, y, z);
+            const bool now = placeMatches && volumeContainsBody(entry.mVolume, x, y, z, mPlayerBodyHeight);
             if (now == entry.mInside)
                 continue;
             entry.mInside = now;

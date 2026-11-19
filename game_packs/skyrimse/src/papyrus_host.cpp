@@ -3892,6 +3892,11 @@ namespace game_skyrimse
         mImpl->mQuestUpdatesReachAliases = on;
     }
 
+    void PapyrusHost::setPlayerBodyTriggers(double height)
+    {
+        mImpl->mTracker.setPlayerBodyHeight(height);
+    }
+
     void PapyrusHost::setStageEntryCheck(StageEntryCheck check)
     {
         mImpl->mStageEntryCheck = std::move(check);
@@ -4490,6 +4495,10 @@ namespace game_skyrimse
             std::vector<InstanceId> hearers = m.instancesOf(edge.mReference);
             for (const InstanceId alias : m.aliasInstancesHolding(edge.mReference)) // task 0310
                 hearers.push_back(alias);
+            // task 0346: which volume the player went into or out of, and how many scripts hear it
+            m.say(false,
+                "Papyrus: trigger " + hex(edge.mReference) + (edge.mEntered ? " entered by the player (" : " left by the player (")
+                    + std::to_string(hearers.size()) + " scripts)");
             for (const InstanceId instance : hearers)
                 if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
                         { m.formValue(kPlayerReference) }))

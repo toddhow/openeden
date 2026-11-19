@@ -55,6 +55,11 @@ namespace game_skyrimse
     /// Is the point inside (on the surface counts)? False for a volume that is not supported or a point that is not
     /// finite.
     [[nodiscard]] bool volumeContains(const TriggerVolume& volume, double x, double y, double z);
+    /// Task 0346: does the body of an actor standing at (x, y, z) reach into the volume? The body is the vertical segment from
+    /// the feet to `height` above them, tested at steps of `kBodyStep` (the engine's own trigger tests the actor's collision,
+    /// not its feet: the Solitude gate's box hangs 36 units above the road). A height of 0 is the point test.
+    [[nodiscard]] bool volumeContainsBody(const TriggerVolume& volume, double x, double y, double z, double height);
+    inline constexpr double kBodyStep = 16.0;
 
     /// The Actor.HasLOS answer for the player, approximated by where he looks (there is no ray from a Papyrus call):
     /// the angle between the view direction (heading about Z as the engine stores it, 0 faces +Y; pitch up positive)
@@ -107,6 +112,10 @@ namespace game_skyrimse
         [[nodiscard]] bool subjectInside(FormId subject, FormId reference) const;
         /// Forget whether the player is inside (a load): the next update reports every volume he stands in as entered.
         void resetInside();
+        /// Task 0346: the player enters a volume with his body (feet to `height` above them) instead of with his feet
+        /// (default 0: the feet). Other subjects keep the point test.
+        void setPlayerBodyHeight(double height) { mPlayerBodyHeight = height; }
+        [[nodiscard]] double playerBodyHeight() const { return mPlayerBodyHeight; }
 
     private:
         struct Entry
@@ -117,6 +126,7 @@ namespace game_skyrimse
         std::map<FormId, Entry> mVolumes;
         std::map<FormId, std::set<FormId>> mSubjects; ///< subject -> the volumes it is inside
         std::size_t mUnsupported = 0;
+        double mPlayerBodyHeight = 0.0;
     };
 }
 

@@ -777,6 +777,14 @@ namespace game_skyrimse
         return out;
     }
 
+    bool DialogueIndex::isBlockingStart(FormId topicId) const
+    {
+        for (const auto& [branch, start] : mBlockingStart)
+            if (start == topicId)
+                return true;
+        return false;
+    }
+
     bool DialogueIndex::isBranchStart(FormId topicId) const
     {
         const DialogTopic* t = topic(topicId);
