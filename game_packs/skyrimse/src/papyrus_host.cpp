@@ -1202,16 +1202,14 @@ namespace game_skyrimse
                 // fragment ran was refused as a whole ("the game no longer has what its attach key names")
                 if (mData.isScene(key.formId))
                     return true;
-                // task 0343: a script on a reference a quest alias or PlaceAtMe created (the courier letter of DB02's
-                // entrance quest): the created table is restored before the runtime asks
-                if (mCreated.count(key.formId) != 0)
-                    return true;
                 if (!mData.formClass(key.formId).empty())
                     return true;
-                // Task 0342: a script on a reference a script CREATED (0xFF8xxxxx: PlaceAtMe) is saved with the host's
-                // created table; the data does not know it before the load has rebuilt it, so a save made after any
-                // such script was attached was refused as a whole
-                if (mQuestUpdatesReachAliases && (key.formId & 0xFF800000u) == 0xFF800000u)
+                // Tasks 0342 and 0343 (one rule): a script on a reference a script or a quest alias CREATED (0xFF8xxxxx:
+                // PlaceAtMe, the courier letter of DB02's entrance quest) is saved with the host's created table; the data
+                // does not know it before the load has rebuilt it, so a save made after any such script was attached was
+                // refused as a whole. The table is restored before the runtime asks; 0342's switch keeps the old answer
+                if (mCreated.count(key.formId) != 0
+                    || (mQuestUpdatesReachAliases && (key.formId & 0xFF800000u) == 0xFF800000u))
                     return true;
                 // task 0317: the script of an unplaced item form (a Hearthfire house part) left by a form list or an
                 // inventory change
