@@ -1380,6 +1380,8 @@ namespace game_skyrimse
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
         if (mDeadLookup)
             raw->mRuntime->setDeadLookup(mDeadLookup); // task 0326
+        raw->mRuntime->setLinkedRefLookup(
+            [this](FormId reference, FormId keyword, FormId& out) { return linkedRef(reference, keyword, out); });
         raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
         if (mLiveActorPlace)
         {

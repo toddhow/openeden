@@ -202,6 +202,11 @@ namespace game_skyrimse
         }
         /// Task 0326: the references killed in this session (GetRefTypeAliveCount).
         void setDeadLookup(std::function<bool(FormId)> lookup) { mWorld.setDeadLookup(std::move(lookup)); }
+        /// task 0337: a line whose condition runs on the speaker's LINKED REFERENCE (Eltrys's entry topic: Weylin is dead)
+        void setLinkedRefLookup(SkyrimConditionWorld::LinkedRefLookup lookup)
+        {
+            mWorld.setLinkedRefLookup(std::move(lookup));
+        }
         void setVendorServicesLookup(SkyrimConditionWorld::VendorServicesLookup lookup) // task 0189
         {
             mWorld.setVendorServicesLookup(std::move(lookup));
