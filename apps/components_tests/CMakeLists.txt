@@ -609,6 +609,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemq318alias.cpp
     skyrimse/testskyrimsemq318created.cpp
     skyrimse/testskyrimsedawnguardawake.cpp
+    skyrimse/testskyrimsedawnguardbloodline.cpp
     skyrimse/testskyrimsecombatprojrecords.cpp
     skyrimse/testskyrimseperks.cpp
     skyrimse/testskyrimseperksreal.cpp

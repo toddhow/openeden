@@ -322,6 +322,8 @@ namespace game_skyrimse
                 carried.insert(id);
         for (const auto id : mBrain->travellerRefs())
             carried.insert(id);
+        for (const auto id : mBrain->packageFollowerRefs()) // task 0334: Serana, Barbas
+            carried.insert(id);
         std::size_t n = 0;
         for (const auto id : carried)
         {
@@ -334,7 +336,7 @@ namespace game_skyrimse
 
     bool SkyrimActorTable::isFollower(openeden::sdk::game::WorldId reference) const
     {
-        return mBrain && mBrain->followsPlayer(reference);
+        return mBrain && (mBrain->followsPlayer(reference) || mBrain->followsByPackage(reference)); // task 0334
     }
 
     void SkyrimActorTable::onActorRemoved(openeden::sdk::game::ActorHandle handle)

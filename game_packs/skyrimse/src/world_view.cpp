@@ -1811,9 +1811,11 @@ namespace game_skyrimse
             return false;
         if (!mAliasPackagesOn || mDialogue == nullptr || mDialogue->mData == nullptr)
             return true;
-        // Task 0305: the packages of the running quests' aliases that a script forced this reference into (highest
-        // quest priority first, ahead of the others)
-        std::vector<const PackageRecord*> forced;
+        // Task 0305: the packages of the running quests' aliases that a script forced this reference into, and (task
+        // 0274) those of an alias filled with this placement itself. Task 0334: ONE order for both kinds, the quest of
+        // the higher priority first (Serana's follow packages, an alias of DLC1NPCMentalModel at priority 80, before
+        // DLC1VQ02's SeranaAbandoned, an external alias at 70); at the same priority a forced alias first, as before.
+        std::vector<AliasPackageGroup> groups;
         if (mAliasLookup)
             for (const auto& entry : mDialogue->mDynamicAliasPackages)
             {
@@ -1822,41 +1824,41 @@ namespace game_skyrimse
                            entry.mQuest, entry.mAlias)
                         != reference)
                     continue;
+                AliasPackageGroup group{ entry.mQuest, entry.mPriority, true, {} };
                 for (const FormId id : entry.mPackages)
                     if (const PackageRecord* p = mDialogue->mData->mPackages.package(id))
-                        forced.push_back(p);
+                        group.mPackages.push_back(p);
+                groups.push_back(std::move(group));
             }
         const auto found = mDialogue->mAliasPackagesOfReference.find(reference);
-        if (!forced.empty())
-        {
-            out.insert(out.begin(), forced.begin(), forced.end());
-            if (mPackageTraceLog && base == mPackageTraceBase)
-                for (const PackageRecord* p : forced)
-                    mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " has forced alias package "
-                        + p->mCommon.mEditorId);
-        }
+        const std::size_t forcedGroups = groups.size();
+        const PackageIndex& index = mDialogue->mData->mPackages;
+        if (found != mDialogue->mAliasPackagesOfReference.end())
+            for (const auto& entry : found->second)
+            {
+                if (!mDialogue->mPackageQuests.running(entry.mQuest))
+                    continue;
+                const QuestRecord* quest = mDialogue->mData->mQuests.quest(entry.mQuest);
+                AliasPackageGroup group{ entry.mQuest, quest != nullptr ? quest->mPriority : std::uint8_t(0), false, {} };
+                for (const FormId id : entry.mPackages)
+                    if (const PackageRecord* p = index.package(id))
+                        group.mPackages.push_back(p);
+                groups.push_back(std::move(group));
+            }
         if (mPackageTraceLog && base == mPackageTraceBase)
             mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " base list " + std::to_string(out.size())
                 + (found == mDialogue->mAliasPackagesOfReference.end() ? ", no alias entry" : ", alias entry")
                 + " (" + std::to_string(mDialogue->mAliasPackagesOfReference.size()) + " references have one)");
-        if (found == mDialogue->mAliasPackagesOfReference.end())
+        if (groups.empty())
             return true;
-        const PackageIndex& index = mDialogue->mData->mPackages;
-        std::vector<const PackageRecord*> front;
-        for (const auto& entry : found->second)
-        {
-            if (!mDialogue->mPackageQuests.running(entry.mQuest))
-                continue;
-            for (const FormId id : entry.mPackages)
-                if (const PackageRecord* p = index.package(id))
-                    front.push_back(p);
-        }
-        // the specific-reference ones go behind the forced ones
-        out.insert(out.begin() + static_cast<std::ptrdiff_t>(forced.size()), front.begin(), front.end());
+        const std::vector<const PackageRecord*> ordered = orderAliasPackageGroups(groups);
+        out.insert(out.begin(), ordered.begin(), ordered.end());
         if (mPackageTraceLog && base == mPackageTraceBase)
-            for (const PackageRecord* p : front)
-                mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " has alias package "
-                    + p->mCommon.mEditorId);
+            for (std::size_t i = 0; i < groups.size(); ++i)
+                for (const PackageRecord* p : groups[i].mPackages)
+                    mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " has "
+                        + (i < forcedGroups ? "forced alias package " : "alias package ") + p->mCommon.mEditorId
+                        + " (quest priority " + std::to_string(groups[i].mPriority) + ")");
         return true;
     }
 
@@ -1883,6 +1885,14 @@ namespace game_skyrimse
             return 0;
         const std::uint64_t forced = mAliasRevision ? static_cast<std::uint64_t>(mAliasRevision()) << 32 : 0;
         return mDialogue->mPackageQuests.revision() + forced;
+    }
+
+    void SkyrimWorldView::packageChosen(
+        FormId reference, FormId base, const PackageRecord* package, const std::string& note) const
+    {
+        if (mPackageTraceLog && base == mPackageTraceBase)
+            mPackageTraceLog("PKCHOSEN ref " + std::to_string(reference) + " "
+                + (package != nullptr ? package->mCommon.mEditorId : std::string("none")) + " " + note);
     }
 
     PackageBehavior SkyrimWorldView::behaviorOf(const PackageRecord& package) const

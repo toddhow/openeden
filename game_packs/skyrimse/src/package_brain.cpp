@@ -225,6 +225,7 @@ namespace game_skyrimse
         {
             releaseFurniture(it->second); // the core already forgot the actor: nothing to write
             mTravellerRefs.erase(handle.reference); // task 0277: a carried actor asks again when it is added
+            mPackageFollowRefs.erase(handle.reference); // task 0334: the same
             mActors.erase(it);
         }
     }
@@ -1115,6 +1116,7 @@ namespace game_skyrimse
         actor.mToAnchor = false;
         if (package == nullptr)
         {
+            mPackageFollowRefs.erase(actor.mHandle.reference); // task 0334
             actor.mBehavior = PackageBehavior::Stand;
             actor.mPhase = Phase::Idle;
             return;
@@ -1133,6 +1135,7 @@ namespace game_skyrimse
         actor.mFollowTarget = kNullFormId;
         actor.mElsewhereRef = kNullFormId;
         mTravellerRefs.erase(actor.mHandle.reference);
+        mPackageFollowRefs.erase(actor.mHandle.reference);
         if (actor.mBehavior == PackageBehavior::Stand || actor.mBehavior == PackageBehavior::Unsupported)
             actor.mActivity = mSource.activityOf(*package);
         // Task 0310: a Follow or Escort package that names the PLAYER leads the actor along behind him (Barbas's
@@ -1159,8 +1162,21 @@ namespace game_skyrimse
                 }
             }
         }
+        if (actor.mPackageFollow)
+            mPackageFollowRefs.insert(actor.mHandle.reference); // task 0334
         if (actor.mActivity == PackageActivity::Escort)
             ++mStats.mEscortsSkipped;
+        if (mSource.tracesPackages())
+        {
+            PackageTarget traced;
+            const bool hasTarget = mSource.targetOf(*package, traced);
+            mSource.packageChosen(static_cast<FormId>(actor.mHandle.reference), actor.mBase, package,
+                "behavior " + std::to_string(static_cast<int>(actor.mBehavior)) + " activity "
+                    + std::to_string(static_cast<int>(actor.mActivity)) + " target "
+                    + (hasTarget ? std::to_string(static_cast<int>(traced.mType)) + "/" + std::to_string(traced.mValue)
+                                 : std::string("none"))
+                    + (actor.mPackageFollow ? " follows the player" : ""));
+        }
         if (actor.mBehavior == PackageBehavior::Unsupported && actor.mActivity == PackageActivity::None)
             ++mStats.mUnsupported;
         const bool sandboxLike

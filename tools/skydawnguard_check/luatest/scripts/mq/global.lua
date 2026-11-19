@@ -116,6 +116,21 @@ local function stepTo(s)
         best:activateBy(player)
         return
     end
+    if s[2] == 'place' then
+        -- task 0334 { update, 'place', base, x, y, z }: a hand-written stand-in: the actor of that base (decimal text) in the player's
+        -- cell is put on the ground at x, y, z. Serana lies in the coffin's pit and the coffin's lid has no animation to open,
+        -- so her exit stays inside the pit (the mover refuses its 49 unit ledge); this lifts her out where the player stands.
+        for _, o in ipairs(player.cell:getAll()) do
+            local ok, id = pcall(function() return o.recordId end)
+            if ok and id ~= nil and tostring(id):match(':b(%d+)$') == s[3] then
+                o:teleport(player.cell, util.vector3(s[4], s[5], s[6]), { onGround = true })
+                print(string.format('MQ step place: base %s at %.0f,%.0f,%.0f', s[3], s[4], s[5], s[6]))
+                return
+            end
+        end
+        print('MQ step place: base ' .. s[3] .. ' not found')
+        return
+    end
     if s[2] == 'abs' then
         -- { update, 'abs', x, y, z, yawDegrees (0 looks north, positive turns right), pitchDegrees }
         player:teleport(player.cell, util.vector3(s[3], s[4], s[5]), { onGround = true, rotation = util.transform.rotateZ(math.rad(s[6])) })

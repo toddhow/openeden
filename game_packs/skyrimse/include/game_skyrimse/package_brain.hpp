@@ -211,6 +211,16 @@ namespace game_skyrimse
             (void)out;
             return false;
         }
+        /// Task 0334: a developer trace: the brain switched this placement to `package` (null: none). Default: nothing.
+        [[nodiscard]] virtual bool tracesPackages() const { return false; }
+        virtual void packageChosen(
+            FormId reference, FormId base, const PackageRecord* package, const std::string& note) const
+        {
+            (void)reference;
+            (void)base;
+            (void)package;
+            (void)note;
+        }
         /// Task 0277: true when the reference exists but stands in a cell other than the player's (an interior
         /// against anything else), so an actor in the player's cell cannot walk to it before the player goes there.
         /// Default: no.
@@ -378,6 +388,17 @@ namespace game_skyrimse
             return mFollowRefs.count(reference) != 0;
         }
         [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& followerRefs() const { return mFollowRefs; }
+        /// Task 0334: placements whose chosen package is a Follow or Escort of the player (Serana's DLC1NPCFollowMedium,
+        /// Barbas's DA03BarbasFollowPlayer): they follow by their package, are no brain followers (no saved follower,
+        /// the packages still decide), but the player's doors carry them and they take his side like a follower.
+        [[nodiscard]] bool followsByPackage(openeden::sdk::game::WorldId reference) const
+        {
+            return mPackageFollowRefs.count(reference) != 0;
+        }
+        [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& packageFollowerRefs() const
+        {
+            return mPackageFollowRefs;
+        }
         /// Task 0239 ("Wait here"): a follower that waits stays where it stands (its goal is cancelled and no new one
         /// is issued) until it is told to follow again. Only meaningful for a follower of the player. True when the
         /// state changed. Remembered for a placement the brain does not know yet.
@@ -562,6 +583,7 @@ namespace game_skyrimse
         double mGreetFrom = kGreetApproachFrom; ///< tasks 0305 and 0306: the walk-up starts beyond this
         double mGreetStop = kGreetApproachStop; ///< ... and ends (the ask is made) within this
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
+        std::set<openeden::sdk::game::WorldId> mPackageFollowRefs; ///< task 0334: ... by their package
         std::set<openeden::sdk::game::WorldId> mRiderRefs; ///< placements that sit on a cart (task 0274)
         std::map<openeden::sdk::game::WorldId, openeden::sdk::game::ActorHandle> mMounts; ///< rider -> horse (0274)
         [[nodiscard]] openeden::sdk::game::ActorHandle moverOf(const Actor& actor) const;

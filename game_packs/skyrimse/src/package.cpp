@@ -379,7 +379,7 @@ namespace game_skyrimse
         static const std::set<std::string> standNames{ "patrol", "guard", "holdposition", "wait", "sit", "say",
             "activate", "useidlemarker", "keepaneyeon", "lockdoors", "unlockdoors", "find", "acquire" };
         bool forceStand = false, sleep = false, eat = false, sandbox = false, wander = false, travel = false,
-             stand = false, other = false;
+             stand = false, other = false, follow = false, patrol = false;
         for (const std::string& raw : names)
         {
             const std::string name = lowerAscii(raw);
@@ -395,8 +395,16 @@ namespace game_skyrimse
                 wander = true;
             else if (name == "travel")
                 travel = true;
+            else if (name == "follow" || name == "followto")
+            {
+                follow = true;
+                other = true;
+            }
             else if (standNames.count(name) != 0)
+            {
                 stand = true;
+                patrol = patrol || name == "patrol";
+            }
             else
                 other = true;
         }
@@ -406,7 +414,9 @@ namespace game_skyrimse
             return PackageBehavior::Sleep;
         if (eat)
             return PackageBehavior::Eat;
-        if (sandbox)
+        // Task 0334: the FollowPlayer template is a Follow (WaitingForPlayer 0) with a Sandbox branch (WaitingForPlayer 1);
+        // it is a Follow that stays near when told to wait, not a sandbox package
+        if (sandbox && !(follow && !wander && !patrol))
             return PackageBehavior::Sandbox;
         if (wander)
             return PackageBehavior::Wander;
@@ -421,13 +431,18 @@ namespace game_skyrimse
 
     PackageActivity classifyActivity(std::span<const std::string> names)
     {
-        bool patrol = false, follow = false, escort = false;
+        bool patrol = false, follow = false, escort = false, sandbox = false;
         for (const std::string& raw : names)
         {
             const std::string name = lowerAscii(raw);
             if (name == "forcegreet" || name == "dialogueactivate" || name == "sleep" || name == "eat"
-                || name == "sandbox" || name == "wander")
+                || name == "wander")
                 return PackageActivity::None;
+            if (name == "sandbox")
+            {
+                sandbox = true;
+                continue;
+            }
             if (name == "patrol")
                 patrol = true;
             else if (name == "follow" || name == "followto")
@@ -435,6 +450,8 @@ namespace game_skyrimse
             else if (name == "escort")
                 escort = true;
         }
+        if (sandbox && (patrol || !follow)) // a sandbox package sandboxes; a Follow with a sandbox branch follows
+            return PackageActivity::None;
         if (patrol)
             return PackageActivity::Patrol;
         if (follow)

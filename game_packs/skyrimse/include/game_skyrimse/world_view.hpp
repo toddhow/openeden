@@ -364,6 +364,9 @@ namespace game_skyrimse
         bool packagesForReference(
             FormId reference, FormId base, std::vector<const PackageRecord*>& out) const override; // task 0274
         [[nodiscard]] std::uint64_t packageListRevision() const override; // task 0274
+        [[nodiscard]] bool tracesPackages() const override { return static_cast<bool>(mPackageTraceLog); } // task 0334
+        void packageChosen(FormId reference, FormId base, const PackageRecord* package,
+            const std::string& note) const override; // task 0334
         /// Task 0274: the quest whose alias gives this package (the first one that lists it), 0 when none does.
         [[nodiscard]] FormId aliasPackageQuest(FormId package) const;
         [[nodiscard]] PackageBehavior behaviorOf(const PackageRecord& package) const override;
