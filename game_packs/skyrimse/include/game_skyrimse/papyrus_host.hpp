@@ -408,6 +408,9 @@ namespace game_skyrimse
         /// Task 0318: a quest alias creates an item IN an inventory (the Jarl's reward axe: a leveled list). The item the
         /// list resolves to, for the alias to hold (0: none). A world that does not know leveled items keeps the form.
         [[nodiscard]] virtual FormId resolveLeveledItem(FormId base) { return base; }
+        /// Task 0335: whether items can be resolved and added yet (the pack builds its item table on a worker). The quests
+        /// that start with the game make their created items once it is true.
+        [[nodiscard]] virtual bool itemsReady() { return true; }
         /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
         virtual bool addItem(FormId owner, FormId item, std::int32_t count)
         {
@@ -729,6 +732,10 @@ namespace game_skyrimse
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;
         /// Task 0194: the scene runner. Not owned; null: the Scene natives answer false and quests start no scenes.
         void setSceneControl(SceneControl* control);
+        /// Task 0335: an alias created IN another alias (ALCA bit 31) also puts the item into that alias's inventory (the
+        /// world's addItem), and the quests that start with the game create their alias objects at startGame(). Off: as
+        /// before (the quest's own script hands the item over).
+        void setCreatedInInventory(bool on);
         /// Task 0320: references a script's Disable does not take effect on (the pack names them). A refused disable is
         /// logged once per reference. Empty function: none.
         void setKeepEnabled(std::function<bool(FormId)> keep);

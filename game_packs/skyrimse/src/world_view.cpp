@@ -1406,7 +1406,8 @@ namespace game_skyrimse
             world->setKeywordData(&mKeywordData); // task 0217
             world->setPlacedRefs(&raw->mData->mPlacedRefs);
             world->setQuestVariables(raw->mQuestVariables.get());
-            if (mPlayerPlaceKnown && mLiveActorPlace) // task 0327
+            world->setDetectsPlayerInCell(mDetectsPlayer); // task 0335
+            if (mPlayerPlaceKnown && (mLiveActorPlace || mDetectsPlayer)) // tasks 0327, 0335
                 world->setPlayerPlace(true, mPlayerInterior, mPlayerCell, mPlayerWorld);
             if (mLiveActorPlace) // task 0327
                 world->setLivePlaces(mLiveActorPlace, [this](std::uint32_t reference, double& x, double& y, double& z) {
@@ -1506,7 +1507,7 @@ namespace game_skyrimse
         mPlayerInterior = interior;
         mPlayerCell = cell;
         mPlayerWorld = world;
-        if (mLiveActorPlace && mDialogue != nullptr && mDialogue->mQuestWorld != nullptr) // only with live places
+        if ((mLiveActorPlace || mDetectsPlayer) && mDialogue != nullptr && mDialogue->mQuestWorld != nullptr)
             mDialogue->mQuestWorld->setPlayerPlace(true, interior, cell, world);
     }
 

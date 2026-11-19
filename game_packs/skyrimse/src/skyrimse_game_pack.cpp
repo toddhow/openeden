@@ -705,6 +705,7 @@ namespace game_skyrimse
             void enableHelloGreetings() { mHelloOn = true; } // task 0308
             void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
             void enableActionlessScenes() { mActionlessScenes = true; } // task 0333
+            void enableCreatedInInventory() { mHost.setCreatedInInventory(true); } // task 0335
             /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
             /// OnObjectEquipped (a shout equipped from the menu).
             void enablePlayerEvents() { mPlayerEvents = true; }
@@ -2754,6 +2755,7 @@ namespace game_skyrimse
                     };
                     // task 0318: a leveled item list (MQ104's JarlWeapon) resolves to one item, by a pick seeded from the
                     // list's id at the player's level (the inventory's rule for container contents)
+                    env.itemsReady = [this] { return mInventory != nullptr && mInventory->ready(); }; // task 0335
                     env.resolveItem = [this](FormId base) -> FormId {
                         if (mInventory == nullptr)
                             return base;
@@ -3157,6 +3159,11 @@ namespace game_skyrimse
                         (*logged)[reference] = loaded;
                         return loaded;
                     });
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "golden claw", false))
+                {
+                    mWorldView.setDetectsPlayer(true); // task 0335: Lucan sees the player, the argument scene goes on
+                    mPapyrus->enableCreatedInInventory(); // task 0335: the claw is made in Arvel's inventory
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false))
                 {
@@ -4594,7 +4601,8 @@ namespace game_skyrimse
                     }
                 }
                 // Task 0184: the speech and bribe checks read the inventory's gold, and a key in it opens a lock.
-                if (settings->getBool(kPackId, marriage::kMarriageKey, false)) // task 0270
+                if (settings->getBool(kPackId, marriage::kMarriageKey, false)
+                    || settings->getBool(kPackId, "golden claw", false)) // tasks 0270, 0335: GetItemCount of the player
                 {
                     mWorldView.setPlayerWornSource(
                         [this](FormId item) { return mInventory != nullptr && mInventory->model().isEquipped(item); });

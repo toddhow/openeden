@@ -1748,6 +1748,13 @@ namespace game_skyrimse
         return theirs != kNullFormId && theirs == mine;
     }
 
+    bool SkyrimConditionWorld::detects(conditions::Subject subject, std::uint32_t target) const
+    {
+        // Task 0335: only the player as the target is modelled, and detection is "stands in his interior cell" (GetDetected is
+        // not about sneaking and not a line of sight test: CK wiki, toddhow 2026-11-11)
+        return mDetectsPlayerInCell && target == 0x14 && subject != kPlayer && inSameCell(subject, target);
+    }
+
     bool SkyrimConditionWorld::inSameCellAlias(conditions::Subject subject, std::uint32_t alias) const
     {
         // Task 0328: the same as inSameCell, with the reference the alias holds (the player, or a placed reference)

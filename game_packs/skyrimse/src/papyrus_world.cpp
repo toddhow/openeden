@@ -101,6 +101,11 @@ namespace game_skyrimse
         return mEnv.resolveItem ? mEnv.resolveItem(base) : base;
     }
 
+    bool PackWorldHooks::itemsReady()
+    {
+        return !mEnv.itemsReady || mEnv.itemsReady();
+    }
+
     bool PackWorldHooks::addItem(FormId owner, FormId item, std::int32_t count)
     {
         InventoryModel* m = nullptr;

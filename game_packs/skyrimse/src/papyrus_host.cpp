@@ -698,7 +698,7 @@ namespace game_skyrimse
         // Task 0306: an alias that creates a reference (ALCO, ALCA: the DLC's cultist ambush makes its cultists and the
         // note at the town's centre marker) gets one when the quest starts. The new reference is placed as PlaceAtMe
         // places one (an actor through the actor system) near the reference of the alias the data names.
-        void createAliasObjects(FormId quest)
+        void createAliasObjects(FormId quest, bool onlyInside = false)
         {
             if (mIndex == nullptr || mState == nullptr || mHooks == nullptr)
                 return;
@@ -715,6 +715,8 @@ namespace game_skyrimse
                 // holds the item (the pack has no item references): the game's own AddItem(alias.GetRef()) hands it over.
                 constexpr std::uint32_t kCreateIn = 0x80000000u;
                 const bool inside = (alias.mCreateAt & kCreateIn) != 0;
+                if (onlyInside && !inside) // task 0335: the quests that start with the game make only items in inventories
+                    continue;
                 const std::uint32_t atAlias = alias.mCreateAt & ~kCreateIn;
                 if (inside)
                 {
@@ -728,6 +730,9 @@ namespace game_skyrimse
                     }
                     mState->setAliasFill(quest, alias.mId, AliasFill{ true, item, kNullFormId });
                     ++mAliasRevision;
+                    if (mCreatedInInventory) // task 0335: the game puts it in the inventory of the alias it names
+                        if (const FormId holder = aliasReferenceOf(quest, atAlias); holder != 0)
+                            (void)mHooks->addItem(holder, item, 1);
                     say(false,
                         "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " holds the item " + hex(item)
                             + " made from " + hex(alias.mCreateObject));
@@ -913,6 +918,17 @@ namespace game_skyrimse
                     mStoryStarted(quest, event);
             }
             return started;
+        }
+
+        // Task 0335: the items the quests that start with the game create in inventories, once the world can take them.
+        void runPendingCreates()
+        {
+            if (mPendingCreate.empty() || mHooks == nullptr || !mHooks->itemsReady())
+                return;
+            const std::vector<FormId> quests = std::move(mPendingCreate);
+            mPendingCreate.clear();
+            for (const FormId quest : quests)
+                createAliasObjects(quest, true);
         }
 
         void runStartUpStage(FormId quest)
@@ -2793,6 +2809,7 @@ namespace game_skyrimse
             if (dt > 0.f)
                 mTime += static_cast<double>(dt);
             ++mCounters.mTicks;
+            runPendingCreates();
             runReplays();
             fireTimers();
             fireGameTimers();
@@ -2865,6 +2882,8 @@ namespace game_skyrimse
         LogFunction mLog;
         QuestChanged mQuestChanged;
         QuestStarted mQuestStarted; // task 0306
+        bool mCreatedInInventory = false; // task 0335
+        std::vector<FormId> mPendingCreate; // task 0335: start-game quests whose in-inventory items wait for the item table
         StoryStarted mStoryStarted; ///< task 0217
         EnableChanged mEnableChanged;
         const QuestIndex* mIndex = nullptr;
@@ -3806,6 +3825,11 @@ namespace game_skyrimse
         mImpl->mKeepEnabled = std::move(keep);
     }
 
+    void PapyrusHost::setCreatedInInventory(bool on)
+    {
+        mImpl->mCreatedInInventory = on;
+    }
+
     void PapyrusHost::setSceneControl(SceneControl* control)
     {
         mImpl->mScenes = control;
@@ -3869,7 +3893,8 @@ namespace game_skyrimse
         for (const auto& [key, ids] : m.mByAlias)
         {
             const FormId held = m.aliasReferenceOf(key.first, key.second);
-            if (held == 0 || m.baseOfReference(held) != item)
+            // task 0335: with `golden claw` an alias made IN an inventory holds the item form itself (the claw)
+            if (held == 0 || (!(m.mCreatedInInventory && held == item) && m.baseOfReference(held) != item))
                 continue;
             for (const InstanceId instance : ids)
                 if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
@@ -4257,9 +4282,12 @@ namespace game_skyrimse
             if (record == nullptr || !record->startsEnabled() || !m.mState->running(quest))
                 continue;
             m.fillAliases(quest, false); // the find-matching ones wait until a script asks (task 0187)
+            if (m.mCreatedInInventory) // task 0335: the claw of The Golden Claw is made in Arvel's inventory at the start
+                m.mPendingCreate.push_back(quest);
             (void)m.attachQuest(quest);
             m.runStartUpStage(quest);
         }
+        m.runPendingCreates();
     }
 
     bool PapyrusHost::attachQuest(FormId quest)

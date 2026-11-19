@@ -791,6 +791,11 @@
       "default": false
     },
     {
+      "key": "golden claw",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "thieves guild",
       "type": "bool",
       "default": false

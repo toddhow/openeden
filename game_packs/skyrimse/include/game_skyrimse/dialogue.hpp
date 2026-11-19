@@ -464,6 +464,9 @@ namespace game_skyrimse
         /// factions, sex, race and inventory, the reference's initial disabled and dead state, GetDistance between
         /// two references of one cell, GetRelationshipRank from the RELA records. Null (the default): as before.
         void setPlacedRefs(const PlacedRefIndex* refs) { mPlacedRefs = refs; }
+        /// Task 0335: fn_45 GetDetected(player) holds for an actor that stands in the player's interior cell (off: nobody
+        /// detects him, as before). A stand-in for the engine's detection (not about sneaking, not a line of sight test).
+        void setDetectsPlayerInCell(bool on) { mDetectsPlayerInCell = on; }
         /// Task 0271: the place the player stands in (an interior cell, or the worldspace of an exterior square).
         void setPlayerPlace(bool known, bool interior, FormId cell, FormId world)
         {
@@ -554,6 +557,7 @@ namespace game_skyrimse
         bool inCell(conditions::Subject subject, std::uint32_t cell) const override;
         bool inSameCellAlias(conditions::Subject subject, std::uint32_t alias) const override; // task 0328
         bool inSameCell(conditions::Subject subject, std::uint32_t reference) const override; // task 0325
+        bool detects(conditions::Subject subject, std::uint32_t target) const override; // task 0335
         int sexOf(conditions::Subject subject) const override;
         bool hasKeyword(conditions::Subject subject, std::uint32_t keyword) const override;
         float factionRank(conditions::Subject subject, std::uint32_t faction) const override;
@@ -713,6 +717,7 @@ namespace game_skyrimse
         // Task 0271: where the player stands (the core tells the pack), for conditions that run on the player
         // (GetInCell, IsInInterior, GetInWorldspace of a package's ForceGreet).
         bool mPlayerPlaceKnown = false;
+        bool mDetectsPlayerInCell = false; // task 0335
         bool mPlayerInterior = false;
         FormId mPlayerCell = kNullFormId;
         FormId mPlayerWorld = kNullFormId;
