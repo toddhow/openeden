@@ -282,6 +282,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralsweeplarge.cpp
     mwworld/testneutralactoragent.cpp
     mwworld/testneutralpathbusy.cpp
+    mwworld/testneutralstreaming.cpp
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp

@@ -743,6 +743,15 @@ namespace MWClass
         return base.mModel;
     }
 
+    void Neutral::getModelsToPreload(const MWWorld::ConstPtr& ptr, std::vector<std::string_view>& models) const
+    {
+        if (!Settings::game().mNeutralWorld.get() || !Settings::game().mNeutralPreloadModels.get())
+            return;
+        const std::string_view model = getModel(ptr);
+        if (!model.empty())
+            models.push_back(model);
+    }
+
     void Neutral::insertObjectRendering(
         const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface) const
     {

@@ -96,6 +96,7 @@ namespace Settings
         SettingValue<bool> mExtensionDebugDraw{ mIndex, "Game", "extension debug draw" };
         SettingValue<bool> mExtensionProfiler{ mIndex, "Game", "extension profiler" };
         SettingValue<bool> mNeutralWorld{ mIndex, "Game", "neutral world" };
+        SettingValue<bool> mNeutralPreloadModels{ mIndex, "Game", "neutral preload models" };
         SettingValue<bool> mNeutralSaves{ mIndex, "Game", "neutral saves" };
         SettingValue<bool> mNeutralActors{ mIndex, "Game", "neutral actors" };
         SettingValue<bool> mNeutralInventory{ mIndex, "Game", "neutral inventory" };

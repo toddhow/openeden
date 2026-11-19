@@ -51,6 +51,7 @@
 #include "neutraldialogue.hpp"
 #include "neutralimagespace.hpp"
 #include "neutralmusicdriver.hpp"
+#include "neutralnavthreads.hpp"
 #include "neutralnavigation.hpp"
 #include "neutralphysicswater.hpp"
 #include "neutralpick.hpp"
@@ -350,6 +351,10 @@ namespace MWWorld
         {
             auto navigatorSettings = DetourNavigator::makeSettingsFromSettingsManager(Debug::Level::Info);
             navigatorSettings.mRecast.mSwimHeightScale = mSwimHeightScale;
+            // Task 0357: a neutral (game pack) session has its own updater thread count.
+            navigatorSettings.mAsyncNavMeshUpdaterThreads = chooseNavMeshUpdaterThreads(
+                Settings::game().mNeutralWorld.get(), navigatorSettings.mAsyncNavMeshUpdaterThreads,
+                Settings::navigator().mNeutralAsyncNavMeshUpdaterThreads.get());
             mNavigator = DetourNavigator::makeNavigator(navigatorSettings, mUserDataPath);
         }
         else

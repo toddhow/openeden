@@ -31,15 +31,17 @@ namespace MWClass
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
         MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
 
-        /// The preloader (a worker thread) must not read a neutral object's model: no reader for the game's models
-        /// exists yet (stage N3a-4) and cells are built on the main thread (design 10.4, R9).
         /// Task 0115 (stage N4): a door of the neutral cell. A teleport door takes the player to the destination
         /// cell (built as a neutral cell) at the XTEL arrival; a locked door, a door to an exterior and a door that
         /// leads nowhere refuse with a message; a door with no teleport is inert; every other kind keeps the null
         /// action. The decision is MWWorld::decideNeutralDoor.
         std::unique_ptr<MWWorld::Action> activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const override;
 
-        void getModelsToPreload(const MWWorld::ConstPtr&, std::vector<std::string_view>&) const override {}
+        /// Task 0357: with "neutral world" and "neutral preload models" on, the cell preloader lists the object's model
+        /// (what getModel returns) so that its worker reads it before the cell is built; PreloadCell calls this on the
+        /// main thread in its constructor and keeps the views, which point into the base record (the ESMStore's
+        /// Store<NeutralBase>, node-stable and never freed during a session). Off, as it was: nothing.
+        void getModelsToPreload(const MWWorld::ConstPtr& ptr, std::vector<std::string_view>& models) const override;
 
         // Task 0131 (stage N3a-6): a neutral object is an inert reference. These are the Class virtuals whose default
         // is to throw and that a generic engine path (not guarded by isActor, isItem or isDoor) or the console can
