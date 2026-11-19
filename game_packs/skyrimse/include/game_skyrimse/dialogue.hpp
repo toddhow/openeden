@@ -522,6 +522,9 @@ namespace game_skyrimse
         [[nodiscard]] FormId locationAncestorWithKeyword(FormId location, FormId keyword) const override;
         [[nodiscard]] FormId editorLocationOfReference(FormId reference) const override;
         [[nodiscard]] FormId editorLocationOfSubject(conditions::Subject subject) const override; // task 0230
+        /// Task 0342: GetIsEditorLocation on an actor is answered (the Innkeeper alias of MS14).
+        void setActorEditorLocation(bool on) { mActorEditorLocation = on; }
+        [[nodiscard]] bool actorEditorLocationOn() const override { return mActorEditorLocation; }
         /// The editor location of a reference / of an actor known by its base (see the .cpp for the order of sources).
         [[nodiscard]] FormId editorLocationOf(FormId reference, FormId base) const;
         /// The story filler's view of the aliases it has filled so far in the quest being planned (empty: the saved
@@ -647,6 +650,7 @@ namespace game_skyrimse
         const CrimeConditionSource* mCrimeSource = nullptr; // task 0258
         const StoryEvent* mStoryEvent = nullptr;
         FormId mSubjectLocation = kNullFormId; ///< task 0211
+        bool mActorEditorLocation = false; ///< task 0342
         std::function<FormId(std::uint32_t)> mAliasView; ///< task 0226
         std::function<FormId(FormId)> mReferenceLocation; ///< task 0226
         std::function<bool(FormId, std::uint32_t)> mSceneAction; ///< task 0194

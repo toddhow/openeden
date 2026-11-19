@@ -736,6 +736,11 @@
       "default": false
     },
     {
+      "key": "laid to rest",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "blood on the ice",
       "type": "bool",
       "default": false

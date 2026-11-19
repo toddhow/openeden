@@ -19,14 +19,18 @@ namespace game_skyrimse
             return source->locationHasRefType(location, source->resolveLocationForm(c.mParam1)) ? 1.f : 0.f;
         }
 
-        // 565 GetIsEditorLocation(location): the candidate is that location or inside it
+        // 565 GetIsEditorLocation(location): the candidate is that location or inside it. Task 0342: run on an ACTOR (the
+        // Innkeeper alias of MS14: this location, JobInnkeeperFaction and Jonna by id), the subject's editor location
+        // is the one that must lie inside it, as 567 does for the location an alias holds
         float getIsEditorLocation(
             const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
         {
             const LocationSubjectSource* source = dynamic_cast<const LocationSubjectSource*>(&world);
             if (source == nullptr || subject == 0)
                 return 0.f;
-            const FormId location = source->locationSubject();
+            FormId location = source->locationSubject();
+            if (location == kNullFormId && source->actorEditorLocationOn())
+                location = source->editorLocationOfSubject(subject);
             if (location == kNullFormId)
                 return 0.f;
             return source->locationWithin(location, source->resolveLocationForm(c.mParam1)) ? 1.f : 0.f;

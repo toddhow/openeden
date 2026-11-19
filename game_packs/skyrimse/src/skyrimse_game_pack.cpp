@@ -11,6 +11,7 @@
 #include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/bloodice.hpp"
 #include "game_skyrimse/forsworn.hpp"
+#include "game_skyrimse/laidtorest.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/frame_split.hpp"
@@ -1100,6 +1101,7 @@ namespace game_skyrimse
             void playerPlace(const openeden::sdk::game::PlayerPlace& place) { mPendingPlace = place; }
 
             [[nodiscard]] QuestAliasFiller::PlayerSite playerSite() const { return mSite; }
+            void setLaidToRest(bool on) { mLaidToRestOn = on; } // task 0342
 
             void processPlace()
             {
@@ -1126,6 +1128,7 @@ namespace game_skyrimse
                     mSite.mY = (static_cast<double>(place.gridY) + 0.5) * QuestAliasFiller::kCellSize;
                     location = mView.locationOfGridSquare(mSite.mWorld, place.gridX, place.gridY);
                 }
+                mView.setExteriorPlayerLocation(mLaidToRestOn && !place.interior, location); // task 0342
                 say(openeden::sdk::LogLevel::Info,
                     std::string("PAPYRUS player place ") + (place.interior ? "interior cell " : "exterior cell ")
                         + hexId(static_cast<FormId>(place.cell)) + " location " + hexId(location)); // task 0314
@@ -1899,6 +1902,7 @@ namespace game_skyrimse
             SectionMarks mMarks;
             static constexpr std::int64_t kSlowMarksMicroseconds = 5000;
             LocationChange mLocationChange; ///< the last location a CLOC event named (tasks 0187, 0211)
+            bool mLaidToRestOn = false; ///< task 0342 (`laid to rest`)
             static constexpr std::size_t kMaxPendingStory = 64;
             static constexpr int kStoryPerFrame = 4;
             std::optional<openeden::sdk::game::PlayerPlace> mPendingPlace;
@@ -2439,6 +2443,12 @@ namespace game_skyrimse
                                     minusOne.insert(houses::kJobStewardFaction);
                                 if (settings->getBool(kPackId, kRidingKey, false))
                                     minusOne.insert(static_cast<FormId>(kJobHostlerFactionId));
+                                if (settings->getBool(kPackId, std::string(laidtorest::kKey), false))
+                                {
+                                    // task 0342: the Jarl lines of MS14 test JobJarlFaction == 1 (every jarl holds it at rank -1)
+                                    minusOne.insert(static_cast<FormId>(laidtorest::kJobJarlFaction));
+                                    mWorldView.setActorEditorLocation(true);
+                                }
                                 if (!minusOne.empty())
                                     mWorldView.setRankMinusOneMembers(std::move(minusOne));
                             }
@@ -3182,6 +3192,11 @@ namespace game_skyrimse
                 {
                     mBloodIceOn = true; // task 0333
                     mPapyrus->enableActionlessScenes();
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(laidtorest::kKey), false))
+                {
+                    mPapyrus->host().setQuestUpdatesReachAliases(true); // task 0342
+                    mPapyrus->setLaidToRest(true);
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false))
                 {

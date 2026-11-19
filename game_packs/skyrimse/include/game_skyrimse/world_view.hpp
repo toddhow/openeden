@@ -650,6 +650,8 @@ namespace game_skyrimse
         }
         /// Task 0261: see SkyrimConditionWorld::setRankMinusOneMembers.
         void setRankMinusOneMembers(std::set<FormId> factions);
+        /// Task 0342 (`laid to rest`): a quest alias's GetIsEditorLocation condition is answered for an actor.
+        void setActorEditorLocation(bool on) { mActorEditorLocation = on; }
         // ---- task 0219 (training, rooms)
         /// Training and renting are named "open:<name>" in the conversation (set before the first conversation or
         /// any time after).
@@ -881,7 +883,19 @@ namespace game_skyrimse
         /// the view, so the Papyrus host and the condition worlds share it. Main thread.
         [[nodiscard]] LocationKeywordData& keywordData() { return mKeywordData; }
         /// Task 0217: the location the player stands in now (the site the driver reports); kNullFormId when unknown.
-        [[nodiscard]] FormId playerLocation() const { return mPlayerSite ? mPlayerSite().mLocation : kNullFormId; }
+        [[nodiscard]] FormId playerLocation() const
+        {
+            const FormId at = mPlayerSite ? mPlayerSite().mLocation : kNullFormId;
+            return at != kNullFormId || !mExteriorPlayerLocationOn ? at : mExteriorPlayerLocation;
+        }
+        /// Task 0342 (`laid to rest`): the location of the exterior square the player stands in is what Papyrus's
+        /// GetCurrentLocation / IsInLocation answer for him (the site only held an interior's location, so a script's
+        /// `Game.GetPlayer().IsInLocation(Morthal)` was false in the open). Off: unchanged.
+        void setExteriorPlayerLocation(bool on, FormId location)
+        {
+            mExteriorPlayerLocationOn = on;
+            mExteriorPlayerLocation = location;
+        }
         /// Task 0217: a developer's trace of the story manager's walks (applied now if the manager exists, else when
         // made).
         void setStoryTrace(StoryManager::Trace trace);
@@ -1084,6 +1098,9 @@ namespace game_skyrimse
         bool mHelloGreetings = false; ///< task 0308
         bool mDetectsPlayer = false; ///< task 0335
         std::set<FormId> mRankMinusOneMembers{ kJobInnkeeperFaction }; ///< task 0261, 0309
+        bool mActorEditorLocation = false; ///< task 0342
+        bool mExteriorPlayerLocationOn = false; ///< task 0342
+        FormId mExteriorPlayerLocation = kNullFormId; ///< task 0342
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)
         LocationKeywordData mKeywordData; ///< task 0217

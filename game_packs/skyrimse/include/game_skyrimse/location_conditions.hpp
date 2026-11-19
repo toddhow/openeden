@@ -53,6 +53,9 @@ namespace game_skyrimse
         {
             return kNullFormId;
         }
+        /// Task 0342 (`laid to rest`): GetIsEditorLocation (565) run on an ACTOR is answered from the actor's editor
+        /// location; off, it stays false for an actor (the older behaviour).
+        [[nodiscard]] virtual bool actorEditorLocationOn() const { return false; }
     };
 
     /// 563 and 565 only (a test pins this table's size; fn_181 is in `aliasLocationExtraFunctions`).

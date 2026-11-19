@@ -725,6 +725,10 @@ namespace game_skyrimse
         /// forsworn::isKillMoveName) kills the target (Weylin's SneakKillMove on Margret); the clip itself is not played.
         /// Off by default: the native is then a tolerant no-op.
         void setPairedKillMoves(bool on);
+        /// Task 0342: a quest script's `RegisterForUpdate` / `RegisterForSingleUpdate` also registers the scripts of the
+        /// quest's aliases (MS14's burned-house and coffin alias scripts handle OnUpdate and nothing else registers
+        /// them). Off by default: an alias has its own registration (task 0325).
+        void setQuestUpdatesReachAliases(bool on);
         /// Task 0337: `Actor.StartCombat(target)` with an actor other than the player reaches the hook `startCombatAt`
         /// (before, only a fight against the player was built and the native ignored every other target). Off by default.
         void setActorFights(bool on);

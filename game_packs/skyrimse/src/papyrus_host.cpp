@@ -1192,6 +1192,11 @@ namespace game_skyrimse
                     return true;
                 if (!mData.formClass(key.formId).empty())
                     return true;
+                // Task 0342: a script on a reference a script CREATED (0xFF8xxxxx: PlaceAtMe) is saved with the host's
+                // created table; the data does not know it before the load has rebuilt it, so a save made after any
+                // such script was attached was refused as a whole
+                if (mQuestUpdatesReachAliases && (key.formId & 0xFF800000u) == 0xFF800000u)
+                    return true;
                 // task 0317: the script of an unplaced item form (a Hearthfire house part) left by a form list or an
                 // inventory change
                 if (mOptions.mFormScripts)
@@ -1251,6 +1256,15 @@ namespace game_skyrimse
                 }
             if (std::find(out.begin(), out.end(), c.self.handle) == out.end())
                 out.push_back(c.self.handle);
+            // Task 0342: a quest's registration also reaches the scripts of its aliases (MS14: MS14BurnedHouseScript and
+            // MS14AlvasCoffinScript handle OnUpdate and nothing in the data registers them, so the quest's
+            // RegisterForUpdate(5) is what feeds them). RECALLED-VERIFY: the engine's own rule.
+            if (mQuestUpdatesReachAliases && info != mInstances.end() && !info->second.mIsAlias)
+                for (const auto& [key, ids] : mByAlias)
+                    if (key.first == info->second.mForm)
+                        for (const InstanceId aliasScript : ids)
+                            if (std::find(out.begin(), out.end(), aliasScript) == out.end())
+                                out.push_back(aliasScript);
             return out;
         }
 
@@ -2927,6 +2941,7 @@ namespace game_skyrimse
         StageEntryCheck mStageEntryCheck; ///< task 0261
         bool mRelocate = false; ///< task 0268
         bool mPairedKillMoves = false; ///< task 0337
+        bool mQuestUpdatesReachAliases = false; ///< task 0342
         bool mActorFights = false; ///< task 0337
         bool mCellMoves = false; ///< task 0286
         std::map<FormId, FormId> mCellMoved; ///< task 0286: a reference the world moved -> the cell it stands in now
@@ -3847,6 +3862,11 @@ namespace game_skyrimse
     void PapyrusHost::setPairedKillMoves(bool on)
     {
         mImpl->mPairedKillMoves = on;
+    }
+
+    void PapyrusHost::setQuestUpdatesReachAliases(bool on)
+    {
+        mImpl->mQuestUpdatesReachAliases = on;
     }
 
     void PapyrusHost::setStageEntryCheck(StageEntryCheck check)

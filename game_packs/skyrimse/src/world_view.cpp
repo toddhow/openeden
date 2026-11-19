@@ -1407,6 +1407,7 @@ namespace game_skyrimse
             raw->mQuestWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
             SkyrimConditionWorld* world = raw->mQuestWorld.get();
             world->setPlayerLevel(mHaveProgressionPlayer ? mProgressionLevel : mStandInPlayerLevel); // task 0305
+            world->setActorEditorLocation(mActorEditorLocation); // task 0342
             world->setCreatedActorBase([this](FormId reference) { return createdActorBase(reference); }); // task 0276
             world->setQuests(&raw->mData->mQuests, &raw->mRuntime->questsMutable());
             world->setLocations(&raw->mData->mLocations);

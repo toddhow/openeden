@@ -705,7 +705,12 @@ namespace game_skyrimse
                     mEnvironment, [&](std::uint32_t aliasId) { return state.aliasFill(questId, aliasId).mReference; });
                 ++mStats.mEvaluated;
                 if (!mMatcher(*quest, alias, reference, entryBase))
+                {
+                    if (mTrace)
+                        mTrace("  speaker " + std::to_string(reference) + " does not match alias " + alias.mName + " of "
+                            + quest->mCommon.mEditorId);
                     continue;
+                }
                 AliasFill fill;
                 fill.mKnown = true;
                 fill.mReference = reference;
@@ -713,6 +718,8 @@ namespace game_skyrimse
                 ++mStats.mFilled;
                 ++mStats.mMatched;
                 ++count;
+                if (mTrace)
+                    mTrace("  speaker " + std::to_string(reference) + " takes alias " + alias.mName + " of " + quest->mCommon.mEditorId);
             }
             // the speaker took an alias of this quest now, or holds one already (filled at the quest's start)
             if (count != before
