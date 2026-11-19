@@ -522,7 +522,7 @@ namespace game_skyrimse
                 return false;
             }
             ++mCounters.mEvents[lower(name)];
-            if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0299: OPENEDEN_PAPYRUS_NATIVE_TRACE too
+            if (mTraceNatives && mTraceCount < mTraceCap) // task 0299: OPENEDEN_PAPYRUS_NATIVE_TRACE too
             {
                 const auto info = mInstances.find(instance);
                 if (info != mInstances.end())
@@ -1448,7 +1448,7 @@ namespace game_skyrimse
                 descriptor,
                 [this, key, handler = std::move(handler)](const NativeCall& call) {
                     ++mCounters.mNatives[key];
-                    if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0223: OPENEDEN_PAPYRUS_NATIVE_TRACE
+                    if (mTraceNatives && mTraceCount < mTraceCap) // task 0223: OPENEDEN_PAPYRUS_NATIVE_TRACE
                     {
                         ++mTraceCount;
                         say(false, "Papyrus native " + key + " self " + hex(formOf(call.self)));
@@ -2938,6 +2938,12 @@ namespace game_skyrimse
             = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE") != nullptr; ///< a developer aid: one line a native
         std::uint64_t mTraceCount = 0;
         static constexpr std::uint64_t kMaxTracedNatives = 100000;
+        /// task 0333: OPENEDEN_PAPYRUS_NATIVE_TRACE=<number> raises the cap of traced calls (a long run hit 100,000)
+        std::uint64_t mTraceCap = []() {
+            const char* text = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE");
+            const unsigned long long wanted = text != nullptr ? std::strtoull(text, nullptr, 10) : 0ull;
+            return wanted > kMaxTracedNatives ? static_cast<std::uint64_t>(wanted) : kMaxTracedNatives;
+        }();
         std::map<FormId, float> mGlobalValues; ///< task 0223: values scripts set (SetValue); the data gives the rest
         std::deque<std::string> mNotes;
         std::uint64_t mNoteCount = 0;

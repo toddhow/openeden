@@ -40,7 +40,10 @@ also starts at hour 0, night), `blood on the ice` and `quest alias packages` on.
 from a place that is not Windhelm: Tamriel grid (32, 8), (33, 8) and (34, 8) are the Windhelm location, (32, 9) and (31, 8)
 are not) six times starts the kicker each time; at the fourth, MS11 starts (`quest 0001F7A3 started with 18 aliases filled`),
 stage 0 runs `Fragment_58`, **the opening scene begins and ends**, `Fragment_5` calls Kill, Disable, Enable and four `MoveTo`s
-(the world logs `A game pack moved the placement ... into Wilderness (32, 9)` for Helgird, Calixto, Silda and the guard), and
+(the world logs `A game pack moved the placement ... into Wilderness (32, 9)` for Helgird, Calixto, Silda and the guard: this is
+the log line for the moves in Tamriel grid terms; **the crime scene is in WindhelmWorld (WRLD 0x1691D, Lua `skyrimse:w92445`),
+a different worldspace from Tamriel, so a player standing in Tamriel sees no actor row and 450 units of height difference; the
+actors are real placements in WindhelmWorld. There is no move fault: the harness's `world` step goes there**), and
 MS11 is at stage 1. Three runs (`r333/f1..f3`) give the identical 35-line story trace (`r333/trace333.sh`, md5
 `42a8a5219abd`: kicker starts, quest start, scene begin and end, the fragment's moves, the world's four moves, the GameHour
 lines).
@@ -91,3 +94,21 @@ option) has no unit test of its own; the game run is its evidence. No existing t
 - A scene with no actions begins with nobody loaded, only with the setting; the engine's own rule for such scenes is
   RECALLED-VERIFY.
 - Not run: the Linux gate, clang-format 14 (formatted by hand), clang-tidy, the Lua tests, `openmw-tests`, a fresh review.
+
+
+## 7. Follow-up: the root cause of the missing actors, and the conversation chain (same task)
+
+- **Cause:** worldspace, not move machinery. Helgird, Calixto, Silda and the guard (base 1035914) stand at
+  (132744, 37560) in WindhelmWorld. The harness gained `world <id> x y z|'land'` (a cross-world teleport) and
+  `talk <base> [x y]` (activates the nearest actor of that base, with a reference point).
+- **Reached through the game's own data (real clicks, voiced):** the guard's forced greeting ("Hold it there! Keep your
+  distance." then "Another girl killed. This is Susanna, from Candlehearth Hall..."), the three witness topics (their TIFs
+  set `QuestionedWitness1..3`), then **MS11 stage 20** (`QF_MS11_0001F7A3.Fragment_2`), the journal listing the objectives
+  (frame viewed), and the guard's next line ("Just like always -- nobody saw anything useful. The bastard's escaped again.",
+  choice "There might be more to this, if you'll let me help.").
+- **Stand-in:** MS11 stage 10 (which the witness topics need) is set by the aid `story test quest = 01F7A3:10@40`; no script
+  of the data was found that sets it (cause in the data not established).
+- **Not reached:** stage 30 and later (the guard's "help" choice was shown, not shown to set a stage), the clues, the amulet
+  (stage 70), Wuunferth's arrest. Tamriel grid (32, 9) and (33, 9) have no location (a data gap of the CLOC mapping, not
+  changed).
+- `OPENEDEN_PAPYRUS_NATIVE_TRACE=<number>` now raises the trace's 100,000 call cap.

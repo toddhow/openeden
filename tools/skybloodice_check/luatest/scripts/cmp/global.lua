@@ -99,7 +99,9 @@ return {
                                 for _, o in ipairs(c:getAll()) do
                                     local ok, id = pcall(function() return o.recordId end)
                                     if ok and id ~= nil and tostring(id):match(':b(%d+)$') == tostring(step[3]) then
-                                        local d = (o.position - player.position):length()
+                                        -- task 0333: an optional point (step[4], step[5]) picks among objects of one base
+                                        local d = step[4] ~= nil and math.sqrt((o.position.x - step[4]) ^ 2 + (o.position.y - step[5]) ^ 2)
+                                            or (o.position - player.position):length()
                                         if d < bestD then best, bestD = o, d end
                                     end
                                 end
@@ -159,6 +161,20 @@ return {
                                 print(string.format('CMP id %s at %.0f,%.0f,%.0f', id, o.position.x, o.position.y, o.position.z))
                             end
                         end
+                    elseif step[2] == 'world' then
+                        -- task 0333: into another world (WindhelmWorld is 'skyrimse:w92445'): step = { u, 'world', id, x, y, z }
+                        local gx, gy = math.floor(step[4] / 4096), math.floor(step[5] / 4096)
+                        local okc, c = pcall(world.getExteriorCell, gx, gy, 'skyrimse:w' .. tostring(step[3]))
+                        trace(string.format('world %s cell %s,%s ok=%s', tostring(step[3]), gx, gy, tostring(okc and c ~= nil)))
+                        if okc and c ~= nil then
+                            local gz = step[6]
+                            if gz == 'land' then
+                                local okh, h = pcall(function() return core.land.getHeightAt(util.vector3(step[4], step[5], 0), c) end)
+                                gz = (okh and h or 0) + 120
+                                print(string.format('CMP land %.0f,%.0f = %s', step[4], step[5], tostring(h)))
+                            end
+                            player:teleport(c, util.vector3(step[4], step[5], gz), { rotation = util.transform.rotateZ(step[7] or 0) })
+                        end
                     elseif step[2] == 'hour' then
                         pcall(function() world.mwscript.getGlobalVariables(world.players[1]).gamehour = step[3] end)
                         trace('hour ' .. tostring(step[3]))
@@ -180,7 +196,7 @@ return {
                             print(string.format('CMP cell %s,%s objects %d', tostring(c.gridX), tostring(c.gridY), okn and #all or -1))
                             for _, o in ipairs(c:getAll()) do
                                 local bid = tostring(o.recordId):match(':b(%d+)$')
-                                local wanted = setmetatable({}, { __index = function() return true end })
+                                local wanted = { [bid or 0] = true }
                                 if bid ~= nil and wanted[bid] and (o.position - player.position):length() <= step[3] then
                                     print(string.format('CMP near %s at %.0f,%.0f,%.0f dist %.0f', tostring(o.recordId), o.position.x, o.position.y, o.position.z, (o.position - player.position):length()))
                                 end
