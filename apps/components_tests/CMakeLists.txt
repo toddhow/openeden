@@ -604,6 +604,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsescriptvariable.cpp
     skyrimse/testskyrimsepapyrusspellevents.cpp
     skyrimse/testskyrimsemq324.cpp
+    skyrimse/testskyrimsemq328.cpp
     skyrimse/testskyrimsepapyrusmq318.cpp
     skyrimse/testskyrimsemq318alias.cpp
     skyrimse/testskyrimsemq318created.cpp

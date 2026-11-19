@@ -39,6 +39,10 @@ namespace game_skyrimse
         /// Task 0274: the box's turn about Z (the reference's rotation, radians, the data's clockwise convention) and
         /// whether the tracker may test a box at all.
         double mRotationZ = 0.0;
+        /// Task 0328: the reference's turns about X and Y (radians, the data's convention). MQ105SetStage20, the trigger
+        /// that sets stage 20 when the player walks into High Hrothgar, is a box turned a quarter about X and about Y.
+        double mRotationX = 0.0;
+        double mRotationY = 0.0;
         bool mAcceptBox = false;
     };
 

@@ -21,7 +21,8 @@ namespace game_skyrimse
     {
         if (volume.mType == kPrimitiveBox) // task 0274: only where the pack asked for boxes
             return volume.mAcceptBox && finite3(volume.mBounds) && volume.mBounds[0] > 0.0 && volume.mBounds[1] > 0.0
-                && volume.mBounds[2] > 0.0 && finite3(volume.mPosition) && std::isfinite(volume.mRotationZ);
+                && volume.mBounds[2] > 0.0 && finite3(volume.mPosition) && std::isfinite(volume.mRotationZ)
+                && std::isfinite(volume.mRotationX) && std::isfinite(volume.mRotationY);
         return volume.mType == kPrimitiveSphere && std::isfinite(volume.mBounds[0]) && volume.mBounds[0] > 0.0
             && finite3(volume.mPosition);
     }
@@ -33,12 +34,18 @@ namespace game_skyrimse
         const double dx = x - volume.mPosition[0], dy = y - volume.mPosition[1], dz = z - volume.mPosition[2];
         if (volume.mType == kPrimitiveBox)
         {
-            // world to the box's frame: the reference is turned clockwise by its rotation (the data's convention), so
-            // the point is turned back by the same angle the other way (half extents, see triggers.hpp)
+            // world to the box's frame. The reference is turned by Rx(-ax) Ry(-ay) Rz(-az) (Z first: task 0151),
+            // so the point is turned back by Rz(az) Ry(ay) Rx(ax), X first (half extents, see triggers.hpp). With no
+            // turn about X and Y this is the plain Z rotation of task 0274. Task 0328: MQ105SetStage20 is turned
+            // about X and Y.
+            const double cx = std::cos(volume.mRotationX), sx = std::sin(volume.mRotationX);
+            const double cy = std::cos(volume.mRotationY), sy = std::sin(volume.mRotationY);
             const double c = std::cos(volume.mRotationZ), s = std::sin(volume.mRotationZ);
-            const double lx = dx * c - dy * s, ly = dx * s + dy * c;
+            const double y1 = dy * cx - dz * sx, z1 = dy * sx + dz * cx; // Rx
+            const double x2 = dx * cy + z1 * sy, z2 = -dx * sy + z1 * cy; // Ry
+            const double lx = x2 * c - y1 * s, ly = x2 * s + y1 * c; // Rz
             return std::abs(lx) <= volume.mBounds[0] && std::abs(ly) <= volume.mBounds[1]
-                && std::abs(dz) <= volume.mBounds[2];
+                && std::abs(z2) <= volume.mBounds[2];
         }
         const double radius = volume.mBounds[0];
         return dx * dx + dy * dy + dz * dz <= radius * radius;

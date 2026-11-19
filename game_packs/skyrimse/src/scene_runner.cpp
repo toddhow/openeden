@@ -491,9 +491,29 @@ namespace game_skyrimse
                     mEnv.log("SCENE " + hex(id) + " phase " + std::to_string(in.mPhase));
                     runPhaseFragments(mEnv, id, record, in.mPhase, false, mStats.mFragments);
                     for (std::size_t i = 0; i < record.mActions.size(); ++i)
-                        if (record.mActions[i].mStartPhase == static_cast<std::uint32_t>(in.mPhase)
-                            && in.mActions[i].mStage == ActionStage::Waiting)
+                    {
+                        const SceneAction& a = record.mActions[i];
+                        if (in.mActions[i].mStage != ActionStage::Waiting)
+                            continue;
+                        const auto phaseNow = static_cast<std::uint32_t>(in.mPhase);
+                        if (a.mStartPhase == phaseNow)
                             in.mActions[i].mStage = ActionStage::Running;
+                        else if (a.mStartPhase < phaseNow && a.mEndPhase >= phaseNow)
+                        {
+                            // task 0328: the phase the action starts in was skipped (its start conditions failed), so
+                            // the action never started and would hold the phase it ends in for ever (MQ105's
+                            // EinarthTeachScene, a hold package from phase 1 to 4 with phases 1 and 2 skipped). A package
+                            // is a state for the span: it starts in the first phase of the span that runs. A line or
+                            // timer is part of the skipped phase: it is left out.
+                            if (a.mType == SceneActionType::Package)
+                                in.mActions[i].mStage = ActionStage::Running;
+                            else
+                            {
+                                in.mActions[i].mStage = ActionStage::Done;
+                                mDone[id].insert(a.mIndex);
+                            }
+                        }
+                    }
                 }
                 // advance the running actions
                 for (std::size_t i = 0; i < record.mActions.size(); ++i)

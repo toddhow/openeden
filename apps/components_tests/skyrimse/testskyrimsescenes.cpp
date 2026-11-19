@@ -765,4 +765,47 @@ namespace
         tick(runner, 0.5f, 20);
         EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "say 3073 three"), 0);
     }
+
+    // Task 0328: MQ105's EinarthTeachScene stalled in phase 4 when the aid set stage 50 first: phases 1 and 2 (their start
+    // conditions say "stage 50 not done") were skipped, so the hold package that starts in phase 1 and ends in phase 4
+    // never started and its Waiting state kept phase 4 from ending.
+    TEST(SceneRunnerSkip328, aPackageWhoseStartPhaseWasSkippedStartsInTheFirstPhaseOfItsSpanThatRuns)
+    {
+        const Parsed p({ scenRecord(kScene, 0, { phase(), phase(ctda(59, 1.f, kQuest, 10)), phase() }, { 1 },
+            { packageAction(1, 1, 1, 2, { kPackage }) }, kQuest) });
+        FakeEnv env;
+        SceneRunner runner(p.mIndex, env);
+        runner.setSkipFailedPhases(true);
+        ASSERT_TRUE(runner.start(kScene));
+        env.mConditionResult = false;
+        tick(runner, 0.5f, 6);
+        EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "package 3073 2817"), 1);
+        EXPECT_TRUE(runner.isPlaying(kScene));
+        env.mPackageDone = true;
+        tick(runner, 0.5f, 4);
+        EXPECT_FALSE(runner.isPlaying(kScene));
+    }
+
+    TEST(SceneRunnerSkip328, aLineWhoseStartPhaseWasSkippedIsNotSpokenLateAndDoesNotHoldThePhase)
+    {
+        Bytes spanning = actionHead(0, 1, 1, 1, 2); // a line that starts in phase 1 and ends in phase 2
+        spanning.append(sub4("DATA", Bytes().u32(kTopicA)));
+        spanning.append(sub4("HTID", Bytes().u32(0xFFFFFFFFu)));
+        spanning.append(sub4("DMAX", Bytes().f32(10.f)));
+        spanning.append(sub4("DMIN", Bytes().f32(1.f)));
+        spanning.append(sub4("DEMO", Bytes().u32(0)));
+        spanning.append(sub4("DEVA", Bytes().u32(0)));
+        spanning.append(empty("ANAM"));
+        const Parsed p({ scenRecord(kScene, 0, { phase(), phase(ctda(59, 1.f, kQuest, 10)), phase() }, { 1 },
+            { spanning, timerAction(2, 2, 2, 1.f) }, kQuest) });
+        FakeEnv env;
+        env.mLines[kTopicA] = line("late");
+        SceneRunner runner(p.mIndex, env);
+        runner.setSkipFailedPhases(true);
+        ASSERT_TRUE(runner.start(kScene));
+        env.mConditionResult = false;
+        tick(runner, 0.5f, 10);
+        EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "say 3073 late"), 0);
+        EXPECT_FALSE(runner.isPlaying(kScene));
+    }
 }

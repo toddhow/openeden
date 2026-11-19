@@ -766,6 +766,11 @@ namespace game_skyrimse
                 mDawnguard = true;
                 enableDaedric();
             }
+            void enableWhiterunTriggers() // task 0328: MQ105SetStage20, the box that starts the Greybeards' scene
+            {
+                mWhiterunBoxes = true;
+                mView.setPrimitiveTriggers(true);
+            }
             void enableThieves() // task 0314: the Ragged Flagon's scene trigger box fires for the player, and the
                                  // player's location change reaches the scripts on him (TG01PlayerAliasScript)
             {
@@ -1781,9 +1786,11 @@ namespace game_skyrimse
                             volume.mPosition[2] = static_cast<double>(s.mPosition.z);
                             volume.mCell = s.mCell;
                             volume.mRotationZ = static_cast<double>(s.mRotation.z); // task 0274
+                            volume.mRotationX = static_cast<double>(s.mRotation.x); // task 0328
+                            volume.mRotationY = static_cast<double>(s.mRotation.y);
                             // tasks 0274 and 0292: the cart ride's slabs and the College bridge's box
                             volume.mAcceptBox = acceptsBoxTriggers(mMainQuest, mCollege, mDaedric, mDragonborn)
-                                || mDawnguard || mThieves;
+                                || mDawnguard || mThieves || mWhiterunBoxes;
                             volume.mInterior = mData.cellIsInterior(s.mCell);
                             if (volume.mAcceptBox && volume.mType == kPrimitiveBox)
                                 say(openeden::sdk::LogLevel::Info,
@@ -1849,6 +1856,7 @@ namespace game_skyrimse
             bool mDaedric = false; ///< task 0310
             bool mDawnguard = false; ///< task 0319
             bool mThieves = false; ///< task 0314
+            bool mWhiterunBoxes = false; ///< task 0328
             bool mMainQuestApplied = false;
             double mNextCartLog = 0.0; ///< task 0274
             bool mEnablingChildren = false; ///< task 0274: pushEnabled is walking the enable children
@@ -3057,6 +3065,7 @@ namespace game_skyrimse
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
                     mPapyrus->enablePlayerEvents(); // task 0318
+                    mPapyrus->enableWhiterunTriggers(); // task 0328: MQ105SetStage20 (a box turned about X and Y)
                     // task 0324: Arngeir's talk after the push (MQ105ArngeirEinarthWordTopic and the other nameless
                     // branch starts of the quest) is the greeting a quest gives; the fragments of a line run before the
                     // next choice
@@ -3068,6 +3077,15 @@ namespace game_skyrimse
                     // task 0313: a dragon's death goes through the game's own sequence, which takes the soul
                     mWhiterunQuest = true;
                     mCellSource.setLivePlaces(true);
+                    // task 0328: a scene's Travel package that cannot be walked (High Hrothgar's stairs are not on the
+                    // navmesh: Einarth's walk to his teaching marker) ends with the actor at its destination, the
+                    // mechanism of task 0277 (one mechanism: the same brain switch the Companions use)
+                    mCellSource.actorTable().setCarryTravellers(true);
+                    // task 0328: GetDistance of a scene phase's completion condition (phase 23: Einarth within 800 units of
+                    // the player) reads where the actor really stands, as the Companions' scenes do (task 0277)
+                    mWorldView.setLiveActorPlace([this](FormId reference, double& x, double& y, double& z) {
+                        return mCellSource.actorTable().brainPlace(reference, x, y, z);
+                    });
                     // task 0324: the Greybeards (a faction MQ105 stage 5 makes the player's ally) do not answer his
                     // push with a fight
                     mCellSource.combat().setAllyOfPlayerHook([this](const std::vector<FormId>& factions) {

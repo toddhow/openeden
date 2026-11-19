@@ -2653,9 +2653,13 @@ namespace game_skyrimse
         out.mSetSceneLookup = [state](std::function<bool(FormId, std::uint32_t)> lookup) {
             state->mQuestWorld->setSceneActionLookup(std::move(lookup));
         };
-        out.mEvaluate = [state, data](const std::vector<survey::Ctda>& list, FormId scene, FormId quest) {
+        out.mEvaluate = [this, state, data](const std::vector<survey::Ctda>& list, FormId scene, FormId quest) {
             SkyrimConditionWorld* world = state->mQuestWorld.get();
             const SceneRecord* record = data->mScenes.scene(scene);
+            // Task 0328: a scene's phase waits for "the player alias is in this cell" (MQ105EinarthTeachScene's phase 7:
+            // GetInCell(HighHrothgar) on the Player alias): the quest world is told where the player stands, as the
+            // package worlds are (only with `quest alias packages`, like the other player facts)
+            world->setPlayerPlace(mAliasPackagesOn && mPlayerPlaceKnown, mPlayerInterior, mPlayerCell, mPlayerWorld);
             world->setStoryEvent(nullptr);
             world->setSpeaker(DialogueSpeaker());
             world->setQuestContext(quest);
