@@ -42,7 +42,8 @@ namespace MWWorld
     /// Rotation (xEdit: "Directional Rotation XY" and "Z", degrees; the convention is RECALLED-VERIFY and was checked
     /// against the data, see the task doc): Z is the elevation of the light above the horizon (90: straight above, the
     /// lighting templates' own default; 270 and 240: from below, the lava and glow caves), XY its heading, clockwise
-    /// from north (+Y): toward-light = (cos Z sin XY, cos Z cos XY, sin Z). Fade (toddhow, 2026-11-19): 0 is the
+    /// from north (+Y): toward-light = (cos Z sin XY, cos Z cos XY, sin Z); exactly (0, 0) is "not set" and keeps the old
+    /// fixed direction from above (toddhow, 2026-11-19). Fade (toddhow, 2026-11-19): 0 is the
     /// full light; between 0 and 1 it is the intensity; the rest clamps to [0, 1] (the data holds 0, 0.1 to 1, 5).
     [[nodiscard]] std::optional<NeutralInteriorSun> neutralInteriorSun(
         const openeden::sdk::game::CellLightSettings* settings, bool enabled);

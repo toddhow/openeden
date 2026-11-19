@@ -42,8 +42,16 @@ namespace MWWorld
         const double heading = settings->rotationXY * kDegreesToRadians;
         const double elevation = settings->rotationZ * kDegreesToRadians;
         NeutralInteriorSun sun;
-        sun.towardLight = { static_cast<float>(std::cos(elevation) * std::sin(heading)),
-            static_cast<float>(std::cos(elevation) * std::cos(heading)), static_cast<float>(std::sin(elevation)) };
+        // toddhow, 2026-11-19: a rotation of exactly (0, 0) is the "not set" case (349 cells of the masters): the
+        // engine's old fixed direction from above, (-0.15, 0.15, 1) normalised. Any other rotation is the cell's own.
+        if (settings->rotationXY == 0.0 && settings->rotationZ == 0.0)
+        {
+            const float length = std::sqrt(0.15f * 0.15f + 0.15f * 0.15f + 1.f);
+            sun.towardLight = { -0.15f / length, 0.15f / length, 1.f / length };
+        }
+        else
+            sun.towardLight = { static_cast<float>(std::cos(elevation) * std::sin(heading)),
+                static_cast<float>(std::cos(elevation) * std::cos(heading)), static_cast<float>(std::sin(elevation)) };
         // toddhow, 2026-11-19: a fade of 0 is the FULL light; only a fade between 0 and 1 dims it.
         const double fade = settings->directionalFade;
         sun.intensity = fade == 0.0 ? 1.f : static_cast<float>(std::clamp(fade, 0.0, 1.0));

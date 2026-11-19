@@ -52,10 +52,25 @@ namespace
         EXPECT_FLOAT_EQ(sun->intensity, 1.f);
     }
 
-    TEST(NeutralInteriorSun, zeroRotationIsAHorizontalLightFromNorthAndZ270IsFromBelow)
+    TEST(NeutralInteriorSun, rotationZeroZeroIsNotSetAndKeepsTheEnginesOldDirectionFromAbove)
     {
-        const CellLightSettings flat = settings(0, 0, 1);
-        expectDirection(*neutralInteriorSun(&flat, true), 0.f, 1.f, 0.f);
+        // toddhow, 2026-11-19: (0, 0) is the "not set" case (349 cells): the old fixed (-0.15, 0.15, 1), normalised.
+        const float length = std::sqrt(0.15f * 0.15f + 0.15f * 0.15f + 1.f);
+        const CellLightSettings unset = settings(0, 0, 1);
+        expectDirection(*neutralInteriorSun(&unset, true), -0.15f / length, 0.15f / length, 1.f / length);
+        const CellLightSettings unsetFade = settings(0, 0, 0.5);
+        const auto sun = neutralInteriorSun(&unsetFade, true);
+        expectDirection(*sun, -0.15f / length, 0.15f / length, 1.f / length);
+        EXPECT_FLOAT_EQ(sun->intensity, 0.5f);
+        // Any non-zero angle is the cell's own.
+        const CellLightSettings headingOnly = settings(90, 0, 1);
+        expectDirection(*neutralInteriorSun(&headingOnly, true), 1.f, 0.f, 0.f);
+        const CellLightSettings elevationOnly = settings(0, 30, 1);
+        expectDirection(*neutralInteriorSun(&elevationOnly, true), 0.f, 0.8660254f, 0.5f);
+    }
+
+    TEST(NeutralInteriorSun, zeroXyAtElevation90IsAboveAndZ270IsFromBelow)
+    {
         const CellLightSettings below = settings(0, 270, 1);
         expectDirection(*neutralInteriorSun(&below, true), 0.f, 0.f, -1.f);
         const CellLightSettings glow = settings(270, 240, 1); // the lava and glow caves
