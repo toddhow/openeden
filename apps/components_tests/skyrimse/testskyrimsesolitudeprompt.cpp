@@ -101,7 +101,7 @@ namespace
             branch.append(sub4("EDID", Bytes().zstring("BlockingBranch")));
             branch.append(sub4("QNAM", Bytes().u32(kQuest)));
             branch.append(sub4("TNAM", Bytes().u32(0)));
-            branch.append(sub4("DNAM", Bytes().u32(4))); // Blocking
+            branch.append(sub4("DNAM", Bytes().u32(2))); // Blocking
             branch.append(sub4("SNAM", Bytes().u32(kTopicBlocking)));
             Bytes npc;
             npc.append(sub4("EDID", Bytes().zstring("Falk")));
