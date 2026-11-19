@@ -108,6 +108,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     esm3/readerscache.cpp
     esm3/testsaveload.cpp
+    esm3/testlightneutralgain.cpp
     esm3/testsavedgamepack.cpp
     esm3/testesmwriter.cpp
     esm3/testinfoorder.cpp

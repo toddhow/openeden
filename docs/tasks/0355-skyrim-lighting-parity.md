@@ -88,8 +88,7 @@ intended light was kept. **Fix 2: `[Game] neutral light fade gain` (default TRUE
 light path, so Morrowind never sees it).** The part the byte cannot hold (`neutralLightGain`: fade over the scale
 `neutralLightColor` applied) is stored in `ESM::Light::mData.mWeight` with a new flag `ESM::Light::NeutralGain` (0x10000, not
 a bit of the file format) and `MWAnim::addLight` multiplies the light's colour by it. The light sum in the shaders is not
-clamped before the diffuse term, so a pool core can exceed 1 as in Skyrim. Risk for toddhow: a Morrowind plugin whose light
-flags carry bit 0x10000 would be brightened by its weight (none known).
+clamped before the diffuse term, so a pool core can exceed 1 as in Skyrim. `ESM::Light::load` clears the bit after reading the flags, so no file can set it (test `LightNeutralGain` in `apps/components_tests/esm3/testlightneutralgain.cpp`, written first, 2 of 2 failed red before the clear, 2 of 2 pass after).
 
 **Finding 3, not changed: XRDS.** 10,810 of 12,148 placed light references of `Skyrim.esm` carry an XRDS float that is NOT the
 base radius (for base 256: 825, 415, 143, 35, 5, -13, -80, ... p10 -0.29 and p90 2.1 times the base): if it is the reference's

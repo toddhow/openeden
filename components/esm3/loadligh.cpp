@@ -58,6 +58,9 @@ namespace ESM
             }
         }
 
+        // OpenEden (task 0355 stage b): NeutralGain is not a bit of the file format; a file must never set it.
+        mData.mFlags &= ~NeutralGain;
+
         if (!hasName)
             esm.fail("Missing NAME subrecord");
         if (!hasData && !isDeleted)
