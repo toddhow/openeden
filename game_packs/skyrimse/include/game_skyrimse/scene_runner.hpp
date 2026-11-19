@@ -131,6 +131,9 @@ namespace game_skyrimse
             /// quest started). Off by default: other quests' scenes are dropped as before.
             bool mRetryQuestStart = false;
             bool mSkipFailedPhases = false; ///< task 0308
+            /// Task 0349: a package action that finished keeps its package on the actor until the scene ends (the actor stays
+            /// where the package left it; MQ106IntroScene's phase 6 waits for the player with Delphine in the bedroom).
+            bool mHoldFinishedPackages = false;
             /// Task 0333: a scene with no actions begins although none of its actors is loaded (MS11's opening scene only
             /// runs a phase fragment that moves its actors). Off by default: other scenes are refused as before.
             bool mActionlessStartsUnloaded = false;
@@ -168,6 +171,7 @@ namespace game_skyrimse
         /// Task 0308: a phase whose start conditions fail is skipped, not waited for (the Whiterun scene's phase 7 needs
         /// quest stage 82, which only one dialogue path sets; RECALLED-VERIFY: the CK's meaning of a start condition)
         void setSkipFailedPhases(bool on) { mOptions.mSkipFailedPhases = on; }
+        void setHoldFinishedPackages(bool on) { mOptions.mHoldFinishedPackages = on; } // task 0349
         void setActionlessStartsUnloaded(bool on) { mOptions.mActionlessStartsUnloaded = on; } // task 0333
         void setBeginFragmentStartsUnloaded(bool on) { mOptions.mBeginFragmentStartsUnloaded = on; } // task 0350
         void setPhaseEnd(PhaseEndRule rule) { mOptions.mPhaseEnd = rule; } // task 0329

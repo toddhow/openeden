@@ -1986,7 +1986,11 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(added));
             });
             reg("ObjectReference", "GetBaseObject", false, [this](const NativeCall& c) {
-                const FormId base = baseOfReference(formOf(c.self));
+                // task 0349: the player's base is the NPC_ `Player` (0x7): defaultOnEnter's CheckTriggerRef compares it with its
+                // TriggerActor (MQ106's trigger boxes wait for Delphine AND the player)
+                constexpr FormId kPlayerBase = 0x7;
+                const FormId self = formOf(c.self);
+                const FormId base = self == kPlayerReference ? kPlayerBase : baseOfReference(self);
                 return result(base != 0 ? formValue(base) : PapyrusValue::makeNone()); // task 0274: the base has its own class
             });
             reg("ObjectReference", "Activate", false, [this](const NativeCall& c) {
@@ -4566,6 +4570,12 @@ namespace game_skyrimse
                     ++queued;
         }
         return queued;
+    }
+
+    int PapyrusHost::openStateOf(FormId reference) const
+    {
+        const auto it = mImpl->mOpenStates.find(reference);
+        return it == mImpl->mOpenStates.end() ? Impl::kOpenStateClosed : it->second;
     }
 
     std::size_t PapyrusHost::updateSubjectTriggers(const std::vector<SubjectPlace>& subjects)

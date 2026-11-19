@@ -124,6 +124,12 @@ namespace game_skyrimse::conditions
             return asFloat(player != 0 && world.sexOf(player) == static_cast<int>(c.mParam1));
         }
 
+        // 157 GetOpenState (task 0349)
+        float getOpenState(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? static_cast<float>(world.openState(subject)) : 0.f;
+        }
+
         // 46 GetDead
         float getDead(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
@@ -798,7 +804,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 126> sTable = { {
+        constexpr std::array<Entry, 127> sTable = { {
             { 1, getDistance },
             { 5, getLockedFn },
             { 14, getActorValue },
@@ -842,6 +848,7 @@ namespace game_skyrimse::conditions
             { 144, getTrespassWarningLevel },
             { 145, isTrespassing },
             { 149, getIsCurrentWeather },
+            { 157, getOpenState },
             { 159, getSitting },
             { 161, getIsCurrentPackage },
             { 182, getEquipped },

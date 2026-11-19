@@ -715,6 +715,7 @@ namespace game_skyrimse
             void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
             void enableActionlessScenes() { mActionlessScenes = true; } // task 0333
             void enableBeginFragmentScenes() { mBeginFragmentScenes = true; } // task 0350
+            void enableHeldScenePackages() { mHoldScenePackages = true; } // task 0349
             void enableCreatedInInventory() { mHost.setCreatedInInventory(true); } // task 0335
             /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
             /// OnObjectEquipped (a shout equipped from the menu).
@@ -785,11 +786,18 @@ namespace game_skyrimse
             void applyFollowerTriggers()
             {
                 SkyrimCellSource* cells = dynamic_cast<SkyrimCellSource*>(&mCells);
-                if (!mSideQuests || mMainQuest || cells == nullptr)
+                if ((!mSideQuests && mTriggerSubjects.empty()) || mMainQuest || cells == nullptr)
                     return;
                 openeden::sdk::game::WorldId ids[8] = {};
-                const std::size_t count = cells->actorTable().followers(ids, 8);
+                const std::size_t count = mSideQuests ? cells->actorTable().followers(ids, 8) : 0;
                 std::vector<PapyrusHost::SubjectPlace> subjects;
+                // task 0349: named actors are subjects too (Delphine in MQ106InnRoomTriggerScript's box)
+                for (const FormId named : mTriggerSubjects)
+                {
+                    double x = 0, y = 0, z = 0;
+                    if (cells->actorTable().brainPlace(named, x, y, z))
+                        subjects.push_back({ named, x, y, z });
+                }
                 for (std::size_t i = 0; i < count && i < 8; ++i)
                 {
                     double x = 0, y = 0, z = 0;
@@ -804,6 +812,7 @@ namespace game_skyrimse
                 mDawnguard = true;
                 enableDaedric();
             }
+            void addTriggerSubject(FormId reference) { mTriggerSubjects.insert(reference); } // task 0349
             void enableWhiterunTriggers() // task 0328: MQ105SetStage20, the box that starts the Greybeards' scene
             {
                 mWhiterunBoxes = true;
@@ -1048,6 +1057,8 @@ namespace game_skyrimse
                         mScenes->runner().setBeginFragmentStartsUnloaded(true);
                     if (mActionlessScenes) // task 0333: MS11's opening scene only runs a fragment
                         mScenes->runner().setActionlessStartsUnloaded(true);
+                    if (mHoldScenePackages) // task 0349: a finished walk keeps the actor where it ended until the scene does
+                        mScenes->runner().setHoldFinishedPackages(true);
                 }
                 if (mForceOn) // tasks 0264 and 0271: the conversation a ForceGreet package asks for
                 {
@@ -1903,6 +1914,7 @@ namespace game_skyrimse
             bool mDaedric = false; ///< task 0310
             bool mDawnguard = false; ///< task 0319
             bool mSideQuests = false; ///< task 0341
+            std::set<FormId> mTriggerSubjects; ///< task 0349: actors whose place the box triggers hear (`blade in the dark`)
             bool mThieves = false; ///< task 0314
             bool mWhiterunBoxes = false; ///< task 0328
             bool mMainQuestApplied = false;
@@ -1929,6 +1941,7 @@ namespace game_skyrimse
             bool mDragonbornScenes = false; ///< task 0329
             bool mActionlessScenes = false; ///< task 0333
             bool mBeginFragmentScenes = false; ///< task 0350
+            bool mHoldScenePackages = false; ///< task 0349
             bool mPlayerEvents = false; ///< task 0318
             bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
             bool mCompanionsOn = false; ///< task 0264
@@ -3265,6 +3278,32 @@ namespace game_skyrimse
                     // reference): the place the actor stands at now (task 0313's live places, task 0277's hook)
                     mCellSource.setLivePlaces(true);
                     useLiveActorPlaces();
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "blade in the dark", false))
+                {
+                    // task 0349: MQ106 "A Blade in the Dark". Delphine's alias packages walk her to the rented room behind
+                    // locked doors (no navmesh path: the walk the mover cannot do ends at the marker, MUST COMPLETE), her
+                    // packages are tried in ONE order by quest priority, and the box triggers of the quest fire
+                    mWorldView.setAliasPriorityOrder(true);
+                    // HAND-WRITTEN stand-in (task 0349): MQ106's Travel packages of Delphine (ToRoom, ToGearUp, ToGearUp2,
+                    // ToRiverwoodEx, ToOrgnar) end with her placed at the target when the walk fails
+                    mCellSource.actorTable().setSnapPackages({ 0x3292A, 0xC65B4, 0xC65B5, 0xC65B7, 0x21404 });
+                    mCellSource.setLivePlaces(true);
+                    enableSceneWalks(); // the scene's walks (ToSecretDoor, ...) that cannot be done end at their targets
+                    mWorldView.setBlockingBranches(true);
+                    mWorldView.setQuestGreetings(true);
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
+                    mPapyrus->enableWhiterunTriggers();
+                    mPapyrus->enablePlayerEvents();
+                    // the scene's door condition (MQ106IntroScene phase 6): closed unless a script opened it
+                    mWorldView.setOpenStateLookup([this](FormId reference) {
+                        return mPapyrus != nullptr ? mPapyrus->host().openStateOf(reference) : 3;
+                    });
+                    mPapyrus->enableHeldScenePackages();
+                    mPapyrus->addTriggerSubject(0x13485); // Delphine's placement: MQ106InnRoomTriggerScript counts her
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "golden claw", false))
                 {

@@ -1112,6 +1112,16 @@ namespace game_skyrimse
         return false;
     }
 
+    int SkyrimConditionWorld::openState(conditions::Subject subject) const
+    {
+        ActorView view;
+        const bool isOther = isOtherSubject(subject);
+        const bool viewed = isOther && viewOf(subject, view);
+        if (!mOpenStateLookup || !isOther || !viewed || view.mRef == nullptr)
+            return 0;
+        return mOpenStateLookup(view.mRef->mId);
+    }
+
     float SkyrimConditionWorld::deadCount(std::uint32_t actorBase) const
     {
         if (!mDeadLookup || mPlacedRefs == nullptr)
@@ -2447,6 +2457,8 @@ namespace game_skyrimse
                 return view.mRef != nullptr;
             case 46: // GetDead
                 return view.mRef != nullptr && (view.mRef->mFlags & PlacedFlags::IsActor) != 0;
+            case 157: // GetOpenState (task 0349)
+                return static_cast<bool>(mOpenStateLookup) && view.mRef != nullptr;
             case 35: // GetDisabled
                 return view.mRef != nullptr && mPlacedRefs != nullptr;
             case 286: // IsSneaking

@@ -613,6 +613,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemytime.cpp
     skyrimse/testskyrimsesolitude.cpp
     skyrimse/testskyrimsesolitudeprompt.cpp
+    skyrimse/testskyrimseblade349.cpp
+    skyrimse/testskyrimseopenstate349.cpp
+    skyrimse/testskyrimsescenehold349.cpp
     skyrimse/testskyrimsecombatprojrecords.cpp
     skyrimse/testskyrimseperks.cpp
     skyrimse/testskyrimseperksreal.cpp

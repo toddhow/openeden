@@ -136,6 +136,12 @@ namespace game_skyrimse::conditions
             (void)subject;
             return -1;
         }
+        /// fn_157 GetOpenState (task 0349): 1 open, 3 closed, 0 not known.
+        virtual int openState(Subject subject) const
+        {
+            (void)subject;
+            return 0;
+        }
         /// fn_46 GetDead.
         virtual bool isDead(Subject subject) const
         {

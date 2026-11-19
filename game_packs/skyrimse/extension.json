@@ -824,6 +824,11 @@
       "key": "side quests",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "blade in the dark",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

@@ -433,6 +433,9 @@ namespace game_skyrimse
         void setCarryTravellers(bool on) { mCarryTravellers = on; }
         /// Task 0341 (`side quests`): a MUST COMPLETE Travel package that cannot be walked ends with the actor placed at its target
         void setSnapMustComplete(bool on) { mSnapMustComplete = on; }
+        /// Task 0349 (`blade in the dark`): the Travel packages with these ids end with the actor placed at the target when the
+        /// walk fails (Delphine's walk to the rented room behind locked doors); a named stand-in, not a rule of the game
+        void setSnapPackages(std::set<FormId> ids) { mSnapPackages = std::move(ids); }
 
         /// Task 0286: a scene's Travel package whose target stands in another cell (see targetIsElsewhere) asks this
         /// first. `actor` is the placement, `target` the reference it travels to. When the hook accepts (the world
@@ -615,6 +618,7 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, const PackageRecord*> mForcedRefs;
         bool mCarryTravellers = false;
         bool mSnapMustComplete = false; ///< task 0341
+        std::set<FormId> mSnapPackages; ///< task 0349
         TravelMoveHook mTravelMoveHook; // task 0286
         /// A scene's package is remembered by placement and an unreachable target is looked for.
         [[nodiscard]] bool tracksScenePackages() const

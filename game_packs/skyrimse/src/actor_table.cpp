@@ -104,6 +104,7 @@ namespace game_skyrimse
         mBrain->setFurnitureSource(furniture);
         mBrain->setCarryTravellers(mCarryTravellers); // task 0277: asked before or after the brain is made
         mBrain->setSnapMustComplete(mSnapMustComplete); // task 0341
+        mBrain->setSnapPackages(mSnapPackages); // task 0349
         if (mTravelMoveHook)
             mBrain->setTravelMoveHook(mTravelMoveHook); // task 0286
     }
@@ -133,6 +134,13 @@ namespace game_skyrimse
         mSnapMustComplete = on;
         if (mBrain)
             mBrain->setSnapMustComplete(on);
+    }
+
+    void SkyrimActorTable::setSnapPackages(std::set<FormId> ids)
+    {
+        mSnapPackages = ids;
+        if (mBrain)
+            mBrain->setSnapPackages(std::move(ids));
     }
 
     void SkyrimActorTable::setCarryTravellers(bool on)

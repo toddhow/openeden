@@ -911,6 +911,8 @@ namespace game_skyrimse
         /// Task 0256: sends OnTriggerEnter or OnTriggerLeave for every volume the player went into or out of since the
         /// last call; returns how many events were queued. Run by the next tick.
         std::size_t updateTriggers();
+        /// Task 0349: GetOpenState of a reference as the scripts left it (1 open, 3 closed; closed when no script touched it).
+        [[nodiscard]] int openStateOf(FormId reference) const;
         /// Task 0274: an actor other than the player (a cart horse) is tested against the same volumes: OnTriggerEnter
         /// and OnTriggerLeave go to the volume's scripts with the actor as the argument. The place is the player's.
         struct SubjectPlace

@@ -607,6 +607,9 @@ namespace game_skyrimse
         void setDeadLookup(std::function<bool(FormId)> lookup) { mDeadLookup = std::move(lookup); }
         /// Task 0350 (Actor.SetRace): the race a script gave a placed reference (0 = none): GetIsRace on that reference.
         void setRaceLookup(std::function<FormId(FormId)> lookup) { mRaceLookup = std::move(lookup); }
+        /// Task 0349: GetOpenState of a placed reference (1 open, 3 closed; the pack gives what its scripts opened or closed).
+        void setOpenStateLookup(std::function<int(FormId)> lookup) { mOpenStateLookup = std::move(lookup); }
+        int openState(conditions::Subject subject) const override;
         /// Task 0337: the reference the speaker's reference is linked to with a keyword (0 = the plain link): what a
         /// condition run on the LINKED REFERENCE (run-on 4) asks about. Without it such a condition is not answered.
         using LinkedRefLookup = std::function<bool(FormId reference, FormId keyword, FormId& out)>;
@@ -764,6 +767,7 @@ namespace game_skyrimse
         bool mCountRefTypes = false; ///< task 0298
         std::function<bool(FormId)> mDeadLookup; ///< task 0326
         std::function<FormId(FormId)> mRaceLookup; ///< task 0350
+        std::function<int(FormId)> mOpenStateLookup; ///< task 0349
         LinkedRefLookup mLinkedRef; ///< task 0337
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261

@@ -368,7 +368,9 @@ namespace game_skyrimse
         // ends with the actor where it was going, as the game puts an actor whose package begins in an unloaded cell.
         // Task 0341 (`side quests`): the same for a quest alias's package marked MUST COMPLETE (PKDT flag 0x4:
         // Saadia's "come to the private room" in the Bannered Mare's west wing, up stairs the mover does not climb)
-        const bool mustComplete = mSnapMustComplete && actor.mActive != nullptr && (actor.mActive->mFlags & 0x4u) != 0;
+        const bool mustComplete = actor.mActive != nullptr
+            && ((mSnapMustComplete && (actor.mActive->mFlags & 0x4u) != 0)
+                || mSnapPackages.count(actor.mActive->mCommon.mId) != 0); // task 0349: a named package
         if (((mCarryTravellers && actor.mForced != nullptr && actor.mForced == actor.mActive) || mustComplete)
             && actor.mBehavior == PackageBehavior::Travel && actor.mToAnchor)
         {

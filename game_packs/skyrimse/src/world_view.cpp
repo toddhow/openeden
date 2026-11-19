@@ -1382,6 +1382,8 @@ namespace game_skyrimse
             raw->mRuntime->setDeadLookup(mDeadLookup); // task 0326
         if (mRaceLookup)
             raw->mRuntime->setRaceLookup(mRaceLookup); // task 0350
+        if (mOpenStateLookup)
+            raw->mRuntime->setOpenStateLookup(mOpenStateLookup); // task 0349
         raw->mRuntime->setLinkedRefLookup(
             [this](FormId reference, FormId keyword, FormId& out) { return linkedRef(reference, keyword, out); });
         raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
@@ -1408,6 +1410,8 @@ namespace game_skyrimse
             raw->mRuntime->setFragmentSink(mInfoFragmentSink);
         {
             raw->mQuestWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
+            if (mOpenStateLookup)
+                raw->mQuestWorld->setOpenStateLookup(mOpenStateLookup); // task 0349
             SkyrimConditionWorld* world = raw->mQuestWorld.get();
             world->setPlayerLevel(mHaveProgressionPlayer ? mProgressionLevel : mStandInPlayerLevel); // task 0305
             world->setActorEditorLocation(mActorEditorLocation); // task 0342
@@ -2401,6 +2405,15 @@ namespace game_skyrimse
             mDialogue->mRuntime->setDeadLookup(mDeadLookup);
         if (mDialogue != nullptr && mDialogue->mPackageWorld != nullptr)
             mDialogue->mPackageWorld->setDeadLookup(mDeadLookup); // task 0337
+    }
+
+    void SkyrimWorldView::setOpenStateLookup(std::function<int(FormId)> lookup)
+    {
+        mOpenStateLookup = std::move(lookup);
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setOpenStateLookup(mOpenStateLookup);
+        if (mDialogue != nullptr && mDialogue->mQuestWorld != nullptr)
+            mDialogue->mQuestWorld->setOpenStateLookup(mOpenStateLookup); // a scene's phase asks GetOpenState
     }
 
     void SkyrimWorldView::setLiveActorPlace(std::function<bool(FormId, double&, double&, double&)> lookup)

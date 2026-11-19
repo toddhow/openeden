@@ -590,6 +590,8 @@ namespace game_skyrimse
         void setDeadLookup(std::function<bool(FormId reference)> lookup);
         /// Task 0350: the race Actor.SetRace gave a placed reference (0 = none), for GetIsRace.
         void setRaceLookup(std::function<FormId(FormId reference)> lookup);
+        /// Task 0349: GetOpenState of a placed reference (the scene world and conversations)
+        void setOpenStateLookup(std::function<int(FormId reference)> lookup);
         /// Task 0239: what the follower scripts changed, read by the dialogue conditions. Not owned.
         void setFollowerOverlay(const FollowerOverlay* overlay);
         /// Task 0277: where an actor stands now (the pack's package brain); the view supplies where a loaded reference
@@ -1105,6 +1107,7 @@ namespace game_skyrimse
         [[nodiscard]] std::vector<AliasPackageGroup> uniqueActorAliasGroups(FormId base) const; // task 0341
         std::function<bool(FormId)> mDeadLookup; ///< task 0326
         std::function<FormId(FormId)> mRaceLookup; ///< task 0350
+        std::function<int(FormId)> mOpenStateLookup; ///< task 0349
         bool mPromptStartsAreMenus = false; ///< task 0343
         bool mQuestGreetings = false; ///< task 0304
         bool mWalkAwayTopics = false; ///< task 0315

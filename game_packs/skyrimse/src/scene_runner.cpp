@@ -633,8 +633,12 @@ namespace game_skyrimse
                             st.mElapsed += step;
                             if (mEnv.packageFinished(st.mActor) || st.mElapsed >= mOptions.mPackageSeconds)
                             {
-                                mEnv.clearPackage(st.mActor);
-                                st.mPackageGiven = false;
+                                // task 0349: a finished package stays on the actor (mPackageGiven) until the scene ends
+                                if (!(mOptions.mHoldFinishedPackages && mEnv.packageFinished(st.mActor)))
+                                {
+                                    mEnv.clearPackage(st.mActor);
+                                    st.mPackageGiven = false;
+                                }
                                 st.mStage = ActionStage::Done;
                             }
                             break;
