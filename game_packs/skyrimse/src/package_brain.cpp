@@ -1261,6 +1261,9 @@ namespace game_skyrimse
             ? actor.mForced
             : selectPackage(actor.mPackages, clock.hour, clock.day, clock.valid, mSource, actor.mBase,
                 static_cast<FormId>(actor.mHandle.reference));
+        if (mSource.tracesPackages()) // task 0340 (a developer aid): what each evaluation chose and from how many
+            mSource.packageChosen(static_cast<FormId>(actor.mHandle.reference), actor.mBase, chosen,
+                "evaluated among " + std::to_string(actor.mPackages.size()) + (actor.mForced != nullptr ? " (forced)" : ""));
         if (chosen == nullptr)
         {
             ++mStats.mNoPackage;

@@ -3234,6 +3234,9 @@ namespace game_skyrimse
                     // task 0340: Skjor's briefing ends with an InvisibleContinue line that goes on with the nameless
                     // branch start `C01SkjorObserverSplit` by itself (task 0304's rule)
                     mWorldView.setQuestGreetings(true);
+                    // task 0340: the Observer (Farkas) follows the player by C01ObserverFollowPackage (stage 30 to 50)
+                    // and goes through the doors he uses (task 0310's rule, shared with Barbas)
+                    mCellSource.actorTable().setFollowPlayerPackages(true);
                     mWorldView.setWalkAwayTopics(true); // Eorlund's walk-away INFO starts the follow-up scene
                     mWorldView.setFragmentFlush([this]() {
                         if (mPapyrus != nullptr)
