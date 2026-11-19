@@ -568,3 +568,71 @@ either way), other cells than the five.
 keeps the light in the list: no saving in the cluster grid (a possible follow-up with the per-light stage). (4) One
 setting, `neutral light fade`, covers the light fade and the clip distance. (5) A cell's clip distance now shortens the
 far plane of a neutral interior (nothing beyond it is drawn).
+## Stage g: per-light shadow flags and spot cones (2026-11-19; branch `spotshadow-0355g`, local commits, not pushed; Windows only)
+Approved by toddhow: stage g, smallest complete change, behind `[Game] neutral light types` (ON by default, Skyrim sessions only).
+Same hand wrote tests and code; the new tests are in new files only and passed at first run, so their evidence is six
+one-line mutations (spot not packed, shadow rule ignored, cone not set, Never not kept, file load not clearing the cone,
+shadow rule always Casts: 8 named tests failed), not a red run against stubs; no existing test edited; no fresh reviewer.
+
+**Correction of stage a's flag bits.** Stage a took SpotLight 0x400, SpotShadow 0x800, Hemisphere 0x1000, Omnidirectional
+0x2000 (RECALLED-VERIFY). The Mutagen Skyrim schema (read through houseCARL) and the editor ids of the records say:
+SpotLight 0x200 (in none of the five masters), ShadowSpotlight 0x400, ShadowHemisphere 0x800, ShadowOmnidirectional 0x1000,
+PortalStrict 0x2000 (a portal culling hint on records of every kind, NOT a shadow type). In Skyrim.esm (a houseCARL scan
+of the 400 lights that have a flag, a FOV and a radius): spot 33, hemisphere 10, omnidirectional 78. `LightFlags` now has
+these values; the stage a text "omni 216, hemisphere 110, spot 39, spot-shadow 12" counted the shifted bits.
+
+**What is built.**
+- Pack: `makeLightComponent` sets `LightComponent::spotFov` (the FOV, 1 to 170, only with the spot bit 0x200 or 0x400) and
+  `LightComponent::shadow` (`Casts` with any of 0x400, 0x800, 0x1000, else `Never`). SDK `world_model.hpp`: two trailing
+  fields and the `LightShadow` enum; the version stays 1.1 (a pinned test).
+- Engine record: `makeNeutralEsmLight(light, fadeGain, lightTypes)`; `ESM::Light` gains `NeutralSpot`, `NeutralShadowCasts`,
+  `NeutralShadowNever` (never loaded from a file) and `mNeutralSpotFov` (outside the file struct; `blank()` and `load()`
+  reset it). Developer aid `OPENEDEN_NEUTRAL_LIGHT_FORCE_FOV=<degrees>`: every neutral light becomes a spot of that angle.
+- Node: `View::TypedPointLight` (`components/view/typedlight.hpp`, a `vsg::PointLight` with `shadowRule`, `spotCosHalf`,
+  `spotAxis` = local +X); only a record with the neutral bits makes one, so every Morrowind light is a plain node.
+- Light buffer (`components/view/lightdata.hpp`): the buffer keeps its two vec4 per light and, from two lights up, gets
+  one more vec4 per light after them (the spot axis in eye space and the cos of the half angle, 0 for no cone); the SECOND
+  light's position.w holds `maxLights` as the marker (0 or absent: a buffer of any other origin, no cone), so the struct
+  and every recorded shader interface are unchanged (`SlangInterfaceRecords`, `SlangPermutations`, `SlangLightGridGpu` pass,
+  **no golden `.interface` file changed**). `createLightingDescriptors` finds the light count with `maxLightsOf`.
+- Shaders (GLSL and Slang twins): `pointLightSpot` and `pointLightCone` in `lib/light/pointlights.*`, used by
+  `pointdiffuse`, `pointspecular`, `pixellighting` and `pbrlighting`. The cone is smooth between cosOuter and
+  cosOuter + 0.3 (1 - cosOuter) (`spotConeSoftness`, ours). NOT applied in `precipitation` (rain) and `volume` (fog).
+- Shadow slots: `PointShadows::update` asks `Render::PointShadow::lightMayCast(colour, snapshot.shadowRule)`: a light whose
+  record says `Never` takes no slot; `Unspecified` (Morrowind) and `Casts` keep the old nearest-first rule. The snapshots
+  carry the rule (`LightSnapshot::shadowRule`).
+
+**Tests** (new files): `testskyrimselighttypes.cpp` (8), `testneutrallighttypes.cpp` (5), `testlighttypes.cpp` in view (9)
+and in mwanimation (5), `testlightneutraltypes.cpp` in esm3 (2). `components-tests` filter
+`*Light*:*Skyrim*:*Weather*:*Extension*:*Frozen*:*WorldModel*:*PointShadow*:*Slang*:*Collect*:*Esm*` 4,292 pass;
+`openmw-tests` filter `*Neutral*:*Skyrim*:*Light*:*Extension*:*Settings*` 1,230 pass; `check_layer_rules` 104;
+`coverage.sh` ok.
+
+**Frames** (`I:\Projects\OpenEden-work\papyrus\l55g\keep`; harness `tools/neutral_session_check/check.sh ... l55g` with
+`L55G_SPOTS`): `mare_spot_off_on_0..2.png` (Bannered Mare, hdr, every light forced to a 50 degree spot: types off left, on
+right: the wall shows one lit disc with a soft edge and the rest dark), `mare_spot_glsl_slang_2.png` (GLSL left, Slang right:
+0 pixels over 8 apart), `barrow_start_types_false_true_0..3.png` (Bleak Falls Barrow, same camera, types off and on, point
+light shadows on: slots 0 and 1 go to the spot sunlight at (3224, -3328, -543) and a torch at (2241, -4803, -2390); with the
+setting off the four nearest candles took them), `morrowind_arrille_new_old.png`. A real spot lamp was not seen: the cells
+tried have their spots 400 to 1000 units above a floor with reach 300 or less, and Lua cannot create a neutral light.
+
+**Morrowind unchanged** (against `integ2`'s build; `n6saves`' build was being rebuilt by another session and stopped at
+start-up): `worldobjects_check` 110 objects, OK; Balmora fixed frame `1c5d47ad0b5dc32d` (empty settings) and
+`b451a8a6ca771e79` (hdr) equal for both builds; Arrille's Tradehouse (`coc`) with hdr, with hdr, gbuffer and pbr, and with
+point light shadows added: 0, 0 and 1 pixel over 8 apart (one build against itself: 0 to 924 in the plain hdr case, noise).
+
+**Cost.** Each point light loop iteration now reads one more word (the marker) and, once the buffer holds a spot region,
+the light's spot vec4. Main scene GPU time, Arrille's with hdr, pbr and point light shadows, five interleaved runs each,
+shared machine: new 0.153 0.165 0.169 0.245 0.263 ms, old 0.149 0.149 0.163 0.188 0.358 ms (median per run): not
+separable from the noise; the minimum is +0.004 ms. The Skyrim Barrow figures are noisier still (0.25 to 0.77 ms for the same
+build). Not measured: a crowded Skyrim interior with the cone on many lights.
+
+**Not checked / limits.** The Linux gate, clang-format 14 (long lines wrapped by hand), clang-tidy, the Lua tests, a fresh
+review; the direction of a real spot lamp in a frame (+X is from the data and the pack's rotation convention); a controlled
+shadow comparison frame (the differences in the Barrow pair are small); rain and volumetric fog ignore the cone; a buffer
+with fewer than two lights has no cone; hemisphere and spot shadows are cube maps.
+
+**Decisions for toddhow.** (1) The corrected bit meanings replace stage a's (a data fact, not a taste). (2) The default is
+on; with it on only about 338 of the 1,740 lights can take shadow slots, so most torches and candles in a dungeon no longer
+cast point light shadows (slots are scarce: 4). (3) `spotConeSoftness` 0.3 and the +X axis. (4) A world model SDK change (two
+trailing fields) without a version bump.
