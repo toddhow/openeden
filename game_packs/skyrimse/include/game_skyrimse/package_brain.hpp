@@ -213,6 +213,14 @@ namespace game_skyrimse
         }
         /// Task 0334: a developer trace: the brain switched this placement to `package` (null: none). Default: nothing.
         [[nodiscard]] virtual bool tracesPackages() const { return false; }
+        /// Task 0344: a developer trace: the selection passed over `package` for a reason that is not a condition
+        /// (its schedule is not active now). Default: nothing.
+        virtual void packagePassedOver(FormId base, const PackageRecord& package, const char* why) const
+        {
+            (void)base;
+            (void)package;
+            (void)why;
+        }
         virtual void packageChosen(
             FormId reference, FormId base, const PackageRecord* package, const std::string& note) const
         {

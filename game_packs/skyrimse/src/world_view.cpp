@@ -1927,6 +1927,12 @@ namespace game_skyrimse
         return mDialogue->mPackageQuests.revision() + forced;
     }
 
+    void SkyrimWorldView::packagePassedOver(FormId base, const PackageRecord& package, const char* why) const
+    {
+        if (mPackageTraceLog && base == mPackageTraceBase)
+            mPackageTraceLog("PKTRACE " + package.mCommon.mEditorId + " passed over: " + why);
+    }
+
     void SkyrimWorldView::packageChosen(
         FormId reference, FormId base, const PackageRecord* package, const std::string& note) const
     {
@@ -1945,11 +1951,17 @@ namespace game_skyrimse
     bool SkyrimWorldView::conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference)
     {
         if (!package.mConditionsOk)
+        {
+            packagePassedOver(actorBase, package, "a condition did not decode");
             return false;
+        }
         if (package.mConditions.empty())
             return true;
         if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mPackageWorld == nullptr)
+        {
+            packagePassedOver(actorBase, package, "the package world is not ready");
             return false;
+        }
         DialogueSpeaker speaker;
         speaker.mBase = actorBase;
         speaker.mReference = actorReference;
@@ -2952,6 +2964,15 @@ namespace game_skyrimse
         mDialogue->mPackageQuests.setStage(mDialogue->mData->mQuests, quest, stage);
         if (mAliasPackagesOn)
             ++mPackagesRevision; // task 0277: a running quest may now give (or stop giving) an actor packages
+    }
+
+    void SkyrimWorldView::stopPackageQuest(FormId quest) // task 0344
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || !mDialogue->mData->mQuests.quest(quest))
+            return;
+        mDialogue->mPackageQuests.stop(quest);
+        if (mAliasPackagesOn)
+            ++mPackagesRevision;
     }
 
     void SkyrimWorldView::startPackageQuest(FormId quest)

@@ -166,8 +166,13 @@ namespace game_skyrimse
     {
         for (const PackageRecord* p : packages)
         {
-            if (p == nullptr || !scheduleActive(p->mSchedule, hour, day, clockValid))
+            if (p == nullptr)
                 continue;
+            if (!scheduleActive(p->mSchedule, hour, day, clockValid))
+            {
+                source.packagePassedOver(actorBase, *p, "its schedule is not active");
+                continue;
+            }
             if (source.conditionsPass(*p, actorBase, actorReference))
                 return p;
         }

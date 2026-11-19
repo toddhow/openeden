@@ -700,6 +700,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecivilwar.cpp
     skyrimse/testskyrimsecivilwar2.cpp
     skyrimse/testskyrimsewalkaway2.cpp
+    skyrimse/testskyrimsealiasforced.cpp
+    skyrimse/testskyrimseforceav.cpp
+    skyrimse/testskyrimsequeststop.cpp
     skyrimse/testskyrimsedawnguard.cpp
     skyrimse/testskyrimsedawnguardfort.cpp
     skyrimse/testskyrimsedaedriccontinue.cpp

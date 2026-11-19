@@ -888,6 +888,18 @@ namespace game_skyrimse
             return true;
         }
 
+        // Task 0344: a quest that stops stops giving its aliases' packages too (C00GiantAttack's last stage stops it, and
+        // its HangAroundGiant package, quest priority 80, kept Farkas from C01's follow package at 70)
+        void stopQuest(FormId quest)
+        {
+            if (mState != nullptr)
+                mState->stop(quest);
+            if (mQuestStopped)
+                mQuestStopped(quest);
+            if (mScenes != nullptr)
+                mScenes->questStopped(quest);
+        }
+
         void startQuest(FormId quest)
         {
             if (mState == nullptr)
@@ -1998,10 +2010,7 @@ namespace game_skyrimse
             // Task 0306: the journal's active quest (the DLC's quest sets it at stage 5): no journal marker is kept
             regNoop("Quest", "SetActive", false);
             reg("Quest", "Stop", false, [this](const NativeCall& c) {
-                if (mState != nullptr)
-                    mState->stop(formOf(c.self));
-                if (mScenes != nullptr)
-                    mScenes->questStopped(formOf(c.self));
+                stopQuest(formOf(c.self));
                 return NativeResult{};
             });
             // task 0194: scenes. A start runs after the calling script returned (it runs fragments of scripts that may
@@ -2761,6 +2770,16 @@ namespace game_skyrimse
                 avMove(actor, key, argNumber(c, 1) - now);
                 return NativeResult{};
             });
+            // Task 0344: ForceActorValue (what Actor.ForceAV calls; C01QuestScript.FightStart leaves each ambusher at one
+            // point of health) sets the CURRENT value, as SetActorValue does here (no separate base value is kept)
+            reg("Actor", "ForceActorValue", false, [this, valueName](const NativeCall& c) {
+                double now = 0.0, max = 0.0;
+                const FormId actor = formOf(c.self);
+                const std::string key = valueName(c);
+                (void)avNow(actor, key, now, max);
+                avMove(actor, key, argNumber(c, 1) - now);
+                return NativeResult{};
+            });
             const auto change = [this, valueName](double sign) {
                 return [this, valueName, sign](const NativeCall& c) {
                     avMove(formOf(c.self), valueName(c), sign * argNumber(c, 1));
@@ -2923,6 +2942,7 @@ namespace game_skyrimse
         LogFunction mLog;
         QuestChanged mQuestChanged;
         QuestStarted mQuestStarted; // task 0306
+        QuestStopped mQuestStopped; // task 0344
         bool mCreatedInInventory = false; // task 0335
         std::vector<FormId> mPendingCreate; // task 0335: start-game quests whose in-inventory items wait for the item table
         StoryStarted mStoryStarted; ///< task 0217
@@ -4309,6 +4329,16 @@ namespace game_skyrimse
     void PapyrusHost::setQuestChanged(QuestChanged changed)
     {
         mImpl->mQuestChanged = std::move(changed);
+    }
+
+    void PapyrusHost::setQuestStopped(QuestStopped stopped)
+    {
+        mImpl->mQuestStopped = std::move(stopped);
+    }
+
+    void PapyrusHost::stopQuestForTest(FormId quest)
+    {
+        mImpl->stopQuest(quest);
     }
 
     void PapyrusHost::setQuestStarted(QuestStarted started)

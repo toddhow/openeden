@@ -780,6 +780,8 @@ namespace game_skyrimse
             FormId quest, std::uint32_t alias) const; ///< filled by data, with the speaker
         [[nodiscard]] bool questKnown(std::uint32_t storedQuest) const;
         [[nodiscard]] bool aliasKnown(std::uint32_t alias) const; ///< the context quest's alias is filled from data
+        /// Task 0344: the fill of a quest's alias, the alias view (a script's ForceRefTo) first for the context quest.
+        [[nodiscard]] AliasFill fillOf(FormId quest, std::uint32_t alias) const;
     };
 
     // ---- choosing a response ------------------------------------------------------------------------------------

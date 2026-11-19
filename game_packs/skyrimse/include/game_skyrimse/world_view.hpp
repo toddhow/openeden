@@ -366,6 +366,7 @@ namespace game_skyrimse
             FormId reference, FormId base, std::vector<const PackageRecord*>& out) const override; // task 0274
         [[nodiscard]] std::uint64_t packageListRevision() const override; // task 0274
         [[nodiscard]] bool tracesPackages() const override { return static_cast<bool>(mPackageTraceLog); } // task 0334
+        void packagePassedOver(FormId base, const PackageRecord& package, const char* why) const override;
         void packageChosen(FormId reference, FormId base, const PackageRecord* package,
             const std::string& note) const override; // task 0334
         /// Task 0274: the quest whose alias gives this package (the first one that lists it), 0 when none does.
@@ -829,6 +830,7 @@ namespace game_skyrimse
         }
         /// Task 0306: a quest started with no stage (the story manager's start): the package brain's copy runs it.
         void startPackageQuest(FormId quest);
+        void stopPackageQuest(FormId quest); ///< task 0344: a script stopped the quest (Quest.Stop)
         /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
         /// when it is made). Main thread.
         void setInfoFragmentSink(InfoFragmentSink sink);

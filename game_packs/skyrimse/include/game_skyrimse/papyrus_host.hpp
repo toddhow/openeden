@@ -698,6 +698,12 @@ namespace game_skyrimse
         /// quest created for an alias is read through `aliasReference` (task 0305's lookup) and moves `aliasRevision`.
         using QuestStarted = std::function<void(FormId quest)>;
         void setQuestStarted(QuestStarted started);
+        /// Task 0344: told when a script stops a quest (Quest.Stop), so the package brain's copy of the quests stops
+        /// giving that quest's alias packages.
+        using QuestStopped = std::function<void(FormId quest)>;
+        void setQuestStopped(QuestStopped stopped);
+        void stopQuestForTest(FormId quest); ///< what the native does
+
         /// Task 0217: told after the story manager's event started a quest and its aliases were filled (a developer's
         // log).
         using StoryStarted = std::function<void(FormId quest, const StoryEvent& event)>;

@@ -1184,6 +1184,25 @@ namespace game_skyrimse
         return mLocations != nullptr && mLocations->isWithin(location, ancestor);
     }
 
+    // Task 0344: what an alias of a quest holds. The quest state knows the fills the data gives and the story walk made; a
+    // reference a script put there with ForceRefTo (Farkas as the Observer of C01) lives only in the alias view the pack
+    // gives a package world (the Papyrus host's table), so the view is asked first for the context quest's aliases.
+    AliasFill SkyrimConditionWorld::fillOf(FormId quest, std::uint32_t alias) const
+    {
+        if (mAliasView && quest != kNullFormId && quest == mContextQuest)
+        {
+            const FormId held = mAliasView(alias);
+            if (held != kNullFormId)
+            {
+                AliasFill fill;
+                fill.mKnown = true;
+                fill.mReference = held;
+                return fill;
+            }
+        }
+        return mQuestState != nullptr && quest != kNullFormId ? mQuestState->aliasFill(quest, alias) : AliasFill();
+    }
+
     FormId SkyrimConditionWorld::aliasReference(std::uint32_t alias) const
     {
         if (mAliasView)
@@ -1584,9 +1603,9 @@ namespace game_skyrimse
     {
         // answered only when the fact the comparison needs is given: a reference fill needs the speaker's reference,
         // a unique actor his base; the player's alias needs neither
-        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+        if (mContextQuest == kNullFormId)
             return false;
-        const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
+        const AliasFill fill = fillOf(mContextQuest, alias);
         if (!fill.mKnown)
             return false;
         if (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase)
@@ -1886,9 +1905,9 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::aliasIsSpeaker(FormId quest, std::uint32_t alias) const
     {
-        if (mQuestState == nullptr || quest == kNullFormId)
+        if (quest == kNullFormId)
             return false;
-        const AliasFill fill = mQuestState->aliasFill(quest, alias);
+        const AliasFill fill = fillOf(quest, alias);
         if (!fill.mKnown)
             return false;
         if (fill.mReference != kNullFormId)
@@ -1898,17 +1917,17 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::isAliasRef(conditions::Subject subject, std::uint32_t alias) const
     {
-        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+        if (mContextQuest == kNullFormId)
             return false;
         if (subject == kPlayer)
         {
-            const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
+            const AliasFill fill = fillOf(mContextQuest, alias);
             return fill.mKnown && (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase);
         }
         if (isOtherSubject(subject))
         {
             ActorView view;
-            const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
+            const AliasFill fill = fillOf(mContextQuest, alias);
             return fill.mKnown && viewOf(subject, view)
                 && ((fill.mReference != kNullFormId && view.mRef != nullptr && fill.mReference == view.mRef->mId)
                     || (fill.mActor != kNullFormId && fill.mActor == view.mBase));
@@ -1920,11 +1939,11 @@ namespace game_skyrimse
     {
         if (c.mRunOn != 5) // quest alias: the alias id is in parameter 3
             return resolveRunOn(c.mRunOn, c.mReference);
-        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+        if (mContextQuest == kNullFormId)
             return 0;
         if (aliasIsSpeaker(mContextQuest, c.mParam3))
             return static_cast<conditions::Subject>(mSpeaker.mBase);
-        const AliasFill fill = mQuestState->aliasFill(mContextQuest, c.mParam3);
+        const AliasFill fill = fillOf(mContextQuest, c.mParam3);
         if (fill.mKnown && (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase))
             return kPlayer;
         if (!fill.mKnown || mPlacedRefs == nullptr)
@@ -2400,8 +2419,7 @@ namespace game_skyrimse
                 return mCurrentPackage(view.mRef->mId).has_value() && (c.mFunction == 161 || mPackages != nullptr);
             }
             case 566: // GetIsAliasRef
-                return mQuestState != nullptr && mContextQuest != kNullFormId
-                    && mQuestState->aliasFill(mContextQuest, c.mParam1).mKnown;
+                return mContextQuest != kNullFormId && fillOf(mContextQuest, c.mParam1).mKnown;
             default:
                 return false;
         }
