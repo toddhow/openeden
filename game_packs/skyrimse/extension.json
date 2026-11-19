@@ -746,6 +746,11 @@
       "default": false
     },
     {
+      "key": "quest rules",
+      "type": "bool",
+      "default": true
+    },
+    {
       "key": "blood on the ice",
       "type": "bool",
       "default": false

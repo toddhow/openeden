@@ -12,6 +12,7 @@
 #include "game_skyrimse/bloodice.hpp"
 #include "game_skyrimse/forsworn.hpp"
 #include "game_skyrimse/laidtorest.hpp"
+#include "game_skyrimse/quest_rules.hpp"
 #include "game_skyrimse/solitude.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
@@ -729,6 +730,7 @@ namespace game_skyrimse
             void enableCompanions() { mCompanionsOn = true; }
             [[nodiscard]] bool companionsOn() const { return mCompanionsOn; }
             [[nodiscard]] bool thievesOn() const { return mThieves; } // task 0347
+            [[nodiscard]] bool questRulesOn() const { return mQuestRules; } // task 0356
             [[nodiscard]] ForceGreet& forceGreet() { return mForce; }
 
             // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold
@@ -806,6 +808,30 @@ namespace game_skyrimse
                 }
                 if (!subjects.empty())
                     (void)mHost.updateSubjectTriggers(subjects);
+            }
+            /// Task 0356: ONE switch for the general rules the quest slices each turned on under a setting of their own
+            /// (the table is in docs/tasks/0356-skyrim-quest-rules-switch.md). Hand-written stand-ins are not here.
+            void enableQuestRules()
+            {
+                mQuestRules = true;
+                enableCollege(); // quests move actors near the player (task 0292)
+                enableDawnguard(); // = enableDaedric: box triggers, enable children (tasks 0310, 0319)
+                enableSideQuests(); // followers of a quest package are box subjects (task 0341)
+                enableWhiterunTriggers(); // boxes turned about X and Y (task 0328)
+                enableThieves(); // + the player's location events (tasks 0314, 0318)
+                enableHelloGreetings(); // task 0308
+                enableDragonbornScenes(); // task 0329
+                enableSkipFailedPhases(); // task 0348
+                enableActionlessScenes(); // task 0333
+                enableBeginFragmentScenes(); // task 0350
+                enableHeldScenePackages(); // task 0349
+                enableCreatedInInventory(); // task 0335
+                mHost.setPlayerBodyTriggers(solitude::kPlayerBodyHeight); // task 0346
+                mHost.setQuestUpdatesReachAliases(true); // task 0342
+                mHost.setPlayerAliasFill(true); // task 0348
+                mHost.setActorFights(true); // task 0337
+                mHost.setPairedKillMoves(true); // task 0337
+                mLaidToRestOn = true; // task 0342
             }
             void enableDawnguard() // task 0319: the same world as the Daedric quests; the fort's trigger boxes fire
             {
@@ -1043,7 +1069,7 @@ namespace game_skyrimse
                     mScenes = std::make_unique<SceneGlue>(access, mHost, dynamic_cast<SkyrimCellSource*>(&mCells),
                         [this](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     mHost.setSceneControl(mScenes.get());
-                    mScenes->runner().setRetryQuestStart(mMainQuest); // task 0268
+                    mScenes->runner().setRetryQuestStart(mMainQuest || mQuestRules); // task 0268, 0356
                     if (mSceneParkSeconds > 0.f) // task 0287
                         mScenes->runner().setParkSeconds(mSceneParkSeconds);
                     if (mForceOn) // task 0264: a ForceGreet package ends with its conversation
@@ -1956,6 +1982,7 @@ namespace game_skyrimse
             static constexpr std::int64_t kSlowMarksMicroseconds = 5000;
             LocationChange mLocationChange; ///< the last location a CLOC event named (tasks 0187, 0211)
             bool mLaidToRestOn = false; ///< task 0342 (`laid to rest`)
+            bool mQuestRules = false; ///< task 0356 (`quest rules`)
             static constexpr std::size_t kMaxPendingStory = 64;
             static constexpr int kStoryPerFrame = 4;
             std::optional<openeden::sdk::game::PlayerPlace> mPendingPlace;
@@ -2381,6 +2408,9 @@ namespace game_skyrimse
                     // is registered over it. The list, the VFS for the string tables and the language setting all come
                     // from the host; none of this runs when the host does not read sources.
                     const auto startedAt = std::chrono::steady_clock::now();
+                    if (const openeden::sdk::SettingsService* const early = host.getSettingsService())
+                        mQuestRulesWanted = early->getBool(kPackId, kPapyrusKey, false)
+                            && early->getBool(kPackId, std::string(questrules::kKey), true); // task 0356
                     loadSessionContent(host, *sources, logger);
                     registerLoadOrderStamp(host, *sources, logger);
                     // Task 0176: the Papyrus host, off unless [extension.skyrimse] papyrus = true.
@@ -2396,6 +2426,18 @@ namespace game_skyrimse
                                 return driver->host().globalSetByScript(global, value);
                             });
                             mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
+                            // Task 0356: ONE switch for the general quest rules (default on)
+                            if (settings->getBool(kPackId, std::string(questrules::kKey), true))
+                            {
+                                mPapyrus->enableQuestRules();
+                                if (logger != nullptr)
+                                {
+                                    std::string names;
+                                    for (const std::string_view name : questrules::kRules)
+                                        names += (names.empty() ? "" : "; ") + std::string(name);
+                                    logger->log(openeden::sdk::LogLevel::Info, "QUESTRULES on: " + names);
+                                }
+                            }
                             // Actor.GetLevel of the player: the progression's level (read at the call, so the
                             // progression may be made later)
                             mPapyrus->setPlayerLevelSource([this](std::int32_t& level) {
@@ -2406,7 +2448,7 @@ namespace game_skyrimse
                             });
                             mPapyrus->setSceneParkSeconds(SceneRunner::parkSecondsFor( // tasks 0287, 0316
                                 settings->getFloat(kPackId, "scene park seconds", 0.f),
-                                settings->getBool(kPackId, kQuestAliasPackagesKey, false)));
+                                settings->getBool(kPackId, kQuestAliasPackagesKey, false) || mPapyrus->questRulesOn()));
                             // Task 0317: a Hearthfire house part is a MISC no cell places; its script is attached when a
                             // form list hands it out or it is first added to an inventory
                             if (settings->getBool(kPackId, "house building", false))
@@ -2496,7 +2538,7 @@ namespace game_skyrimse
                                     minusOne.insert(houses::kJobStewardFaction);
                                 if (settings->getBool(kPackId, kRidingKey, false))
                                     minusOne.insert(static_cast<FormId>(kJobHostlerFactionId));
-                                if (settings->getBool(kPackId, std::string(laidtorest::kKey), false))
+                                if (settings->getBool(kPackId, std::string(laidtorest::kKey), false) || mPapyrus->questRulesOn())
                                 {
                                     // task 0342: the Jarl lines of MS14 test JobJarlFaction == 1 (every jarl holds it at rank -1)
                                     minusOne.insert(static_cast<FormId>(laidtorest::kJobJarlFaction));
@@ -2514,10 +2556,11 @@ namespace game_skyrimse
                                     logger->log(openeden::sdk::LogLevel::Info,
                                         "AMBUSH scripted sleepers wake when the player comes near");
                             }
-                            const bool companions = settings->getBool(kPackId, "companions", false); // task 0264
+                            const bool companions = settings->getBool(kPackId, "companions", false)
+                                || mPapyrus->questRulesOn(); // task 0264, 0356
                             // task 0329: the actors a script moves outdoors need their live place
                             const bool dragonbornLive
-                                = settings->getBool(kPackId, std::string(dragonborn::kKey), false);
+                                = settings->getBool(kPackId, std::string(dragonborn::kKey), false) || mPapyrus->questRulesOn();
                             if (dragonbornLive)
                                 mWorldView.setMovedActorsOutdoors(true);
                             if (companions || dragonbornLive)
@@ -2530,7 +2573,8 @@ namespace game_skyrimse
                                     driver->enableCompanionsTraining();
                             }
                             // tasks 0264 and 0271: one forced-greeting mechanism for both settings
-                            if (companions || settings->getBool(kPackId, kQuestAliasPackagesKey, false))
+                            if (companions || mPapyrus->questRulesOn()
+                                || settings->getBool(kPackId, kQuestAliasPackagesKey, false))
                             {
                                 driver->enableForceGreet();
                                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
@@ -3169,7 +3213,8 @@ namespace game_skyrimse
                             openeden::sdk::game::CombatSubject::of(handle), 0.f);
                     });
                 const openeden::sdk::SettingsService* const spellSettings = sdkHost.getSettingsService(); // task 0292
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "civil war", false))
+                const bool qr = mPapyrus != nullptr && mPapyrus->questRulesOn(); // task 0356
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "civil war", false)))
                 {
                     // task 0298: Rikke's blocking branch speaks instead of Hello (the Civil War's join chain)
                     mWorldView.setBlockingBranches(true);
@@ -3185,7 +3230,7 @@ namespace game_skyrimse
                     if (mPapyrus != nullptr)
                         mPapyrus->setDeadLookup(killed); // the host's data: Location.GetRefTypeAliveCount
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "main quest whiterun", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "main quest whiterun", false)))
                 {
                     // task 0308: Irileth's and Balgruuf's Blocking branches speak instead of Hello, and Irileth's ForceGreet
                     // package (topic subtype HELO) makes her say hers
@@ -3224,7 +3269,7 @@ namespace game_skyrimse
                             && mPapyrus->host().hasScript(static_cast<FormId>(reference), "dragonactorscript");
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "thieves guild", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "thieves guild", false)))
                 {
                     mPapyrus->enableThieves(); // task 0314: TG01SceneTrig's box (the Flagon's intro) fires for the player
                     // the fragments of a response (`pTG01QS.pTG01Dia01 = 1`) run before the linked topics are judged
@@ -3234,7 +3279,8 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                const bool dawnguardOn = spellSettings != nullptr && spellSettings->getBool(kPackId, "dawnguard", false);
+                const bool dawnguardOn
+                    = qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "dawnguard", false));
                 if (dawnguardOn)
                     mPapyrus->enableDawnguard(); // task 0319
                 if (dawnguardOn)
@@ -3258,7 +3304,7 @@ namespace game_skyrimse
                         return loaded;
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "side quests", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "side quests", false)))
                 {
                     // task 0341: Saadia (MS08's unique actor alias, priority above the tavern quest's) is told to go to the
                     // private room before WITavern's sandbox is tried; ONE order by quest priority for every alias
@@ -3273,21 +3319,23 @@ namespace game_skyrimse
                     mWorldView.setDeadLookup(killed);
                     if (mPapyrus != nullptr)
                         mPapyrus->setDeadLookup(killed);
-                    mCellSource.actorTable().setSnapMustComplete(true); // the walk the mover cannot do ends at the marker
                     // her topics at stage 20 want her distance to the private room's marker (GetDistance of a placed
                     // reference): the place the actor stands at now (task 0313's live places, task 0277's hook)
                     mCellSource.setLivePlaces(true);
                     useLiveActorPlaces();
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "blade in the dark", false))
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "side quests", false))
+                {
+                    // HAND-WRITTEN stand-in (task 0341, kept under its own setting by task 0356): a MUST COMPLETE Travel
+                    // the mover cannot walk ends with the actor placed at its target
+                    mCellSource.actorTable().setSnapMustComplete(true);
+                }
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "blade in the dark", false)))
                 {
                     // task 0349: MQ106 "A Blade in the Dark". Delphine's alias packages walk her to the rented room behind
                     // locked doors (no navmesh path: the walk the mover cannot do ends at the marker, MUST COMPLETE), her
                     // packages are tried in ONE order by quest priority, and the box triggers of the quest fire
                     mWorldView.setAliasPriorityOrder(true);
-                    // HAND-WRITTEN stand-in (task 0349): MQ106's Travel packages of Delphine (ToRoom, ToGearUp, ToGearUp2,
-                    // ToRiverwoodEx, ToOrgnar) end with her placed at the target when the walk fails
-                    mCellSource.actorTable().setSnapPackages({ 0x3292A, 0xC65B4, 0xC65B5, 0xC65B7, 0x21404 });
                     mCellSource.setLivePlaces(true);
                     enableSceneWalks(); // the scene's walks (ToSecretDoor, ...) that cannot be done end at their targets
                     mWorldView.setBlockingBranches(true);
@@ -3303,26 +3351,33 @@ namespace game_skyrimse
                         return mPapyrus != nullptr ? mPapyrus->host().openStateOf(reference) : 3;
                     });
                     mPapyrus->enableHeldScenePackages();
-                    mPapyrus->addTriggerSubject(0x13485); // Delphine's placement: MQ106InnRoomTriggerScript counts her
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "golden claw", false))
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "blade in the dark", false))
+                {
+                    // HAND-WRITTEN stand-ins (task 0349, kept under their own setting by task 0356): MQ106's Travel
+                    // packages of Delphine (ToRoom, ToGearUp, ToGearUp2, ToRiverwoodEx, ToOrgnar) end with her placed at
+                    // the target when the walk fails, and her placement is a trigger subject (MQ106InnRoomTriggerScript)
+                    mCellSource.actorTable().setSnapPackages({ 0x3292A, 0xC65B4, 0xC65B5, 0xC65B7, 0x21404 });
+                    mPapyrus->addTriggerSubject(0x13485);
+                }
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "golden claw", false)))
                 {
                     mWorldView.setDetectsPlayer(true); // task 0335: Lucan sees the player, the argument scene goes on
                     mPapyrus->enableCreatedInInventory(); // task 0335: the claw is made in Arvel's inventory
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false)))
                 {
                     // task 0320: Adril's arrival ForceGreet package (topic subtype HELO) makes him say his greeting
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
                     mPapyrus->enableDragonbornScenes(); // task 0329
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(bloodice::kKey), false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(bloodice::kKey), false)))
                 {
                     mBloodIceOn = true; // task 0333
                     mPapyrus->enableActionlessScenes();
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(solitude::kKey), false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(solitude::kKey), false)))
                 {
                     // task 0346: the gate's box trigger starts the execution scene; the player enters it with his body
                     mPapyrus->enableDaedric();
@@ -3342,7 +3397,10 @@ namespace game_skyrimse
                     mGameClockOn = true;
                     // MS06Start: Falk's request is a top-level topic that has a prompt and no name, and the fragments of a
                     // response run before the next menu is judged (the quest's blocking greetings follow on that)
-                    mWorldView.setPromptStartsAreMenus(true);
+                    // Task 0356: NOT a general rule (it adds buttons to other quests' talks: Aventus's DB01 conversation
+                    // offers three more at its end), so only the quest's own setting turns it on
+                    if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(solitude::kKey), false))
+                        mWorldView.setPromptStartsAreMenus(true);
                     mWorldView.setQuestGreetings(true);
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setFragmentFlush([this]() {
@@ -3350,7 +3408,7 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(laidtorest::kKey), false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(laidtorest::kKey), false)))
                 {
                     mPapyrus->host().setQuestUpdatesReachAliases(true); // task 0342
                     mPapyrus->setLaidToRest(true);
@@ -3359,7 +3417,7 @@ namespace game_skyrimse
                     mBloodIceOn = true;
                     mPapyrus->enableActionlessScenes();
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false)))
                 {
                     // task 0337: MarkarthWorldIntroSceneTrigger (a box) starts MS01IntroWorldScene, the quest's scene moves
                     // its actors near the player (the Daedric quests' world) and Weylin's paired kill move kills Margret
@@ -3402,14 +3460,17 @@ namespace game_skyrimse
                             logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "dark brotherhood", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "dark brotherhood", false)))
                 {
                     // task 0343: the shack's leave box (DBAstridShackLeaveTriggerScript) fires for the player, Astrid and the
                     // Black Door speak through Blocking branches and walk-away topics, the nameless links of a response go on
                     // by themselves and a response's fragments run before the next choice is judged (the Daedric quests' world)
                     mPapyrus->enableDaedric();
                     mWorldView.setQuestGreetings(true);
-                    mWorldView.setPromptStartsAreMenus(true); // Astrid's DBAstridCaughtBranchTopic is a menu topic
+                    // Astrid's DBAstridCaughtBranchTopic is a menu topic (task 0356: only the quest's own setting, see the
+                    // Solitude block)
+                    if (spellSettings != nullptr && spellSettings->getBool(kPackId, "dark brotherhood", false))
+                        mWorldView.setPromptStartsAreMenus(true);
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setWalkAwayTopics(true);
                     // Astrid's second greeting asks GetDeadCount of each captive's base: a captive the session killed counts
@@ -3426,7 +3487,7 @@ namespace game_skyrimse
                             logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "bards college", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "bards college", false)))
                 {
                     // task 0331: Viarmo's poem (MS05): a response that links to a topic with no name goes on by itself (the
                     // verse, then "What do we say really happened?"), the walk-away topic it names is said as the player
@@ -3438,7 +3499,7 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "companions", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "companions", false)))
                 {
                     // task 0315: Eorlund's "What brings you here?" is the first line of a Blocking branch (C00 stage 30)
                     // and the chained replies of the Companions' branches want the effects of the line just shown
@@ -3458,7 +3519,7 @@ namespace game_skyrimse
                 // Task 0324: spell casts, hits and applied effects reach the scripts with `college` (task 0292) and with
                 // `main quest whiterun` (MQ105's shout target scripts wait for OnMagicEffectApply): ONE sink
                 if (spellSettings != nullptr
-                    && (spellSettings->getBool(kPackId, "college", false)
+                    && (qr || spellSettings->getBool(kPackId, "college", false)
                         || spellSettings->getBool(kPackId, "main quest whiterun", false)))
                 {
                     mCellSource.combat().setSpellEventSink([&host, logger](const SkyrimCombat::SpellEvent& e) {
@@ -3487,7 +3548,7 @@ namespace game_skyrimse
                         }
                     });
                 }
-                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
+                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false)))
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
                     // Task 0348: MG01's Player alias (a unique actor alias of the Player NPC_) holds the player, so its
@@ -4047,7 +4108,8 @@ namespace game_skyrimse
                 };
                 mTravel = std::make_unique<travel::TravelService>(*mMap, std::move(hooks));
                 // Task 0312: Gjalund's ship (Game.FastTravel to the Raven Rock landing) goes to another world
-                if (settings->getBool(kPackId, std::string(dragonborn::kKey), false))
+                if (settings->getBool(kPackId, std::string(dragonborn::kKey), false)
+                    || (mPapyrus != nullptr && mPapyrus->questRulesOn())) // task 0356
                     mTravel->setCrossWorldHours(dragonborn::kShipHours);
                 // Task 0223: the carriage drivers' Game.FastTravel (the Papyrus host, when it runs) leaves a request
                 // that the global travel script reads
@@ -4420,7 +4482,8 @@ namespace game_skyrimse
                 // Task 0338: Azura's altar (a scripted activator) is activated by the player under `daedric quests`, too
                 const bool daedricActivators = settings != nullptr
                     && (settings->getBool(kPackId, "daedric quests", false)
-                        || settings->getBool(kPackId, "dark brotherhood", false)) // task 0343: the Black Door
+                        || settings->getBool(kPackId, "dark brotherhood", false) // task 0343: the Black Door
+                        || (mPapyrus != nullptr && mPapyrus->questRulesOn())) // task 0356
                     && mPapyrus != nullptr;
                 if (settings == nullptr || (!harvestOn && !mDungeonMechanics && !daedricActivators)
                     || mInventory == nullptr)
@@ -4890,7 +4953,8 @@ namespace game_skyrimse
                 if (settings->getBool(kPackId, marriage::kMarriageKey, false)
                     || settings->getBool(kPackId, "golden claw", false) // tasks 0270, 0335: GetItemCount of the player
                     || settings->getBool(kPackId, "daedric quests", false) // task 0338: Aranea asks for the Star
-                    || settings->getBool(kPackId, "dark brotherhood", false)) // task 0343: the shack's key, the Black Door
+                    || settings->getBool(kPackId, "dark brotherhood", false) // task 0343: the shack's key, the Black Door
+                    || (mPapyrus != nullptr && mPapyrus->questRulesOn())) // task 0356
                 {
                     mWorldView.setPlayerWornSource(
                         [this](FormId item) { return mInventory != nullptr && mInventory->model().isEquipped(item); });
@@ -6448,7 +6512,8 @@ namespace game_skyrimse
                         if (settings->getBool(kPackId, kCombatTraceKey, false))
                             mDeathKeeper->setTrace(
                                 [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
-                        if (settings->getBool(kPackId, "dawnguard", false)) // task 0330
+                        if (settings->getBool(kPackId, "dawnguard", false)
+                            || mQuestRulesWanted) // task 0330, 0356
                             mCellSource.setStartsDeadLookup([this](openeden::sdk::game::WorldId reference) {
                                 return mWorldView.startsDead(static_cast<FormId>(reference));
                             });
@@ -6634,7 +6699,8 @@ namespace game_skyrimse
                             settings->getBool(kPackId, kActorSleepSnapKey, true));
                         say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
                         // Task 0271: quest aliases' packages and the ForceGreet conversation (needs the brain)
-                        if (settings->getBool(kPackId, kQuestAliasPackagesKey, false))
+                        if (settings->getBool(kPackId, kQuestAliasPackagesKey, false)
+                            || mQuestRulesWanted) // task 0356
                         {
                             mWorldView.setAliasPackages(true);
                             // Task 0274: a package that ends (a patrol at its last marker) runs its OnEnd fragment
@@ -6665,7 +6731,8 @@ namespace game_skyrimse
                             say(openeden::sdk::LogLevel::Info,
                                 "quest alias packages: quests' ALPC packages join the actors' lists, ForceGreet "
                                 "packages greet the player");
-                            if (settings->getBool(kPackId, std::string(dragonborn::kKey), false)) // task 0306
+                            if (settings->getBool(kPackId, std::string(dragonborn::kKey), false)
+                                || mQuestRulesWanted) // task 0306, 0356
                             {
                                 mCellSource.actorTable().setApproachGreeters(true);
                                 mDragonbornOn = true;
@@ -6890,6 +6957,7 @@ namespace game_skyrimse
             FormId mStonesTestCast = kNullFormId; // task 0248: a proof aid, a hex form id cast once as a blessing
             std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
+            bool mQuestRulesWanted = false; ///< task 0356: `quest rules` with `papyrus` (known before the Papyrus host exists)
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
             std::map<FormId, FormId> mActorRaces; // task 0350: Actor.SetRace
             bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush

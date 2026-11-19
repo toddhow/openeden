@@ -334,6 +334,10 @@ namespace game_skyrimse
         out = {};
         mOpen = false;
         mLinkMode = false; // task 0258
+        // Task 0356: what the line before (or the last conversation) queued runs BEFORE the greeting is judged, so a
+        // quest variable a fragment sets (pTG01BersiWarned) never decides on a timing
+        if (mFragmentFlush)
+            mFragmentFlush();
         mSpeaker = speaker;
         mWorld.setSpeaker(speaker);
         // Task 0156: the speaker is in dialogue with the player from the greeting on, has not talked to him yet, and
@@ -723,6 +727,8 @@ namespace game_skyrimse
         out = {};
         mOpen = false;
         mLinkMode = false;
+        if (mFragmentFlush) // task 0356
+            mFragmentFlush();
         mSpeaker = speaker;
         mWorld.setSpeaker(speaker);
         mWorld.setConversationOpen(true);
@@ -756,6 +762,8 @@ namespace game_skyrimse
         out = {};
         mOpen = false;
         mLinkMode = false;
+        if (mFragmentFlush) // task 0356
+            mFragmentFlush();
         mSpeaker = speaker;
         mWorld.setSpeaker(speaker);
         mWorld.setConversationOpen(true);
