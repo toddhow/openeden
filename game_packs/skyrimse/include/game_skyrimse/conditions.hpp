@@ -645,6 +645,13 @@ namespace game_skyrimse::conditions
             (void)subject, (void)reference;
             return false;
         }
+        /// fn_32 with the "use aliases" flag (task 0328): is the subject in the same cell as the reference the quest alias
+        /// holds? (MQ105PushTrialScene's phase 1: GetInSameCell on the Player alias, target alias 33)
+        virtual bool inSameCellAlias(Subject subject, std::uint32_t alias) const
+        {
+            (void)subject, (void)alias;
+            return false;
+        }
         /// fn_375 GetCrimeGoldViolent(faction, optional): the player's violent crime gold (murder and assault) with
         /// the faction; with faction 0, with the subject's crime faction (CK wiki, shown by toddhow, 2026-11-11).
         virtual float crimeGoldViolent(Subject subject, std::uint32_t faction) const

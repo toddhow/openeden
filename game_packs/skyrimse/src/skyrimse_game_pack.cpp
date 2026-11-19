@@ -2432,7 +2432,7 @@ namespace game_skyrimse
                             if (companions)
                             {
                                 driver->enableCompanions();
-                                mCellSource.actorTable().setCarryTravellers(true); // task 0277
+                                enableSceneWalks(); // task 0277 (one mechanism: see the function)
                                 if (settings->getBool(kPackId, "companions test training", false))
                                     driver->enableCompanionsTraining();
                             }
@@ -3078,14 +3078,9 @@ namespace game_skyrimse
                     mWhiterunQuest = true;
                     mCellSource.setLivePlaces(true);
                     // task 0328: a scene's Travel package that cannot be walked (High Hrothgar's stairs are not on the
-                    // navmesh: Einarth's walk to his teaching marker) ends with the actor at its destination, the
-                    // mechanism of task 0277 (one mechanism: the same brain switch the Companions use)
-                    mCellSource.actorTable().setCarryTravellers(true);
-                    // task 0328: GetDistance of a scene phase's completion condition (phase 23: Einarth within 800 units of
-                    // the player) reads where the actor really stands, as the Companions' scenes do (task 0277)
-                    mWorldView.setLiveActorPlace([this](FormId reference, double& x, double& y, double& z) {
-                        return mCellSource.actorTable().brainPlace(reference, x, y, z);
-                    });
+                    // navmesh: Einarth's walk to his teaching marker) ends with the actor at its destination, and a phase's
+                    // GetDistance reads where the actor stands (phase 23: Einarth within 800 units of the player)
+                    enableSceneWalks();
                     // task 0324: the Greybeards (a faction MQ105 stage 5 makes the player's ally) do not answer his
                     // push with a fight
                     mCellSource.combat().setAllyOfPlayerHook([this](const std::vector<FormId>& factions) {
@@ -3181,9 +3176,8 @@ namespace game_skyrimse
                     // interior (task 0286's mechanism; its walk hook stays off: the tour walks and is carried)
                     mPapyrus->host().setCellMoves(true);
                     // task 0327: Mirabelle's tour walks through the College's doors with the player following
-                    mCellSource.actorTable().setCarryTravellers(true);
                     // and the scene's "Mirabelle within 100 of the marker" reads where she is now, not her placement
-                    useLiveActorPlaces();
+                    enableSceneWalks();
                     mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
                     mWorldView.setFragmentFlush([this]() {
                         if (mPapyrus != nullptr)
@@ -6520,6 +6514,14 @@ namespace game_skyrimse
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
             bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush
             bool mDragonbornOn = false; // task 0306: [extension.skyrimse] dragonborn
+            /// Tasks 0277, 0327, 0328 and 0329, ONE mechanism for scenes whose actors walk: a scene's Travel package that
+            /// cannot be walked ends with the actor at its destination (and travellers are carried through the
+            /// player's doors), and the conditions of a scene read where an actor stands now, not its placement.
+            void enableSceneWalks()
+            {
+                mCellSource.actorTable().setCarryTravellers(true);
+                useLiveActorPlaces(); // task 0329's hook: the same live place for dragonborn
+            }
             bool mWhiterunQuest = false; // task 0313: [extension.skyrimse] main quest whiterun
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared

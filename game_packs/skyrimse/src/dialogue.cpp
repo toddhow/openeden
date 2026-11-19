@@ -1748,6 +1748,19 @@ namespace game_skyrimse
         return theirs != kNullFormId && theirs == mine;
     }
 
+    bool SkyrimConditionWorld::inSameCellAlias(conditions::Subject subject, std::uint32_t alias) const
+    {
+        // Task 0328: the same as inSameCell, with the reference the alias holds (the player, or a placed reference)
+        FormId mine = kNullFormId;
+        std::array<double, 3> place{};
+        if (!aliasSubjectPlace(subject, place, mine) || mine == kNullFormId)
+            return false;
+        FormId theirs = kNullFormId;
+        if (!aliasPlace(alias, place, theirs))
+            return false;
+        return theirs != kNullFormId && theirs == mine;
+    }
+
     int SkyrimConditionWorld::sexOf(conditions::Subject subject) const
     {
         if (mPlayer != nullptr && subject == kPlayer)

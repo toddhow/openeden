@@ -600,6 +600,8 @@ namespace game_skyrimse::conditions
         // 32 GetInSameCell(reference) (CK wiki, toddhow 2026-11-11)
         float getInSameCell(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
         {
+            if (subject != 0 && (c.mFlags & kFlagUseAliases) != 0)
+                return asFloat(world.inSameCellAlias(subject, c.mParam1)); // task 0328
             return asFloat(subject != 0 && world.inSameCell(subject, c.mParam1));
         }
 
