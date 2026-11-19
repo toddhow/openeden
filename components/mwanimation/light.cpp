@@ -13,6 +13,7 @@
 #include <components/misc/rng.hpp>
 
 #include "color.hpp"
+#include "lightflicker.hpp"
 
 namespace
 {
@@ -68,6 +69,35 @@ namespace
         }
     };
 
+    // OpenEden (task 0355 stage h): a neutral (Skyrim) light with its own period and amplitude. The brightness comes
+    // from MWAnim::NeutralFlicker::Walk (seeded by the placement, no global generator); the colour is still the base
+    // colour times it, as in LightController.
+    class NeutralLightController : public Anim::TMutable<NeutralLightController, vsg::Light>
+    {
+        Anim::DeltaTime mDt;
+        bool mStarted = false;
+        MWAnim::NeutralFlicker::Walk mWalk;
+        vsg::vec3 mBaseColor;
+
+    public:
+        NeutralLightController(const MWAnim::NeutralFlicker::Params& params, bool pulse, const vsg::vec3& baseColor)
+            : mWalk(params, pulse)
+            , mBaseColor(baseColor)
+        {
+            hints.autoPlay = true;
+        }
+        void apply(vsg::Light& light, float time)
+        {
+            // The first run's step is 0, as LightController's (task 0074c).
+            if (!mStarted)
+            {
+                mStarted = true;
+                mDt.last = time;
+            }
+            light.color = mBaseColor * mWalk.step(mDt.get(time));
+        }
+    };
+
     vsg::ref_ptr<vsg::PointLight> createLight(const ESM::Light& light)
     {
         auto node = vsg::PointLight::create();
@@ -82,12 +112,21 @@ namespace
         return node;
     }
 
-    vsg::ref_ptr<LightController> createLightControllerIfRequired(const ESM::Light& light, const vsg::vec3& color)
+    vsg::ref_ptr<Anim::Controller> createLightControllerIfRequired(const ESM::Light& light, const vsg::vec3& color)
     {
         if (!(light.mData.mFlags
                 & (ESM::Light::Flicker | ESM::Light::FlickerSlow | ESM::Light::Pulse | ESM::Light::PulseSlow)))
             return {};
-        return LightController::create(light.mData.mFlags, color);
+        if (light.mData.mFlags & ESM::Light::NeutralFlicker)
+        {
+            if (const auto params = MWAnim::NeutralFlicker::unpack(light.mData.mTime, light.mData.mValue))
+            {
+                // The same precedence as the Morrowind rule: a flicker bit wins over a pulse bit.
+                const bool pulse = !(light.mData.mFlags & (ESM::Light::Flicker | ESM::Light::FlickerSlow));
+                return vsg::ref_ptr<Anim::Controller>(NeutralLightController::create(*params, pulse, color));
+            }
+        }
+        return vsg::ref_ptr<Anim::Controller>(LightController::create(light.mData.mFlags, color));
     }
 }
 

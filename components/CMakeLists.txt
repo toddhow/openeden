@@ -210,7 +210,7 @@ add_component_dir (animation
 # Depends on esm, animation.
 add_component_dir (mwanimation
     context play groups clone decorate attach
-    color position light lighteffect effect effects
+    color position light lightflicker lighteffect effect effects
     create object objectanim actor wielding face sceneryanim
     )
 # Conveniently extends vsg.

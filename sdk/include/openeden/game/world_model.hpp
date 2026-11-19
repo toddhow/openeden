@@ -160,6 +160,12 @@ namespace openeden::sdk::game
         bool offByDefault = false;
         /// The game's own flag word, untouched, for a consumer that knows the game (Skyrim SE: LIGH DATA flags).
         std::uint32_t flags = 0;
+        /// The light's own flicker or pulse numbers (task 0355 stage h; additive trailing fields, 0 = none). Skyrim SE:
+        /// LIGH DATA +28, +32, +36: period in seconds, intensity amplitude as a fraction of the brightness, movement
+        /// amplitude in the game's units (field layout RECALLED-VERIFY from xEdit; the five masters' values fit it).
+        double flickerPeriod = 0.0;
+        double flickerIntensity = 0.0;
+        double flickerMovement = 0.0;
 
         friend bool operator==(const LightComponent&, const LightComponent&) = default;
     };

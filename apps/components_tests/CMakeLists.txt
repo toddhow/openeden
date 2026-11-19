@@ -110,6 +110,7 @@ file(GLOB UNITTEST_SRC_FILES
     esm3/readerscache.cpp
     esm3/testsaveload.cpp
     esm3/testlightneutralgain.cpp
+    esm3/testlightneutralflicker.cpp
     esm3/testsavedgamepack.cpp
     esm3/testesmwriter.cpp
     esm3/testinfoorder.cpp
@@ -519,6 +520,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testskinprevious.cpp
     mwanimation/testlightcontroller.cpp
     mwanimation/testlightgain.cpp
+    mwanimation/testlightflicker.cpp
     mwanimation/testsceneryanim.cpp
     mwanimation/testpointshadowcarrier.cpp
     mwanimation/testplaycharacterization.cpp
@@ -928,6 +930,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsefogcurve.cpp
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimselocallights.cpp
+    skyrimse/testskyrimselightflicker.cpp
     skyrimse/testskyrimseinteriorwater.cpp
     skyrimse/testskyrimselightsreal.cpp
     skyrimse/testskyrimseneutralworldreal.cpp

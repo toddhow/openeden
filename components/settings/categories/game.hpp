@@ -118,6 +118,7 @@ namespace Settings
         SettingValue<bool> mNeutralCellImageSpace{ mIndex, "Game", "neutral cell image space" }; // task 0355 c
         SettingValue<bool> mNeutralInteriorFog{ mIndex, "Game", "neutral interior fog" }; // task 0355 d
         SettingValue<bool> mNeutralLightFadeGain{ mIndex, "Game", "neutral light fade gain" }; // task 0355 stage b
+        SettingValue<bool> mNeutralLightFlicker{ mIndex, "Game", "neutral light flicker" }; // task 0355 stage h
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
         SettingValue<bool> mNeutralHavokCollision{ mIndex, "Game", "neutral havok collision" };
         SettingValue<bool> mNeutralTreeSway{ mIndex, "Game", "neutral tree sway" };

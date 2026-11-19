@@ -39,7 +39,11 @@ namespace ESM
             // OpenEden (task 0355 stage b), NOT a bit of the file format: a light made by a game pack's neutral world
             // (MWWorld::makeNeutralEsmLight) whose brightness is more than its 8 bit colour can hold. mData.mWeight
             // then holds the multiplier MWAnim::addLight applies to the colour. No file sets it.
-            NeutralGain = 0x10000
+            NeutralGain = 0x10000,
+            // OpenEden (task 0355 stage h), NOT a bit of the file format: the light has its own flicker or pulse (a
+            // game pack's period and amplitude, packed in mData.mTime, the seed in mData.mValue; see
+            // components/mwanimation/lightflicker.hpp). No file sets it.
+            NeutralFlicker = 0x20000
         };
 
         struct LHDTstruct

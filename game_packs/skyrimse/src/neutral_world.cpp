@@ -181,6 +181,14 @@ namespace game_skyrimse
             c.animation = sdkgame::LightAnimation::Pulse;
         else if ((light.mFlags & LightFlags::PulseSlow) != 0)
             c.animation = sdkgame::LightAnimation::PulseSlow;
+        // Task 0355 stage h: the record's own flicker numbers (an animated light only); not finite or negative is 0.
+        if (c.animation != sdkgame::LightAnimation::None)
+        {
+            const auto usable = [](float v) { return std::isfinite(v) && v > 0.f ? static_cast<double>(v) : 0.0; };
+            c.flickerPeriod = usable(light.mFlickerPeriod);
+            c.flickerIntensity = usable(light.mFlickerIntensity);
+            c.flickerMovement = usable(light.mFlickerMovement);
+        }
         c.negative = (light.mFlags & LightFlags::Negative) != 0;
         c.offByDefault = (light.mFlags & LightFlags::OffByDefault) != 0;
         c.flags = light.mFlags;

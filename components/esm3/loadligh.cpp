@@ -59,7 +59,7 @@ namespace ESM
         }
 
         // OpenEden (task 0355 stage b): NeutralGain is not a bit of the file format; a file must never set it.
-        mData.mFlags &= ~NeutralGain;
+        mData.mFlags &= ~(NeutralGain | NeutralFlicker);
 
         if (!hasName)
             esm.fail("Missing NAME subrecord");

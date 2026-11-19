@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 
+#include <components/mwanimation/lightflicker.hpp>
+
 namespace MWWorld
 {
     using openeden::sdk::game::LightAnimation;
@@ -46,7 +48,7 @@ namespace MWWorld
         return gain > 1.0 ? static_cast<float>(std::min(gain, 64.0)) : 1.f;
     }
 
-    ESM::Light makeNeutralEsmLight(const LightComponent& light, bool fadeGain)
+    ESM::Light makeNeutralEsmLight(const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed)
     {
         ESM::Light record;
         record.blank();
@@ -83,7 +85,29 @@ namespace MWWorld
                 record.mData.mWeight = gain;
             }
         }
+        if (ownFlicker && light.animation != LightAnimation::None)
+        {
+            // Task 0355 stage h: the light's own flicker or pulse numbers (a record with none usable keeps the rule).
+            const auto narrow = [](double v) { return std::isfinite(v) ? static_cast<float>(v) : 0.f; };
+            const std::int32_t packed = MWAnim::NeutralFlicker::packTimeField(
+                narrow(light.flickerPeriod), narrow(light.flickerIntensity));
+            if (packed != 0)
+            {
+                flags |= ESM::Light::NeutralFlicker;
+                record.mData.mTime = packed;
+                record.mData.mValue = static_cast<std::int32_t>(seed);
+            }
+        }
         record.mData.mFlags = flags;
         return record;
+    }
+
+    std::uint32_t neutralLightSeed(std::uint32_t contentFile, std::uint32_t index)
+    {
+        // splitmix64 of the placement's identity; only its low half is kept.
+        std::uint64_t z = ((static_cast<std::uint64_t>(contentFile) << 32) | index) + 0x9E3779B97F4A7C15ull;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        return static_cast<std::uint32_t>((z ^ (z >> 31)) >> 16);
     }
 }

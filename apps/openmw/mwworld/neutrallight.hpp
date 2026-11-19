@@ -35,8 +35,16 @@ namespace MWWorld
     /// With `fadeGain` the brightness the fade has beyond what neutralLightColor could put in the colour byte (fade
     /// over 255 / the brightest channel) is kept as the record's NeutralGain multiplier (task 0355 stage b; 39 percent
     /// of the Skyrim light records, up to five times, lost it before); without it the record is as before.
-    [[nodiscard]] ESM::Light makeNeutralEsmLight(
-        const openeden::sdk::game::LightComponent& light, bool fadeGain = false);
+    /// With `ownFlicker` (task 0355 stage h) a light that animates and whose record has a usable flicker period and
+    /// intensity amplitude carries them in the record (ESM::Light::NeutralFlicker, mData.mTime packed by
+    /// MWAnim::NeutralFlicker::packTimeField, mData.mValue = `seed`), so MWAnim::addLight runs the light's own flicker
+    /// or pulse; without it, or with no usable numbers, the record is as before (Morrowind's rule).
+    [[nodiscard]] ESM::Light makeNeutralEsmLight(const openeden::sdk::game::LightComponent& light,
+        bool fadeGain = false, bool ownFlicker = false, std::uint32_t seed = 0);
+
+    /// A per-light seed from a placement's identity (content file index and reference number): the same placement
+    /// always gets the same seed, whatever else is loaded.
+    [[nodiscard]] std::uint32_t neutralLightSeed(std::uint32_t contentFile, std::uint32_t index);
 
     /// The multiplier above 1 that neutralLightColor leaves out (1 when none): fade / the scale it applied.
     [[nodiscard]] float neutralLightGain(const openeden::sdk::game::LightComponent& light);
