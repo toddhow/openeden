@@ -771,6 +771,14 @@ namespace game_skyrimse
         return source->weatherListForCell(cell, out);
     }
 
+    bool SkyrimCellSource::imageSpaceForCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out)
+    {
+        out = {};
+        auto* source = dynamic_cast<openeden::sdk::game::CellImageSpaceSource*>(&mView);
+        return source != nullptr && source->imageSpaceForCell(cell, out);
+    }
+
     // ---- music (task 0209) ----
 
     namespace

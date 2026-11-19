@@ -102,6 +102,12 @@ namespace game_skyrimse
         const TextureProbe& textureExists = {}, const ImageSpaceLookup& imageSpaces = {},
         const SoundLookup& sounds = {}, const SoundProbe& soundExists = {});
 
+    /// Task 0355 stage c: one image space record as the SDK's grade (the SAME conversion the weather's four image
+    /// spaces use). nullopt when the record has no cinematic values (a record with only HDR data). The tint amount is
+    /// clamped to 0..1; the other values are passed as stored.
+    [[nodiscard]] std::optional<openeden::sdk::game::ImageSpaceGrade> describeImageSpaceGrade(
+        const ImageSpaceRecord& record);
+
     /// The sun hours of the climate timing most climates share (ties: the lowest climate form id). False when no
     /// climate has a timing. Also (stage W-S3) the sun and sun glare pictures of that climate when `textureExists` (if
     /// given) finds them, and which moons the climate has.
@@ -121,6 +127,9 @@ namespace game_skyrimse
         [[nodiscard]] int indexOf(FormId weather) const;
         /// The list that applies to a cell (form id). False when none applies or no listed weather is in the table.
         [[nodiscard]] bool listForCell(FormId cell, openeden::sdk::game::CellWeatherList& out) const;
+        /// Task 0355 stage c: the image space an interior (or any) cell names with XCIM, as a grade. False when the
+        /// cell is unknown, names none, the record is unknown or has no cinematic values; `out` is then neutral.
+        [[nodiscard]] bool imageSpaceForCell(FormId cell, openeden::sdk::game::ImageSpaceGrade& out) const;
 
     private:
         const WeatherIndex* mIndex;

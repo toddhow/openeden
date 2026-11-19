@@ -115,6 +115,7 @@
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
+#include "../mwworld/neutralcellatmosphere.hpp"
 #include "extentsync.hpp"
 
 #include "animcontext.hpp"
@@ -275,8 +276,10 @@ namespace MWRender
             parameters.sssStrength = rendering.mSssStrength;
             parameters.sssWidth = rendering.mSssWidth;
             // Task 0127 stage W-S4: the grade is in the shader only when a game pack's image space is asked for.
-            parameters.gradeShader
-                = Settings::game().mNeutralWeatherImageSpace.get() || Settings::game().mNeutralImageSpaceEffects.get();
+            // Task 0355 stage c: and a neutral world's cell image space (the setting counts only in a neutral world).
+            parameters.gradeShader = MWWorld::neutralGradeShaderWanted(Settings::game().mNeutralWorld.get(),
+                Settings::game().mNeutralWeatherImageSpace.get(), Settings::game().mNeutralImageSpaceEffects.get(),
+                Settings::game().mNeutralCellImageSpace.get());
             // Task 0026: the G-buffer's debug view (only with the G-buffer on; checked where the setting is read).
             if (rendering.mGBuffer)
             {

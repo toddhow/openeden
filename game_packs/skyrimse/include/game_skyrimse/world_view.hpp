@@ -44,6 +44,7 @@
 #include <game_skyrimse/werewolf.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
@@ -144,6 +145,7 @@ namespace game_skyrimse
                                   public openeden::sdk::game::DialogueSource,
                                   public openeden::sdk::game::DisplayNameSource,
                                   public openeden::sdk::game::WeatherSource,
+                                  public openeden::sdk::game::CellImageSpaceSource, // task 0355
                                   public music::MusicDataSource,
                                   public PackageSource,
                                   public FurnitureSource,
@@ -938,6 +940,8 @@ namespace game_skyrimse
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
         bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
+        /// Task 0355 stage c: the grade of the image space a cell names (CELL XCIM); reads the weather records too.
+        bool imageSpaceForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out) override;
 
         // ---- music (task 0209): the runtime reads the music records of every plugin on a worker ----
         music::MusicRuntime* musicRuntime() override;

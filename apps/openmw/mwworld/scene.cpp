@@ -68,6 +68,7 @@
 #include "esmstore.hpp"
 #include "localscripts.hpp"
 #include "neutralcell.hpp"
+#include "neutralcellatmosphere.hpp"
 #include "neutraldoor.hpp"
 #include "neutralphysicswater.hpp"
 #include "neutralstore.hpp"
@@ -1151,6 +1152,7 @@ namespace MWWorld
 
         // adjust fog
         mRendering.configureFog(*mCurrentCell->getCell());
+        applyNeutralCellImageSpace(*mCurrentCell, mRendering); // task 0355 stage c: a neutral interior's grade
 
         mRendering.setRenderModeActive(MWRender::Render_Terrain, false);
 
@@ -1176,6 +1178,8 @@ namespace MWWorld
 
         if (&current != mCurrentCell)
             changePlayerCell(current);
+
+        resetNeutralCellImageSpace(current, mRendering); // task 0355 stage c: no interior grade on the street
 
         mPhysics->optimize();
     }

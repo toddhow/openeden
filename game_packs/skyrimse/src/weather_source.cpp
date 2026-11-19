@@ -148,16 +148,13 @@ namespace game_skyrimse
             for (std::size_t t = 0; t < 4; ++t)
             {
                 const ImageSpaceRecord* r = w.mImageSpaces[t] != kNullFormId ? lookup(w.mImageSpaces[t]) : nullptr;
-                if (r == nullptr || !r->mCinematic)
+                if (r == nullptr)
                     continue;
-                grades[t].saturation = r->mCinematic->mSaturation;
-                grades[t].brightness = r->mCinematic->mBrightness;
-                grades[t].contrast = r->mCinematic->mContrast;
-                if (r->mTint)
-                {
-                    grades[t].tintAmount = std::clamp(r->mTint->mAmount, 0.f, 1.f);
-                    grades[t].tint = { r->mTint->mR, r->mTint->mG, r->mTint->mB };
-                }
+                // Task 0355 stage c: the same conversion the cells' image spaces use.
+                const auto grade = describeImageSpaceGrade(*r);
+                if (!grade)
+                    continue;
+                grades[t] = *grade;
                 any = true;
             }
             if (!any)
@@ -410,6 +407,38 @@ namespace game_skyrimse
         if (it == mIds.end() || *it != weather)
             return -1;
         return static_cast<int>(it - mIds.begin());
+    }
+
+    std::optional<openeden::sdk::game::ImageSpaceGrade> describeImageSpaceGrade(const ImageSpaceRecord& record)
+    {
+        if (!record.mCinematic)
+            return std::nullopt;
+        openeden::sdk::game::ImageSpaceGrade grade;
+        grade.saturation = record.mCinematic->mSaturation;
+        grade.brightness = record.mCinematic->mBrightness;
+        grade.contrast = record.mCinematic->mContrast;
+        if (record.mTint)
+        {
+            grade.tintAmount = std::clamp(record.mTint->mAmount, 0.f, 1.f);
+            grade.tint = { record.mTint->mR, record.mTint->mG, record.mTint->mB };
+        }
+        return grade;
+    }
+
+    bool WeatherTable::imageSpaceForCell(FormId cell, openeden::sdk::game::ImageSpaceGrade& out) const
+    {
+        out = {};
+        const CellWeatherLinks* links = mIndex->cell(cell);
+        if (links == nullptr || links->mImageSpace == kNullFormId)
+            return false;
+        const ImageSpaceRecord* record = mIndex->imageSpace(links->mImageSpace);
+        if (record == nullptr)
+            return false;
+        const auto grade = describeImageSpaceGrade(*record);
+        if (!grade)
+            return false;
+        out = *grade;
+        return true;
     }
 
     bool WeatherTable::listForCell(FormId cell, openeden::sdk::game::CellWeatherList& out) const

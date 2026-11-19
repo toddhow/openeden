@@ -58,6 +58,17 @@ namespace MWWorld
         std::string_view getDescription() const { return mDescription; }
         const MoodData& getMood() const { return mMood; }
         float getWaterHeight() const { return mWaterHeight; }
+        /// Task 0355 stage d: the linear fog (start, end, in units) a game pack's interior asks for, or none. Set by
+        /// WorldModel when it builds a neutral cell; FogManager::configure reads it. Morrowind cells never have one.
+        bool hasNeutralFog() const { return mHasNeutralFog; }
+        float getNeutralFogStart() const { return mNeutralFogStart; }
+        float getNeutralFogEnd() const { return mNeutralFogEnd; }
+        void setNeutralFog(float start, float end)
+        {
+            mHasNeutralFog = true;
+            mNeutralFogStart = start;
+            mNeutralFogEnd = end;
+        }
         const ESM::RefId& getId() const { return mId; }
         ESM::RefId getWorldSpace() const { return mIsExterior ? mParent : mId; }
 
@@ -81,6 +92,9 @@ namespace MWWorld
         float mWaterHeight;
         std::string mDescription;
         MoodData mMood;
+        bool mHasNeutralFog = false;
+        float mNeutralFogStart = 0.f;
+        float mNeutralFogEnd = 0.f;
     };
 }
 

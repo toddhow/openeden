@@ -32,6 +32,7 @@
 #include "cellstore.hpp"
 #include "esmstore.hpp"
 #include "neutralcell.hpp"
+#include "neutralcellatmosphere.hpp"
 #include "neutrallock.hpp"
 #include "neutralstore.hpp"
 
@@ -426,7 +427,7 @@ namespace MWWorld
         mNeutralCells.push_back(makeNeutralCellRecord(gameId, cell, interiorWater));
         const ESM::Cell& record = mNeutralCells.back();
         const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(record.mId),
-            std::forward_as_tuple(Cell(record), mStore, mReaders));
+            std::forward_as_tuple(makeNeutralInteriorCell(record, cell), mStore, mReaders));
         if (!inserted)
         {
             mNeutralCells.pop_back();

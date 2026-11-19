@@ -3243,6 +3243,13 @@ namespace game_skyrimse
         return ensureWeather() && mWeatherTable->listForCell(static_cast<FormId>(cell), out);
     }
 
+    bool SkyrimWorldView::imageSpaceForCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out)
+    {
+        out = {};
+        return ensureWeather() && mWeatherTable->imageSpaceForCell(static_cast<FormId>(cell), out);
+    }
+
     music::MusicRuntime* SkyrimWorldView::musicRuntime()
     {
         if (mMusic == nullptr)

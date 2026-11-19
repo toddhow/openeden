@@ -114,6 +114,8 @@ namespace Settings
             makeClampSanitizerInt(0, 8) };
         SettingValue<bool> mNeutralWeatherImageSpace{ mIndex, "Game", "neutral weather image space" };
         SettingValue<bool> mNeutralImageSpaceEffects{ mIndex, "Game", "neutral image space effects" };
+        SettingValue<bool> mNeutralCellImageSpace{ mIndex, "Game", "neutral cell image space" }; // task 0355 c
+        SettingValue<bool> mNeutralInteriorFog{ mIndex, "Game", "neutral interior fog" }; // task 0355 d
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
         SettingValue<bool> mNeutralHavokCollision{ mIndex, "Game", "neutral havok collision" };
         SettingValue<bool> mNeutralTreeSway{ mIndex, "Game", "neutral tree sway" };

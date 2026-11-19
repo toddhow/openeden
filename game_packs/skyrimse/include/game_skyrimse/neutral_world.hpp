@@ -28,6 +28,7 @@
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
@@ -199,6 +200,7 @@ namespace game_skyrimse
                                    public openeden::sdk::game::CombatRules,
                                    public openeden::sdk::game::CellWaterSource,
                                    public openeden::sdk::game::WeatherSource,
+                                   public openeden::sdk::game::CellImageSpaceSource, // task 0355
                                    public openeden::sdk::game::MusicSource,
                                    public openeden::sdk::game::GrassSource,
                                    public openeden::sdk::game::PlayerItemSource,
@@ -760,6 +762,8 @@ namespace game_skyrimse
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
         bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
+        /// Task 0355 stage c: forwards to the view when it can name the image space of a cell.
+        bool imageSpaceForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out) override;
 
         /// Task 0209 (music, M-S7): off unless the pack setting `music` is true (setMusic); the data comes from the
         /// view's MusicRuntime (a worker reads the records) and "the player is in a fight" from the combat rules.
