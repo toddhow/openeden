@@ -105,6 +105,7 @@ namespace vsgUtil
 }
 namespace View
 {
+    class CollectLights;
     class LightGrid;
     class VolumeFog;
     class CloudVolume;
@@ -288,6 +289,16 @@ namespace MWRender
         /// was made for; null for none (an interior, a weather without one, the setting off). An interior cube set by
         /// setAmbientCube wins over it. Main thread, once a frame.
         void setWeatherAmbientCube(const std::array<vsg::vec3, 6>* cube, const vsg::vec3& baseline);
+        /// Task 0355 stage f: a game pack's interior has its own directional light: the direction toward the light
+        /// (unit vector, view-independent world space) and a linear intensity multiplier of the light's colour. Call
+        /// after configureAmbient. clearNeutralInteriorSun() puts the multiplier back to 1 (the direction is left to
+        /// configureAmbient and the weather).
+        void setNeutralInteriorSun(const vsg::vec3& towardLight, float intensity);
+        void clearNeutralInteriorSun();
+        /// Task 0355 stage j: the lights fade out between these distances from the eye (0, 0: none), and the far clip
+        /// is the cell's clip distance when it is nearer than the far plane (0: none).
+        void setNeutralLightFade(float begin, float end);
+        void setNeutralClipDistance(float clipDistance);
         // Task 0028: the cell's flat ambient colour in linear light, without night eye: what the light probe baker
         // assumes.
         vsg::vec3 getLinearAmbient() const;
@@ -773,6 +784,9 @@ namespace MWRender
         vsg::vec4 mLightDiffuse;
         vsg::vec4 mLightSpecular;
         vsg::vec3 mLightPosition;
+        float mLightIntensityScale = 1.f; // task 0355 stage f: the neutral interior's directional fade
+        float mNeutralClipDistance = 0.f; // task 0355 stage j: the cell's clip distance, 0 = none
+        vsg::ref_ptr<View::CollectLights> mCollectLights; // task 0355 stage j
         vsg::vec4 mSunLightPosition;
         float mMinimumAmbientLuminance;
         float mNightEyeFactor = 0;

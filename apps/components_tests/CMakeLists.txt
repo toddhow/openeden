@@ -390,6 +390,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testgputiming.cpp
     render/testscenecensus.cpp
     render/testhdrmath.cpp
+    render/testlightfade.cpp
     render/testtonemap.cpp
     render/testimagespace.cpp
     render/testimagespacemodifier.cpp
@@ -468,6 +469,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testskyenv.cpp
     render/testskyvisdebug.cpp
     view/testcollectlights.cpp
+    view/testcollectlightsfade.cpp
     view/testshadowview.cpp
     render/testdevicereport.cpp
     render/testpipelinecache.cpp
@@ -934,6 +936,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsefogcurve.cpp
     skyrimse/testskyrimseambientcube.cpp
     skyrimse/testskyrimseweatherambientcube.cpp
+    skyrimse/testskyrimsecelllight.cpp
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimselocallights.cpp
     skyrimse/testskyrimselightflicker.cpp

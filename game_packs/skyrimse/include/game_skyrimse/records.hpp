@@ -326,6 +326,15 @@ namespace game_skyrimse
         /// brightest and warmest, as a floor bounce lights a room). mHasCube is false when no record gave one.
         std::array<std::array<std::uint8_t, 3>, 6> mCube{};
         bool mHasCube = false;
+        /// Task 0355 stages f and j (xEdit's XCLL layout, RECALLED-VERIFY; the value ranges agree with it): the
+        /// directional light's rotation XY and Z in degrees (offsets 20 and 24), its fade (28), the clip distance (32)
+        /// and the light fade begin and end (80 and 84, only in a 92 byte record). An LGTM record has the same words.
+        std::int32_t mRotationXY = 0;
+        std::int32_t mRotationZ = 0;
+        float mDirectionalFade = 0.0f;
+        float mClipDistance = 0.0f;
+        float mLightFadeBegin = 0.0f;
+        float mLightFadeEnd = 0.0f;
     };
 
     /// Task 0303: the XCLL inherit flag bits that matter to the neutral world's interior lighting. Order and meaning
@@ -341,6 +350,11 @@ namespace game_skyrimse
         /// Task 0355 (follow-up): bits 8 and 9 in xEdit's order (rotation 5, fade 6, clip distance 7, power 8, max 9).
         inline constexpr std::uint32_t FogPower = 0x100;
         inline constexpr std::uint32_t FogMax = 0x200;
+        // Task 0355 stages f and j: bits 5, 6, 7 and 10 (the ones the data's template values show: see the task doc).
+        inline constexpr std::uint32_t Rotation = 0x20;
+        inline constexpr std::uint32_t DirectionalFade = 0x40;
+        inline constexpr std::uint32_t ClipDistance = 0x80;
+        inline constexpr std::uint32_t LightFade = 0x400;
     }
 
     /// Task 0291 (follow-up): what the content of an interior cell says about whether a water plane at the cell's XCLW

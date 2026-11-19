@@ -6,6 +6,7 @@
 #include <components/debug/debuglog.hpp>
 
 #include <components/render/hdrmath.hpp>
+#include <components/render/lightfade.hpp>
 
 namespace View
 {
@@ -39,6 +40,10 @@ namespace View
             vsg::vec3 color(light->color.r, light->color.g, light->color.b);
             if (mLinear)
                 color = Render::Hdr::toLinear(color);
+            // Task 0355 stage j: a game pack's interior fades its lights by their distance from the eye. After the
+            // conversion, so the factor scales the LINEAR intensity. Off (both 0), no operation at all.
+            if (mFadeEnd > 0.f)
+                color *= Render::LightFade::factor(vsg::length(eye_position), mFadeBegin, mFadeEnd);
             (*light_itr++).set(color.x, color.y, color.z, light->intensity);
             (*light_itr++).set(eye_position.x, eye_position.y, eye_position.z, 0);
         }

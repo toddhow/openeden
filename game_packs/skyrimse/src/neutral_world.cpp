@@ -826,6 +826,14 @@ namespace game_skyrimse
         return source != nullptr && source->fogCurveForCell(cell, power, max);
     }
 
+    bool SkyrimCellSource::lightSettingsForCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::CellLightSettings& out)
+    {
+        out = {};
+        auto* source = dynamic_cast<openeden::sdk::game::CellLightSource*>(&mView);
+        return source != nullptr && source->lightSettingsForCell(cell, out);
+    }
+
     // ---- music (task 0209) ----
 
     namespace

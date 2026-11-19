@@ -60,6 +60,7 @@
 #include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/render/hdrtarget.hpp>
+#include <components/render/lightfade.hpp>
 #include <components/render/lightningmath.hpp>
 #include <components/render/materialmath.hpp>
 #include <components/render/materialoverrides.hpp>
@@ -1064,6 +1065,7 @@ namespace MWRender
         }
         mView = vsgUtil::createSharedView(mRenderCamera ? mRenderCamera : mSceneCamera, viewRoot);
         mView->viewDependentState = collectLights;
+        mCollectLights = collectLights; // task 0355 stage j: the neutral interior's light fade
         mView->mask = ~Mask_GUI;
         if (mTaaJitter)
         {
@@ -2228,6 +2230,37 @@ namespace MWRender
         mLightDiffuse = diffuse;
         mLightSpecular = diffuse;
         mLightPosition = vsg::vec3(-0.15f, 0.15f, 1.f);
+        mLightIntensityScale = 1.f; // task 0355 stage f: a neutral interior sets its own after this
+    }
+
+    void RenderManager::setNeutralInteriorSun(const vsg::vec3& towardLight, float intensity)
+    {
+        // Task 0355 stage f: the cell's own directional light (Skyrim SE: XCLL rotation and fade). A unit vector; the
+        // engine's own default is not normalised, the shaders normalise what they read.
+        mLightPosition = towardLight;
+        mLightIntensityScale = intensity;
+    }
+
+    void RenderManager::clearNeutralInteriorSun()
+    {
+        mLightIntensityScale = 1.f;
+    }
+
+    void RenderManager::setNeutralLightFade(float begin, float end)
+    {
+        // Task 0355 stage j: View::CollectLights::pack reads these; 0 and 0 leave every light as it is.
+        if (mCollectLights)
+            mCollectLights->setDistanceFade(begin, end);
+    }
+
+    void RenderManager::setNeutralClipDistance(float clipDistance)
+    {
+        // Task 0355 stage j: the far clip of a neutral interior; the projection is rebuilt only when it changes.
+        if (mNeutralClipDistance == clipDistance)
+            return;
+        mNeutralClipDistance = clipDistance;
+        if (mProjectionMatrix)
+            updateProjectionMatrix();
     }
 
     void RenderManager::setAmbientCube(const std::array<std::array<std::uint8_t, 3>, 6>* colours)
@@ -3175,6 +3208,16 @@ namespace MWRender
             static_cast<float>(mEngine.framebufferSamples()));
         sceneData.lightDiffuse = toView(mLightDiffuse);
         sceneData.lightSpecular = toView(mLightSpecular);
+        // Task 0355 stage f: the neutral interior's directional fade (a linear intensity)
+        if (mLightIntensityScale != 1.f)
+        {
+            sceneData.lightDiffuse.x *= mLightIntensityScale;
+            sceneData.lightDiffuse.y *= mLightIntensityScale;
+            sceneData.lightDiffuse.z *= mLightIntensityScale;
+            sceneData.lightSpecular.x *= mLightIntensityScale;
+            sceneData.lightSpecular.y *= mLightIntensityScale;
+            sceneData.lightSpecular.z *= mLightIntensityScale;
+        }
         if (mOccluder)
         {
             sceneData.lightDiffuse.w = mOccluder->boxSize();
@@ -3305,7 +3348,7 @@ namespace MWRender
         data.fogNear = mFog->getFogStart(underwater);
         data.fogFar = mFog->getFogEnd(underwater);
         data.near = mNearClip;
-        data.far = mFarPlane;
+        data.far = Render::LightFade::effectiveFarPlane(mFarPlane, mNeutralClipDistance);
         data.fov = getFieldOfView();
         data.simulationTime = scene.time;
         data.deltaSimulationTime = scene.time - mPostProcessLastTime;
@@ -4227,9 +4270,11 @@ mCensusEye = vsg::dvec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
         mProjectionMatrix->fieldOfViewY = fov;
         mProjectionMatrix->aspectRatio = static_cast<double>(windowSize.width) / static_cast<double>(windowSize.height);
         mProjectionMatrix->nearDistance = mNearClip;
-        mProjectionMatrix->farDistance = mFarPlane;
+        // Task 0355 stage j: a neutral interior's clip distance, when it is nearer than the far plane.
+        const float farPlane = Render::LightFade::effectiveFarPlane(mFarPlane, mNeutralClipDistance);
+        mProjectionMatrix->farDistance = farPlane;
 
-        mSceneData->setDepthRange(mNearClip, mFarPlane);
+        mSceneData->setDepthRange(mNearClip, farPlane);
         auto& sceneData = mSceneData->value();
         sceneData.projection = vsg::mat4(mProjectionMatrix->transform());
         sceneData.invProjection = vsg::inverse(sceneData.projection);

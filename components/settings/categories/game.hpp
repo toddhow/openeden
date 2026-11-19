@@ -119,6 +119,8 @@ namespace Settings
         SettingValue<bool> mNeutralInteriorFog{ mIndex, "Game", "neutral interior fog" }; // task 0355 d
         SettingValue<bool> mNeutralAmbientCube{ mIndex, "Game", "neutral ambient cube" }; // task 0355 e
         SettingValue<bool> mNeutralWeatherAmbientCube{ mIndex, "Game", "neutral weather ambient cube" }; // task 0355 k
+        SettingValue<bool> mNeutralInteriorSun{ mIndex, "Game", "neutral interior sun" }; // task 0355 f
+        SettingValue<bool> mNeutralLightFade{ mIndex, "Game", "neutral light fade" }; // task 0355 j
         SettingValue<bool> mNeutralLightFadeGain{ mIndex, "Game", "neutral light fade gain" }; // task 0355 stage b
         SettingValue<bool> mNeutralLightFlicker{ mIndex, "Game", "neutral light flicker" }; // task 0355 stage h
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };

@@ -476,3 +476,93 @@ Skyrim's own pulse curve is not known. (4) Period meaning (seconds between new t
 of the brightness) are RECALLED-VERIFY.
 **Not run:** the Linux gate, clang-format 14, clang-tidy, the Lua tests, a fresh review, Whiterun exterior, a frame sequence
 (the trace stands in; light changes are small between frames in a still image), a comparison with the real game.
+## Stages f and j: log (2026-11-19; branch `sunfade-0355fj` from `a4238aabd6`, local commits, not pushed; Windows only)
+Approved by toddhow: stage f (interior sun direction and fade) and stage j (light fade distances and clip distance),
+smallest complete change each. Same hand wrote tests and code; the new tests were written first, in NEW files only, and
+run red against stubs (`components-tests`: 16 of 25 failed, the 9 that passed pin absence, a version constant and
+refusals; `openmw-tests`: 8 of 12 failed, the 4 that passed pin absence). One of my own tests had a helper fault (a 64 byte
+XCLL padded to 80 bytes) found on the first green run and fixed in the same new file. No fresh reviewer. No existing test
+edited.
+
+**Data (XCLL layout of xEdit, RECALLED-VERIFY; the five masters agree with it).** Offsets 20 and 24 rotation XY and Z
+(i32 degrees), 28 directional fade, 32 clip distance, 80 and 84 light fade begin and end, 88 inherit flags (rotation 0x20,
+fade 0x40, clip 0x80, light fade 0x400; the same words in LGTM DATA). Of 928 interiors with a 92 byte XCLL (the survey
+script `light55/fj.py`, throwaway): after the lighting template, rotation (XY, Z) is (0, 90) in 415, (0, 0) in 390,
+(270, 240) in 31, (200, 90) in 29, (0, 270) in 23; fade 0.0 in 614 (66 percent), 1.0 in 265, 0.1 to 0.5 in 49, 5.0 in 5;
+clip distance 0 in most (the template's 1,800 to 100,000 where set); light fade (0, 0) in most, (4000 to 13000, +1000)
+in most of the rest, (11000, 11000) in 5, (100, 5000 or 50000) in 14.
+
+**What the numbers mean, derived from the data.**
+- *Rotation.* The lighting templates' own default is (0, 90) (92 of 126 LGTM records), which is the engine's present
+  assumption "from above": so Z is the ELEVATION of the light above the horizon (90 above, 270 and 240 below: the
+  (270, 240) cells are fort and cave interiors lit from below with fade 1). XY is the heading; with Z at 90 or 270 it does
+  not matter, so 87 percent of the cells are not affected by its sign. Toward-light vector = (cos Z sin XY, cos Z cos XY,
+  sin Z), XY clockwise from north (+Y): **RECALLED-VERIFY, the sign and the zero of XY are a guess** (about 50 cells
+  have a Z that is not 90 or 270, 12 of them with XY other than 0).
+- *Fade.* Used as the key light's INTENSITY, clamped to 0..1. Why: (0, 0, fade 0) is 349 cells and (0, 0, fade 1) only 41,
+  i.e. the unconfigured cells (rotation zero) are also the ones with fade zero, and the configured ones (templates,
+  (0, 90) or (270, 240)) have fade 1: fade behaves like "is there a directional light". The directional COLOUR does not
+  tell (mean luma 75 at fade 0, 79 at fade 1, so authors fill the colour either way). Not proven; the intensity reading
+  has the large effect that **all three survey cells (Bannered Mare, Dragonsreach, Bleak Falls Barrow) state fade 0, so
+  they lose the engine's flat key light completely** (and 66 percent of interiors do). A 5.0 (five cells) is clamped to 1.
+- *Light fade.* Lights are full inside `begin` from the camera, fall in a line to nothing at `end`; an `end` that is not
+  past `begin` is a cut at `begin`; (0, 0) none. Today the engine has no distance rule for a light, only its radius
+  (`View::CollectLights::pack`, `components/view/collectlights.cpp`, and the clustered grid by radius).
+- *Clip distance.* The far plane of the projection (`RenderManager::updateProjectionMatrix`, which used `mFarPlane` only)
+  is the cell's clip distance when that is between 256 and the far plane (smallest in the masters: 1,800).
+
+**Built.** SDK: new optional interface `openeden/game/cell_light_source.hpp` 0.1 (`CellLightSource::lightSettingsForCell`,
+found by `dynamic_cast` like the image space and fog sources; the frozen world model is untouched). Pack: `CellLightingData`
+gains the six words, `applyLightingTemplate` takes them by the four inherit bits, `SkyrimWorldView::lightSettingsForCell`
+and the cell source forward (no file read: the lighting is in the index). Engine: `mwworld/neutralcelllight.*` (pure
+`neutralInteriorSun`, `neutralClipDistance`, `neutralLightFade`; `applyNeutralCellLight`, called after the fog in
+`Scene::changeToInteriorCell` and in `changeToExteriorCell`, so a street never keeps an interior's values and a Morrowind
+cell gives the renderer exactly the values it starts with), `Render::LightFade` (`components/render/lightfade.hpp`:
+`factor`, `effectiveFarPlane`), `RenderManager::setNeutralInteriorSun / clearNeutralInteriorSun / setNeutralLightFade /
+setNeutralClipDistance` (the sun's intensity multiplies the linear light colour when the scene data is built; the light
+direction is `mLightPosition`, reset by `configureAmbient` for each interior; the light fade is passed to
+`View::CollectLights::setDistanceFade` and applied in `pack()` AFTER the linear conversion, nothing at all when both
+distances are 0). **No shader, no Slang twin, no `.interface` record changed.** New settings `[Game] neutral interior sun`
+(f) and `[Game] neutral light fade` (j: both the light fade and the clip distance), both default TRUE, read only for a
+neutral world's interior cells; settings default, test profile and README line added, `coverage.sh` passes (217). Log
+line `NLIGHTFJ <cell> sun <x,y,z> intensity <i> fade <b> to <e> clip <c>`.
+
+**Frames** (`I:\Projects\OpenEden-work\combat3\l55fj\keep`, 800 x 600 `look` scenario, hdr on, off against on): Bannered
+Mare, Dragonsreach and Bleak Falls Barrow (`mare_sheet`, `dr_sheet`, `bb_sheet`: three of six turns each, left off, right
+on; the camera turns by real time so the pairs are not the same frame) and Fort Neugrad 02 (`fn_sheet`: rotation 270, 240,
+fade 1: lit from below). With the key light gone the rooms are flatter and a little darker on surfaces that faced up
+(mean luma over the six frames of a run, off to on, with the camera timing noise: Mare 70, 66, 73, 87, 62, 60 to 66, 65,
+80, 74, 71, 59; Barrow 24 to 23 and 20 to 19; Dragonsreach 53 to 51); nothing breaks. The light fade has NO visible case in
+the three cells (their fade distances are 0): it is shown by the unit tests (pack decode, the factor, `pack()` on real
+`PointLight`s) and by the log line of `LargashburShagrolsLonghouse` (`fade 3000 to 4000`, a fade 1 cell lit from above).
+The clip distance is applied in the Mare (2,000, the same as its fog far), Dragonsreach (7,000) and the Barrow (12,000): no
+visible clipping. Three runs of the Mare give the same `NLIGHT` and `NLIGHTFJ` lines (md5 `376f9752dd1e`).
+
+**Morrowind unchanged:** `tools/worldobjects_check` against `n6saves`' build 110 objects, OK; the fixed Balmora frame
+(`--start Balmora --random-seed 7`, `OPENEDEN_FIXED_FRAME_TIME`, frame 600) is `1ae72bec04593e1b` for the `n6saves` build and
+this build and `60ef9c87d5ab5a3e` with `hdr = true` for both (the harness' base config gives these, not the numbers
+written in the task text, in both builds); a Morrowind interior (`coc "Balmora, Caius Cosades' House"`, hdr, frame 900,
+two runs each): the pixels that differ by more than 8 levels between the two builds all lie in one 125 x 90 pixel patch
+(the same patch that differs between two runs of ONE build: 203 and 11 pixels over 8 levels within a build against 1,880
+and 733 between builds, in that patch), everywhere else the frames are pixel for pixel equal. No `NLIGHTFJ` line in a
+Morrowind log. **Not exact:** the interior frame is not byte repeatable even in one build (run noise), and `n6saves` is an
+older tree than the parent: no build of the exact parent was made.
+
+**Tests.** New: `components-tests` `RenderLightFade*` (8), `ViewCollectLightsFade*` (5), `SkyrimCellLight*` (12);
+`openmw-tests` `NeutralInteriorSun*`, `NeutralClipDistance*`, `NeutralLightFade*` (12). The filter
+`*Skyrim*:*Weather*:*Extension*:*Settings*:*ImageSpace*:*Frozen*:Render*:View*:*Light*` of `components-tests` 5,276 pass and
+`*Neutral*:*Skyrim*:*Extension*:*Fog*:*Settings*:*Cell*:*Light*` of `openmw-tests` 1,307 pass (data-gated tests skip).
+`check_extension_sdk`, `check_layer_rules` (104), `check_game_conventions`, `coverage.sh` pass.
+
+**Not checked:** the Linux gate, clang-format 14 (not installed; long lines wrapped by hand), clang-tidy, the Lua tests, a
+fresh review, the light fade or a clip in a frame that shows them, an exterior to interior to exterior walk in game (the
+exterior reset is by code reading and the equal Balmora exterior frame), the fade effect on point light shadows (the
+shadow snapshot keeps the unfaded colour), `neutral interior sun` with `hdr` off (the multiplier is in the scene data
+either way), other cells than the five.
+
+**Decisions for toddhow.** (1) Fade as the key light's intensity (0 means none): all three survey cells and 66 percent of
+the interiors lose the flat key light. If that looks too dark, treat fade 0 as 1 (the clamp's lower end) in
+`neutralInteriorSun`. (2) The XY heading convention and zero are a guess. (3) The light fade multiplies the colour but
+keeps the light in the list: no saving in the cluster grid (a possible follow-up with the per-light stage). (4) One
+setting, `neutral light fade`, covers the light fade and the clip distance. (5) A cell's clip distance now shortens the
+far plane of a neutral interior (nothing beyond it is drawn).

@@ -49,6 +49,25 @@ namespace game_skyrimse
             std::memcpy(&value, p, sizeof(T));
             return value;
         }
+
+        // Task 0355 stages f and j: the words of an XCLL (64 or 92 bytes) or a LGTM DATA after the colours and fog
+        // distances. The rotation, fade and clip distance sit at 20 to 35 (inside both XCLL sizes); the light fade
+        // distances at 80 and 84 exist only in the 92 byte record.
+        void readLightingWords(const std::byte* p, std::size_t size, CellLightingData& lighting)
+        {
+            if (size >= 36)
+            {
+                lighting.mRotationXY = readLe<std::int32_t>(p + 20);
+                lighting.mRotationZ = readLe<std::int32_t>(p + 24);
+                lighting.mDirectionalFade = readLe<float>(p + 28);
+                lighting.mClipDistance = readLe<float>(p + 32);
+            }
+            if (size >= 88)
+            {
+                lighting.mLightFadeBegin = readLe<float>(p + 80);
+                lighting.mLightFadeEnd = readLe<float>(p + 84);
+            }
+        }
     }
 
     bool LoadOrder::add(std::string name, bool light, std::string& error)
@@ -784,6 +803,7 @@ namespace game_skyrimse
                                 lighting.mFogNear = readLe<float>(p + 12);
                                 lighting.mFogFar = readLe<float>(p + 16);
                                 lighting.mFogPower = readLe<float>(p + 36); // task 0355: in both sizes
+                                readLightingWords(p, data.size(), lighting); // task 0355 f and j
                                 if (data.size() == 92) // task 0303: the inherit flags are the last word
                                 {
                                     lighting.mInherit = readLe<std::uint32_t>(p + 88);
@@ -1271,6 +1291,7 @@ namespace game_skyrimse
                                         lighting.mFogPower = readLe<float>(p + 36);
                                     if (data.size() >= 80)
                                         lighting.mFogMax = readLe<float>(p + 76);
+                                    readLightingWords(p, data.size(), lighting); // task 0355 f and j
                                     templateLighting = lighting;
                                 }
                                 else

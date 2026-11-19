@@ -48,6 +48,7 @@
 #include <openeden/game/cell_fog_source.hpp>
 #include <openeden/game/ambient_cube_source.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
+#include <openeden/game/cell_light_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
@@ -151,6 +152,7 @@ namespace game_skyrimse
                                   public openeden::sdk::game::CellImageSpaceSource, // task 0355
                                   public openeden::sdk::game::CellFogSource, // task 0355 (fog power and max)
                                   public openeden::sdk::game::AmbientCubeSource, // task 0355 stage e
+                                  public openeden::sdk::game::CellLightSource, // task 0355 f and j
                                   public music::MusicDataSource,
                                   public PackageSource,
                                   public FurnitureSource,
@@ -957,6 +959,11 @@ namespace game_skyrimse
         bool fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max) override;
         /// Task 0355 stage e: the ambient cube of an interior loadCell has returned (kept per cell, capped).
         bool ambientCubeForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out) override;
+        /// Task 0355 stages f and j: the directional rotation and fade, the clip distance and the light fade distances
+        /// of an interior (its own XCLL with the lighting template's values where the cell inherits them). Reads no
+        /// file: the cell's lighting is part of the index.
+        bool lightSettingsForCell(
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::CellLightSettings& out) override;
 
         // ---- music (task 0209): the runtime reads the music records of every plugin on a worker ----
         music::MusicRuntime* musicRuntime() override;

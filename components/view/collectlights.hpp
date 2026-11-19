@@ -40,6 +40,10 @@ namespace View
         std::size_t mShadowEntryOffset = 0;
         std::vector<ShadowEntry> mShadowEntries; // main thread, between frames; read by pack()
         mutable std::vector<LightSnapshot> mSnapshots; // written by pack(), read by the main thread between frames
+        // Task 0355 stage j: lights fade out between these distances from the eye (both 0 = no fade). Main thread,
+        // between frames; read by pack().
+        float mFadeBegin = 0.f;
+        float mFadeEnd = 0.f;
 
     public:
         CollectLights(size_t maxLights);
@@ -54,6 +58,15 @@ namespace View
         /// The lights of the last pack(), in the order of the light buffer; main thread, between frames. Empty without
         /// a shadow target.
         const std::vector<LightSnapshot>& snapshots() const { return mSnapshots; }
+
+        /// Task 0355 stage j: a game pack's interior fades its lights by distance from the eye: full up to `begin`,
+        /// none from `end` (Render::LightFade::factor). 0 and 0 (the default) leave every light as it is. Main thread,
+        /// between frames.
+        void setDistanceFade(float begin, float end)
+        {
+            mFadeBegin = begin;
+            mFadeEnd = end;
+        }
 
         // The linear HDR path (task 0025): the lights' colours are converted from display-encoded to linear in pack(),
         // for the view that lights in linear space. Set once, before the first frame.

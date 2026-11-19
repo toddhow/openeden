@@ -4415,6 +4415,25 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::lightSettingsForCell(sdkgame::WorldId cell, sdkgame::CellLightSettings& out)
+    {
+        out = {};
+        if (!awaitIndex() || cell == kNullFormId)
+            return false;
+        const auto it = mCells.find(static_cast<FormId>(cell));
+        if (it == mCells.end() || !it->second.mLighting || !it->second.mInfo.interior)
+            return false;
+        const CellLightingData lighting
+            = applyLightingTemplate(*it->second.mLighting, lightingTemplateOf(it->second.mLightingTemplate));
+        out.rotationXY = static_cast<double>(lighting.mRotationXY);
+        out.rotationZ = static_cast<double>(lighting.mRotationZ);
+        out.directionalFade = static_cast<double>(lighting.mDirectionalFade);
+        out.clipDistance = static_cast<double>(lighting.mClipDistance);
+        out.lightFadeBegin = static_cast<double>(lighting.mLightFadeBegin);
+        out.lightFadeEnd = static_cast<double>(lighting.mLightFadeEnd);
+        return true;
+    }
+
     InteriorWaterEvidence SkyrimWorldView::gatherWaterEvidence(
         const std::vector<sdkgame::PlacedObject>& objects, const std::map<FormId, PlacementComponents>& components)
     {

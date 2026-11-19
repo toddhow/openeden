@@ -69,6 +69,7 @@
 #include "localscripts.hpp"
 #include "neutralcell.hpp"
 #include "neutralcellatmosphere.hpp"
+#include "neutralcelllight.hpp"
 #include "neutraldoor.hpp"
 #include "neutralphysicswater.hpp"
 #include "neutralstore.hpp"
@@ -1167,6 +1168,9 @@ namespace MWWorld
         // task 0355 stage c: a neutral interior's grade; true while the pack is still reading its data (asked again in
         // update)
         mCellGradePending = applyNeutralCellImageSpace(*mCurrentCell, mRendering);
+        // task 0355 stages f and j: a neutral interior's directional light, light fade and clip distance (every other
+        // cell gives the renderer its starting values)
+        applyNeutralCellLight(*mCurrentCell, mRendering);
 
         mRendering.setRenderModeActive(MWRender::Render_Terrain, false);
 
@@ -1195,6 +1199,7 @@ namespace MWWorld
 
         mCellGradePending = false;
         resetNeutralCellImageSpace(current, mRendering); // task 0355 stage c: no interior grade on the street
+        applyNeutralCellLight(current, mRendering); // task 0355 stages f and j: nothing of an interior on the street
 
         mPhysics->optimize();
     }
