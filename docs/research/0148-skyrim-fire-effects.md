@@ -23,7 +23,7 @@ Model classes are by path substring (effects, magic, fire/flame/hearth/brazier/f
   hearth's big flames are particles.
 - Controllers: BSEffectShaderPropertyFloatController in 88 fire-prop files (variables seen: 5 alpha 35 blocks, 6 U offset 59,
   8 V offset 80, 0 emissive 32, 22 lighting-shader 16), BSEffectShaderPropertyColorController 54, NiControllerManager/Sequence
-  50, NiVisController 19. Across all meshes variable 5 (alpha) 3,000+, 8 (V offset) 2,400+, 6 (U offset) 1,600+, 0 (emissive) 1,000+.
+  50, NiVisController 19. Across all meshes (blocks): variable 5 (alpha) about 2,450, 8 (V offset) about 2,480, 6 (U offset) about 1,780, 0 (emissive) about 1,090.
   All were seen as own-clock controllers.
 - Example (Bannered Mare kitchen fire, `fireplacewood01burning`): two flame cards with a flame flipbook atlas
   (`FXFireAtlas04`: 128 x 1024, eight frames), alpha blend, vertex alpha 0..0.8, a V offset controller 0..1 over 4.3 and 5.7 s
