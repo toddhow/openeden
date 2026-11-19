@@ -96,3 +96,7 @@ not reduced here.
   `748641d7d3`), fixed Balmora frames `1eb68236352dc472` and `c819db116f4af8a6` equal, six Balmora `nearby.findPath` queries equal
   in three runs (md5 `d3d2c95a9d64`). Three parallel guard runs after the rebase: md5 `27578e831cf3` again.
 - Frame kept: `I:\Projects\OpenEden-work\followers\keep336\guard_riverwood.png`.
+
+## Cost follow-up (task 0339, 2026-11-19)
+
+The p99 difference above is not a cost of these settings. That walk has about 55 frames over 25 ms whatever the settings, and its p99 is the 56th slowest frame, so it flips between about 20 and 43 ms with a few frames either way; the settings off cross that cut too (57 to 59 slow frames in task 0339's runs). Measured cost: at most 0.005 to 0.011 ms a frame warm, no path re-ask storm, no extra cells. Compare configurations by the slow-frame count, not p99 (docs/tasks/0339-exterior-nav-frame-cost.md).
