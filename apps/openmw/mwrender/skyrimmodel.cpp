@@ -397,6 +397,8 @@ namespace MWRender::SkyrimModel
             shader.addMode(Pipeline::Mode::VERTEX);
             shader.addMode(Pipeline::Mode::NORMAL);
             shader.addMode(Pipeline::Mode::SKIN);
+            // Task 0355 follow-up: Skyrim surfaces take their point lights per pixel (round pools, not vertex smears).
+            shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
             vsg::DataList dataList;
             auto positions = copyArray<vsg::vec3Array>(shape.mPositions);
             if (context.mMorphableFace && shape.mShaderType == kFaceTintShaderType)
@@ -497,6 +499,8 @@ namespace MWRender::SkyrimModel
             shader.addMode(Pipeline::Mode::VERTEX);
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mPositions));
             shader.addMode(Pipeline::Mode::NORMAL);
+            // Task 0355 follow-up: Skyrim surfaces take their point lights per pixel (round pools, not vertex smears).
+            shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
             vsgUtil::setID(*dataList.back(), static_cast<int>(Pipeline::Mode::NORMAL));
             const bool swaying = key.mSway && context.mSwayUniform && !shape.mColors.empty();

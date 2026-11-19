@@ -86,6 +86,8 @@ namespace Pipeline
         bool coverDebug = false;
         // Task 0077: lit draws sample the point lights' shadow maps (needs pbrLook above zero).
         bool pointShadowEnabled = false;
+        // Task 0355 follow-up: `[Shaders] force per pixel lighting`: every lit draw sums the point lights per pixel.
+        bool forcePerPixelLighting = false;
         // Task 0045: parallax occlusion mapping for draws with a height file: 0 off, 1 low, 2 medium, 3 high.
         unsigned int parallaxQuality = 0;
 

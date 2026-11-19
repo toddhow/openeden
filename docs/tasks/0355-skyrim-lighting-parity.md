@@ -210,3 +210,61 @@ the full value, or make the contrast pivot the scene's average luminance (a tone
 ON, which is invisible in a default Skyrim session: the grade needs `hdr` (off by default). (3) A neutral interior with
 no image space is not graded. (4) The cell's fog wins over `[Fog] use distant fog`. (5) Fog power, max and far colour as
 a follow-up (a per-cell fog curve needs the fog shader, golden `.interface` records). (6) done: the weather read is on a worker.
+
+
+## Follow-up (toddhow, 2026-11-19): per-pixel lighting for Skyrim models
+
+**Cause:** the object shader sums the point lights per VERTEX unless a draw has a normal or specular map or the material
+model (`PER_PIXEL_LIGHTING` in `default/main.frag`); `[Shaders] force per pixel lighting` was declared and read by nothing.
+Most Skyrim surfaces have no wired normal map in the neutral loader at default settings (`pbr` off), so a local light made
+a vertex smear on a big floor or wall triangle. (With `pbr` on, the test profile, the lights were already per pixel.)
+
+**Change.** New pipeline mode and fragment define `FORCE_PER_PIXEL_LIGHTING` (`Pipeline::Mode`, appended to the enum; the
+fragment shader imports it and `PER_PIXEL_LIGHTING` is defined for it too, in `main.frag` and its twin
+`default.frag.slang`). (1) `SkyrimModel` (`skyrimmodel.cpp`, the static and the skinned shape path) asks for it, so EVERY
+neutral model takes the per-pixel path: this is the neutral-only default. (2) `[Shaders] force per pixel lighting` is now
+wired (`ResourceSystem` sets `Pipeline::Graphics::forcePerPixelLighting`; default false): it gives the same mode to every
+lit draw, particles and debug geometry excepted. Morrowind's default is unchanged (the setting is off). (3)
+`Pipeline::Graphics::create` leaves the define out where the material model already lights per pixel (`pbrLook > 0`), so
+no define set exists twice and the listed Slang sets of the test profile stay listed. The vertex stage still computes
+`pointLightDiffuse` (unused in the new path; skipping it needs a vertex define, left out).
+
+**Slang / golden data.** The twin has the same one-line condition. The new define makes no new LISTED permutation: a
+fragment set that contains it is not in `default/main.frag.sets`, so with `slang shaders` on it draws with the GLSL (or is
+compiled at run time). Golden data for toddhow's review: one line of `files/shaders/default/main.frag.interface`
+(`defines` gained `FORCE_PER_PIXEL_LIGHTING`; regenerated with `OPENEDEN_RECORD_INTERFACES=1`, the 41 other files the
+writer touched were only line endings and were restored). `SlangInterfaceRecords`, `SlangPermutations`, `ShaderDefines`,
+`ShaderTwinChoice`, `Pipeline*`, `*Settings*`, `MergedBody*` 288 tests pass.
+
+**Tests (new file `apps/components_tests/render/testforceperpixel.cpp`, 8 tests, no existing test edited).** Red first
+against the stub (enum value only): 3 of 8 failed (the loader's define, the wired setting, the loader's two call sites);
+the two shader text tests passed against the stub because the shader edit was already in (not red); two tests pin
+absence (no define without the request; none for a particle). All 8 green after.
+
+**Frames** (`I:\Projects\OpenEden-work\combatai\l55f\keep`, 800 x 600, `hdr = true`, before = the build of `a4238aabd6`,
+after = this change; `campair_N.png` is before on the left, after on the right; `cam_*` are fixed-camera spots of the
+Bannered Mare with pitch 0.9 on the floor, `mare_*`, `dr_*`, `st_*` the turning `look` scenario): the floors and walls near
+the lamps keep the same warm light but the vertex smear is gone: a smoother, more even gradient on boards (spots 4, 6, 7),
+no change where no light reaches (spots 0, 1, 5: mean difference 0.0 to 0.5 of 255). The effect in the Mare is subtle (the
+inn is lit by many small lights on a finely tessellated mesh); a round pool is clearest on large flat triangles. The Whiterun
+street at hour 22 from the start spot has no light in view (dark in both). Viewed, not measured against a reference game.
+
+**Cost** (GPU main pass median / wall median, RTX 4070, 800 x 600, one run each of before and after, the machine shared with
+two other games): Bannered Mare `look` 0.113 to 0.153 ms / 3.505 to 3.501 ms; Dragonsreach 0.117 to 0.133 / 3.504 to
+3.505; Whiterun street (hour 22) 0.269 to 0.326 / 3.518 to 3.559; fixed Mare spots 0.053 to 0.064 / 3.504 to 3.503. About
++0.01 to +0.06 ms of the main pass, the wall time within noise.
+
+**Morrowind unchanged:** `tools/worldobjects_check` against `n6saves`' build: 110 objects, OK; `morrowind_check.sh` frames
+`1eb68236352dc472` and `c819db116f4af8a6` equal for both builds; fixed Balmora frame `1c5d47ad0b5dc32d` (empty settings) and
+`b451a8a6ca771e79` (`hdr = true`) equal for both; a Morrowind interior with torches (`--start "Balmora, Caius Cosades'
+House"`, hdr) gives the two hashes `d72322a95bc86c82` and `dc449f89f3eb768c` in both builds, in a different order (run noise,
+the same set).
+
+**Not checked:** the Linux gate, clang-format 14, clang-tidy, the Lua tests, `openmw-tests`, a fresh review, `slang shaders`
+on with the new define in a frame, `[Shaders] force per pixel lighting = true` on Morrowind in a frame (wired, unit tested
+only), the skinned (actor) path in a close-up, a round pool in a frame on a very large triangle.
+
+**Decisions for toddhow.** (1) Neutral models always take the per-pixel path (no setting to turn it off; the old build is
+the comparison): say if you want a `[Game]` switch. (2) `force per pixel lighting` now does something for Morrowind when
+set. (3) The vertex stage still sums the lights it no longer needs (a vertex define would drop it). (4) The listed Slang
+permutation sets do not cover the new define, so `slang shaders` on falls back to the GLSL for Skyrim draws without `pbr`.

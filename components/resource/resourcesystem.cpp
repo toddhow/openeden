@@ -249,6 +249,9 @@ namespace Resource
         builder->graphics->alphaToCoverage
             = Settings::shaders().mAntialiasAlphaTest && Settings::video().mAntialiasing > 1;
         builder->graphics->adjustCoverage = Settings::shaders().mAdjustCoverageForAlphaTest;
+        // Task 0355 follow-up: `[Shaders] force per pixel lighting` (declared since OpenMW, read by nothing until now);
+        // off by default, so Morrowind is unchanged. Neutral (Skyrim) models ask for it themselves.
+        builder->graphics->forcePerPixelLighting = Settings::shaders().mForcePerPixelLighting;
         // openeden (task 0023, F1b): the shaders written in Slang, off by default. Task 0072, review of the stage f and
         // g rounds, finding 7: Pipeline::Graphics takes the switch from `shaderOptions` when it is made, before any
         // stage, not from an assignment here after the Builder (createShaderOptions sets it from the same setting).

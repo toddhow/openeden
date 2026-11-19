@@ -397,6 +397,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpointshadowcache.cpp
     render/testpointshadowgpu.cpp
     render/testvram.cpp
+    render/testforceperpixel.cpp
     render/testvramscaler.cpp
     render/testvramtexturemips.cpp
     render/testvrampoolrelease.cpp

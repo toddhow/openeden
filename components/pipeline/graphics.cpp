@@ -130,6 +130,8 @@ namespace Pipeline
                 return "WATER_CELL";
             case Mode::INSTANCE_TINT:
                 return "INSTANCE_TINT";
+            case Mode::FORCE_PER_PIXEL_LIGHTING:
+                return "FORCE_PER_PIXEL_LIGHTING";
         }
         return "";
     }
@@ -276,11 +278,18 @@ namespace Pipeline
         auto vertexStage = mVertexStageCache.getOrCreate(vertexStageOptions, *this);
 
         FragmentStageOptions fragmentStageOptions{ key.shader.path, {} };
+        // Task 0355 follow-up: the material model lights per pixel by itself, so it carries no second define for it.
+        const bool materialModel = pbrLook > 0 && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3;
         for (auto mode : fragmentModes)
         {
             if (key.shader.hasMode(mode))
                 fragmentStageOptions.addMode(mode);
         }
+        // The loader's request, or `[Shaders] force per pixel lighting` for a lit draw that is not a particle or debug
+        // geometry.
+        if (!materialModel && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3
+            && (forcePerPixelLighting || key.shader.hasMode(Mode::FORCE_PER_PIXEL_LIGHTING)))
+            fragmentStageOptions.addMode(Mode::FORCE_PER_PIXEL_LIGHTING);
         const CoverageModes coverage = coverageModes(key, alphaToCoverage, adjustCoverage);
         if (coverage.alphaToCoverage)
             fragmentStageOptions.addMode(Mode::ALPHA_TO_COVERAGE);

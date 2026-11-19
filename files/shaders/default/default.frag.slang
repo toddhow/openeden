@@ -25,7 +25,7 @@ import glsl;
 // (3) and bumpUV are never read.
 
 // Normal and specular maps light each pixel, as OpenMW's PER_PIXEL_LIGHTING (task 0012, V4h).
-#if defined(NORMAL) && (defined(NORMAL_MAP) || defined(SPECULAR_MAP) || defined(PBR))
+#if defined(NORMAL) && (defined(NORMAL_MAP) || defined(SPECULAR_MAP) || defined(PBR) || defined(FORCE_PER_PIXEL_LIGHTING))
 #define PER_PIXEL_LIGHTING 1
 #endif
 // Task 0027, R1: lit surfaces with the material model's lighting.
