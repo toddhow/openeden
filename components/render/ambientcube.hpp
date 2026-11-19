@@ -42,6 +42,25 @@ namespace Render::AmbientCube
         return out;
     }
 
+    /// A cube whose six faces are one colour: lights every surface alike (a weather that has no directional ambient, in a
+    /// blend with one that has).
+    inline Cube flat(const vsg::vec3& colour)
+    {
+        Cube out;
+        out.fill(colour);
+        return out;
+    }
+
+    /// The faces blended linearly, `t` clamped to 0..1 (a NaN is 0).
+    inline Cube lerp(const Cube& a, const Cube& b, float t)
+    {
+        t = std::isfinite(t) ? std::clamp(t, 0.f, 1.f) : 0.f;
+        Cube out;
+        for (std::size_t i = 0; i < 6; ++i)
+            out[i] = a[i] * (1.f - t) + b[i] * t;
+        return out;
+    }
+
     /// The mean of the six faces: what a surface facing every direction at once sees (the flat colour a uniform sphere
     /// of this cube would have).
     inline vsg::vec3 average(const Cube& cube)

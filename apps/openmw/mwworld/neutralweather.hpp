@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,13 @@ namespace MWWorld
     /// MWRender::kMaxExtraCloudLayers, the current weather's first. `out` is cleared first.
     void blendExtraCloudLayers(const std::vector<MWRender::ExtraCloudLayer>& current,
         const std::vector<MWRender::ExtraCloudLayer>& next, float blend, std::vector<MWRender::ExtraCloudLayer>& out);
+
+    /// Task 0355 stage k. During a transition the two weathers' directional ambient cubes blend by `factor` (0 is all the
+    /// current weather's, clamped; a NaN is 0). A weather that has no cube counts as its own flat ambient colour on all
+    /// six faces. False, and `out` untouched, when neither has a cube.
+    [[nodiscard]] bool blendAmbientCubes(const std::optional<Render::AmbientCube::Cube>& current,
+        const vsg::vec3& currentFlat, const std::optional<Render::AmbientCube::Cube>& next, const vsg::vec3& nextFlat,
+        float factor, Render::AmbientCube::Cube& out);
 
     /// `timing` null: the default hours (6 to 8 and 18 to 20, Morrowind's).
     [[nodiscard]] WeatherManagerParams neutralManagerParams(const openeden::sdk::game::TimeOfDayDescription* timing);

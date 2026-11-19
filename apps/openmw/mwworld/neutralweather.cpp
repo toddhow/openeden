@@ -203,6 +203,14 @@ namespace MWWorld
         p.sounds.precipitation = soundSlot(w.precipitationSound);
         p.sounds.wind = soundSlot(w.windSound);
         p.sounds.thunder = soundSlot(w.thunderSound);
+        if (w.hasAmbientCube)
+        {
+            AmbientCubeParams cube;
+            for (std::size_t face = 0; face < 6; ++face)
+                cube[face] = { colour(w.ambientCube.sunrise[face]), colour(w.ambientCube.day[face]),
+                    colour(w.ambientCube.sunset[face]), colour(w.ambientCube.night[face]) };
+            p.ambientCube = cube;
+        }
         // The sounds are files (WeatherParams::sounds, stage W-S4); the INI-style loop sound ids stay empty or "None".
         // The game's own particle data waits for a later stage.
         return entry;
@@ -227,6 +235,17 @@ namespace MWWorld
             out.push_back(layer);
             out.back().mAlpha *= blend;
         }
+    }
+
+    bool blendAmbientCubes(const std::optional<Render::AmbientCube::Cube>& current, const vsg::vec3& currentFlat,
+        const std::optional<Render::AmbientCube::Cube>& next, const vsg::vec3& nextFlat, float factor,
+        Render::AmbientCube::Cube& out)
+    {
+        if (!current && !next)
+            return false;
+        out = Render::AmbientCube::lerp(current ? *current : Render::AmbientCube::flat(currentFlat),
+            next ? *next : Render::AmbientCube::flat(nextFlat), factor);
+        return true;
     }
 
     WeatherManagerParams neutralManagerParams(const openeden::sdk::game::TimeOfDayDescription* timing)

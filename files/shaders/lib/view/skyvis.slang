@@ -10,6 +10,7 @@
 
 #ifndef CLOUD_SHADOW
 [[vk::binding(VIEW_SKYVIS_SKY_BINDING, VIEW_SET)]] StructuredBuffer<float4> skyHeader;
+#define SKY_HEADER_DECLARED // task 0355: lib/view/ambientcube.slang declares the header only when nobody did
 #endif
 [[vk::binding(VIEW_SKYVIS_BINDING, VIEW_SET)]] StructuredBuffer<float> skyData;
 

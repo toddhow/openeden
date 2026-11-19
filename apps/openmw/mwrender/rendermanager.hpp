@@ -284,6 +284,10 @@ namespace MWRender
         void setAmbientCube(const std::array<std::array<std::uint8_t, 3>, 6>* colours);
         /// True when `[Game] neutral world` and `[Game] neutral ambient cube` are on: the header buffer has room.
         bool ambientCubeEnabled() const { return mAmbientCubeEnabled; }
+        /// Task 0355 stage k: the current weather's directional ambient (display colours) and the flat ambient colour it
+        /// was made for; null for none (an interior, a weather without one, the setting off). An interior cube set by
+        /// setAmbientCube wins over it. Main thread, once a frame.
+        void setWeatherAmbientCube(const std::array<vsg::vec3, 6>* cube, const vsg::vec3& baseline);
         // Task 0028: the cell's flat ambient colour in linear light, without night eye: what the light probe baker
         // assumes.
         vsg::vec3 getLinearAmbient() const;
@@ -569,6 +573,8 @@ namespace MWRender
         // Task 0355 stage e: the ambient cube rides at the end of the sky-visibility header buffer (Render::AmbientCube).
         bool mAmbientCubeEnabled = false;
         std::optional<std::array<vsg::vec3, 6>> mAmbientCube; ///< in display colour, brightened
+        std::optional<std::array<vsg::vec3, 6>> mWeatherAmbientCube; ///< the weather's, in display colour
+        vsg::vec3 mWeatherAmbientBase{ 0.f, 0.f, 0.f }; ///< the flat ambient it was made for, display colour
         // Task 0037: rain wetness took effect at start (needs hdr and pbr), its strength, and the current value.
         bool mWetnessEnabled = false;
         // Task 0095: the terrain's puddles from the baked puddle map; the buffer the shader reads (binding 20).

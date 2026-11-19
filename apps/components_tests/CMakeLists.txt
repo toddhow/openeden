@@ -372,6 +372,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testslangshaders.cpp
     vsg/testshaderdefines.cpp
     vsg/testshaderpermutation.cpp
+    vsg/testambientcubecompile.cpp
     vsg/testslanginterfacerecords.cpp
     vsg/testslangpermutations.cpp
     vsg/testspirvinterface.cpp
@@ -385,6 +386,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testfogcurve.cpp
     render/testwatermath.cpp
     render/testambientcube.cpp
+    render/testambientcubeexterior.cpp
     render/testgputiming.cpp
     render/testscenecensus.cpp
     render/testhdrmath.cpp
@@ -931,6 +933,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimselightingtemplate.cpp
     skyrimse/testskyrimsefogcurve.cpp
     skyrimse/testskyrimseambientcube.cpp
+    skyrimse/testskyrimseweatherambientcube.cpp
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimselocallights.cpp
     skyrimse/testskyrimselightflicker.cpp

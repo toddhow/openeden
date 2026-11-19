@@ -1,6 +1,7 @@
 #include "game_skyrimse/weather_source.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <map>
@@ -283,6 +284,24 @@ namespace game_skyrimse
         d.ambient = tableOf(w, SkyColourType::Ambient);
         d.sun = tableOf(w, SkyColourType::Sunlight);
         d.sunDiscSunset = colourOf(w, SkyColourType::Sun, WeatherConstants::Sunset);
+
+        // Task 0355 stage k: the directional ambient. Four records (sunrise, day, sunset, night) or none: a weather with
+        // fewer is described with the flat ambient only (a half table would blend a cube against nothing).
+        if (w.mDirectionalAmbient.size() == WeatherConstants::kTimesOfDay)
+        {
+            const auto cubeAt = [&](std::size_t time) {
+                std::array<WeatherColour, 6> out;
+                for (std::size_t i = 0; i < 6; ++i)
+                {
+                    const Rgba8 c = w.mDirectionalAmbient[time].mDirections[i];
+                    out[i] = { c.r / 255.f, c.g / 255.f, c.b / 255.f };
+                }
+                return out;
+            };
+            d.hasAmbientCube = true;
+            d.ambientCube = { cubeAt(WeatherConstants::Sunrise), cubeAt(WeatherConstants::Day),
+                cubeAt(WeatherConstants::Sunset), cubeAt(WeatherConstants::Night) };
+        }
 
         if (w.mFog)
         {

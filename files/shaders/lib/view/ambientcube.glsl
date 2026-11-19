@@ -4,7 +4,7 @@
 // end of the sky-visibility header buffer (binding VIEW_SKYVIS_SKY_BINDING), after the cloud shadow data. Include after
 // lib/view/bindings.glsl, lib/sets.glsl and lib/view/shadow.glsl (and lib/view/skyvis.glsl): the header is declared by
 // cloudshadow.glsl with CLOUD_SHADOW, by skyvis.glsl with GI and GI_SKY, else here.
-#if !defined(CLOUD_SHADOW) && !(defined(GI) && defined(GI_SKY))
+#if !defined(CLOUD_SHADOW) && !defined(SKY_HEADER_DECLARED)
 layout(std430, set=VIEW_SET, binding=VIEW_SKYVIS_SKY_BINDING) readonly buffer SkyVisHeader {
     vec4 skyHeader[];
 };

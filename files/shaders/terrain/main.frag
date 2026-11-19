@@ -1,4 +1,4 @@
-#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, AO_TERRAIN, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, POINT_SHADOW)
+#pragma import_defines (TERRAIN_MAPS, TERRAIN_PBR, GBUFFER, GBUFFER_MATERIAL, GBUFFER_AMBIENT, AO_TERRAIN, GI_SKY, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, POINT_SHADOW, AMBIENT_CUBE)
 const int colorMode = 2;
 
 #include "lib/view/scene.glsl"
@@ -9,6 +9,10 @@ const int colorMode = 2;
 #include "lib/material/terms.glsl"
 #ifdef GI_SKY
 #include "lib/view/skyvis.glsl"
+#endif
+#ifdef AMBIENT_CUBE
+// OpenEden (task 0355 stage k): the weather's six-colour ambient (a game pack's exterior), as the objects take it.
+#include "lib/view/ambientcube.glsl"
 #endif
 #if defined(WETNESS) || defined(TERRAIN_PBR)
 // OpenEden (task 0037): rain wetness; its specular lobe is the material model's. Task 0044: so is the terrain's with
@@ -356,6 +360,9 @@ void main()
         // it: the terrain writes no ambient part unless AO_TERRAIN, task 0048, and the pass then removes a
         // share of what is left). With the sky-visibility field it scales that field's result.
         vec3 terrainAmbient = scene.ambient.xyz;
+ #ifdef AMBIENT_CUBE
+        terrainAmbient = ambientCubeAmbient(mat3(scene.invView) * normalize(frag_in.viewNormal), terrainAmbient);
+ #endif
  #ifdef GI_SKY
         terrainAmbient = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
             mat3(scene.invView) * normalize(frag_in.viewNormal), terrainAmbient);
@@ -370,7 +377,19 @@ void main()
         outColor.xyz += specularLight;
     }
 #else
- #ifdef GI_SKY
+ #ifdef AMBIENT_CUBE
+    // Task 0355 stage k: the weather's ambient cube by the terrain's geometry normal (the flat ambient where no cube is
+    // loaded), then the sky-visibility field where there is one.
+    vec3 terrainSkyAmbient = ambientCubeAmbient(mat3(scene.invView) * normalize(frag_in.viewNormal), scene.ambient.xyz);
+  #ifdef GI_SKY
+    terrainSkyAmbient = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
+        mat3(scene.invView) * normalize(frag_in.viewNormal), terrainSkyAmbient);
+  #endif
+  #ifdef AO_TERRAIN
+    terrainAmbientPart = outColor.xyz * (terrainSkyAmbient * getAmbient(vertexColor));
+  #endif
+    outColor *= materialTermsAmbient(terrainSkyAmbient, diffuse, vertexColor);
+ #elif defined(GI_SKY)
     // Task 0036: the exterior sky-visibility field, with the terrain's geometry normal.
     vec3 terrainSkyAmbient = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz,
         mat3(scene.invView) * normalize(frag_in.viewNormal), scene.ambient.xyz);

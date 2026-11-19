@@ -960,6 +960,8 @@ namespace MWRender
         // Task 0048: with ao on and `ao terrain`, the terrain writes its ambient part (needs the ambient output).
         terrainMaps.aoTerrain = mAoEnabled && Settings::rendering().mAoTerrain;
         terrainMaps.pointShadow = mPointShadows != nullptr;
+        // Task 0355 stage k: a game pack's exterior takes the weather's ambient cube on the terrain too.
+        terrainMaps.ambientCube = mAmbientCubeEnabled && Settings::game().mNeutralWeatherAmbientCube.get();
         terrainMaps.wetness.enabled = mWetnessEnabled;
         terrainMaps.wetness.puddles = mWetnessEnabled && Settings::rendering().mWetnessPuddles;
         terrainMaps.wetness.debug = mWetnessEnabled && Settings::rendering().mWetnessDebug;
@@ -2244,6 +2246,17 @@ namespace MWRender
         mAmbientCube = cube;
     }
 
+    void RenderManager::setWeatherAmbientCube(const std::array<vsg::vec3, 6>* cube, const vsg::vec3& baseline)
+    {
+        if (!mAmbientCubeEnabled || cube == nullptr)
+        {
+            mWeatherAmbientCube.reset();
+            return;
+        }
+        mWeatherAmbientCube = *cube;
+        mWeatherAmbientBase = baseline;
+    }
+
     void RenderManager::exteriorCellLoaded(int x, int y, int cellSize, const std::string& world)
     {
         ++mLoadedExteriorCells; // task 0054 counters
@@ -3114,18 +3127,22 @@ namespace MWRender
         // written into the header buffer only when they change.
         if (mAmbientCubeEnabled && mSkyVisHeader && mSkyVisHeader->size() >= Render::AmbientCube::headerTotalVec4s)
         {
+            // An interior's cube (setAmbientCube) wins; else the exterior weather's (setWeatherAmbientCube), whose baseline
+            // is the weather's own flat ambient before any lightning flash.
+            const std::optional<std::array<vsg::vec3, 6>>& shown = mAmbientCube ? mAmbientCube : mWeatherAmbientCube;
             Render::AmbientCube::Cube viewCube{};
-            if (mAmbientCube)
+            if (shown)
                 for (std::size_t i = 0; i < 6; ++i)
                 {
-                    const vsg::vec4 c = toView(vsg::vec4((*mAmbientCube)[i], 1.f));
+                    const vsg::vec4 c = toView(vsg::vec4((*shown)[i], 1.f));
                     viewCube[i] = vsg::vec3(c.x, c.y, c.z);
                 }
-            const vsg::vec4 baseline = toView(mAmbientColor);
+            const vsg::vec4 baseline
+                = toView(mAmbientCube ? mAmbientColor : vsg::vec4(mWeatherAmbientBase, mAmbientColor.w));
             std::array<vsg::vec4, Render::AmbientCube::vec4s> packed{};
             std::vector<vsg::vec4> scratch(Render::AmbientCube::headerTotalVec4s);
             Render::AmbientCube::write(
-                scratch.data(), mAmbientCube ? &viewCube : nullptr, vsg::vec3(baseline.x, baseline.y, baseline.z));
+                scratch.data(), shown ? &viewCube : nullptr, vsg::vec3(baseline.x, baseline.y, baseline.z));
             std::copy(scratch.begin() + Render::AmbientCube::base, scratch.end(), packed.begin());
             vsg::vec4* header = mSkyVisHeader->data() + Render::AmbientCube::base;
             if (!std::equal(packed.begin(), packed.end(), header))

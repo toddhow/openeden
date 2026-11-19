@@ -69,6 +69,8 @@ namespace Terrain
         bool aoTerrain = false;
         // Task 0077: the terrain (lit with the material model) takes the point lights' shadows.
         bool pointShadow = false;
+        // Task 0355 stage k: the terrain is lit by the ambient cube (a game pack's exterior weather).
+        bool ambientCube = false;
         // Task 0037: the terrain shader takes rain wetness.
         Pipeline::WetnessOptions wetness;
         // Task 0039: the terrain shader takes snow and ash cover.

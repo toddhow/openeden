@@ -18,6 +18,9 @@ import lib.light.directional;
 #ifdef GI_SKY
 #include "lib/view/skyvis.slang"
 #endif
+#ifdef AMBIENT_CUBE
+#include "lib/view/ambientcube.slang"
+#endif
 #if defined(WETNESS) || defined(TERRAIN_PBR)
 import lib.material.pbr;
 #endif
@@ -336,6 +339,9 @@ FragmentOutput fragMain(FragmentInput input)
 #ifdef TERRAIN_PBR
     {
         float3 terrainAmbient = scene.ambient.xyz;
+#ifdef AMBIENT_CUBE
+        terrainAmbient = ambientCubeAmbient(mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainAmbient);
+#endif
 #ifdef GI_SKY
         terrainAmbient = skyVisAmbient(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
             mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainAmbient);
@@ -350,7 +356,18 @@ FragmentOutput fragMain(FragmentInput input)
         outColor.xyz += specularLight;
     }
 #else
+#ifdef AMBIENT_CUBE
+    float3 terrainSkyAmbient
+        = ambientCubeAmbient(mul((float3x3)scene.invView, normalize(input.io.viewNormal)), scene.ambient.xyz);
 #ifdef GI_SKY
+    terrainSkyAmbient = skyVisAmbient(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
+        mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainSkyAmbient);
+#endif
+#ifdef AO_TERRAIN
+    terrainAmbientPart = outColor.xyz * (terrainSkyAmbient * getAmbient(vertexColor));
+#endif
+    outColor *= materialTermsAmbient(terrainSkyAmbient, diffuse, vertexColor);
+#elif defined(GI_SKY)
     float3 terrainSkyAmbient = skyVisAmbient(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
         mul((float3x3)scene.invView, normalize(input.io.viewNormal)), scene.ambient.xyz);
 #ifdef AO_TERRAIN

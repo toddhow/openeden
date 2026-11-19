@@ -23,9 +23,13 @@ namespace Pipeline
 
     std::set<std::string> terrainDefines(bool maps, unsigned int gbufferOutputs, bool giSky,
         const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
-        bool aoTerrain, bool pointShadow)
+        bool aoTerrain, bool pointShadow, bool ambientCube)
     {
         std::set<std::string> defines;
+        // Task 0355 stage k: the terrain is lit by the ambient cube of the weather (a game pack's exterior); the cube's
+        // header buffer says per frame whether one is loaded.
+        if (ambientCube)
+            defines.insert("AMBIENT_CUBE");
         if (maps)
             defines.insert("TERRAIN_MAPS");
         if (maps && pbr)
@@ -77,12 +81,13 @@ namespace Pipeline
 
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
         unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover,
-        unsigned int parallaxQuality, bool aoTerrain, bool pointShadow)
+        unsigned int parallaxQuality, bool aoTerrain, bool pointShadow, bool ambientCube)
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
         std::set<std::string> defines
-            = terrainDefines(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow);
+            = terrainDefines(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow,
+                ambientCube);
         if (!defines.empty())
         {
             // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.

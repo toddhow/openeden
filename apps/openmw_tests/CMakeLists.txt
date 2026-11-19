@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralvoice.cpp
     mwworld/testneutraltalkwait.cpp
     mwworld/testneutralweather.cpp
+    mwworld/testneutralweatherambientcube.cpp
     mwworld/testneutralweathersound.cpp
     mwworld/testneutralmusic.cpp
     mwworld/testneutralimagespace.cpp

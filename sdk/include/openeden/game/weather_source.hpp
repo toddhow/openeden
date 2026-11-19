@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -21,7 +22,8 @@
 // Units: colours are linear-looking 0..1 floats exactly as the game stores them divided by 255 (no gamma conversion is
 // done here); fogDepth is the engine's own fraction (see WeatherDescription::fogDepth); hours are 0..24 floats.
 //
-// Version policy: DRAFT 0.4 (0.4, task 0127 stage W-S4: the weather's four sounds, trailing fields of
+// Version policy: DRAFT 0.5 (0.5, task 0355 stage k: the directional ambient cube of the weather, trailing fields of
+// WeatherDescription, default "none"; 0.4, task 0127 stage W-S4: the weather's four sounds, trailing fields of
 // WeatherDescription; 0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
 // WeatherDescription, defaults mean "none"; 0.3, stage W-S3: extra cloud layers and the image space grade at the end of
 // WeatherDescription, the sun and moon fields at the end of TimeOfDayDescription, defaults mean "none given"). Additive
@@ -31,7 +33,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kWeatherSourceVersion{ 0, 4 };
+    inline constexpr Version kWeatherSourceVersion{ 0, 5 };
 
     struct WeatherColour
     {
@@ -144,6 +146,12 @@ namespace openeden::sdk::game
         WeatherSoundDescription precipitationSound;
         WeatherSoundDescription windSound;
         WeatherSoundDescription thunderSound;
+
+        // Added in 0.5 (task 0355 stage k). The weather's directional ambient: six colours (+X, -X, +Y, -Y, +Z, -Z of
+        // the world, the order RECALLED-VERIFY) by time of day, which light a surface by the squares of its normal's
+        // components in place of the flat `ambient` colour. Defaults mean "none given": the flat colour stays.
+        bool hasAmbientCube = false;
+        PerTimeOfDay<std::array<WeatherColour, 6>> ambientCube;
 
         friend bool operator==(const WeatherDescription&, const WeatherDescription&) = default;
     };

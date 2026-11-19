@@ -6,6 +6,7 @@
 layout(std430, set=VIEW_SET, binding=VIEW_SKYVIS_SKY_BINDING) readonly buffer SkyVisHeader {
     vec4 skyHeader[];
 };
+#define SKY_HEADER_DECLARED // task 0355: lib/view/ambientcube.glsl declares the header only when nobody did
 #endif
 layout(std430, set=VIEW_SET, binding=VIEW_SKYVIS_BINDING) readonly buffer SkyVisPool {
     float skyData[];

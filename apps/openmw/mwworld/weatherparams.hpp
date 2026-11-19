@@ -47,6 +47,10 @@ namespace MWWorld
         std::array<vsg::vec4, 4> tint{};
     };
 
+    /// A game pack's directional ambient (task 0355 stage k): six colours (+X, -X, +Y, -Y, +Z, -Z) for each of the four
+    /// times of day, [face][time of day] (sunrise, day, sunset, night).
+    using AmbientCubeParams = std::array<std::array<vsg::vec4, 4>, 6>;
+
     /// Everything one `Weather` reads from its source of numbers. The colour arrays are in the order sunrise, day,
     /// sunset, night.
     struct WeatherParams
@@ -79,6 +83,8 @@ namespace MWWorld
         // Stage W-S4. Morrowind's weathers play their sounds by record id (the three fields above); a game pack's play
         // files, described here. Empty (any() false) for Morrowind.
         NeutralWeatherSound::Set sounds;
+        // Task 0355 stage k. Morrowind's INI gives none: the flat ambient colour only.
+        std::optional<AmbientCubeParams> ambientCube;
     };
 
     /// One entry of the weather table: the weather's name (its script-visible id), its numbers and the three values the

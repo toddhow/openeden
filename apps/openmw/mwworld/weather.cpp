@@ -283,6 +283,7 @@ namespace MWWorld
         mAmbientLoopSoundID = ESM::RefId::stringRefId(params.ambientLoopSoundId);
         if (mAmbientLoopSoundID == "None")
             mAmbientLoopSoundID = ESM::RefId();
+        mAmbientCube = params.ambientCube;
     }
 
     float Weather::transitionDelta() const
@@ -1083,6 +1084,7 @@ namespace MWWorld
             updateCover(duration, paused, false);
             mRendering.setLightning(0.f, vsg::vec3(0.f, 0.f, 1.f));
             mRendering.setSkyEnabled(false);
+            mRendering.setWeatherAmbientCube(nullptr, vsg::vec3(0.f, 0.f, 0.f)); // task 0355 stage k: indoors, no weather
             stopSounds();
             mWindSpeed = 0.f;
             mCurrentWindSpeed = 0.f;
@@ -1221,6 +1223,12 @@ namespace MWWorld
         mRendering.configureFog(rendered->mFogDepth, underwaterFog, rendered->mDLFogFactor,
             rendered->mDLFogOffset / 100.0f, rendered->mFogColor);
         mRendering.setAmbientColour(rendered->mAmbientColor);
+        // Task 0355 stage k: a game pack's directional ambient. Off, or a weather with none, the renderer is told "no
+        // cube" and the flat ambient stands.
+        if (Settings::game().mNeutralWeatherAmbientCube.get() && rendered->mHasAmbientCube)
+            mRendering.setWeatherAmbientCube(&rendered->mAmbientCube, rendered->mAmbientCubeBase);
+        else
+            mRendering.setWeatherAmbientCube(nullptr, vsg::vec3(0.f, 0.f, 0.f));
         mRendering.setSunColour(rendered->mSunColor, rendered->mSunColor * rendered->mGlareView * glareFade);
 
         mRendering.getSky()->setWeather(*rendered);
@@ -1708,6 +1716,9 @@ namespace MWWorld
         if (mRendering.lightningEnabled())
             flashColor = vsg::vec4(lightningColour.x, lightningColour.y, lightningColour.z, 0.0f);
 
+        // Task 0355 stage k: the flat ambient the weather's cube was made for, before the flash is added to it.
+        mResult.mAmbientCubeBase
+            = vsg::vec3(mResult.mAmbientColor.x, mResult.mAmbientColor.y, mResult.mAmbientColor.z);
         mResult.mFogColor += flashColor;
         mResult.mAmbientColor += flashColor;
         mResult.mSunColor += flashColor;
@@ -1815,6 +1826,17 @@ namespace MWWorld
             r.mTint = vsg::vec3(tint.x, tint.y, tint.z);
             r.mSpeed = e.speed;
         }
+        // Task 0355 stage k: the weather's directional ambient at this hour, one interpolator per face (the "Ambient"
+        // transition windows, as the flat ambient colour).
+        mResult.mHasAmbientCube = current.mAmbientCube.has_value();
+        if (current.mAmbientCube)
+            for (std::size_t face = 0; face < 6; ++face)
+            {
+                const auto& f = (*current.mAmbientCube)[face];
+                const vsg::vec4 c = TimeOfDayInterpolator<vsg::vec4>(f[0], f[1], f[2], f[3])
+                                        .getValue(gameHour, mTimeSettings, "Ambient");
+                mResult.mAmbientCube[face] = vsg::vec3(c.x, c.y, c.z);
+            }
         mResult.mHasGrade = current.mImageSpace.has_value();
         if (current.mImageSpace)
         {
@@ -1863,6 +1885,17 @@ namespace MWWorld
         mResult.mSkyColor = lerp(current.mSkyColor, other.mSkyColor, factor);
 
         mResult.mAmbientColor = lerp(current.mAmbientColor, other.mAmbientColor, factor);
+        {
+            // Task 0355 stage k: the cubes blend as the flat colours do (a weather with none counts as its flat colour).
+            const auto rgb = [](const vsg::vec4& c) { return vsg::vec3(c.x, c.y, c.z); };
+            std::optional<Render::AmbientCube::Cube> a, b;
+            if (current.mHasAmbientCube)
+                a = current.mAmbientCube;
+            if (other.mHasAmbientCube)
+                b = other.mAmbientCube;
+            mResult.mHasAmbientCube = blendAmbientCubes(
+                a, rgb(current.mAmbientColor), b, rgb(other.mAmbientColor), factor, mResult.mAmbientCube);
+        }
         mResult.mSunDiscColor = lerp(current.mSunDiscColor, other.mSunDiscColor, factor);
         mResult.mFogDepth = lerp(current.mFogDepth, other.mFogDepth, factor);
         mResult.mDLFogFactor = lerp(current.mDLFogFactor, other.mDLFogFactor, factor);

@@ -182,7 +182,8 @@ namespace Terrain
     {
         mPipeline = Pipeline::terrain(in_shaderOptions, mMapSettings.enabled(), mMapSettings.gbufferOutputs,
             mMapSettings.giSky, mMapSettings.wetness, mMapSettings.pbr, mMapSettings.cover,
-            mMapSettings.parallaxQuality, mMapSettings.aoTerrain, mMapSettings.pointShadow);
+            mMapSettings.parallaxQuality, mMapSettings.aoTerrain, mMapSettings.pointShadow,
+            mMapSettings.ambientCube);
     }
 
     void Builder::pruneCache() const
