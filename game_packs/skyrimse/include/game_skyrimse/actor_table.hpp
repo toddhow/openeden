@@ -167,6 +167,7 @@ namespace game_skyrimse
         }
         /// Task 0277: actors travelling to another cell are carried through doors (needs the package brain).
         void setCarryTravellers(bool on);
+        void setSnapMustComplete(bool on); // task 0341
         /// Task 0286: see PackageBrain::setTravelMoveHook; asked before or after the brain is made.
         void setTravelMoveHook(PackageBrain::TravelMoveHook hook);
         /// Task 0277: where the brain thinks the actor stands (arrivals and leg ends); false for an unknown actor.
@@ -261,6 +262,7 @@ namespace game_skyrimse
         Stats mStats;
         std::unique_ptr<PackageBrain> mBrain;
         bool mCarryTravellers = false; // task 0277
+        bool mSnapMustComplete = false; // task 0341
         PackageBrain::TravelMoveHook mTravelMoveHook; // task 0286
         std::set<std::string> mTestFollowerNames; ///< lower case editor ids (task 0196)
         float mTestDismissAfter = 0.f;

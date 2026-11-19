@@ -809,6 +809,11 @@
       "key": "thieves guild",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "side quests",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

@@ -1715,6 +1715,42 @@ namespace game_skyrimse
         return self->ensureDialogue();
     }
 
+    std::vector<AliasPackageGroup> SkyrimWorldView::uniqueActorAliasGroups(FormId base) const
+    {
+        std::vector<AliasPackageGroup> groups;
+        const auto found = mDialogue->mAliasPackages.find(base);
+        if (found == mDialogue->mAliasPackages.end())
+            return groups;
+        // task 0298: a quest of higher priority is tried first (the Civil War's CW00A before CW)
+        std::vector<std::size_t> ordered(found->second.size());
+        for (std::size_t i = 0; i < ordered.size(); ++i)
+            ordered[i] = i;
+        const auto priorityOf = [this](FormId quest) -> std::uint8_t {
+            const QuestRecord* record = mDialogue->mData->mQuests.quest(quest);
+            return record != nullptr ? record->mPriority : std::uint8_t(0);
+        };
+        if (mBlockingBranches) // the setting `civil war` (earlier slices keep their order)
+        {
+            std::stable_sort(ordered.begin(), ordered.end(), [&](std::size_t a, std::size_t b) {
+                const FormId qa = found->second[a].mQuest;
+                const FormId qb = found->second[b].mQuest;
+                return questPriorityBefore(priorityOf(qa), qa, priorityOf(qb), qb);
+            });
+        }
+        for (const std::size_t at : ordered)
+        {
+            const auto& entry = found->second[at];
+            if (!mDialogue->mPackageQuests.running(entry.mQuest))
+                continue;
+            AliasPackageGroup group{ entry.mQuest, priorityOf(entry.mQuest), false, {} };
+            for (const FormId id : entry.mPackages)
+                if (const PackageRecord* p = mDialogue->mData->mPackages.package(id))
+                    group.mPackages.push_back(p);
+            groups.push_back(std::move(group));
+        }
+        return groups;
+    }
+
     bool SkyrimWorldView::packagesFor(FormId base, std::vector<const PackageRecord*>& out) const
     {
         out.clear();
@@ -1777,34 +1813,13 @@ namespace game_skyrimse
                     return a.mPriority != b.mPriority ? a.mPriority > b.mPriority : a.mQuest < b.mQuest;
                 });
         }
-        if (const auto found = mDialogue->mAliasPackages.find(base); found != mDialogue->mAliasPackages.end())
+        // Task 0341: the groups are found by one helper, so that packagesForReference can order them with the others
+        std::vector<AliasPackageGroup> uniqueGroups = uniqueActorAliasGroups(base);
+        if (!uniqueGroups.empty())
         {
             std::vector<const PackageRecord*> front;
-            // task 0298: a quest of higher priority is tried first (the Civil War's CW00A before CW)
-            std::vector<std::size_t> ordered(found->second.size());
-            for (std::size_t i = 0; i < ordered.size(); ++i)
-                ordered[i] = i;
-            const auto priorityOf = [this](FormId quest) -> std::uint8_t {
-                const QuestRecord* record = mDialogue->mData->mQuests.quest(quest);
-                return record != nullptr ? record->mPriority : std::uint8_t(0);
-            };
-            if (mBlockingBranches) // the setting `civil war` (earlier slices keep their order)
-            {
-                std::stable_sort(ordered.begin(), ordered.end(), [&](std::size_t a, std::size_t b) {
-                    const FormId qa = found->second[a].mQuest;
-                    const FormId qb = found->second[b].mQuest;
-                    return questPriorityBefore(priorityOf(qa), qa, priorityOf(qb), qb);
-                });
-            }
-            for (const std::size_t at : ordered)
-            {
-                const auto& entry = found->second[at];
-                if (!mDialogue->mPackageQuests.running(entry.mQuest))
-                    continue;
-                for (const FormId id : entry.mPackages)
-                    if (const PackageRecord* p = index.package(id))
-                        front.push_back(p);
-            }
+            for (const AliasPackageGroup& group : uniqueGroups)
+                front.insert(front.end(), group.mPackages.begin(), group.mPackages.end());
             out.insert(out.begin(), front.begin(), front.end());
         }
         if (mPackageTraceLog && base == mPackageTraceBase)
@@ -1858,6 +1873,22 @@ namespace game_skyrimse
             mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " base list " + std::to_string(out.size())
                 + (found == mDialogue->mAliasPackagesOfReference.end() ? ", no alias entry" : ", alias entry")
                 + " (" + std::to_string(mDialogue->mAliasPackagesOfReference.size()) + " references have one)");
+        if (mAliasPriorityOrder)
+        {
+            // Task 0341: the unique-actor aliases join the one order (see orderWithUniqueActorGroups)
+            std::vector<AliasPackageGroup> unique = uniqueActorAliasGroups(base);
+            std::size_t frontCount = 0;
+            for (const AliasPackageGroup& group : unique)
+                frontCount += group.mPackages.size();
+            if (!unique.empty() && !groups.empty())
+            {
+                out = orderWithUniqueActorGroups(out, frontCount, unique, groups);
+                if (mPackageTraceLog && base == mPackageTraceBase)
+                    for (const PackageRecord* p : out)
+                        mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " ordered " + p->mCommon.mEditorId);
+                return true;
+            }
+        }
         if (groups.empty())
             return true;
         const std::vector<const PackageRecord*> ordered = orderAliasPackageGroups(groups);

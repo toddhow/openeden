@@ -416,6 +416,8 @@ namespace game_skyrimse
         /// player uses, until the target is reachable; a walk that fails ends with the actor placed there. Off by
         /// default; the pack turns it on with `[extension.skyrimse] companions`.
         void setCarryTravellers(bool on) { mCarryTravellers = on; }
+        /// Task 0341 (`side quests`): a MUST COMPLETE Travel package that cannot be walked ends with the actor placed at its target
+        void setSnapMustComplete(bool on) { mSnapMustComplete = on; }
 
         /// Task 0286: a scene's Travel package whose target stands in another cell (see targetIsElsewhere) asks this
         /// first. `actor` is the placement, `target` the reference it travels to. When the hook accepts (the world
@@ -595,6 +597,7 @@ namespace game_skyrimse
         /// task 0277: scenes' packages by placement, so a door does not lose them
         std::map<openeden::sdk::game::WorldId, const PackageRecord*> mForcedRefs;
         bool mCarryTravellers = false;
+        bool mSnapMustComplete = false; ///< task 0341
         TravelMoveHook mTravelMoveHook; // task 0286
         /// A scene's package is remembered by placement and an unreachable target is looked for.
         [[nodiscard]] bool tracksScenePackages() const

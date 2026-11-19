@@ -3,7 +3,9 @@
 #define OPENEDEN_GAME_SKYRIMSE_QUEST_PRIORITY_HPP
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace game_skyrimse
@@ -48,6 +50,22 @@ namespace game_skyrimse
         std::vector<const PackageRecord*> out;
         for (const AliasPackageGroup& group : groups)
             out.insert(out.end(), group.mPackages.begin(), group.mPackages.end());
+        return out;
+    }
+    /// Task 0341 (`side quests`): the packages of the groups that an actor's UNIQUE-actor aliases give (`uniqueGroups`: they
+    /// stand in front of `list`, `frontCount` packages) take part in the one priority order with the groups of the other
+    /// aliases, then the rest of `list` (the actor's own packages) follows. Before, the unique-actor packages always
+    /// stood BEHIND a forced or specific-reference alias's: a world interaction quest (WITavern, priority 40) that took
+    /// the barmaid Saadia as its server kept her in its sandbox while her own quest MS08 wanted her elsewhere.
+    [[nodiscard]] inline std::vector<const PackageRecord*> orderWithUniqueActorGroups(
+        const std::vector<const PackageRecord*>& list, std::size_t frontCount,
+        std::vector<AliasPackageGroup> uniqueGroups, std::vector<AliasPackageGroup> otherGroups)
+    {
+        for (AliasPackageGroup& group : uniqueGroups)
+            otherGroups.push_back(std::move(group));
+        std::vector<const PackageRecord*> out = orderAliasPackageGroups(std::move(otherGroups));
+        if (frontCount < list.size())
+            out.insert(out.end(), list.begin() + static_cast<std::ptrdiff_t>(frontCount), list.end());
         return out;
     }
 }

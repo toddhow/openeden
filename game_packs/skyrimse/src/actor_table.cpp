@@ -103,6 +103,7 @@ namespace game_skyrimse
         mBrain = std::make_unique<PackageBrain>(source, options);
         mBrain->setFurnitureSource(furniture);
         mBrain->setCarryTravellers(mCarryTravellers); // task 0277: asked before or after the brain is made
+        mBrain->setSnapMustComplete(mSnapMustComplete); // task 0341
         if (mTravelMoveHook)
             mBrain->setTravelMoveHook(mTravelMoveHook); // task 0286
     }
@@ -125,6 +126,13 @@ namespace game_skyrimse
         mTravelMoveHook = hook;
         if (mBrain)
             mBrain->setTravelMoveHook(std::move(hook));
+    }
+
+    void SkyrimActorTable::setSnapMustComplete(bool on)
+    {
+        mSnapMustComplete = on;
+        if (mBrain)
+            mBrain->setSnapMustComplete(on);
     }
 
     void SkyrimActorTable::setCarryTravellers(bool on)

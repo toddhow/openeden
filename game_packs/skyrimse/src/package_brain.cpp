@@ -361,7 +361,10 @@ namespace game_skyrimse
             ++mStats.mBlocked;
         // Task 0277: a scene's Travel package that cannot be walked (a ledge the mover will not cross, no navmesh yet)
         // ends with the actor where it was going, as the game puts an actor whose package begins in an unloaded cell.
-        if (mCarryTravellers && actor.mForced != nullptr && actor.mForced == actor.mActive
+        // Task 0341 (`side quests`): the same for a quest alias's package marked MUST COMPLETE (PKDT flag 0x4:
+        // Saadia's "come to the private room" in the Bannered Mare's west wing, up stairs the mover does not climb)
+        const bool mustComplete = mSnapMustComplete && actor.mActive != nullptr && (actor.mActive->mFlags & 0x4u) != 0;
+        if (((mCarryTravellers && actor.mForced != nullptr && actor.mForced == actor.mActive) || mustComplete)
             && actor.mBehavior == PackageBehavior::Travel && actor.mToAnchor)
         {
             actor.mSnapNext = true;

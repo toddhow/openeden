@@ -35,6 +35,7 @@
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/progression.hpp>
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/quest_priority.hpp>
 #include <game_skyrimse/quest_alias.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/scene_runner.hpp>
@@ -656,6 +657,8 @@ namespace game_skyrimse
         /// Training and renting are named "open:<name>" in the conversation (set before the first conversation or
         /// any time after).
         void setOpenServices(bool on);
+        /// Task 0341 (`side quests`): the packages of every alias of an actor are tried in ONE order by quest priority
+        void setAliasPriorityOrder(bool on) { mAliasPriorityOrder = on; }
         /// Task 0298: a Blocking dialogue branch starts a conversation instead of Hello (DialogueRuntime::setBlockingBranches).
         void setBlockingBranches(bool on);
         void setFragmentFlush(std::function<void()> flush); ///< task 0304
@@ -1089,6 +1092,8 @@ namespace game_skyrimse
         std::function<void(const std::string&)> mPackageTraceLog;
         bool mOpenServices = false; ///< task 0219
         bool mBlockingBranches = false; ///< task 0298
+        bool mAliasPriorityOrder = false; ///< task 0341
+        [[nodiscard]] std::vector<AliasPackageGroup> uniqueActorAliasGroups(FormId base) const; // task 0341
         std::function<bool(FormId)> mDeadLookup; ///< task 0326
         bool mQuestGreetings = false; ///< task 0304
         bool mWalkAwayTopics = false; ///< task 0315

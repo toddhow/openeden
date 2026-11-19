@@ -524,6 +524,7 @@ namespace game_skyrimse
                 applyMainQuestTestStage();
                 applyMainQuest(); // task 0268
                 applyCarts(); // task 0274
+                applyFollowerTriggers(); // task 0341
                 applyTraining(); // task 0264
                 applyMarriage(); // task 0270
                 if (mMarriageFinPending) // task 0276
@@ -765,6 +766,30 @@ namespace game_skyrimse
             void setPlayerLevelSource(std::function<bool(std::int32_t&)> source)
             {
                 mData.mPlayerLevel = std::move(source);
+            }
+            void enableSideQuests() // task 0341: Kematu is a child of the marker MS08's fragments enable; box triggers fire
+            {
+                mSideQuests = true;
+                mView.setPrimitiveTriggers(true);
+            }
+            // Task 0341: the actors that follow the player by a quest's package (Saadia, led to the Whiterun stables) are
+            // subjects of the box triggers like the cart horses: MS08AmbushTriggerScript hears Saadia enter the box
+            void applyFollowerTriggers()
+            {
+                SkyrimCellSource* cells = dynamic_cast<SkyrimCellSource*>(&mCells);
+                if (!mSideQuests || mMainQuest || cells == nullptr)
+                    return;
+                openeden::sdk::game::WorldId ids[8] = {};
+                const std::size_t count = cells->actorTable().followers(ids, 8);
+                std::vector<PapyrusHost::SubjectPlace> subjects;
+                for (std::size_t i = 0; i < count && i < 8; ++i)
+                {
+                    double x = 0, y = 0, z = 0;
+                    if (cells->actorTable().brainPlace(ids[i], x, y, z))
+                        subjects.push_back({ static_cast<FormId>(ids[i]), x, y, z });
+                }
+                if (!subjects.empty())
+                    (void)mHost.updateSubjectTriggers(subjects);
             }
             void enableDawnguard() // task 0319: the same world as the Daedric quests; the fort's trigger boxes fire
             {
@@ -1470,7 +1495,7 @@ namespace game_skyrimse
                 // and the riders' markers are enabled by the first horse). Only with the main quest or Dawnguard (a
                 // reference's children are looked for in the whole table; task 0330: Dimhollow's vampires are the children
                 // of the marker the quest's first fragment enables).
-                if ((mMainQuest || mDawnguard) && !mEnablingChildren)
+                if ((mMainQuest || mDawnguard || mSideQuests) && !mEnablingChildren)
                 {
                     mEnablingChildren = true;
                     if (const PlacedRefIndex* placed = mView.placedRefs())
@@ -1800,7 +1825,7 @@ namespace game_skyrimse
                             volume.mRotationY = static_cast<double>(s.mRotation.y);
                             // tasks 0274 and 0292: the cart ride's slabs and the College bridge's box
                             volume.mAcceptBox = acceptsBoxTriggers(mMainQuest, mCollege, mDaedric, mDragonborn)
-                                || mDawnguard || mThieves || mWhiterunBoxes;
+                                || mDawnguard || mThieves || mWhiterunBoxes || mSideQuests;
                             volume.mInterior = mData.cellIsInterior(s.mCell);
                             if (volume.mAcceptBox && volume.mType == kPrimitiveBox)
                                 say(openeden::sdk::LogLevel::Info,
@@ -1865,6 +1890,7 @@ namespace game_skyrimse
             bool mCollege = false; ///< task 0292
             bool mDaedric = false; ///< task 0310
             bool mDawnguard = false; ///< task 0319
+            bool mSideQuests = false; ///< task 0341
             bool mThieves = false; ///< task 0314
             bool mWhiterunBoxes = false; ///< task 0328
             bool mMainQuestApplied = false;
@@ -3175,6 +3201,27 @@ namespace game_skyrimse
                         (*logged)[reference] = loaded;
                         return loaded;
                     });
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "side quests", false))
+                {
+                    // task 0341: Saadia (MS08's unique actor alias, priority above the tavern quest's) is told to go to the
+                    // private room before WITavern's sandbox is tried; ONE order by quest priority for every alias
+                    mWorldView.setAliasPriorityOrder(true);
+                    mPapyrus->enableSideQuests();
+                    mCellSource.actorTable().setFollowPlayerPackages(true); // Saadia follows by MS08SaadiaFollowPlayer
+                    // Saadia's "I dealt with Kematu" line (stage 160) asks GetDead of Kematu, who died in the Den's cell:
+                    // a kill of this session counts (task 0326's lookup, the one the Civil War uses)
+                    auto killed = [this](FormId reference) {
+                        return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
+                    };
+                    mWorldView.setDeadLookup(killed);
+                    if (mPapyrus != nullptr)
+                        mPapyrus->setDeadLookup(killed);
+                    mCellSource.actorTable().setSnapMustComplete(true); // the walk the mover cannot do ends at the marker
+                    // her topics at stage 20 want her distance to the private room's marker (GetDistance of a placed
+                    // reference): the place the actor stands at now (task 0313's live places, task 0277's hook)
+                    mCellSource.setLivePlaces(true);
+                    useLiveActorPlaces();
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "golden claw", false))
                 {
