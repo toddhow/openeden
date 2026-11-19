@@ -3287,6 +3287,29 @@ namespace game_skyrimse
                             logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
                     });
                 }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "dark brotherhood", false))
+                {
+                    // task 0343: the shack's leave box (DBAstridShackLeaveTriggerScript) fires for the player, Astrid and the
+                    // Black Door speak through Blocking branches and walk-away topics, the nameless links of a response go on
+                    // by themselves and a response's fragments run before the next choice is judged (the Daedric quests' world)
+                    mPapyrus->enableDaedric();
+                    mWorldView.setQuestGreetings(true);
+                    mWorldView.setBlockingBranches(true);
+                    mWorldView.setWalkAwayTopics(true);
+                    // Astrid's second greeting asks GetDeadCount of each captive's base: a captive the session killed counts
+                    auto killed = [this](FormId reference) {
+                        return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
+                    };
+                    mWorldView.setDeadLookup(killed);
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
+                    mWorldView.setDialogueTrace([logger](const std::string& line) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
+                    });
+                }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "bards college", false))
                 {
                     // task 0331: Viarmo's poem (MS05): a response that links to a topic with no name goes on by itself (the
@@ -4244,7 +4267,9 @@ namespace game_skyrimse
                         || settings->getBool(kPackId, std::string(laidtorest::kKey), false))
                     && mPapyrus != nullptr;
                 // Task 0338: Azura's altar (a scripted activator) is activated by the player under `daedric quests`, too
-                const bool daedricActivators = settings != nullptr && settings->getBool(kPackId, "daedric quests", false)
+                const bool daedricActivators = settings != nullptr
+                    && (settings->getBool(kPackId, "daedric quests", false)
+                        || settings->getBool(kPackId, "dark brotherhood", false)) // task 0343: the Black Door
                     && mPapyrus != nullptr;
                 if (settings == nullptr || (!harvestOn && !mDungeonMechanics && !daedricActivators)
                     || mInventory == nullptr)
@@ -4713,7 +4738,8 @@ namespace game_skyrimse
                 // Task 0184: the speech and bribe checks read the inventory's gold, and a key in it opens a lock.
                 if (settings->getBool(kPackId, marriage::kMarriageKey, false)
                     || settings->getBool(kPackId, "golden claw", false) // tasks 0270, 0335: GetItemCount of the player
-                    || settings->getBool(kPackId, "daedric quests", false)) // task 0338: Aranea asks for the Star
+                    || settings->getBool(kPackId, "daedric quests", false) // task 0338: Aranea asks for the Star
+                    || settings->getBool(kPackId, "dark brotherhood", false)) // task 0343: the shack's key, the Black Door
                 {
                     mWorldView.setPlayerWornSource(
                         [this](FormId item) { return mInventory != nullptr && mInventory->model().isEquipped(item); });

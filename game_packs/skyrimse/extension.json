@@ -796,6 +796,11 @@
       "default": false
     },
     {
+      "key": "dark brotherhood",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "dawnguard",
       "type": "bool",
       "default": false

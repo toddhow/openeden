@@ -1202,6 +1202,10 @@ namespace game_skyrimse
                 // fragment ran was refused as a whole ("the game no longer has what its attach key names")
                 if (mData.isScene(key.formId))
                     return true;
+                // task 0343: a script on a reference a quest alias or PlaceAtMe created (the courier letter of DB02's
+                // entrance quest): the created table is restored before the runtime asks
+                if (mCreated.count(key.formId) != 0)
+                    return true;
                 if (!mData.formClass(key.formId).empty())
                     return true;
                 // Task 0342: a script on a reference a script CREATED (0xFF8xxxxx: PlaceAtMe) is saved with the host's

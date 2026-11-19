@@ -823,6 +823,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedungeon.cpp
     skyrimse/testskyrimsedb01.cpp
     skyrimse/testskyrimsedb02.cpp
+    skyrimse/testskyrimsedb03.cpp
+    skyrimse/testskyrimsedb03greeting.cpp
     skyrimse/testskyrimsegoldenclaw.cpp
     skyrimse/testskyrimsewalkaway3.cpp
     skyrimse/testskyrimsemainquest.cpp

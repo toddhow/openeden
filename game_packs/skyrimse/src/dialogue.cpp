@@ -835,6 +835,19 @@ namespace game_skyrimse
                     + std::to_string(mBranchStart.count(t.mBranch) != 0 && mBranchStart.at(t.mBranch) == id));
             if (!namesSpeaker)
                 continue;
+            // task 0343: a start whose every INFO carries a prompt (RNAM) is a menu topic, the player's own words
+            // (Astrid's DBAstridCaughtBranchTopic), not the greeting of a conversation
+            bool anyInfo = false;
+            bool allPrompts = true;
+            if (const auto slot = mSlots.find(id); slot != mSlots.end())
+                for (std::size_t i = 0; i < slot->second.mList.size(); ++i)
+                    if (slot->second.mAlive[i])
+                    {
+                        anyInfo = true;
+                        allPrompts = allPrompts && slot->second.mList[i].mPrompt.mPresent;
+                    }
+            if (anyInfo && allPrompts)
+                continue;
             const auto branch = mBranchStart.find(t.mBranch);
             if (branch == mBranchStart.end() || branch->second != id)
                 continue;
@@ -1084,6 +1097,21 @@ namespace game_skyrimse
             return (view.mRef->mFlags & PlacedFlags::Dead) != 0;
         }
         return false;
+    }
+
+    float SkyrimConditionWorld::deadCount(std::uint32_t actorBase) const
+    {
+        if (!mDeadLookup || mPlacedRefs == nullptr)
+            return 0.f;
+        const FormId base = resolve(actorBase);
+        if (base == kNullFormId)
+            return 0.f;
+        const PlacedRefIndex::Range range = mPlacedRefs->byBase(base);
+        std::size_t dead = 0;
+        for (const PlacedEntry* const* it = range.mBegin; it != range.mEnd; ++it)
+            if (mDeadLookup((*it)->mId))
+                ++dead;
+        return static_cast<float>(dead);
     }
 
     float SkyrimConditionWorld::refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const

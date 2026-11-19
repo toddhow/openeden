@@ -66,6 +66,16 @@ return {
                         trace('cell ' .. step[3])
                         player:teleport(step[3], util.vector3(step[4], step[5], step[6]),
                             { rotation = util.transform.rotateZ(step[7] or 0) })
+                    elseif step[2] == 'ext' then
+                        -- task 0343: { update, 'ext', x, y, z, yawDegrees, worldId } into an exterior cell of a world (default Tamriel);
+                        -- a stand-in for the walk (the Sanctuary is days from the shack)
+                        local ok, cell = pcall(world.getExteriorCell, math.floor(step[3] / 4096), math.floor(step[4] / 4096),
+                            step[7] or 'skyrimse:w60')
+                        trace('ext ' .. tostring(ok) .. ' ' .. tostring(cell))
+                        if ok and cell ~= nil then
+                            player:teleport(cell, util.vector3(step[3], step[4], step[5]),
+                                { rotation = util.transform.rotateZ(math.rad(step[6] or 0)) })
+                        end
                     elseif step[2] == 'go' then
                         trace('go')
                         player:teleport(player.cell, util.vector3(step[3], step[4], step[5]),

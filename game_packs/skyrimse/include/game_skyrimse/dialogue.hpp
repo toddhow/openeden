@@ -592,6 +592,8 @@ namespace game_skyrimse
         /// Task 0298 (GetRefTypeAliveCount, the Civil War's Fort Hraggstad): with `setCountRefTypes(true)` the special
         /// references of the location with that type that are not placed dead; off, 0 as before.
         float refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const override;
+        /// fn_84 GetDeadCount(base) (task 0343): the placements of that base the session killed (the dead lookup).
+        float deadCount(std::uint32_t actorBase) const override;
         void setCountRefTypes(bool on) { mCountRefTypes = on; }
         /// Task 0326: the references that died in this session (the pack's death sink). With it, GetRefTypeAliveCount
         /// (Fort Hraggstad's bandits) and GetDead on a placed reference also count a killed reference as dead.
