@@ -783,8 +783,12 @@ namespace game_skyrimse
                                 }
                                 lighting.mFogNear = readLe<float>(p + 12);
                                 lighting.mFogFar = readLe<float>(p + 16);
+                                lighting.mFogPower = readLe<float>(p + 36); // task 0355: in both sizes
                                 if (data.size() == 92) // task 0303: the inherit flags are the last word
+                                {
                                     lighting.mInherit = readLe<std::uint32_t>(p + 88);
+                                    lighting.mFogMax = readLe<float>(p + 76);
+                                }
                                 c.mLighting = lighting;
                             }
                             else
@@ -1241,6 +1245,10 @@ namespace game_skyrimse
                                     }
                                     lighting.mFogNear = readLe<float>(p + 12);
                                     lighting.mFogFar = readLe<float>(p + 16);
+                                    if (data.size() >= 40)
+                                        lighting.mFogPower = readLe<float>(p + 36);
+                                    if (data.size() >= 80)
+                                        lighting.mFogMax = readLe<float>(p + 76);
                                     templateLighting = lighting;
                                 }
                                 else

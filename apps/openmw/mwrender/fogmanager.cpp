@@ -27,6 +27,7 @@ namespace MWRender
     void FogManager::configure(float viewDistance, const MWWorld::Cell& cell)
     {
         auto color = vsg::vec4(MWAnim::rgbColor(cell.getMood().mFogColor), 1);
+        mLandFogCurve = {};
 
         // Task 0355 stage d: a game pack's interior states its own linear fog (near and far, in units). It wins over
         // [Fog] use distant fog, which is Morrowind's: the cell's own distances are the data. The underwater fog is
@@ -35,6 +36,7 @@ namespace MWRender
         {
             mLandFogStart = cell.getNeutralFogStart();
             mLandFogEnd = cell.getNeutralFogEnd();
+            mLandFogCurve = { cell.getNeutralFogPower(), cell.getNeutralFogMax() };
             mUnderwaterFogStart = std::min(viewDistance, 7168.f) * (1 - mUnderwaterIndoorFog);
             mUnderwaterFogEnd = std::min(viewDistance, 7168.f);
             mFogColor = color;
@@ -59,6 +61,7 @@ namespace MWRender
     void FogManager::configure(
         float viewDistance, float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& color)
     {
+        mLandFogCurve = {};
         if (Settings::fog().mUseDistantFog)
         {
             mLandFogStart

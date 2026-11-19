@@ -129,6 +129,30 @@ float aerialFogAmount(vec3 viewPos)
     return 1.0 - exp(-aerialOpticalDepth(aerialBeta(), scene.invView[3].z, rayDirZ, distance));
 }
 
+// OpenEden (task 0355, follow-up of stage d): a game pack's interior fog has a power and a maximum, share = pow(linear,
+// power) * max. They ride in the fraction of scene.fogColor.w (the marker of lib/view/linear.glsl, 1 or 2, every reader
+// tests > 1.5, so a code under 0.5 added to it changes no other reader): code = power code * 256 + max code, over
+// 131072; power in 1/64 and max in 1/255; code 0 (the marker exactly) is the plain linear fog and costs one compare.
+// The C++ twin is components/render/fogcurve.hpp (encodeMarker, decode, apply); change all three together.
+const float fogCurveCodeScale = 131072.0;
+const float fogCurvePowerScale = 64.0;
+const float fogCurveMaxScale = 255.0;
+
+float fogCurve(float linearShare)
+{
+    float w = scene.fogColor.w;
+    if (!(w > 1.0))
+        return linearShare;
+    float code = floor((w - (w > 1.5 ? 2.0 : 1.0)) * fogCurveCodeScale + 0.5);
+    if (code < 1.0)
+        return linearShare;
+    float powerCode = floor(code / 256.0);
+    float maxCode = code - powerCode * 256.0;
+    if (powerCode < 1.0 || maxCode < 1.0)
+        return linearShare;
+    return pow(max(linearShare, 0.0), powerCode / fogCurvePowerScale) * (maxCode / fogCurveMaxScale);
+}
+
 // OpenEden (task 0025): in the linear view the mix is made on encoded colours and converted, so that fog keeps the
 // density it was tuned for; a mix in linear light hazes much more.
 vec3 mixFog(vec3 src, vec3 fogColour, float fogValue)
@@ -154,7 +178,7 @@ vec3 applyFog(vec3 src, float distance, vec3 fogColour)
         fogValue = 1.0 - exp(-2.0 * max(0.0, distance - scene.fogStart / 2.0) / max(fogEnd - scene.fogStart / 2.0, 1e-6));
     }
     else
-        fogValue = clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0);
+        fogValue = fogCurve(clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0));
     return mixFog(src, fogColour, fogValue);
 }
 

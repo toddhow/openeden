@@ -1,4 +1,5 @@
 #include "settings.hpp"
+#include "neutraldefaults.hpp"
 #include "parser.hpp"
 #include "values.hpp"
 
@@ -196,6 +197,10 @@ namespace Settings
         auto settingspath = paths.back() / userSettingsFile;
         if (std::filesystem::exists(settingspath))
             parser.loadSettingsFile(settingspath, mUserSettings, false, false);
+
+        // Task 0355 (follow-up): a game pack's session has its own defaults (HDR on); nothing for the editor.
+        if (!loadEditorSettings)
+            NeutralDefaults::apply(mDefaultSettings, mUserSettings, originalDefaultSettings);
 
         Settings::StaticValues::init();
 

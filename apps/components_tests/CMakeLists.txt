@@ -86,6 +86,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     settings/parser.cpp
     settings/shadermanager.cpp
+    settings/testneutraldefaults.cpp
     settings/testvalues.cpp
 
     sqlite3/db.cpp
@@ -380,6 +381,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     render/testtonemapconstants.cpp
     render/testaerialmath.cpp
+    render/testfogcurve.cpp
     render/testwatermath.cpp
     render/testgputiming.cpp
     render/testscenecensus.cpp
@@ -921,6 +923,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseneutralrotation.cpp
     skyrimse/testskyrimseneutralworld.cpp
     skyrimse/testskyrimselightingtemplate.cpp
+    skyrimse/testskyrimsefogcurve.cpp
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimselocallights.cpp
     skyrimse/testskyrimseinteriorwater.cpp

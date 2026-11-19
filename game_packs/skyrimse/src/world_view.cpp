@@ -4370,6 +4370,33 @@ namespace game_skyrimse
         return mLastLighting;
     }
 
+    const CellLightingData* SkyrimWorldView::lightingTemplateOf(FormId templateId) const
+    {
+        if (templateId == kNullFormId)
+            return nullptr;
+        const auto base = mBases.find(templateId);
+        if (base == mBases.end() || base->second.mTable != BaseTable::Model)
+            return nullptr;
+        const ModelRecord& m = mPlugins[base->second.mPlugin].mParsed.mModels[base->second.mIndex];
+        return m.mType == Content::fourCC("LGTM") && m.mLighting ? &*m.mLighting : nullptr;
+    }
+
+    bool SkyrimWorldView::fogCurveForCell(sdkgame::WorldId cell, double& power, double& max)
+    {
+        power = 1.0;
+        max = 1.0;
+        if (!awaitIndex() || cell == kNullFormId)
+            return false;
+        const auto it = mCells.find(static_cast<FormId>(cell));
+        if (it == mCells.end() || !it->second.mLighting)
+            return false;
+        const CellLightingData lighting
+            = applyLightingTemplate(*it->second.mLighting, lightingTemplateOf(it->second.mLightingTemplate));
+        power = static_cast<double>(lighting.mFogPower);
+        max = static_cast<double>(lighting.mFogMax);
+        return true;
+    }
+
     InteriorWaterEvidence SkyrimWorldView::gatherWaterEvidence(
         const std::vector<sdkgame::PlacedObject>& objects, const std::map<FormId, PlacementComponents>& components)
     {
@@ -4583,18 +4610,8 @@ namespace game_skyrimse
             if (entry.mLighting && entry.mInfo.interior)
             {
                 // Task 0303: the values the cell inherits come from its lighting template, not from its own XCLL.
-                const CellLightingData* lightingTemplate = nullptr;
-                if (entry.mLightingTemplate != kNullFormId)
-                {
-                    const auto base = mBases.find(entry.mLightingTemplate);
-                    if (base != mBases.end() && base->second.mTable == BaseTable::Model)
-                    {
-                        const ModelRecord& m = mPlugins[base->second.mPlugin].mParsed.mModels[base->second.mIndex];
-                        if (m.mType == Content::fourCC("LGTM") && m.mLighting)
-                            lightingTemplate = &*m.mLighting;
-                    }
-                }
-                mLastLighting = makeCellLighting(applyLightingTemplate(*entry.mLighting, lightingTemplate));
+                mLastLighting = makeCellLighting(
+                    applyLightingTemplate(*entry.mLighting, lightingTemplateOf(entry.mLightingTemplate)));
             }
             return true;
         }

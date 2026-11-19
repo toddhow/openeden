@@ -13,6 +13,7 @@
 #include <components/misc/algorithm.hpp>
 
 #include "cellstore.hpp"
+#include "neutralfogcurve.hpp"
 #include "neutralrelocations.hpp"
 #include "neutralsave.hpp"
 #include "ptr.hpp"
@@ -292,7 +293,8 @@ namespace MWWorld
         /// The shared builder of the two routes above (by name, by pack id): the bases of the cell's objects into the
         /// ESMStore and the CellStore into mCells; the store that already exists for this cell when there is one.
         CellStore* emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
-            std::string_view name, bool& reused, std::optional<float> interiorWater) const;
+            std::string_view name, bool& reused, std::optional<float> interiorWater,
+            std::optional<NeutralFogCurve> fogCurve = std::nullopt) const;
 
         CellStore& insertCellStore(const ESM::Cell& cell);
 

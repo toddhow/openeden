@@ -63,11 +63,16 @@ namespace MWWorld
         bool hasNeutralFog() const { return mHasNeutralFog; }
         float getNeutralFogStart() const { return mNeutralFogStart; }
         float getNeutralFogEnd() const { return mNeutralFogEnd; }
-        void setNeutralFog(float start, float end)
+        /// Task 0355 (follow-up): the fog power and maximum (share = pow(linear, power) * max); 1 and 1 is the linear fog.
+        float getNeutralFogPower() const { return mNeutralFogPower; }
+        float getNeutralFogMax() const { return mNeutralFogMax; }
+        void setNeutralFog(float start, float end, float power = 1.f, float max = 1.f)
         {
             mHasNeutralFog = true;
             mNeutralFogStart = start;
             mNeutralFogEnd = end;
+            mNeutralFogPower = power;
+            mNeutralFogMax = max;
         }
         const ESM::RefId& getId() const { return mId; }
         ESM::RefId getWorldSpace() const { return mIsExterior ? mParent : mId; }
@@ -95,6 +100,8 @@ namespace MWWorld
         bool mHasNeutralFog = false;
         float mNeutralFogStart = 0.f;
         float mNeutralFogEnd = 0.f;
+        float mNeutralFogPower = 1.f;
+        float mNeutralFogMax = 1.f;
     };
 }
 

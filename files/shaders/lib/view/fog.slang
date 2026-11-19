@@ -130,6 +130,26 @@ float aerialFogAmount(float3 viewPos)
     return 1.0 - exp(-aerialOpticalDepth(aerialBeta(), scene.invView[2][3], rayDirZ, distance));
 }
 
+// OpenEden (task 0355, follow-up of stage d): the twin of fogCurve in fog.glsl (see there).
+static const float fogCurveCodeScale = 131072.0;
+static const float fogCurvePowerScale = 64.0;
+static const float fogCurveMaxScale = 255.0;
+
+float fogCurve(float linearShare)
+{
+    float w = scene.fogColor.w;
+    if (!(w > 1.0))
+        return linearShare;
+    float code = floor((w - (w > 1.5 ? 2.0 : 1.0)) * fogCurveCodeScale + 0.5);
+    if (code < 1.0)
+        return linearShare;
+    float powerCode = floor(code / 256.0);
+    float maxCode = code - powerCode * 256.0;
+    if (powerCode < 1.0 || maxCode < 1.0)
+        return linearShare;
+    return pow(max(linearShare, 0.0), powerCode / fogCurvePowerScale) * (maxCode / fogCurveMaxScale);
+}
+
 float3 mixFog(float3 src, float3 fogColour, float fogValue)
 {
     if (linearView())
@@ -151,7 +171,7 @@ float3 applyFog(float3 src, float distance, float3 fogColour)
             - exp(-2.0 * max(0.0, distance - scene.fogStart / 2.0) / max(fogEnd - scene.fogStart / 2.0, 1e-6));
     }
     else
-        fogValue = clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0);
+        fogValue = fogCurve(clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0));
     return mixFog(src, fogColour, fogValue);
 }
 

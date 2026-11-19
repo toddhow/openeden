@@ -55,6 +55,7 @@
 #include <components/render/covermath.hpp>
 #include <components/render/download.hpp>
 #include <components/render/engine.hpp>
+#include <components/render/fogcurve.hpp>
 #include <components/render/gbuffermath.hpp>
 #include <components/render/hdrmath.hpp>
 #include <components/render/hdrtarget.hpp>
@@ -3074,7 +3075,10 @@ namespace MWRender
         mDisplayFogColor = vsg::vec4(fogColor[0], fogColor[1], fogColor[2], 1.f);
         sceneData.fogColor = toView(mDisplayFogColor);
         // The marker of the linear view; 1 without HDR, as it always was (lib/view/linear.glsl).
-        sceneData.fogColor.w = linear ? 2.f : 1.f;
+        // Task 0355 (follow-up): a game pack's interior fog power and maximum ride in the marker's fraction (the plain
+        // marker, bit for bit, for everything else: lib/view/fog.glsl).
+        sceneData.fogColor.w
+            = Render::FogCurve::encodeMarker(linear ? 2.f : 1.f, mFog->getFogCurve(isUnderwater));
 
         auto ambient = mAmbientColor;
         ambient += vsg::vec4(0.7, 0.7, 0.7, 0.0) * mNightEyeFactor;

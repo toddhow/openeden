@@ -45,6 +45,7 @@
 
 #include <game_skyrimse/background_value.hpp>
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/cell_fog_source.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
@@ -147,6 +148,7 @@ namespace game_skyrimse
                                   public openeden::sdk::game::DisplayNameSource,
                                   public openeden::sdk::game::WeatherSource,
                                   public openeden::sdk::game::CellImageSpaceSource, // task 0355
+                                  public openeden::sdk::game::CellFogSource, // task 0355 (fog power and max)
                                   public music::MusicDataSource,
                                   public PackageSource,
                                   public FurnitureSource,
@@ -948,6 +950,9 @@ namespace game_skyrimse
         /// Task 0355 stage c: the grade of the image space a cell names (CELL XCIM); reads the weather records too.
         bool imageSpaceForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::ImageSpaceGrade& out) override;
         bool imageSpacePending() override;
+        /// Task 0355 (follow-up): the fog power and maximum of an interior (its own XCLL with the lighting template's
+        /// values where the cell inherits them). Reads no file: the cell's lighting is part of the index.
+        bool fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max) override;
 
         // ---- music (task 0209): the runtime reads the music records of every plugin on a worker ----
         music::MusicRuntime* musicRuntime() override;
@@ -955,6 +960,8 @@ namespace game_skyrimse
 
     private:
         [[nodiscard]] const QuestAlias* findAliasByName(FormId quest, std::string_view aliasName) const;
+        /// Task 0303 and 0355: the LGTM lighting a cell's LTMP names, or null.
+        [[nodiscard]] const CellLightingData* lightingTemplateOf(FormId templateId) const;
         struct PluginData
         {
             std::filesystem::path mPath;

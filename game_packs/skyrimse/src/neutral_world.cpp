@@ -202,6 +202,10 @@ namespace game_skyrimse
             out.mFogNear = templateLighting->mFogNear;
         if ((own.mInherit & LightingInherit::FogFar) != 0)
             out.mFogFar = templateLighting->mFogFar;
+        if ((own.mInherit & LightingInherit::FogPower) != 0)
+            out.mFogPower = templateLighting->mFogPower;
+        if ((own.mInherit & LightingInherit::FogMax) != 0)
+            out.mFogMax = templateLighting->mFogMax;
         return out;
     }
 
@@ -789,6 +793,14 @@ namespace game_skyrimse
     {
         auto* source = dynamic_cast<openeden::sdk::game::CellImageSpaceSource*>(&mView);
         return source != nullptr && source->imageSpacePending();
+    }
+
+    bool SkyrimCellSource::fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max)
+    {
+        power = 1.0;
+        max = 1.0;
+        auto* source = dynamic_cast<openeden::sdk::game::CellFogSource*>(&mView);
+        return source != nullptr && source->fogCurveForCell(cell, power, max);
     }
 
     // ---- music (task 0209) ----

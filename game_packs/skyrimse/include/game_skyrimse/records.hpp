@@ -315,6 +315,12 @@ namespace game_skyrimse
         /// Task 0303: the inherit flags of a 92 byte XCLL (offset 88): the values a cell takes from its lighting
         /// template (LTMP, a LGTM record) instead of its own. 0 for a 64 byte XCLL and for a LGTM record itself.
         std::uint32_t mInherit = 0;
+        /// Task 0355 (follow-up): the fog curve. XCLL offset 36 (fog power) and, in a 92 byte XCLL, offset 76 (fog
+        /// max). Field order from xEdit's `wbCELL` XCLL (RECALLED-VERIFY); the data agrees: over the five masters'
+        /// 969 lighting records power is 1.0 in 625, 0.4 to 0.9 in 331, 1.5 to 2.5 in 5, and max is 1.0 in 786, 0.2
+        /// to 0.9 in 147, 0.0 in 22 and wild numbers (6000, 8, 13000) in 4. 1 = the plain linear fog.
+        float mFogPower = 1.0f;
+        float mFogMax = 1.0f;
     };
 
     /// Task 0303: the XCLL inherit flag bits that matter to the neutral world's interior lighting. Order and meaning
@@ -327,6 +333,9 @@ namespace game_skyrimse
         inline constexpr std::uint32_t FogColor = 0x4;
         inline constexpr std::uint32_t FogNear = 0x8;
         inline constexpr std::uint32_t FogFar = 0x10;
+        /// Task 0355 (follow-up): bits 8 and 9 in xEdit's order (rotation 5, fade 6, clip distance 7, power 8, max 9).
+        inline constexpr std::uint32_t FogPower = 0x100;
+        inline constexpr std::uint32_t FogMax = 0x200;
     }
 
     /// Task 0291 (follow-up): what the content of an interior cell says about whether a water plane at the cell's XCLW

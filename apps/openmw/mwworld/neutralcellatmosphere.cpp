@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include <components/debug/debuglog.hpp>
+#include <components/render/fogcurve.hpp>
 #include <components/render/imagespacemath.hpp>
 #include <components/settings/values.hpp>
 #include <components/worldmodel/store.hpp>
@@ -74,12 +75,30 @@ namespace MWWorld
         return NeutralInteriorFog{ static_cast<float>(start), static_cast<float>(end) };
     }
 
-    Cell makeNeutralInteriorCell(const ESM::Cell& record, const openeden::sdk::game::WorldCell& cell)
+    std::optional<NeutralFogCurve> neutralFogCurve(std::optional<std::pair<double, double>> powerAndMax, bool enabled)
+    {
+        if (!enabled || !powerAndMax)
+            return std::nullopt;
+        NeutralFogCurve curve;
+        const double power = powerAndMax->first;
+        const double max = powerAndMax->second;
+        if (std::isfinite(power) && power >= static_cast<double>(Render::FogCurve::kMinPower)
+            && power <= static_cast<double>(Render::FogCurve::kMaxPower))
+            curve.power = static_cast<float>(power);
+        if (std::isfinite(max) && max > 0.0 && max <= 1.0)
+            curve.max = static_cast<float>(max);
+        if (curve.power == 1.f && curve.max == 1.f)
+            return std::nullopt;
+        return curve;
+    }
+
+    Cell makeNeutralInteriorCell(
+        const ESM::Cell& record, const openeden::sdk::game::WorldCell& cell, std::optional<NeutralFogCurve> curve)
     {
         Cell out(record);
         const auto lighting = cell.lighting ? &*cell.lighting : nullptr;
         if (const auto fog = neutralInteriorFog(lighting, Settings::game().mNeutralInteriorFog.get()))
-            out.setNeutralFog(fog->start, fog->end);
+            out.setNeutralFog(fog->start, fog->end, curve ? curve->power : 1.f, curve ? curve->max : 1.f);
         return out;
     }
 
