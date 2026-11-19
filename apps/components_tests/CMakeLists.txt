@@ -822,6 +822,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrusobjects.cpp
     skyrimse/testskyrimsepapyruslocation.cpp
     skyrimse/testskyrimsebloodice.cpp
+    skyrimse/testskyrimseforsworn.cpp
     skyrimse/testskyrimsedragonborn.cpp
     skyrimse/testskyrimsedescribebase.cpp
     skyrimse/testskyrimsepackages.cpp

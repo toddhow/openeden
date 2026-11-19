@@ -587,6 +587,10 @@ namespace game_skyrimse
         /// Task 0326: the references that died in this session (the pack's death sink). With it, GetRefTypeAliveCount
         /// (Fort Hraggstad's bandits) and GetDead on a placed reference also count a killed reference as dead.
         void setDeadLookup(std::function<bool(FormId)> lookup) { mDeadLookup = std::move(lookup); }
+        /// Task 0337: the reference the speaker's reference is linked to with a keyword (0 = the plain link): what a
+        /// condition run on the LINKED REFERENCE (run-on 4) asks about. Without it such a condition is not answered.
+        using LinkedRefLookup = std::function<bool(FormId reference, FormId keyword, FormId& out)>;
+        void setLinkedRefLookup(LinkedRefLookup lookup) { mLinkedRef = std::move(lookup); }
         bool inDialogueWithPlayer(conditions::Subject subject) const override;
         float randomPercent() const override;
         bool inInterior(conditions::Subject subject) const override;
@@ -736,6 +740,7 @@ namespace game_skyrimse
         const LocationIndex* mLocations = nullptr;
         bool mCountRefTypes = false; ///< task 0298
         std::function<bool(FormId)> mDeadLookup; ///< task 0326
+        LinkedRefLookup mLinkedRef; ///< task 0337
         const QuestVariables* mQuestVariables = nullptr;
         LiveQuestVariable mLiveQuestVariable; ///< task 0261
         TalkedLookup mTalkedLookup; ///< task 0324

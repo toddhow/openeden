@@ -1,5 +1,7 @@
 #include "game_skyrimse/papyrus_host.hpp"
 
+#include "game_skyrimse/forsworn.hpp"
+
 #include <components/script_papyrus/papyrusformnatives.hpp>
 #include <components/script_papyrus/papyrusnatives.hpp>
 #include <components/script_papyrus/pexfile.hpp>
@@ -2502,6 +2504,18 @@ namespace game_skyrimse
                     mAnimEvents.push_back({ mTime + std::max(seconds, 0.0), actor, std::move(event) });
                 return result(PapyrusValue::makeBool(true));
             });
+            // Task 0337: a paired kill move a script plays (Weylin's SneakKillMove on Margret) kills its target; the clip is
+            // not played (HAND-WRITTEN: the death comes at once, not at the clip's end). Any other idle is a tolerant play.
+            reg("Actor", "PlayIdleWithTarget", false, [this](const NativeCall& c) {
+                if (!mPairedKillMoves || c.arguments.size() < 2)
+                    return result(PapyrusValue::makeBool(false));
+                const FormId idle = formOf(c.arguments[0]);
+                const FormId target = liveReference(formOf(c.arguments[1]));
+                if (idle != 0 && target != 0 && target != kPlayerReference && mHooks != nullptr
+                    && forsworn::isKillMoveName(mData.nameOf(idle)) && !actorDead(target) && mHooks->killActor(target))
+                    mKilling.insert(target);
+                return result(PapyrusValue::makeBool(true));
+            });
             reg("ObjectReference", "IsFurnitureInUse", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
             // Task 0260: the vampire quest's game-time update only acts while the player's controls work (the pack has
@@ -2745,6 +2759,13 @@ namespace game_skyrimse
                 if (mHooks != nullptr && actor != 0 && actor != kPlayerReference && !c.arguments.empty()
                     && formOf(c.arguments[0]) == kPlayerReference)
                     (void)mHooks->startCombat(actor);
+                else if (mActorFights && mHooks != nullptr && actor != 0 && actor != kPlayerReference
+                    && !c.arguments.empty()) // task 0337: a fight against another actor
+                {
+                    const FormId target = liveReference(formOf(c.arguments[0]));
+                    if (target != 0 && target != kPlayerReference && target != actor)
+                        (void)mHooks->startCombatAt(actor, target);
+                }
                 return NativeResult{};
             });
             reg("Actor", "StopCombat", false, [this](const NativeCall& c) {
@@ -2899,6 +2920,8 @@ namespace game_skyrimse
         StoryEventSink mStorySink; ///< task 0187
         StageEntryCheck mStageEntryCheck; ///< task 0261
         bool mRelocate = false; ///< task 0268
+        bool mPairedKillMoves = false; ///< task 0337
+        bool mActorFights = false; ///< task 0337
         bool mCellMoves = false; ///< task 0286
         std::map<FormId, FormId> mCellMoved; ///< task 0286: a reference the world moved -> the cell it stands in now
         double mRelocateRange = 6000.0;
@@ -3808,6 +3831,16 @@ namespace game_skyrimse
         mImpl->mRelocate = on;
         if (maxPlayerDistance > 0.0)
             mImpl->mRelocateRange = maxPlayerDistance;
+    }
+
+    void PapyrusHost::setActorFights(bool on)
+    {
+        mImpl->mActorFights = on;
+    }
+
+    void PapyrusHost::setPairedKillMoves(bool on)
+    {
+        mImpl->mPairedKillMoves = on;
     }
 
     void PapyrusHost::setStageEntryCheck(StageEntryCheck check)

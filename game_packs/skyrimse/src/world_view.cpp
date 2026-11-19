@@ -1365,6 +1365,11 @@ namespace game_skyrimse
         raw->mPackageQuests = QuestState::initial(raw->mData->mQuests);
         raw->mPackageWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
         raw->mPackageWorld->setQuests(&raw->mData->mQuests, &raw->mPackageQuests);
+        if (mDeadLookup)
+            raw->mPackageWorld->setDeadLookup(mDeadLookup); // task 0337: a package asks GetDead of a killed alias
+        // task 0337: a package condition run on the actor's LINKED REFERENCE (Eltrys is linked to Weylin)
+        raw->mPackageWorld->setLinkedRefLookup(
+            [this](FormId reference, FormId keyword, FormId& out) { return linkedRef(reference, keyword, out); });
         // Task 0160: other references, packages, and the package brain's current package for a conversation
         mPlacedRefsMillis.store(raw->mData->mPlacedRefsMillis);
         raw->mRuntime->setPlacedRefs(&raw->mData->mPlacedRefs);
@@ -2338,6 +2343,8 @@ namespace game_skyrimse
         mDeadLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setDeadLookup(mDeadLookup);
+        if (mDialogue != nullptr && mDialogue->mPackageWorld != nullptr)
+            mDialogue->mPackageWorld->setDeadLookup(mDeadLookup); // task 0337
     }
 
     void SkyrimWorldView::setLiveActorPlace(std::function<bool(FormId, double&, double&, double&)> lookup)

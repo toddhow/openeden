@@ -79,6 +79,7 @@ namespace game_skyrimse
             relocateObject; ///< task 0268
         std::function<bool(const PapyrusWorldHooks::WeaponFireRequest& request)> fireWeapon; ///< task 0299
         std::function<bool(FormId actor)> startCombat; ///< task 0264
+        std::function<bool(FormId actor, FormId target)> startCombatAt; ///< task 0337
         std::function<bool(FormId actor)> stopCombat;
         std::function<bool(FormId actor)> resetHealth;
         std::function<bool(FormId actor)> inCombat;
@@ -171,6 +172,10 @@ namespace game_skyrimse
             return mEnv.setCellOwner && mEnv.setCellOwner(cell, owner);
         }
         bool startCombat(FormId actor) override { return mEnv.startCombat && mEnv.startCombat(actor); }
+        bool startCombatAt(FormId actor, FormId target) override
+        {
+            return mEnv.startCombatAt && mEnv.startCombatAt(actor, target);
+        }
         bool stopCombat(FormId actor) override { return mEnv.stopCombat && mEnv.stopCombat(actor); }
         bool resetHealth(FormId actor) override { return mEnv.resetHealth && mEnv.resetHealth(actor); }
         bool inCombat(FormId actor) override { return mEnv.inCombat && mEnv.inCombat(actor); }

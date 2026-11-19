@@ -21,6 +21,22 @@ namespace game_skyrimse
         return aiBegin(*f, "provoked", CombatSubject::ofPlayer());
     }
 
+    bool SkyrimCombat::scriptStartCombat(ActorHandle handle, ActorHandle target)
+    {
+        if (!mAiOn || !handle.valid() || !target.valid() || handle == target)
+            return false;
+        Fighter* f = find(CombatSubject::of(handle));
+        Fighter* t = find(CombatSubject::of(target));
+        if (f == nullptr || t == nullptr || f->mDead || t->mDead || !ready(*f) || !ready(*t))
+            return false;
+        bool ok = true;
+        if (aiFind(handle) == nullptr)
+            ok = aiBegin(*f, "provoked", CombatSubject::of(target));
+        if (aiFind(target) == nullptr)
+            ok = aiBegin(*t, "provoked", CombatSubject::of(handle)) && ok;
+        return ok;
+    }
+
     bool SkyrimCombat::scriptStopCombat(ActorHandle handle)
     {
         for (std::size_t i = 0; i < mAiActors.size(); ++i)

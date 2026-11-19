@@ -731,6 +731,11 @@
       "default": false
     },
     {
+      "key": "forsworn conspiracy",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "blood on the ice",
       "type": "bool",
       "default": false

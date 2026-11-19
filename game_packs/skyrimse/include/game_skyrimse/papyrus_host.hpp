@@ -491,6 +491,13 @@ namespace game_skyrimse
             (void)actor;
             return false;
         }
+        /// Task 0337: `actor.StartCombat(target)` with ANOTHER actor as the target (Kerah and Hogni against Weylin): the
+        /// combat AI engages both against each other. False when either is unknown or the AI is off.
+        virtual bool startCombatAt(FormId actor, FormId target)
+        {
+            (void)actor, (void)target;
+            return false;
+        }
         virtual bool stopCombat(FormId actor)
         {
             (void)actor;
@@ -714,6 +721,13 @@ namespace game_skyrimse
         /// Task 0268: a MoveTo near the player that the world cannot do in place (actors, objects of other cells) makes
         /// a new reference there (PapyrusWorldHooks::relocateObject); the quest's aliases follow it. Off by default.
         void setRelocation(bool on, double maxPlayerDistance);
+        /// Task 0337: `Actor.PlayIdleWithTarget(idle, target)` with an idle that is a paired kill move (see
+        /// forsworn::isKillMoveName) kills the target (Weylin's SneakKillMove on Margret); the clip itself is not played.
+        /// Off by default: the native is then a tolerant no-op.
+        void setPairedKillMoves(bool on);
+        /// Task 0337: `Actor.StartCombat(target)` with an actor other than the player reaches the hook `startCombatAt`
+        /// (before, only a fight against the player was built and the native ignored every other target). Off by default.
+        void setActorFights(bool on);
 
         /// Task 0286: MoveTo asks PapyrusWorldHooks::moveToCell first (any distance from the player, any cell); the
         /// relocation above is the fallback when the hook refuses. Off by default.

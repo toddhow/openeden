@@ -981,6 +981,9 @@ namespace game_skyrimse
         /// instead (health 1, no death report) and tell the sink once; the sink's script event is OnEnterBleedout. All
         /// inert for an actor the combat does not know.
         bool scriptStartCombat(openeden::sdk::game::ActorHandle handle);
+        /// Task 0337: both actors fight each other (Kerah and Hogni against Weylin); each is engaged against the other
+        /// unless it is already engaged. False when the AI is off or either is unknown or dead.
+        bool scriptStartCombat(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::ActorHandle target);
         bool scriptStopCombat(openeden::sdk::game::ActorHandle handle);
         bool scriptResetHealth(openeden::sdk::game::ActorHandle handle);
         [[nodiscard]] bool scriptInCombat(openeden::sdk::game::ActorHandle handle) const;

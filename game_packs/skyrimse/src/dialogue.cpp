@@ -1068,7 +1068,12 @@ namespace game_skyrimse
         // when its record says it starts dead (task 0160)
         ActorView view;
         if (isOtherSubject(subject) && viewOf(subject, view) && view.mRef != nullptr)
+        {
+            // task 0337: a reference the session killed is dead too (Eltrys's ForceGreet package asks GetDead of Weylin)
+            if (mDeadLookup && view.mRef->mId != kNullFormId && mDeadLookup(view.mRef->mId))
+                return true;
             return (view.mRef->mFlags & PlacedFlags::Dead) != 0;
+        }
         return false;
     }
 
@@ -1466,6 +1471,8 @@ namespace game_skyrimse
                 }
                 return otherAnswers(c, resolveRunOn(2, c.mReference)); // task 0160: another placed reference
             }
+            case 4: // task 0337: the reference the speaker's reference is linked to
+                return otherAnswers(c, resolveRunOn(4, c.mReference));
             case 5: // a quest alias: answerable when the alias is the speaker (the data fills it) or names a reference
                 if (aliasKnown(c.mParam3) && aliasIsSpeaker(mContextQuest, c.mParam3))
                     break;
@@ -1602,6 +1609,15 @@ namespace game_skyrimse
                 if (mPlacedRefs != nullptr && ref != kNullFormId && findReference(ref) != nullptr)
                     return kPlacedTag | ref;
                 return 0;
+            }
+            case 4: // task 0337: the plain or keyworded link of the speaker's own reference
+            {
+                FormId link = kNullFormId;
+                if (!mLinkedRef || mSpeaker.mReference == kNullFormId || mPlacedRefs == nullptr
+                    || !mLinkedRef(mSpeaker.mReference, resolve(reference), link) || link == kNullFormId
+                    || findReference(link) == nullptr)
+                    return 0;
+                return kPlacedTag | link;
             }
             case 7: // task 0194: a reference of the story event; the reference field holds 'R' and '1' or '2'
             {

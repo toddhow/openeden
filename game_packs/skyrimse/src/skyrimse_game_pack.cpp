@@ -10,6 +10,7 @@
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/bloodice.hpp"
+#include "game_skyrimse/forsworn.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/frame_split.hpp"
@@ -2880,6 +2881,11 @@ namespace game_skyrimse
                     const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
                     return h.valid() && mCellSource.combat().scriptStartCombat(h);
                 };
+                env.startCombatAt = [this, handleOfActor](FormId actor, FormId target) { // task 0337
+                    const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
+                    const openeden::sdk::game::ActorHandle t = handleOfActor(target);
+                    return h.valid() && t.valid() && mCellSource.combat().scriptStartCombat(h, t);
+                };
                 env.stopCombat = [this, handleOfActor](FormId actor) {
                     const openeden::sdk::game::ActorHandle h = handleOfActor(actor);
                     return h.valid() && mCellSource.combat().scriptStopCombat(h);
@@ -3176,6 +3182,24 @@ namespace game_skyrimse
                 {
                     mBloodIceOn = true; // task 0333
                     mPapyrus->enableActionlessScenes();
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false))
+                {
+                    // task 0337: MarkarthWorldIntroSceneTrigger (a box) starts MS01IntroWorldScene, the quest's scene moves
+                    // its actors near the player (the Daedric quests' world) and Weylin's paired kill move kills Margret
+                    mPapyrus->enableDaedric();
+                    mPapyrus->host().setPairedKillMoves(true);
+                    mPapyrus->host().setActorFights(true);
+                    // Eltrys's ForceGreet package (MS01EltrysForceGreetPackage) wants Weylin dead: GetDead of a reference
+                    // the session killed
+                    mWorldView.setDeadLookup([this](FormId reference) {
+                        return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
+                    });
+                    mWorldView.setQuestGreetings(true);
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
                 }
                 if (dawnguardOn || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
                 {
