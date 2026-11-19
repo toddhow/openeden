@@ -76,7 +76,12 @@ the traces before it was fixed.
 
 ## 4. Not reached (ranked)
 
-1. **MG02 beyond stage 10** (section 6 has what happened at Saarthal's door).
+1. **MG02 beyond stage 20.** With Tolfdir stood at Saarthal's door and the player talking to him, the game's own greeting offers
+   the stage 10 branch ("I'm ready. Let's go."), `TIF__000233CA` runs and the conversation's end sets **MG02 stage 20**, whose
+   fragment (`Fragment_4`) completes objective 10, shows 20 and starts the lecture scene (SCEN 0x51AF4, 4 phases, 3 actions).
+   **That scene's phase 0 never completes** (`SCENEWAIT ... actions done conditions no`): its completion condition was not
+   looked at (probably `MG02TolfdirLectureTriggerScript` and `MG02TolfdirLecture`, the walk of Tolfdir through Saarthal's door,
+   which the teleport stand-in does not give).
 2. The amulet scene (stage 40), the vision with the Psijic monk, the Saarthal dungeon, the lecture inside (stages 25 to 60).
 3. The gate does not open in the world (`TempGateRef.SetOpen` is a tolerant no-op: 0327), Mirabelle and the tour start from a
    teleport (0327).
@@ -99,7 +104,35 @@ pack's package parsing were written with the code (compile-red only: no stub run
 Green: the Skyrim, Papyrus, Dialogue, Quest, Scene, Package, Travel, Combat, Magic, Spell and Ward filters of `components-tests`
 (4,843 tests, 0 failed, the rest skipped); no existing test edited.
 
-## 6. Runs (work folder `I:\Projects\OpenEden-work\combat3\s348\run`)
+## 6. Runs (work folder `I:\Projects\OpenEden-work\combat3\s348\run`; scenario `env_i.sh` / `in_i.txt`, `run.sh f1`, 48,500 frames)
 
-See the CLAUDE.md row for the numbers. The scenario is `env_f.sh` / `in_f.txt` of that folder: 26,500 frames to the ward lesson
-(as 0327), the ward held from frame 25,500, and in the longer variants the player and Tolfdir at Saarthal.
+1. The classroom and the ward lesson as in 0327 (stage 30 aid, Mirabelle, the tour, stage 50, the classroom scene, Tolfdir's two
+   forced greetings), then the player holds the ward cast from frame 25,500: `MG01WardScene` phases 1 and 2 complete on WardPower,
+   phase 3 gives Tolfdir the package, `USEMAGIC ... casts 0009152C`, `COMBAT cast MG01TeachFirebolt by actor ... cost 23`, the
+   bolt hits the player and **`COMBAT ward player takes 15.000 of 15.000, power 52.000 -> 37.000`** (no damage), `OnWardHit sent
+   to 24 script(s)` (MG01PlayerScript among them), `TimerInit` 2, **phase 4 skipped, phase 5 "Excellent work!"**, the scene ends,
+   `MG01WardPostScene` plays its lines (Tolfdir: "I suggest we meet there in a few hours"), **MG01 stage 200**
+   (`QF_MG01.Fragment_18`).
+2. **MG02 starts** with 7 aliases filled (the three enchanted items and the amulet are made as created objects, 0306), stage 0
+   runs `Fragment_0` and sets stage 10 (`Fragment_2`: the objective and the map marker).
+3. The harness teleports Tolfdir and the player to Saarthal's door; the player talks to him (the step `activate`), clicks "I'm
+   ready. Let's go." and Goodbye (real clicks): `TIF__000233CA`, **MG02 stage 20**, `Fragment_4`, the lecture scene begins.
+4. Three parallel runs (f1, f2, f3): the 129 normalised lines of `norm.sh` (scene, stage, dialogue, carry lines) are identical
+   (md5 `076513b3b62f`) and so are the 34 lines of the ward lesson, MG02 and the new events (md5 `ebe8c8a84cc9`); 0 errors, 0 dumps.
+5. Frames viewed: the classroom with the cast marker and Tolfdir, the conversation at Saarthal's door, and the door after the
+   conversation (kept in `keep/` of the work folder). No frame shows the ward or the bolt (neither draws: 0186).
+6. Morrowind unchanged: `tools/worldobjects_check` 110 objects OK against the `n6saves` build (main of 2026-11-18), and the fixed
+   Balmora frame (`--start Balmora --random-seed 7`, frame 600) is `1ae72bec04593e1b` for that build and for this one.
+
+## 7. Decisions and notes for toddhow
+
+1. A ward now holds a spell whose effect is Detrimental and not Hostile (section 2.5): RECALLED-VERIFY, a change for every ward and
+   every caster, not only with `college` (the rest is gated). The data (49 such effects) suggests the rule.
+2. `college` now also skips scene phases whose start conditions fail (2.7), runs package OnBegin fragments and casts for UseMagic
+   packages (2.2, 2.3). The UseMagic cast always aims at the player (the package's second target, the player, is not read).
+3. The Player alias rule (2.6) is behind `college` (a host switch): other quests' Player aliases of the same kind (ALUA
+   0x00000007) get no events without it.
+4. The aids `summons` and `summons test magicka` stand in for the player's magicka; a real run needs the character's own magicka.
+5. WardPower is actor value 63 (RECALLED-VERIFY).
+6. Not run: the Linux gate, clang-format 14 (formatted by hand), clang-tidy, the Lua tests, a fresh review, mutation checks of the
+   new tests, the real Space key on Tolfdir at Saarthal, the controller path.
