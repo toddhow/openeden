@@ -104,3 +104,7 @@ south by the real S key, the player is teleported into the gargoyle box, to the 
 - Decisions for toddhow: (1) one order for forced and specific alias packages by quest priority (a tie keeps forced first); (2) a Follow with a Sandbox branch is a Follow (the template's sandbox is the "wait" state, not modelled: the actor value
   `WaitingForPlayer` is read only as `FollowerState` waiting for brain followers); (3) package followers are carried through doors and take the player's side (also Barbas); (4) `place` and the `bloodline_quick.sh` form are harness stand-ins.
 
+
+## Merge note (2026-11-19)
+
+Merged after task 0332, which also carries package followers (it puts them in `mTravellerRefs`; its tests read that set). Both sets now stay in step: an escort that arrives leaves `mPackageFollowRefs` too, so it is no longer carried or counted as a follower.

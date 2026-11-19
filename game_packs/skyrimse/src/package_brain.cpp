@@ -833,6 +833,7 @@ namespace game_skyrimse
             actor.mPackageFollow = false;
             actor.mEscortRef = kNullFormId;
             mTravellerRefs.erase(actor.mHandle.reference);
+            mPackageFollowRefs.erase(actor.mHandle.reference); // task 0334: an arrived escort no longer follows
             actor.mAnchorX = dx;
             actor.mAnchorY = dy;
             actor.mAnchorZ = dz;
