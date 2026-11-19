@@ -776,6 +776,11 @@
       "default": false
     },
     {
+      "key": "bards college",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "dawnguard",
       "type": "bool",
       "default": false

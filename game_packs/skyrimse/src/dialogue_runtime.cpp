@@ -583,6 +583,11 @@ namespace game_skyrimse
                 const DialogTopic* topic = mDialogue.topic(id);
                 if (topic == nullptr || topic->mCategory != TopicCategory::Topic || topic->mName.mPresent)
                     continue;
+                // task 0331: the walk-away topic of the response just said (Viarmo's "You're leaving? Okay, we'll just
+                // work on the verse in a bit.", linked beside the poem choices) is said as the player LEAVES, not a
+                // continuation: it is skipped here as it is in the menus (hidesWalkAway)
+                if (hidesWalkAway(id))
+                    continue;
                 const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, options(id));
                 if (s.mInfo != nullptr && !s.mInfo->mPrompt.mPresent)
                 {

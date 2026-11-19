@@ -3151,6 +3151,18 @@ namespace game_skyrimse
                     });
                     mCellSource.actorTable().setFollowPlayerPackages(true); // Barbas follows by his own packages
                 }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, "bards college", false))
+                {
+                    // task 0331: Viarmo's poem (MS05): a response that links to a topic with no name goes on by itself (the
+                    // verse, then "What do we say really happened?"), the walk-away topic it names is said as the player
+                    // leaves, and the fragments of a response run before the next choice is judged (task 0304's rules)
+                    mWorldView.setQuestGreetings(true);
+                    mWorldView.setWalkAwayTopics(true);
+                    mWorldView.setFragmentFlush([this]() {
+                        if (mPapyrus != nullptr)
+                            mPapyrus->flushFragments();
+                    });
+                }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "companions", false))
                 {
                     // task 0315: Eorlund's "What brings you here?" is the first line of a Blocking branch (C00 stage 30)
