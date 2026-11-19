@@ -155,7 +155,13 @@ namespace game_skyrimse
             return std::nullopt;
         }
         sdkgame::LightComponent c;
-        c.radius = static_cast<double>(light.mRadius);
+        // Task 0355 stage b: the engine's point light is given the radius that makes its falloff end where Skyrim's
+        // does (kLightFalloffRadiusScale). A scale that is not finite or not above 0 is taken as 1. The hostile radius
+        // check above looks at the record's own radius.
+        const double scale = std::isfinite(limits.mLightRadiusScale) && limits.mLightRadiusScale > 0.0
+            ? limits.mLightRadiusScale
+            : 1.0;
+        c.radius = static_cast<double>(light.mRadius) * scale;
         c.red = light.mColor[0];
         c.green = light.mColor[1];
         c.blue = light.mColor[2];

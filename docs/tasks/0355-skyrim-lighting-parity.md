@@ -50,6 +50,68 @@ Survey and frames: `docs/research/0147-skyrim-lighting-parity.md`; throwaway scr
 `I:\Projects\OpenEden-work\light55\keep`. Not run: the Linux gate, any unit test, a reference frame from the real game (all
 "looks wrong" statements are from memory).
 
+## Stage b log (2026-11-19): why Skyrim's local lights make no pools, and the fix
+Branch `lights-0355b` from `a36e6f8fed`. Same hand wrote the tests and the code; the radius tests were written first and
+run red against a stub (3 of 11 failed, the others test absence or the shader maths), the gain tests were written after the
+code and checked by a mutation (the gain line removed: 2 of 5 failed, the rest test absence). No fresh reviewer. Windows only,
+not pushed. Developer aids added: `OPENEDEN_NEUTRAL_LIGHT_TRACE=1` (`NLIGHTOBJ`: every neutral light the scene creates, with
+radius, colour, fade, flags, position) and `OPENEDEN_LIGHT_COUNT_TRACE=1` (`NLIGHTCOUNT`: the lights the view collects and
+packs, and the first six with their eye-space position).
+
+**Measured (Bannered Mare, defaults plus `neutral actors`, `neutral weather`):** 18 placed light references become 18 engine
+lights (`NLIGHTOBJ` 18, `NLIGHTCOUNT collected 18 packed 18`, none lost to the 256 capacity or to culling); their eye
+positions are right and their colours flicker between 0.25 and 1 of the base as designed. So the lights ARE created, packed
+and lit. With the cell ambient and directional colour set to about 0 (a throw-away environment switch, removed) the room is
+black without lights (mean 9) and lit with only the hearth light (mean 43): the lights work and are shaded per vertex (no
+`PER_PIXEL_LIGHTING` without a normal map, PBR or specular map; forcing it per pixel changed the frame only slightly).
+
+**Cause 1, the falloff law.** The engine's point light (`lib/light/equations.glsl` with the Morrowind `LightAttenuation_*`
+fallback keys: linear, value 3.0, no classic falloff) is at full strength up to a third of the radius, still a third at the
+radius, and ends at TWICE the radius. Skyrim's falls in a line (exponent 1 in 90 percent of the records, RECALLED-VERIFY) to
+nothing at the radius. Over a flat floor the engine's light spreads 2.7 times the light Skyrim's gives for the same radius (the
+C++ twin, `Render::Gi::attenuate`), so every lantern lights its whole room nearly evenly and the pools do not separate from
+the ambient. Frames: the far door of the Mare is 66 (mean of its pixels) with the record's radius and 31 with the mapped one,
+the fire pit region 45 and 40; the whole frame 70 to 49 (Dragonsreach 61/51/33 to 44/38/25) with fix 1 alone. With both fixes (the final build): far door 66 to 35, fire pit 45 to 48, left floor 76 to 81, whole frame 70 to 65, Dragonsreach 61/51/33 to 49/42/28, Bleak Falls Barrow 26/25/16 to 25/24/15: the pools stand out and the total brightness is nearly kept.
+
+**Fix 1: `[extension.skyrimse] light falloff` (default TRUE; the pack only runs in a Skyrim session; test profile, README).**
+The pack gives the engine light 0.6 of the record's radius (`kLightFalloffRadiusScale`, `NeutralLimits::mLightRadiusScale`,
+`SkyrimWorldView::setLightFalloff`). 0.6 is the value that gives the SAME total light on a floor as Skyrim's falloff (0.98 of
+it; the least-squares shape fit gives 0.61): the share at 0, 0.2, 0.4, 0.6, 0.8 and 1.0 of the record's radius is 1, 1.0, 0.57,
+0.34, 0.21, 0.07 against Skyrim's 1, 0.8, 0.6, 0.4, 0.2, 0. A first try with 0.5 (zero at the radius) kept 68 percent of the
+light and made the rooms too dark. No shader, no `.interface` record and no Slang twin changed. The falloff exponent is not
+used (10 percent of the records have another one, up to 10).
+
+**Cause 2, the fade clip.** LIGH FNAM ("fade", 0.1 to 10) multiplies the light's colour, but the engine's light colour is
+one byte a channel and `neutralLightColor` cut the colour at 255: **194 of the 496 light records of the five masters have a
+colour times fade over 255 (up to 5.07 times)**; weighted by radius squared (the light a record gives) only 55 percent of the
+intended light was kept. **Fix 2: `[Game] neutral light fade gain` (default TRUE; engine setting, read only in the neutral
+light path, so Morrowind never sees it).** The part the byte cannot hold (`neutralLightGain`: fade over the scale
+`neutralLightColor` applied) is stored in `ESM::Light::mData.mWeight` with a new flag `ESM::Light::NeutralGain` (0x10000, not
+a bit of the file format) and `MWAnim::addLight` multiplies the light's colour by it. The light sum in the shaders is not
+clamped before the diffuse term, so a pool core can exceed 1 as in Skyrim. Risk for toddhow: a Morrowind plugin whose light
+flags carry bit 0x10000 would be brightened by its weight (none known).
+
+**Finding 3, not changed: XRDS.** 10,810 of 12,148 placed light references of `Skyrim.esm` carry an XRDS float that is NOT the
+base radius (for base 256: 825, 415, 143, 35, 5, -13, -80, ... p10 -0.29 and p90 2.1 times the base): if it is the reference's
+radius override (the CK has one per light) most placed lights have a different size from what is used; the negative values
+are unexplained. Its meaning must be settled (CK wiki / xEdit) before stage i uses it.
+
+**Other findings.** (a) The hearth, braziers and torches show no flame: the fire models' effect shapes are left out of the
+static draw (refraction/effect shapes, task 0110), so the light has no visible source; the logs of the Mare's pit are black
+textures. (b) The ambient is still flat and the interior directional light is fixed from above (stages e and f). (c) `[Shaders]
+force per pixel lighting` is declared in the settings but read by nothing in the Vulkan renderer; non-normal-mapped Skyrim
+surfaces (most of them) are lit per vertex, so a big floor triangle with far corners loses a nearby light's pool: per pixel
+lighting for neutral models is a candidate follow-up (a GLSL/Slang change).
+
+**Frames** (`I:\Projects\OpenEden-workollowers\l55b\keep`, before left and after right): Bannered Mare (three camera spots),
+Dragonsreach, Bleak Falls Barrow (almost unchanged: few lights, mean 26/25/16 to 23/22/13). **Morrowind unchanged:** Balmora
+fixed frame `1c5d47ad0b5dc32d` for the n6saves build and this build, `tools/worldobjects_check` 110 objects OK, and a Morrowind
+interior with torches (Seyda Neen, Arrille's Tradehouse, `morrowind_interior_ref.png` and `_new.png`) differs between the two
+builds by no more than two runs of one build differ from each other (at most 19 of 921,600 pixels over 8 levels; the runs are
+not byte repeatable even with fixed frame time). **Not run:** the Whiterun exterior at night (the pack setting changes only
+interiors and exteriors alike but no frame was taken), Linux gate, clang-format 14, clang-tidy, the Lua tests, a fresh review,
+the three-run determinism of the traces, a comparison with the real game (all "looks right" is judged from memory).
+
 ## Open questions for toddhow
 1. Order: stages b to d first, then e (shader work), as proposed? Or the ambient cube (e) first because it moves the whole look?
 2. Reference: can you provide screenshots of the real game (Bannered Mare, Dragonsreach, a dungeon, Whiterun at noon and night, same cameras) so stage b is tuned against something, not memory?

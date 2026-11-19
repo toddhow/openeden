@@ -479,6 +479,10 @@ namespace game_skyrimse
         /// Task 0220 (`[extension.skyrimse] held gear`): describeActor also names the actor's weapon and shield.
         void setHeldGear(bool on) { mHeldGear = on; }
         [[nodiscard]] bool heldGear() const { return mHeldGear; }
+        /// Task 0355 stage b (`[extension.skyrimse] light falloff`): a placed light is given the engine radius that
+        /// makes the engine's falloff end where Skyrim's does (kLightFalloffRadiusScale). Set before the first cell.
+        void setLightFalloff(bool on) { mLightFalloff = on; }
+        [[nodiscard]] bool lightFalloff() const { return mLightFalloff; }
 
         // ---- openeden::sdk::game::PlayerBodySource (task 0222) ----
         /// `[extension.skyrimse] player body`: the player has a Skyrim body (race Nord, the sex of `player female`).
@@ -1052,6 +1056,7 @@ namespace game_skyrimse
         std::map<std::string, FormId> mNpcByEditorId; ///< task 0253: lower case, built by the first npcByEditorId
         bool mNpcByEditorIdBuilt = false;
         bool mHeldGear = false; ///< task 0220
+        bool mLightFalloff = false; ///< task 0355 stage b
         bool mPlayerBodyOn = false; ///< task 0222
         bool mFirstPersonBodyOn = false; ///< task 0245
         bool mBeastForm = false; ///< task 0259

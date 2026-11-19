@@ -514,6 +514,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testclonematerials.cpp
     mwanimation/testskinprevious.cpp
     mwanimation/testlightcontroller.cpp
+    mwanimation/testlightgain.cpp
     mwanimation/testsceneryanim.cpp
     mwanimation/testpointshadowcarrier.cpp
     mwanimation/testplaycharacterization.cpp
@@ -919,6 +920,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseneutralworld.cpp
     skyrimse/testskyrimselightingtemplate.cpp
     skyrimse/testskyrimselights.cpp
+    skyrimse/testskyrimselocallights.cpp
     skyrimse/testskyrimseinteriorwater.cpp
     skyrimse/testskyrimselightsreal.cpp
     skyrimse/testskyrimseneutralworldreal.cpp

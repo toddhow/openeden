@@ -1,5 +1,6 @@
 #include "light.hpp"
 
+#include <cmath>
 #include <cstdint>
 #include <optional>
 
@@ -72,6 +73,10 @@ namespace
         auto node = vsg::PointLight::create();
         node->intensity = light.mData.mRadius;
         node->color = MWAnim::rgbColor(light.mData.mColor);
+        // OpenEden (task 0355 stage b): the brightness a neutral light has beyond what its colour byte holds.
+        if ((light.mData.mFlags & ESM::Light::NeutralGain) && std::isfinite(light.mData.mWeight)
+            && light.mData.mWeight > 0.f)
+            node->color *= light.mData.mWeight;
         if (light.mData.mFlags & ESM::Light::Negative)
             node->color *= -1;
         return node;

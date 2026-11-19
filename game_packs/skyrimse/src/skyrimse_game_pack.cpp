@@ -6587,6 +6587,13 @@ namespace game_skyrimse
                         mWorldView.setHeldGear(true);
                         say(openeden::sdk::LogLevel::Info, "held gear: on");
                     }
+                    // Task 0355 stage b: Skyrim's local lights end at their radius (on by default; it is a Skyrim
+                    // session's setting, Morrowind's lights never pass through this pack).
+                    if (settings->getBool(kPackId, kLightFalloffKey, true))
+                    {
+                        mWorldView.setLightFalloff(true);
+                        say(openeden::sdk::LogLevel::Info, "light falloff: on");
+                    }
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");
                     if (!mCellSource.actorTable().setTestGoto(goer))

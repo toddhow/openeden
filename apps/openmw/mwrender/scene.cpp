@@ -292,8 +292,20 @@ namespace MWRender
             const MWWorld::NeutralBase* base = ptr.get<MWWorld::NeutralBase>()->mBase;
             if (base->mLight && !base->mLight->offByDefault)
             {
-                neutralLight = MWWorld::makeNeutralEsmLight(*base->mLight);
+                neutralLight = MWWorld::makeNeutralEsmLight(*base->mLight, Settings::game().mNeutralLightFadeGain);
                 light = &*neutralLight;
+                // OPENEDEN_NEUTRAL_LIGHT_TRACE=1 (developer aid, task 0355): what each neutral light becomes.
+                static const bool lightTrace = std::getenv("OPENEDEN_NEUTRAL_LIGHT_TRACE") != nullptr;
+                if (lightTrace)
+                {
+                    const ESM::Position& p = ptr.getRefData().getPosition();
+                    const std::uint32_t c = neutralLight->mData.mColor;
+                    Log(Debug::Info) << "NLIGHTOBJ " << ptr.getCellRef().getRefId().toDebugString() << " radius "
+                                     << neutralLight->mData.mRadius << " colour " << (c & 255) << "," << ((c >> 8) & 255)
+                                     << "," << ((c >> 16) & 255) << " fade " << base->mLight->fade << " flags "
+                                     << base->mLight->flags << " pos " << p.pos[0] << "," << p.pos[1] << "," << p.pos[2]
+                                     << " model " << (mesh.empty() ? "none" : mesh);
+                }
             }
         }
 

@@ -35,7 +35,11 @@ namespace ESM
             = 0x020, // Off by default - does not burn while placed in a cell, but can burn when equipped by an NPC
             FlickerSlow = 0x040,
             Pulse = 0x080,
-            PulseSlow = 0x100
+            PulseSlow = 0x100,
+            // OpenEden (task 0355 stage b), NOT a bit of the file format: a light made by a game pack's neutral world
+            // (MWWorld::makeNeutralEsmLight) whose brightness is more than its 8 bit colour can hold. mData.mWeight
+            // then holds the multiplier MWAnim::addLight applies to the colour. No file sets it.
+            NeutralGain = 0x10000
         };
 
         struct LHDTstruct

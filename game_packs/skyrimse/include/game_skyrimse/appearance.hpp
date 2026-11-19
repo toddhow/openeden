@@ -18,6 +18,8 @@ namespace game_skyrimse
 {
     /// The pack setting that switches the held weapon and shield on (task 0220).
     inline constexpr std::string_view kHeldGearKey = "held gear";
+    /// Task 0355 stage b: a placed light gets the engine radius that makes its falloff end where Skyrim's does.
+    inline constexpr std::string_view kLightFalloffKey = "light falloff";
 
     struct AppearanceLimits
     {

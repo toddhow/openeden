@@ -31,7 +31,22 @@ namespace MWWorld
             | (static_cast<std::uint32_t>(rgb[2]) << 16);
     }
 
-    ESM::Light makeNeutralEsmLight(const LightComponent& light)
+    float neutralLightGain(const LightComponent& light)
+    {
+        if (!std::isfinite(light.fade) || light.fade <= 1.0 || light.negative)
+            return 1.f;
+        const int brightest = std::max({ int(light.red), int(light.green), int(light.blue) });
+        if (brightest == 0)
+            return 1.f;
+        const double applied = std::min(light.fade, 255.0 / static_cast<double>(brightest));
+        if (applied <= 0.0)
+            return 1.f;
+        const double gain = light.fade / applied;
+        // A brightness past what any light of the masters has (fade 10) is not believed.
+        return gain > 1.0 ? static_cast<float>(std::min(gain, 64.0)) : 1.f;
+    }
+
+    ESM::Light makeNeutralEsmLight(const LightComponent& light, bool fadeGain)
     {
         ESM::Light record;
         record.blank();
@@ -59,6 +74,15 @@ namespace MWWorld
         }
         if (light.negative)
             flags |= ESM::Light::Negative;
+        if (fadeGain)
+        {
+            const float gain = neutralLightGain(light);
+            if (gain > 1.f)
+            {
+                flags |= ESM::Light::NeutralGain;
+                record.mData.mWeight = gain;
+            }
+        }
         record.mData.mFlags = flags;
         return record;
     }

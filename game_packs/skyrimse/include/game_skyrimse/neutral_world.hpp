@@ -70,7 +70,23 @@ namespace game_skyrimse
         double mMaxLightRadius = 1.0e6;
         /// A light's fade value past this is refused (the masters use 0.1 to 10).
         double mMaxLightFade = 1.0e3;
+        /// Task 0355 stage b: the factor that turns a Skyrim light's radius into the radius the engine's point light
+        /// is given (1 = the record's radius unchanged). See kLightFalloffRadiusScale. Must be finite and above 0.
+        double mLightRadiusScale = 1.0;
     };
+
+    /// Task 0355 stage b (`[extension.skyrimse] light falloff`). Skyrim's light falls from full strength at the light
+    /// to nothing at its radius, in a straight line (falloff exponent 1: 90 percent of the lights of the masters).
+    /// The engine's point light (files/shaders/lib/light/equations.glsl, the Morrowind LightAttenuation fallback keys)
+    /// stays at full strength up to a third of its radius, still gives a third of its colour AT the radius and only
+    /// ends at twice the radius, so a lantern or a hearth lights its whole room nearly evenly instead of making a pool
+    /// (over a flat floor it spreads 2.7 times the light Skyrim's gives for the same radius). Giving the engine 0.6 of
+    /// the radius makes its light give the SAME total light on a floor as Skyrim's (measured with the C++ twin of the
+    /// shader, 0.98 of it), keeps the bright core and ends at 1.2 of the record's radius. The share of its colour at 0,
+    /// 0.2, 0.4, 0.6, 0.8 and 1.0 of the record's radius is then 1, 1.0, 0.57, 0.34, 0.21 and 0.07 against Skyrim's
+    /// 1, 0.8, 0.6, 0.4, 0.2 and 0 (the engine's own: 1, 1, 0.83, 0.56, 0.42, 0.33). The falloff exponent and the other
+    /// light fields are not used.
+    inline constexpr double kLightFalloffRadiusScale = 0.6;
 
     /// The neutral components of one placement (task 0099 stage N4, the record-decoding half): who owns it, how it is
     /// locked and where it leads. Built from the decoded references by makeComponents; the SDK's WorldView 1.0 has

@@ -48,6 +48,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testweatherparams.cpp
     mwworld/testneutralcell.cpp
     mwworld/testneutrallight.cpp
+    mwworld/testneutrallightgain.cpp
     mwworld/testneutrallightreal.cpp
     mwworld/testneutralcellstore.cpp
     mwworld/testneutralcellatmosphere.cpp

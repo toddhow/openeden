@@ -32,7 +32,14 @@ namespace MWWorld
     /// of the animation (the engine tests Flicker or FlickerSlow first, then Pulse or PulseSlow, so one bit is set) and
     /// Negative; the Dynamic bit is always set. Off By Default is NOT a flag of the record: the class decides whether
     /// to ask for the light at all (a light that is off by default is not created).
-    [[nodiscard]] ESM::Light makeNeutralEsmLight(const openeden::sdk::game::LightComponent& light);
+    /// With `fadeGain` the brightness the fade has beyond what neutralLightColor could put in the colour byte (fade
+    /// over 255 / the brightest channel) is kept as the record's NeutralGain multiplier (task 0355 stage b; 39 percent
+    /// of the Skyrim light records, up to five times, lost it before); without it the record is as before.
+    [[nodiscard]] ESM::Light makeNeutralEsmLight(
+        const openeden::sdk::game::LightComponent& light, bool fadeGain = false);
+
+    /// The multiplier above 1 that neutralLightColor leaves out (1 when none): fade / the scale it applied.
+    [[nodiscard]] float neutralLightGain(const openeden::sdk::game::LightComponent& light);
 }
 
 #endif

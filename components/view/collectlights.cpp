@@ -1,6 +1,10 @@
 #include "collectlights.hpp"
 #include <vsg/lighting/PointLight.h>
 
+#include <cstdlib>
+
+#include <components/debug/debuglog.hpp>
+
 #include <components/render/hdrmath.hpp>
 
 namespace View
@@ -39,6 +43,23 @@ namespace View
             (*light_itr++).set(eye_position.x, eye_position.y, eye_position.z, 0);
         }
         mData->at(1).w = static_cast<float>(lightCount);
+        // OPENEDEN_LIGHT_COUNT_TRACE=1 (developer aid, task 0355): the lights this traversal collected, every 120 packs.
+        static const bool countTrace = std::getenv("OPENEDEN_LIGHT_COUNT_TRACE") != nullptr;
+        if (countTrace)
+        {
+            static std::size_t packs = 0;
+            if (packs++ % 120 == 0)
+                Log(Debug::Info) << "NLIGHTCOUNT collected " << pointLights.size() << " packed " << lightCount;
+            if (packs % 120 == 1)
+                for (std::size_t i = 0; i < lightCount && i < 6; ++i)
+                {
+                    const auto& light = pointLights[i].second;
+                    const vsg::vec3 e = vsg::vec3(pointLights[i].first * light->position);
+                    Log(Debug::Info) << "NLIGHTCOUNT light " << i << " colour " << light->color.r << "," << light->color.g
+                                     << "," << light->color.b << " radius " << light->intensity << " eye " << e.x << ","
+                                     << e.y << "," << e.z;
+                }
+        }
         if (mShadowData)
         {
             mSnapshots.clear();

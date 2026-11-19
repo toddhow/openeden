@@ -4308,7 +4308,12 @@ namespace game_skyrimse
             result->mObjects.push_back(makeObject(ref, missing));
             PlacementComponents components = makeComponents(ref, mRefCells, mStats.mComponents, NeutralLimits{});
             if (const LightData* light = lightOfBase(ref.mBase))
-                components.light = makeLightComponent(*light, mStats.mComponents, NeutralLimits{});
+            {
+                NeutralLimits lightLimits;
+                if (mLightFalloff) // task 0355 stage b
+                    lightLimits.mLightRadiusScale = kLightFalloffRadiusScale;
+                components.light = makeLightComponent(*light, mStats.mComponents, lightLimits);
+            }
             if (!components.empty())
                 result->mComponents.emplace(id, std::move(components));
             if (ref.mEnableParent && ref.mEnableParent->mParent != kNullFormId
