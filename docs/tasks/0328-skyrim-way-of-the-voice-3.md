@@ -98,3 +98,7 @@ Morrowind unchanged against `I:/Projects/OpenEden-work/integ2/build` (not a buil
   `apps/components_tests/CMakeLists.txt`, `testskyrimsescenes.cpp` (appended).
 - **Not run:** the Linux gate, GCC, clang-format 14 (formatted by hand), clang-tidy, the Lua tests, the whole test binaries, a fresh review, stages after 82, the real
   door (the arrival is a teleport to the door's arrival point), a save in the middle of the scene.
+
+## Merge note (2026-11-18)
+
+Merged after task 0329, which added `useLiveActorPlaces()` for `companions`, `college` and `dragonborn`. `enableSceneWalks()` now calls it, so the live place is one hook. The College block calls `enableSceneWalks()` and so still carries travellers.
