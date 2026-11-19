@@ -499,7 +499,7 @@ in most of the rest, (11000, 11000) in 5, (100, 5000 or 50000) in 14.
   not matter, so 87 percent of the cells are not affected by its sign. Toward-light vector = (cos Z sin XY, cos Z cos XY,
   sin Z), XY clockwise from north (+Y): **RECALLED-VERIFY, the sign and the zero of XY are a guess** (about 50 cells
   have a Z that is not 90 or 270, 12 of them with XY other than 0).
-- *Fade.* Used as the key light's INTENSITY, clamped to 0..1. Why: (0, 0, fade 0) is 349 cells and (0, 0, fade 1) only 41,
+- *Fade.* **toddhow's decision, 2026-11-19: a fade of 0 means the FULL key light (1); only a fade strictly between 0 and 1 dims it; the rest clamps to 0..1 (a 5.0 is 1, a negative is 0).** (My first reading, fade as plain intensity with 0 = none, is replaced; the paragraph below is the evidence I gave for it.) First reading: the key light's INTENSITY, clamped to 0..1. Why: (0, 0, fade 0) is 349 cells and (0, 0, fade 1) only 41,
   i.e. the unconfigured cells (rotation zero) are also the ones with fade zero, and the configured ones (templates,
   (0, 90) or (270, 240)) have fade 1: fade behaves like "is there a directional light". The directional COLOUR does not
   tell (mean luma 75 at fade 0, 79 at fade 1, so authors fill the colour either way). Not proven; the intensity reading
@@ -560,9 +560,9 @@ exterior reset is by code reading and the equal Balmora exterior frame), the fad
 shadow snapshot keeps the unfaded colour), `neutral interior sun` with `hdr` off (the multiplier is in the scene data
 either way), other cells than the five.
 
-**Decisions for toddhow.** (1) Fade as the key light's intensity (0 means none): all three survey cells and 66 percent of
-the interiors lose the flat key light. If that looks too dark, treat fade 0 as 1 (the clamp's lower end) in
-`neutralInteriorSun`. (2) The XY heading convention and zero are a guess. (3) The light fade multiplies the colour but
+**Follow-up (toddhow, 2026-11-19):** fade 0 is the full light, so the Mare, Dragonsreach and the Barrow keep their key light (now in the cell's direction: the Mare logs `sun 1.2e-16,-1,0 intensity 1`). One change in `neutralInteriorSun`; test `NeutralInteriorSun.aFadeOfZeroIsTheFullLightAndOnlyBetweenZeroAndOneDimsIt` (the renamed fade test of my new file, expectation changed first: red, then green). Mare frames off against on viewed (`keep/mare_fade1_sheet.png`): the room is lit as before apart from the new direction. Filters again: components 5,276 pass, openmw 1,307 pass; Balmora frames `1ae72bec04593e1b` and hdr `60ef9c87d5ab5a3e` equal for `n6saves` and this build; `worldobjects_check` 110 OK. The earlier frames of this log (key light off) are from the first reading.
+
+**Decisions for toddhow.** (1) DECIDED, see the follow-up. (2) The XY heading convention and zero are a guess. (3) The light fade multiplies the colour but
 keeps the light in the list: no saving in the cluster grid (a possible follow-up with the per-light stage). (4) One
 setting, `neutral light fade`, covers the light fade and the clip distance. (5) A cell's clip distance now shortens the
 far plane of a neutral interior (nothing beyond it is drawn).

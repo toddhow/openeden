@@ -44,7 +44,9 @@ namespace MWWorld
         NeutralInteriorSun sun;
         sun.towardLight = { static_cast<float>(std::cos(elevation) * std::sin(heading)),
             static_cast<float>(std::cos(elevation) * std::cos(heading)), static_cast<float>(std::sin(elevation)) };
-        sun.intensity = static_cast<float>(std::clamp(settings->directionalFade, 0.0, 1.0));
+        // toddhow, 2026-11-19: a fade of 0 is the FULL light; only a fade between 0 and 1 dims it.
+        const double fade = settings->directionalFade;
+        sun.intensity = fade == 0.0 ? 1.f : static_cast<float>(std::clamp(fade, 0.0, 1.0));
         return sun;
     }
 

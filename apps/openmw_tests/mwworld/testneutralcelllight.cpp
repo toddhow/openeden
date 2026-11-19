@@ -86,10 +86,10 @@ namespace
             }
     }
 
-    TEST(NeutralInteriorSun, theFadeIsTheIntensityClampedToZeroAndOne)
+    TEST(NeutralInteriorSun, aFadeOfZeroIsTheFullLightAndOnlyBetweenZeroAndOneDimsIt)
     {
         const CellLightSettings none = settings(0, 90, 0);
-        EXPECT_FLOAT_EQ(neutralInteriorSun(&none, true)->intensity, 0.f);
+        EXPECT_FLOAT_EQ(neutralInteriorSun(&none, true)->intensity, 1.f); // toddhow, 2026-11-19: fade 0 is the full light
         const CellLightSettings fifth = settings(0, 90, 0.2);
         EXPECT_FLOAT_EQ(neutralInteriorSun(&fifth, true)->intensity, 0.2f);
         const CellLightSettings five = settings(0, 90, 5);
