@@ -797,7 +797,7 @@ namespace game_skyrimse
         FormId sSelectDebugTopic = kNullFormId;
     }
 
-    std::vector<FormId> DialogueIndex::questGreetingTopics() const
+    std::vector<FormId> DialogueIndex::questGreetingTopics(bool skipMenuStarts) const
     {
         // a topic some INFO links to (TCLT) is a reply inside a conversation: MG01FaraldaYoureInBranchTopic and the
         // Nirya greeting are such starts; the greeting is a start nothing links to (MG01FaraldaInitialBranchTopic)
@@ -846,7 +846,7 @@ namespace game_skyrimse
                         anyInfo = true;
                         allPrompts = allPrompts && slot->second.mList[i].mPrompt.mPresent;
                     }
-            if (anyInfo && allPrompts)
+            if (skipMenuStarts && anyInfo && allPrompts)
                 continue;
             const auto branch = mBranchStart.find(t.mBranch);
             if (branch == mBranchStart.end() || branch->second != id)

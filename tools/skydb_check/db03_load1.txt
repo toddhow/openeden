@@ -1,6 +1,0 @@
-800 mouse 643 357
-804 down L 643 357
-806 up L 643 357
-1000 shot
-1100 shot
-1500 shot

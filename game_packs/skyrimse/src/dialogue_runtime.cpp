@@ -379,7 +379,7 @@ namespace game_skyrimse
         {
             if (!mGreetingTopicsKnown)
             {
-                mGreetingTopics = mDialogue.questGreetingTopics();
+                mGreetingTopics = mDialogue.questGreetingTopics(mPromptStartsAreMenus);
                 mGreetingTopicsKnown = true;
             }
             for (const FormId id : mGreetingTopics)

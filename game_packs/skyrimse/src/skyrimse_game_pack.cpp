@@ -3294,6 +3294,7 @@ namespace game_skyrimse
                     // by themselves and a response's fragments run before the next choice is judged (the Daedric quests' world)
                     mPapyrus->enableDaedric();
                     mWorldView.setQuestGreetings(true);
+                    mWorldView.setPromptStartsAreMenus(true); // Astrid's DBAstridCaughtBranchTopic is a menu topic
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setWalkAwayTopics(true);
                     // Astrid's second greeting asks GetDeadCount of each captive's base: a captive the session killed counts

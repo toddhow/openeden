@@ -241,6 +241,8 @@ namespace game_skyrimse
         /// Faralda's "Welcome to the College") is spoken at the start of a conversation, before the Hello lines, when
         /// one of its INFOs passes. Off by default.
         void setQuestGreetings(bool on) { mQuestGreetings = on; }
+        /// task 0343 (`dark brotherhood`): a quest start whose INFOs all carry prompts is a menu topic, not a greeting
+        void setPromptStartsAreMenus(bool on) { mPromptStartsAreMenus = on; }
         /// Task 0304: a line of trace for each quest greeting looked at (the topic, how many INFOs were considered and
         /// passed, the INFO chosen); unset: none.
         /// Task 0304: runs the script work queued by the INFO fragments of the response just shown, so that the next INFO
@@ -269,6 +271,7 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxFollowDepth = 8; ///< task 0304 (4); 0338: Nelacar says four in a row
         void followNamelessLinks(openeden::sdk::game::DialogueTurn& out, const DialogInfo* from = nullptr);
         bool mQuestGreetings = false;
+        bool mPromptStartsAreMenus = false; ///< task 0343
         bool mLastContinues = false; ///< task 0340: the last INFO said was flagged InvisibleContinue
         std::function<void(const std::string&)> mTrace;
         std::function<void()> mFragmentFlush;

@@ -252,7 +252,8 @@ namespace game_skyrimse
         /// speaker (GetIsID or GetIsAliasRef: a shared quest's start names none) (Faralda's "Welcome to the College"). Highest priority
         /// first; at equal priority the higher form id first (Faralda's Initial branch before the Nirya greeting catch-all,
         /// which has the same priority and a lower id: OURS, the data names no other rule).
-        [[nodiscard]] std::vector<FormId> questGreetingTopics() const;
+        /// \param skipMenuStarts task 0343: a start whose every INFO carries a prompt is a menu topic, not the greeting
+        [[nodiscard]] std::vector<FormId> questGreetingTopics(bool skipMenuStarts = false) const;
 
         /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
         /// folder of this plugin, named with that id. Nullopt when no plugin of the index owns the id.

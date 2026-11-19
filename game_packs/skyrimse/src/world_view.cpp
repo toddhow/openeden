@@ -1395,6 +1395,7 @@ namespace game_skyrimse
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         raw->mRuntime->setBlockingBranches(mBlockingBranches); // task 0298
         raw->mRuntime->setQuestGreetings(mQuestGreetings); // task 0304
+        raw->mRuntime->setPromptStartsAreMenus(mPromptStartsAreMenus); // task 0343
         raw->mRuntime->setWalkAwayTopics(mWalkAwayTopics); // task 0315
         raw->mRuntime->setWalkAwayInfos(mWalkAwayInfos); // task 0326
         raw->mRuntime->setTrace(mDialogueTrace);
@@ -2461,6 +2462,13 @@ namespace game_skyrimse
         mWalkAwayInfos = on;
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setWalkAwayInfos(on);
+    }
+
+    void SkyrimWorldView::setPromptStartsAreMenus(bool on)
+    {
+        mPromptStartsAreMenus = on;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setPromptStartsAreMenus(on);
     }
 
     void SkyrimWorldView::setQuestGreetings(bool on)

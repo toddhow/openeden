@@ -240,10 +240,11 @@ namespace
         return p;
     }
 
-    std::string greetingOf(const Plugin& p)
+    std::string greetingOf(const Plugin& p, bool menus = true)
     {
         Talk talk(p);
         talk.mRuntime->setQuestGreetings(true);
+        talk.mRuntime->setPromptStartsAreMenus(menus);
         Turn turn;
         std::string error;
         EXPECT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
@@ -263,6 +264,11 @@ namespace
     TEST(SkyrimDb03Greeting, aStartWhoseEveryInfoHasAPromptIsAMenuTopic)
     {
         EXPECT_EQ(greetingOf(greetingPlugin("Any advice?", "Anything else?")), "Yes?");
+    }
+
+    TEST(SkyrimDb03Greeting, withoutTheSettingAPromptOnlyStartStillGreetsAsBefore)
+    {
+        EXPECT_EQ(greetingOf(greetingPlugin("Any advice?", ""), false), "The start line.");
     }
 
     TEST(SkyrimDb03Greeting, aStartWithOneInfoWithoutAPromptKeepsBeingAGreeting)

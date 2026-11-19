@@ -664,6 +664,7 @@ namespace game_skyrimse
         void setBlockingBranches(bool on);
         void setFragmentFlush(std::function<void()> flush); ///< task 0304
         void setDialogueTrace(std::function<void(const std::string&)> trace); ///< task 0304
+        void setPromptStartsAreMenus(bool on); ///< task 0343 (`dark brotherhood`)
         void setQuestGreetings(bool on); ///< task 0304: a quest's nameless branch start greets (College of Winterhold)
         void setWalkAwayTopics(bool on); ///< task 0315: ending a conversation runs the walk-away topic's fragment
         void setWalkAwayInfos(bool on); ///< task 0326: and the last topic's own walk-away INFO (flag 0x80)
@@ -1097,6 +1098,7 @@ namespace game_skyrimse
         bool mAliasPriorityOrder = false; ///< task 0341
         [[nodiscard]] std::vector<AliasPackageGroup> uniqueActorAliasGroups(FormId base) const; // task 0341
         std::function<bool(FormId)> mDeadLookup; ///< task 0326
+        bool mPromptStartsAreMenus = false; ///< task 0343
         bool mQuestGreetings = false; ///< task 0304
         bool mWalkAwayTopics = false; ///< task 0315
         bool mWalkAwayInfos = false; ///< task 0326
