@@ -116,3 +116,7 @@ walking but no blow was exchanged in the runs (the player is a stand-in with no 
 ## 8. Not run
 
 The Linux gate, clang-format 14, clang-tidy, the Lua tests, a fresh review, saves in the middle of the quest, the fight, Nelacar's route.
+
+## Merge note (2026-11-19)
+
+Merged after task 0340, which added `mLastContinues` so a Goodbye line flagged InvisibleContinue goes on with its link. The follow loop now has one check, the flag of the line just said (`from`, else `mLastContinues`): it lets a named link be followed (this task) and the loop go on past a Goodbye (0340).

@@ -595,11 +595,16 @@ namespace game_skyrimse
         // player: the speaker goes on with it (Faralda's "Excellent." continues with the Nirya spell branch's greeting).
         if (!mQuestGreetings)
             return;
-        // task 0340: a line flagged Goodbye AND InvisibleContinue (Skjor's "Farkas will be your Shield-Sibling") goes on with its
-        // link before the conversation ends
-        for (std::size_t depth = 0; depth < kMaxFollowDepth && (!out.endsConversation || mLastContinues); ++depth)
+        // task 0340: a line flagged Goodbye AND InvisibleContinue (Skjor's "Farkas will be your Shield-Sibling")
+        // goes on with its link before the conversation ends
+        // tasks 0338 and 0340, ONE rule: the line just said (`from`, whose flags fillTurn also recorded in
+        // mLastContinues) carries InvisibleContinue: its links go on, named or not, even past a Goodbye
+        for (std::size_t depth = 0; depth < kMaxFollowDepth; ++depth)
         {
-            const bool fromInvisible = from != nullptr && (from->mFlags & InfoFlags::InvisibleContinue) != 0; // task 0338
+            const bool fromInvisible
+                = from != nullptr ? (from->mFlags & InfoFlags::InvisibleContinue) != 0 : mLastContinues;
+            if (out.endsConversation && !fromInvisible)
+                return;
             const DialogInfo* next = nullptr;
             if (mFragmentFlush)
                 mFragmentFlush();
