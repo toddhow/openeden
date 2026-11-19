@@ -620,4 +620,35 @@ namespace
         EXPECT_EQ(rules.sideOf(1), FollowerSide::Player);
         EXPECT_EQ(rules.sideOf(2), FollowerSide::None);
     }
+
+    // Task 0340 (C01AmbushScene: Farkas walks to the ambush point while he is the player's follower): a package a scene forces
+    // wins over following; when the scene lets go he follows again.
+    TEST(SkyrimFollowerBrain, aPackageASceneForcesWinsOverFollowingAndFollowingResumesAfterwards)
+    {
+        Rig r;
+        r.brain->setFollowPlayer(kRef, true);
+        step(*r.brain, r.w, 5);
+        ASSERT_FALSE(r.w.of(Event::Goto).empty());
+        EXPECT_LT(r.w.of(Event::Goto).back().mX, 5000.0); // following: near the player
+        const std::size_t before = r.w.of(Event::Goto).size();
+        ASSERT_TRUE(r.brain->forcePackage(kRef, &r.pkg));
+        step(*r.brain, r.w, 20);
+        const auto gotos = r.w.of(Event::Goto);
+        ASSERT_GT(gotos.size(), before);
+        EXPECT_NEAR(gotos.back().mX, 9000.0, 1.0); // the forced package's place, not the player
+        EXPECT_NEAR(gotos.back().mY, 9000.0, 1.0);
+        EXPECT_TRUE(r.brain->forcePackage(kRef, nullptr));
+        r.w.mPositions[kRef] = { 9000, 9000, 66 };
+        step(*r.brain, r.w, 30);
+        EXPECT_LT(r.w.of(Event::Goto).back().mX, 5000.0); // following again
+    }
+
+    TEST(SkyrimFollowerBrain, aFollowerWithNoForcedPackageStillIgnoresItsOwnPackage)
+    {
+        Rig r;
+        r.brain->setFollowPlayer(kRef, true);
+        step(*r.brain, r.w, 30);
+        for (const Event& e : r.w.of(Event::Goto))
+            EXPECT_LT(e.mX, 5000.0);
+    }
 }

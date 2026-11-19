@@ -29,6 +29,13 @@
 # door) and the back door out to the yard carry Vilkas with the player, Vilkas is placed at the training marker when the
 # walk is blocked, "Just have a few swings at me" starts the training quest, the clicks fight (3 hits: stage 150), the
 # package of the quest alias makes Vilkas greet again, the click at frame 13300 closes it and C00 reaches stage 30.
+# Task 0340, C01 "Proving Honor" (Skjor, Farkas, the Dustman's Cairn ambush scene, Skjor's return): SETTINGS_EXTRA with `companions = true`,
+# `quest alias packages = true`, `actor cell moves = true`, `dungeon mechanics = true`, `follower test recruit = Farkas`,
+# `story test quest = 4B2D9:20@65,4B2D9:40@70,4B2D9:100@75,6E803:1@85,6E803:10@92,6E803:40@225`, CFG_EXTRA the voices archive,
+# CELLID=WhiterunJorrvaskrBasement, INPUT=c01_input.txt (next to this file), 20800 frames and
+#   PLAN="{7000,'talk',108176},{9300,'talk',108178},{10800,'cell','DustmansCairn01',-2385,4380,-880,0},{11300,'activate','@0x3fffffff000236f5'},
+#         {17500,'cell','WhiterunJorrvaskrBasement',1330,60,0,0},{18000,'talk',108176}"
+# (steps `near <radius>` and `activate <hex id>` are new). See docs/tasks/0340-skyrim-companions-4.md.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; FRAMES=${5:-6000}

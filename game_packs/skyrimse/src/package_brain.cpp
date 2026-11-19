@@ -1483,17 +1483,20 @@ namespace game_skyrimse
             if (actor.mTalkRequest != 0)
                 handleTalk(actor, writer);
             // Task 0196: a follower of the player does not evaluate packages; a get-up clip still plays out.
-            if (actor.mFollowPlayer && !actor.mFollowEntered)
+            // Task 0340: a package a scene forces (C01AmbushScene sends Farkas, a follower, to the ambush point) wins over
+            // following; when the scene lets go the follower follows again
+            const bool follows = actor.mFollowPlayer && actor.mForced == nullptr;
+            if (follows && !actor.mFollowEntered)
             {
                 actor.mFollowEntered = true;
                 enterFollowPlayer(actor, writer);
             }
-            else if (!actor.mFollowPlayer && actor.mFollowEntered)
+            else if (!follows && actor.mFollowEntered)
             {
                 actor.mFollowEntered = false;
                 leaveFollowPlayer(actor, writer);
             }
-            if (actor.mFollowPlayer)
+            if (follows)
             {
                 if (actor.mEntering || actor.mExiting)
                     run(actor, seconds, writer);
