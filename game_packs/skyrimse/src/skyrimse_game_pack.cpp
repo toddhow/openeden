@@ -3197,6 +3197,10 @@ namespace game_skyrimse
                 {
                     mPapyrus->host().setQuestUpdatesReachAliases(true); // task 0342
                     mPapyrus->setLaidToRest(true);
+                    // the Helgi coffin's script tests the global GameHour (night) and Thonnir's scenes have actors in
+                    // unloaded houses: the live GameHour and the actionless-scene start of task 0333, one mechanism
+                    mBloodIceOn = true;
+                    mPapyrus->enableActionlessScenes();
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false))
                 {
@@ -4186,7 +4190,10 @@ namespace game_skyrimse
                 // Task 0289: with `dungeon mechanics` the service also carries the activation of every other placed
                 // activator and furniture to the Papyrus host (the lever, the pillars), whether or not `harvest` is on.
                 const bool harvestOn = settings != nullptr && settings->getBool(kPackId, "harvest", false);
-                mDungeonMechanics = settings != nullptr && settings->getBool(kPackId, "dungeon mechanics", false)
+                // Task 0342: `laid to rest` also carries the activation of a scripted activator (Helgi's coffin)
+                mDungeonMechanics = settings != nullptr
+                    && (settings->getBool(kPackId, "dungeon mechanics", false)
+                        || settings->getBool(kPackId, std::string(laidtorest::kKey), false))
                     && mPapyrus != nullptr;
                 // Task 0338: Azura's altar (a scripted activator) is activated by the player under `daedric quests`, too
                 const bool daedricActivators = settings != nullptr && settings->getBool(kPackId, "daedric quests", false)

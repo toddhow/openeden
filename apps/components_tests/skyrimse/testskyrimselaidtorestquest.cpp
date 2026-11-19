@@ -90,6 +90,16 @@ namespace
         return s;
     }
 
+    // an alias script that counts the activations of the reference its alias holds
+    ScriptBuilder activateScript()
+    {
+        ScriptBuilder s("AliasAct");
+        s.parent("ReferenceAlias");
+        s.var("acts", "Int");
+        s.function("OnActivate").param("akActionRef", "ObjectReference").iadd(Id("acts"), Id("acts"), Int(1));
+        return s;
+    }
+
     vmad::Script scriptNamed(const char* name)
     {
         vmad::Script script;
@@ -125,6 +135,7 @@ namespace
             mData.add(regScript());
             mData.add(tickScript("QTick", "Quest"));
             mData.add(tickScript("AliasTick", "ReferenceAlias"));
+            mData.add(activateScript());
             mData.mClasses[kQuest] = "Quest";
             mData.mClasses[kRef] = "ObjectReference";
             mHost = std::make_unique<PapyrusHost>(mData);
@@ -151,6 +162,7 @@ namespace
             as.mQuest = kQuest;
             as.mAlias = 2;
             as.mScripts.push_back(scriptNamed("AliasTick"));
+            as.mScripts.push_back(scriptNamed("AliasAct"));
             mVmad.mAliases.push_back(as);
             mHost->setQuests(
                 &mIndex, &mState, [this](FormId id) -> const vmad::Vmad* { return id == kQuest ? &mVmad : nullptr; });
@@ -169,6 +181,7 @@ namespace
                 mHost->tick(dt);
         }
         double questTicks() { return mHost->numberVariable(kQuest, "QTick", "ticks").value_or(-1.0); }
+        double aliasActs() { return mHost->aliasScriptNumber(kQuest, 2, "AliasAct", "acts").value_or(-1.0); }
         double aliasTicks() { return mHost->aliasScriptNumber(kQuest, 2, "AliasTick", "ticks").value_or(-1.0); }
         FakeData mData;
         NoHooks mHooks;
@@ -209,5 +222,17 @@ namespace
         EXPECT_GE(before, 2.0);
         rig.tick(40, 0.1f);
         EXPECT_EQ(rig.aliasTicks(), before);
+    }
+
+    TEST(SkyrimQuestUpdateAliases, anActivationOfTheReferenceReachesTheScriptOfTheAliasHoldingIt)
+    {
+        Rig rig(false);
+        EXPECT_EQ(rig.aliasActs(), 0.0);
+        rig.mHost->onActivate(kRef, 0x14);
+        rig.tick();
+        EXPECT_EQ(rig.aliasActs(), 1.0);
+        rig.mHost->onActivate(kRef + 1, 0x14); // another reference: nobody hears it
+        rig.tick();
+        EXPECT_EQ(rig.aliasActs(), 1.0);
     }
 }
