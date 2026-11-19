@@ -1,5 +1,5 @@
 #!/bin/bash
-# tools/skywhiterunmq_check (task 0308): a new game in Riften's market (the Whiterun main quest MQ102 to MQ104 through the game's own
+# tools/skyblade_check (task 0349): MQ106 "A Blade in the Dark" through the game's own quest, dialogue, scenes and Papyrus: a new game in the Sleeping Giant Inn or on the plain,
 # quests, dialogue, scenes and Papyrus), the Papyrus host, scenes, dialogue and voices, the journal
 # and a global script that logs the player and the nearest objects (MQ lines). The test game opens off-screen.
 #

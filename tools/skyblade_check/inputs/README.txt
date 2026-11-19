@@ -1,10 +1,10 @@
-Input scripts for OPENEDEN_RMLUI_INPUT_SCRIPT (task 0318). Each line is "<frame> <command>" (mouse X Y, down L X Y, up L X Y, key K down, shot).
-
-mq318_thane.txt   the Dragonsreach outro after MQ104 stage 90: Balgruuf's blocking topic, "Dragonborn", the Greybeards, Goodbye;
-                  the reward greeting (Thane, Lydia, the axe) closed by its Goodbye click at frame 13,900. Run with
-                    SETTINGS_EXTRA="\nmain quest whiterun = true\nstory test quest = 02610C:90,02610C:120@25\nstory test delay = 10\n"
-                    INPUT=<this file> check.sh ... 17000
-mq318_arngeir.txt High Hrothgar: Arngeir's greeting by the real dialogue (run with the player teleported there:
-                    STEPS="{ 3000,'cell','HighHrothgar',-1000,-416,-880,270,0 }" ACTIVATE="5000, '181959'"
-                    and story test quest = 02610C:90,0242BA:5).
-The frame numbers depend on the scene timings (60 fps, fixed): change them when a phase moves.
+Task 0349 (MQ106 "A Blade in the Dark"). Input scripts for OPENEDEN_RMLUI_INPUT_SCRIPT (frames at 60 fps, fixed).
+intro_talk.txt   real clicks on the conversation box: Goodbye clicks until the forced greeting is over, then clicks on the first button of each
+                 menu of Delphine's room conversation (the y of the first button depends on the text: y = 349 + 8 (lines - 2) - 17 (buttons - 4)).
+                 Run (run.sh is the harness; the paths inside are the author's, edit them):
+                   SETTINGS_EXTRA=$'story test quest = 032926:5,032926:10@6\n' STEPS="{ 1900,'abs',-738,-700,100,0,0 },{ 2750,'abs',-800,760,30,0,0 }"
+                   ACTIVATE="2800, '78968'" ACTIVATE2="4000, '78968'" INPUT=<intro_talk.txt> ./run.sh <tag> 15200
+mound_shots.txt  two screenshots of the Kynesgrove run (stages 5..50 by the aid, then two teleports: Kynesgrove's marker and the mound):
+                   LOADARG="--start @Tamriel,26008,-32200" SETTINGS_EXTRA=$'story test quest = 032926:5,032926:10,032926:30,032926:32,032926:35,032926:50@25\n'
+                   STEPS="{ 3000,'abs',135130,9904,-11900,0,0 },{ 4300,'abs',145900,12400,-6950,0,0 }" INPUT=<mound_shots.txt> ./run.sh <tag> 12500
+batch.sh intro|mound <tag> runs three at once; norm.sh prints the normalised story lines of a run (md5 them).
