@@ -265,6 +265,7 @@ namespace game_skyrimse
         static constexpr std::size_t kMaxFollowDepth = 4; ///< task 0304
         void followNamelessLinks(openeden::sdk::game::DialogueTurn& out);
         bool mQuestGreetings = false;
+        bool mLastContinues = false; ///< task 0340: the last INFO said was flagged InvisibleContinue
         std::function<void(const std::string&)> mTrace;
         std::function<void()> mFragmentFlush;
         std::vector<FormId> mGreetingTopics; ///< task 0304: DialogueIndex::questGreetingTopics, found once

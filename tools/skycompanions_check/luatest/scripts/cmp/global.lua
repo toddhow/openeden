@@ -173,6 +173,24 @@ return {
                                 print(string.format('CMP id %s at %.0f,%.0f,%.0f', id, o.position.x, o.position.y, o.position.z))
                             end
                         end
+                    elseif step[2] == 'near' then
+                        -- task 0340: every object of the player's cell within step[3] units, with its id (a ':b' base or ':o' object)
+                        for _, o in ipairs(player.cell:getAll()) do
+                            local d = (o.position - player.position):length()
+                            if d <= step[3] then
+                                print(string.format('CMP near %s id %s at %.0f,%.0f,%.0f dist %.0f', tostring(o.recordId), tostring(o.id),
+                                    o.position.x, o.position.y, o.position.z, d))
+                            end
+                        end
+                    elseif step[2] == 'activate' then
+                        -- task 0340: activate the neutral reference whose id is step[3] (hex text, as 'near' prints it) in the player's cell
+                        for _, o in ipairs(player.cell:getAll()) do
+                            local ok, id = pcall(function() return o.id end)
+                            if ok and id == step[3] then
+                                print('CMP activate ' .. id .. ' ' .. tostring(o.recordId))
+                                o:activateBy(player)
+                            end
+                        end
                     elseif step[2] == 'trace' then
                         trace(step[3] or 'note')
                     elseif step[2] == 'save' then

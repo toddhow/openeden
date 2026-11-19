@@ -3231,6 +3231,9 @@ namespace game_skyrimse
                     // task 0315: Eorlund's "What brings you here?" is the first line of a Blocking branch (C00 stage 30)
                     // and the chained replies of the Companions' branches want the effects of the line just shown
                     mWorldView.setBlockingBranches(true);
+                    // task 0340: Skjor's briefing ends with an InvisibleContinue line that goes on with the nameless
+                    // branch start `C01SkjorObserverSplit` by itself (task 0304's rule)
+                    mWorldView.setQuestGreetings(true);
                     mWorldView.setWalkAwayTopics(true); // Eorlund's walk-away INFO starts the follow-up scene
                     mWorldView.setFragmentFlush([this]() {
                         if (mPapyrus != nullptr)

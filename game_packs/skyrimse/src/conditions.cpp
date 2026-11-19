@@ -1049,7 +1049,7 @@ namespace game_skyrimse::conditions
                     result = compareValues(c.mCompare, lhs, rhs, valid);
                     if (debug)
                         sDebugSink("COND " + survey::functionName(c.mFunction) + " p1 " + std::to_string(c.mParam1)
-                            + " value " + std::to_string(lhs) + " op " + std::to_string(c.mCompare) + " against "
+                            + (c.mString2.empty() ? std::string() : " s2 " + c.mString2) + " value " + std::to_string(lhs) + " op " + std::to_string(c.mCompare) + " against "
                             + std::to_string(rhs) + (result ? " true" : " false"));
                     if (!valid)
                     {

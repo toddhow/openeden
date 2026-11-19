@@ -196,6 +196,7 @@ namespace game_skyrimse
             }
         }
         out.endsConversation = (info.mFlags & InfoFlags::Goodbye) != 0;
+        mLastContinues = (info.mFlags & InfoFlags::InvisibleContinue) != 0; // task 0340
         mWalkAway = info.mWalkAwayTopic; // task 0315: the last response decides which walk-away topic waits
         mLastTopic = info.mTopic; // task 0326
         out.hadUnrunEffects = info.mHasScript;
@@ -255,6 +256,10 @@ namespace game_skyrimse
     {
         out.topics.clear();
         mOffered.clear();
+        // Task 0340: the plain topics test what the line just shown set (Skjor's `SkjorGaveLowdown`), so its queued
+        // fragments run first, as offerLinks has done since task 0310
+        if (mFragmentFlush)
+            mFragmentFlush();
         const SelectionOptions opts = options(0);
         // Task 0261: after a response that links to topics (TCLT) the menu is those of them that pass; when none does
         // it is the normal list. A topic that sits in a branch as a member, not its start, is only ever a choice.
@@ -352,6 +357,21 @@ namespace game_skyrimse
                 if (greeting.mInfo != nullptr)
                     break;
             }
+        // 1b. Task 0340: the game picks a Blocking branch's entry line BEFORE the actor is in dialogue, and such lines test
+        // IsInDialogueWithPlayer == 0 (Skjor's C01SkjorEntry). The pass above treats the conversation as open (the Hello
+        // lines and the other branches count on it), so a start no line of which passed is tried once more with the
+        // conversation not yet open. Additive: nothing that passed before is chosen differently.
+        if (mBlockingBranches && greeting.mInfo == nullptr)
+        {
+            mWorld.setConversationOpen(false);
+            for (const FormId start : mDialogue.blockingStarts())
+            {
+                greeting = selectInfo(mDialogue, start, mWorld, mSpeaker, greetingOptions);
+                if (greeting.mInfo != nullptr)
+                    break;
+            }
+            mWorld.setConversationOpen(true);
+        }
         // 2. Task 0304: a quest's own greeting (the nameless start of one of its branches)
         if (greeting.mInfo == nullptr && mQuestGreetings)
         {
@@ -573,7 +593,9 @@ namespace game_skyrimse
         // player: the speaker goes on with it (Faralda's "Excellent." continues with the Nirya spell branch's greeting).
         if (!mQuestGreetings)
             return;
-        for (std::size_t depth = 0; depth < kMaxFollowDepth && !out.endsConversation; ++depth)
+        // task 0340: a line flagged Goodbye AND InvisibleContinue (Skjor's "Farkas will be your Shield-Sibling") goes on with its
+        // link before the conversation ends
+        for (std::size_t depth = 0; depth < kMaxFollowDepth && (!out.endsConversation || mLastContinues); ++depth)
         {
             const DialogInfo* next = nullptr;
             if (mFragmentFlush)

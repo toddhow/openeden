@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -60,12 +61,13 @@ namespace
         std::vector<std::uint32_t> mLinks; ///< TCLT
         Bytes mConditions;
         std::string mPrompt; ///< RNAM, empty: none
+        std::uint16_t mFlags = 0; ///< ENAM flags (task 0340: 0x1 Goodbye, 0x40 InvisibleContinue)
     };
 
     Bytes infoRecord(const InfoSpec& s)
     {
         Bytes b;
-        b.append(sub4("ENAM", Bytes().u16(0).u16(24)));
+        b.append(sub4("ENAM", Bytes().u16(s.mFlags).u16(24)));
         b.append(sub4("CNAM", Bytes().u8(0)));
         b.append(sub4("QNAM", Bytes().u32(kQuest)));
         for (const std::uint32_t link : s.mLinks)
@@ -319,6 +321,143 @@ namespace
         v.mFlags = 1;
         Talk other(blockingPlugin(v));
         EXPECT_EQ(other.mIndex.blockingStarts(), (std::vector<FormId>{ kTopicBlock2 }));
+    }
+
+    // Task 0340 (Companions, Skjor's "C01SkjorEntry"): the entry line of a blocking branch tests IsInDialogueWithPlayer == 0,
+    // because the game picks it BEFORE the actor is in dialogue. The runtime marks the conversation open at the start, so
+    // such a line never passed; the blocking starts are tried again with the conversation not yet open.
+    Plugin dialogueStatePlugin(float wanted)
+    {
+        Plugin p;
+        p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
+        InfoSpec block = info(0x30, "Speak with me.");
+        block.mConditions = ctda(249, 0, wanted, 0);
+        p.mDials.append(topic(kTopicBlock, "Block", "CUST", 0xF0, kBranch, { block }));
+        p.mBranches = branchRecord(kBranch, kTopicBlock, 2);
+        return p;
+    }
+
+    TEST(SkyrimBlockingBranch, aLineThatNeedsTheActorNotYetInDialogueStartsTheConversation)
+    {
+        Talk talk(dialogueStatePlugin(0.0f));
+        talk.mRuntime->setBlockingBranches(true);
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        EXPECT_EQ(turn.text, "Speak with me.");
+    }
+
+    TEST(SkyrimBlockingBranch, aLineThatNeedsTheActorInDialogueStillPassesAsBefore)
+    {
+        Talk talk(dialogueStatePlugin(1.0f));
+        talk.mRuntime->setBlockingBranches(true);
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        EXPECT_EQ(turn.text, "Speak with me.");
+    }
+
+    TEST(SkyrimBlockingBranch, theNotYetInDialogueLineIsNotUsedWhenTheSettingIsOff)
+    {
+        Talk talk(dialogueStatePlugin(0.0f));
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        EXPECT_EQ(turn.text, "Yes?");
+    }
+
+    TEST(SkyrimBlockingBranch, theConversationIsOpenForTheLinesAfterTheGreeting)
+    {
+        Talk talk(dialogueStatePlugin(0.0f));
+        talk.mRuntime->setBlockingBranches(true);
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        // a second begin of a plain actor whose line needs "in dialogue" is answered from an open conversation again
+        Talk other(dialogueStatePlugin(1.0f));
+        other.mRuntime->setBlockingBranches(true);
+        ASSERT_TRUE(other.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        EXPECT_EQ(turn.text, "Speak with me.");
+    }
+
+    // Task 0340 (Skjor: "Last week a scholar came to us"): the fragment of the line just shown sets a quest script variable
+    // (SkjorGaveLowdown) that the NEXT plain topics test; the list of topics is judged after the queued fragments ran.
+    Plugin flagPlugin()
+    {
+        Plugin p;
+        p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
+        InfoSpec more = info(0x40, "It is a long story.");
+        more.mConditions = ctda(629, 0, 1.0f, kQuest);
+        more.mConditions.append(sub4("CIS2", Bytes().zstring("::Flag_var")));
+        p.mDials.append(topic(kTopicPlain, "Tell me more.", "CUST", 0, 0, { more }));
+        return p;
+    }
+
+    TEST(SkyrimBlockingBranch, theTopicListIsJudgedAfterTheFragmentsOfTheLineJustShownRan)
+    {
+        Talk talk(flagPlugin());
+        auto flag = std::make_shared<bool>(false);
+        talk.mRuntime->setLiveQuestVariable([flag](FormId, const std::string&) -> std::optional<float> {
+            return *flag ? 1.0f : 0.0f;
+        });
+        talk.mRuntime->setFragmentFlush([flag]() { *flag = true; });
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        EXPECT_EQ(names(turn), (std::vector<std::string>{ "Tell me more." }));
+    }
+
+    // Task 0340 (Skjor's "Farkas will be your Shield-Sibling"): a line flagged Goodbye AND InvisibleContinue goes on with the
+    // linked nameless topic (the sendoff, whose end fragment sets stage 20) before the conversation ends.
+    Plugin continuePlugin(std::uint16_t firstFlags)
+    {
+        Plugin p;
+        p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
+        InfoSpec first = info(0x50, "Farkas will go with you.");
+        first.mFlags = firstFlags;
+        first.mLinks = { kTopicBlock2 };
+        p.mDials.append(topic(kTopicPlain, "Who goes?", "CUST", 0, 0, { first }));
+        InfoSpec sendoff = info(0x51, "He will answer your questions.");
+        sendoff.mFlags = 0x0001; // Goodbye
+        p.mDials.append(topic(kTopicBlock2, "Sendoff", "CUST", 0xF0, 0, { sendoff }));
+        return p;
+    }
+
+    TEST(SkyrimBlockingBranch, aGoodbyeLineThatContinuesGoesOnWithTheLinkedNamelessTopic)
+    {
+        Talk talk(continuePlugin(0x0001 | 0x0040));
+        talk.mRuntime->setQuestGreetings(true);
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        ASSERT_TRUE(talk.mRuntime->choose(kTopicPlain, turn, error)) << error;
+        EXPECT_EQ(turn.text, "Farkas will go with you. He will answer your questions.");
+        EXPECT_TRUE(turn.endsConversation);
+    }
+
+    TEST(SkyrimBlockingBranch, aGoodbyeLineThatDoesNotContinueEndsTheConversationAtOnce)
+    {
+        Talk talk(continuePlugin(0x0001));
+        talk.mRuntime->setQuestGreetings(true);
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        ASSERT_TRUE(talk.mRuntime->choose(kTopicPlain, turn, error)) << error;
+        EXPECT_EQ(turn.text, "Farkas will go with you.");
+        EXPECT_TRUE(turn.endsConversation);
+    }
+
+    TEST(SkyrimBlockingBranch, withNoFragmentFlushTheTopicStaysHiddenUntilTheVariableIsSet)
+    {
+        Talk talk(flagPlugin());
+        auto flag = std::make_shared<bool>(false);
+        talk.mRuntime->setLiveQuestVariable([flag](FormId, const std::string&) -> std::optional<float> {
+            return *flag ? 1.0f : 0.0f;
+        });
+        Turn turn;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
+        EXPECT_TRUE(names(turn).empty());
     }
 }
 
