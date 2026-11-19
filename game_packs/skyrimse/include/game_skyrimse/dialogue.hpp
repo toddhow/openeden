@@ -375,6 +375,12 @@ namespace game_skyrimse
         /// Task 0270: what the player wears and carries, read at the moment of the check (the inventory's equipment and
         /// stacks). Without a source (the default) the stand-in wears and carries nothing but gold, as before.
         void setPlayerWornSource(std::function<bool(std::uint32_t)> source) { mWornSource = std::move(source); }
+        /// Task 0338: the voice type of a speaker that is no NPC_ (a talking activator: Azura's altar); read by
+        /// speakerVoiceType when the speaker did not resolve as an actor.
+        void setActivatorVoiceLookup(std::function<FormId(FormId)> lookup) { mActivatorVoice = std::move(lookup); }
+        /// Task 0338: the speaker is a talking activator whose voice type is the one of this NPC_ (the INFO's speaker
+        /// names Azura's NPC_; her altar speaks the line)
+        [[nodiscard]] bool speakerSoundsLike(FormId npc) const;
         void setPlayerItemSource(std::function<float(std::uint32_t)> source) { mItemSource = std::move(source); }
         /// Task 0239: what the follower scripts changed (factions, globals, WaitingForPlayer, relationship ranks, the
         /// teammate flag) wins over the data. Not owned; null (the default): the data alone answers.
@@ -727,6 +733,7 @@ namespace game_skyrimse
         FormId mPlayerWorld = kNullFormId;
         std::function<float()> mGoldSource; // task 0184
         std::function<bool(std::uint32_t)> mWornSource; // task 0270
+        std::function<FormId(FormId)> mActivatorVoice; // task 0338
         std::function<float(std::uint32_t)> mItemSource; // task 0270
         const FollowerOverlay* mFollowerOverlay = nullptr; // task 0239
         PlaceLookup mLiveActorPlace; // task 0277

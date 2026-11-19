@@ -446,6 +446,16 @@ namespace MWClass
                 return std::make_unique<OpenInventoryAction>(
                     ptr, *plantPlacement, base.mBase, std::string(getName(ptr)), "flora");
         }
+        // Task 0338: a TALKING activator (Azura's altar) the pack runs a conversation with is talked to
+        if (base.mKind == ObjectKind::Activator && Settings::game().mNeutralActors && actor == MWMechanics::getPlayer())
+        {
+            MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+            NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+            auto* talking = dynamic_cast<openeden::sdk::game::TalkingActivatorSource*>(
+                store != nullptr ? store->source(base.mGameId) : nullptr);
+            if (talking != nullptr && talking->speaksAsActivator(base.mBase))
+                return std::make_unique<TalkAction>(ptr);
+        }
         // Task 0224: a placed Activator the player activates (an ore vein) tells the pack's scripts; nothing happens
         // when none listens.
         if (base.mKind == ObjectKind::Activator && actor == MWMechanics::getPlayer())

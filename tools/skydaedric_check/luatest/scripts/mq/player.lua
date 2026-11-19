@@ -5,10 +5,22 @@ local camera = require('openmw.camera')
 
 local want = nil
 local frames = 0
+local shots = 0 -- task 0338: MQShot { n, gap }: a screenshot every gap frames, n times (frames run in a conversation too)
+local shotGap = 120
+local shotWait = 0
+local okDebug, debug = pcall(require, 'openmw.debug')
 
 return {
     engineHandlers = {
         onFrame = function()
+            if shots > 0 and okDebug then
+                shotWait = shotWait - 1
+                if shotWait <= 0 then
+                    shotWait = shotGap
+                    shots = shots - 1
+                    debug.takeScreenshot()
+                end
+            end
             if want ~= nil and frames > 0 then
                 camera.setMode(camera.MODE.FirstPerson)
                 camera.setPitch(want)
@@ -17,6 +29,11 @@ return {
         end,
     },
     eventHandlers = {
+        MQShot = function(e)
+            shots = e.n or 3
+            shotGap = e.gap or 120
+            shotWait = e.first or 60
+        end,
         MQLook = function(e)
             want = e.pitch or 0
             frames = 2000

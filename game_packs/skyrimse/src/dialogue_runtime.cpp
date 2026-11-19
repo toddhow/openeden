@@ -320,6 +320,8 @@ namespace game_skyrimse
             }
             if (s.mUncertainBefore != 0)
                 ++mStats.mUncertainTopics;
+            if (mTrace) // task 0338: which INFO a menu button stands for
+                mTrace("offered " + hex8(id) + " info " + hex8(s.mInfo->mCommon.mId) + " flags " + hex8(s.mInfo->mFlags));
             out.topics.push_back({ id, std::move(text) });
             mOffered.insert(id);
         }
@@ -587,7 +589,7 @@ namespace game_skyrimse
         return found;
     }
 
-    void DialogueRuntime::followNamelessLinks(openeden::sdk::game::DialogueTurn& out)
+    void DialogueRuntime::followNamelessLinks(openeden::sdk::game::DialogueTurn& out, const DialogInfo* from)
     {
         // Task 0304: a response that links to a topic with no name whose INFO has no prompt is not a choice for the
         // player: the speaker goes on with it (Faralda's "Excellent." continues with the Nirya spell branch's greeting).
@@ -597,13 +599,14 @@ namespace game_skyrimse
         // link before the conversation ends
         for (std::size_t depth = 0; depth < kMaxFollowDepth && (!out.endsConversation || mLastContinues); ++depth)
         {
+            const bool fromInvisible = from != nullptr && (from->mFlags & InfoFlags::InvisibleContinue) != 0; // task 0338
             const DialogInfo* next = nullptr;
             if (mFragmentFlush)
                 mFragmentFlush();
             for (const FormId id : mChoices)
             {
                 const DialogTopic* topic = mDialogue.topic(id);
-                if (topic == nullptr || topic->mCategory != TopicCategory::Topic || topic->mName.mPresent)
+                if (topic == nullptr || topic->mCategory != TopicCategory::Topic)
                     continue;
                 // task 0331: the walk-away topic of the response just said (Viarmo's "You're leaving? Okay, we'll just
                 // work on the verse in a bit.", linked beside the poem choices) is said as the player LEAVES, not a
@@ -611,6 +614,10 @@ namespace game_skyrimse
                 if (hidesWalkAway(id))
                     continue;
                 const Selection s = selectInfo(mDialogue, id, mWorld, mSpeaker, options(id));
+                // task 0338: the editor shows a topic reached after an Invisible Continue response by the text
+                // "(Invisible Continue)": a response with that flag goes on through its links, named or not
+                if (topic->mName.mPresent && !fromInvisible)
+                    continue;
                 if (s.mInfo != nullptr && !s.mInfo->mPrompt.mPresent)
                 {
                     next = s.mInfo;
@@ -632,8 +639,9 @@ namespace game_skyrimse
             if (!more.service.empty())
                 out.service = more.service;
             if (mTrace)
-                mTrace("followed " + hex8(next->mCommon.mId));
+                mTrace("followed " + hex8(next->mCommon.mId) + " flags " + hex8(next->mFlags));
             mChoices = next->mLinksTo;
+            from = next;
         }
     }
 
@@ -659,7 +667,7 @@ namespace game_skyrimse
         fillTurn(*s.mInfo, out);
         mChoices = s.mInfo->mLinksTo; // task 0261: the next menu is what this response links to (offerTopics)
         if (!mLinkMode) // task 0310: a forced conversation follows a link with no name in offerLinks (once)
-            followNamelessLinks(out); // task 0304
+            followNamelessLinks(out, s.mInfo); // task 0304
         // Task 0258: in the forced (arrest) conversation the choices are link-to topics; a response with none of its
         // own ends the talk, as the game closes a forced dialogue when nothing is left to choose
         if (mLinkMode && !out.endsConversation && !s.mInfo->mLinksTo.empty())
@@ -796,7 +804,8 @@ namespace game_skyrimse
                 text = topic->mName.mLocalized ? mResolver(topic->mName, topic->mPlugin, StringTableKind::Strings)
                                                : topic->mName.mText;
             text = expandText(text, topic->mQuest != kNullFormId ? topic->mQuest : s.mInfo->mQuest);
-            if (text.empty())
+            if (text.empty() || (!s.mInfo->mPrompt.mPresent && mQuestGreetings
+                                    && (from.mFlags & InfoFlags::InvisibleContinue) != 0)) // task 0338
             {
                 if (silent == nullptr && hasResponseText(*s.mInfo))
                     silent = s.mInfo;

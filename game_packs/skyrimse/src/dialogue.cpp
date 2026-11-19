@@ -874,10 +874,19 @@ namespace game_skyrimse
         return it == mVoiceTypes.end() ? kEmpty : it->second;
     }
 
+    bool SkyrimConditionWorld::speakerSoundsLike(FormId npc) const
+    {
+        if (!mActivatorVoice || mHasResolved || mSpeaker.mBase == kNullFormId)
+            return false;
+        const FormId mine = mActivatorVoice(mSpeaker.mBase);
+        const ActorNpc* other = mActors.npc(npc);
+        return mine != kNullFormId && other != nullptr && other->mVoiceType == mine;
+    }
+
     FormId SkyrimConditionWorld::speakerVoiceType() const
     {
         if (!mHasResolved)
-            return kNullFormId;
+            return mActivatorVoice && mSpeaker.mBase != kNullFormId ? mActivatorVoice(mSpeaker.mBase) : kNullFormId;
         const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
         FormId voice = traits != nullptr ? traits->mVoiceType : kNullFormId;
         if (voice == kNullFormId && traits != nullptr)
@@ -2430,7 +2439,8 @@ namespace game_skyrimse
         const auto why = [&](const DialogInfo* info, const char* reason) {
             if (debug)
                 conditions::conditionDebugReport(
-                    "SELECT info " + std::to_string(info->mCommon.mId) + " skipped: " + reason);
+                    "SELECT info " + std::to_string(info->mCommon.mId) + " skipped: " + reason + " (info speaker "
+                    + std::to_string(info->mSpeaker) + ", this " + std::to_string(speaker.mBase) + ")");
         };
         struct DebugAll
         {
@@ -2464,7 +2474,8 @@ namespace game_skyrimse
                 why(info, "said once");
                 continue;
             }
-            if (info->mSpeaker != kNullFormId && info->mSpeaker != speaker.mBase)
+            if (info->mSpeaker != kNullFormId && info->mSpeaker != speaker.mBase
+                && !world.speakerSoundsLike(info->mSpeaker)) // task 0338: Azura's altar says Azura's lines
             {
                 why(info, "another speaker");
                 continue;

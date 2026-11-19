@@ -13,6 +13,8 @@ local activated = false
 local activated2 = false
 local activated3 = false
 local activated4 = false
+local activated5 = false
+local activated6 = false
 local okInv, inv = pcall(require, 'core.skyrimse.inventory')
 local steps = {} -- cfg.moves: { update, from, to, item } (hex text ids): a stand-in for the inventory windows' Take and Put clicks
 
@@ -33,6 +35,24 @@ local function activateActor(base)
             print('MQ activate: the player talks to ' .. tostring(id))
             o:activateBy(player)
             return
+        end
+    end
+    -- task 0338: an object in a loaded cell next to the player's (Azura's altar, 1.7 km from the player's cell)
+    if player.cell.isExterior then
+        for dx = -1, 1 do
+            for dy = -1, 1 do
+                local okc, c = pcall(world.getExteriorCell, player.cell.gridX + dx, player.cell.gridY + dy, player.cell)
+                if okc and c ~= nil then
+                    for _, o in ipairs(c:getAll()) do
+                        local ok, id = pcall(function() return o.recordId end)
+                        if ok and id ~= nil and tostring(id):match(':b(%d+)$') == base then
+                            print('MQ activate: the player talks to ' .. tostring(id) .. ' (next cell)')
+                            o:activateBy(player)
+                            return
+                        end
+                    end
+                end
+            end
         end
     end
     print('MQ activate: actor ' .. base .. ' not found')
@@ -219,6 +239,15 @@ return {
             if cfg.activate4 and not activated4 and updates >= cfg.activate4[1] then -- task 0332
                 activated4 = true
                 activateActor(cfg.activate4[2])
+            end
+            if cfg.activate5 and not activated5 and updates >= cfg.activate5[1] then -- task 0338
+                activated5 = true
+                activateActor(cfg.activate5[2])
+                if cfg.shots5 then world.players[1]:sendEvent('MQShot', cfg.shots5) end
+            end
+            if cfg.activate6 and not activated6 and updates >= cfg.activate6[1] then -- task 0338
+                activated6 = true
+                activateActor(cfg.activate6[2])
             end
             if cfg.aim and updates >= cfg.aim[1] and updates % 20 == 0 then
                 aimAt(cfg.aim[2]) -- again every 20 updates: the actor walks to its post after the first talk

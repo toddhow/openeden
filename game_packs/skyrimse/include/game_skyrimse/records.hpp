@@ -504,6 +504,8 @@ namespace game_skyrimse
         bool mMessageBox = false;
         /// RNAM of an ACTI (task 0224: the activate text override, "Mine" on an ore vein); a FLOR's is in mHarvest.
         LString mActivateText;
+        /// VNAM of a TACT (task 0338: the voice type a talking activator speaks with, Azura's altar); 0 for any other type.
+        FormId mVoiceType = 0;
     };
 
     namespace NpcFlags

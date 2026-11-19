@@ -854,9 +854,15 @@ namespace game_skyrimse
                 return false;
             const QuestRecord* record = mIndex->quest(quest);
             if (record == nullptr)
+            {
+                say(false, "Papyrus: SetStage " + std::to_string(stage) + " on " + hex(quest) + ": no such quest");
                 return false;
+            }
             if (mState->stageDone(quest, stage) && (record->mFlags & QuestFlags::AllowRepeatedStages) == 0)
+            {
+                say(false, "Papyrus: SetStage " + std::to_string(stage) + " on " + hex(quest) + ": the stage is done"); // 0338
                 return false;
+            }
             if (!mState->running(quest))
                 fillAliases(quest, true);
             mState->setStage(*mIndex, quest, stage);
@@ -4387,8 +4393,17 @@ namespace game_skyrimse
         Impl& m = *mImpl;
         m.mLastTarget = target; // task 0237
         m.mLastActor = actionRef;
-        for (const InstanceId instance : m.instancesOf(target))
+        std::vector<InstanceId> hearers = m.instancesOf(target);
+        // task 0338: the script of a quest alias that holds the reference hears it too (DA01ShrineofAzuraScript)
+        for (const InstanceId alias : m.aliasInstancesHolding(target))
+            hearers.push_back(alias);
+        for (const InstanceId instance : hearers)
             (void)m.sendEvent(instance, "OnActivate", { m.formValue(actionRef) });
+    }
+
+    bool PapyrusHost::hasHearers(FormId reference) const
+    {
+        return mImpl->mByForm.count(reference) != 0 || !mImpl->aliasInstancesHolding(reference).empty();
     }
 
     bool PapyrusHost::addTrigger(FormId reference, const TriggerVolume& volume)

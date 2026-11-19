@@ -694,6 +694,8 @@ namespace game_skyrimse
         /// Task 0221: the harvest data of a FLOR or TREE base that names an ingredient, and its name (the FULL, else
         /// the editor id); false for any other base or before the index is built. Main thread.
         [[nodiscard]] bool plantOf(FormId base, HarvestData& out, std::string& name);
+        /// Task 0338: the voice type of a TACT base (a talking activator), else 0. Main thread; waits for the index.
+        [[nodiscard]] FormId talkingActivatorVoice(FormId base);
         /// Task 0224: the resource data of an ore vein (an ACTI with MineOreScript) or a chopping block (a FURN with
         /// ResourceFurnitureScript), its name (FULL, else the editor id) and its activate text; false for any other
         /// base or before the index is built. Main thread.

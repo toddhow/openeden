@@ -957,6 +957,8 @@ namespace game_skyrimse
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
         /// Task 0289: a script instance is attached to the reference (its own or its base's).
         [[nodiscard]] bool hasInstances(FormId reference) const;
+        /// task 0338: scripts of the reference itself or of a quest alias that holds it (they hear its activation)
+        [[nodiscard]] bool hasHearers(FormId reference) const;
         /// Task 0313: a script of this name (any case) is attached to the reference.
         [[nodiscard]] bool hasScript(FormId reference, std::string_view script) const;
 

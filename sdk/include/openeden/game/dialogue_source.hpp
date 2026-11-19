@@ -99,4 +99,15 @@ namespace openeden::sdk::game
         /// to what it was doing. Safe to call without a prepare. Added in 0.4.
         virtual void cancelPreparedConversation(WorldId reference) { (void)reference; }
     };
+
+    /// Task 0338 (optional, found by dynamic_cast on the registered source like the other optional interfaces; no
+    /// version change): the source can also run a conversation with a TALKING ACTIVATOR (a placed object that is no
+    /// actor: Azura's altar). The core then talks to it when the player activates it, instead of the object's other use.
+    class TalkingActivatorSource
+    {
+    public:
+        virtual ~TalkingActivatorSource() = default;
+        /// True when the object of this base record speaks.
+        [[nodiscard]] virtual bool speaksAsActivator(WorldId base) = 0;
+    };
 }

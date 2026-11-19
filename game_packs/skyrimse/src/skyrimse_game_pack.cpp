@@ -3208,11 +3208,17 @@ namespace game_skyrimse
                     // Lod's "There's one out on the road" goes on by itself through a link with no name, and the
                     // fragments of a response run before the next INFO is chosen (task 0304's rules)
                     mWorldView.setQuestGreetings(true);
+                    mWorldView.setBlockingBranches(true); // task 0338: Azura's and Nelacar's Blocking branches
+                    mWorldView.setWalkAwayTopics(true); // task 0338: Malyn's walk-away topic starts the fight
                     mWorldView.setFragmentFlush([this]() {
                         if (mPapyrus != nullptr)
                             mPapyrus->flushFragments();
                     });
                     mCellSource.actorTable().setFollowPlayerPackages(true); // Barbas follows by his own packages
+                    mWorldView.setDialogueTrace([logger](const std::string& line) { // task 0338
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "NQUESTGREET " + line);
+                    });
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "bards college", false))
                 {
@@ -4167,17 +4173,21 @@ namespace game_skyrimse
                 const bool harvestOn = settings != nullptr && settings->getBool(kPackId, "harvest", false);
                 mDungeonMechanics = settings != nullptr && settings->getBool(kPackId, "dungeon mechanics", false)
                     && mPapyrus != nullptr;
-                if (settings == nullptr || (!harvestOn && !mDungeonMechanics) || mInventory == nullptr)
+                // Task 0338: Azura's altar (a scripted activator) is activated by the player under `daedric quests`, too
+                const bool daedricActivators = settings != nullptr && settings->getBool(kPackId, "daedric quests", false)
+                    && mPapyrus != nullptr;
+                if (settings == nullptr || (!harvestOn && !mDungeonMechanics && !daedricActivators)
+                    || mInventory == nullptr)
                     return;
                 mining::Hooks hooks;
                 hooks.mResource
                     = [this, harvestOn](FormId base, mining::ResourceInfo& out, std::string& name, std::string& verb) {
                           return harvestOn && mWorldView.resourceOf(base, out, name, verb);
                       };
-                if (mDungeonMechanics)
+                if (mDungeonMechanics || daedricActivators)
                     hooks.mOther = [this, logger](FormId placement, FormId base) {
                         // a standing stone or shrine is a scripted activator too: its own hook already runs it
-                        if (mPapyrus == nullptr || !mPapyrus->host().hasInstances(placement)
+                        if (mPapyrus == nullptr || !mPapyrus->host().hasHearers(placement)
                             || !mWorldView.stoneNameOf(base).empty())
                             return;
                         if (logger != nullptr)
@@ -4632,7 +4642,8 @@ namespace game_skyrimse
                 }
                 // Task 0184: the speech and bribe checks read the inventory's gold, and a key in it opens a lock.
                 if (settings->getBool(kPackId, marriage::kMarriageKey, false)
-                    || settings->getBool(kPackId, "golden claw", false)) // tasks 0270, 0335: GetItemCount of the player
+                    || settings->getBool(kPackId, "golden claw", false) // tasks 0270, 0335: GetItemCount of the player
+                    || settings->getBool(kPackId, "daedric quests", false)) // task 0338: Aranea asks for the Star
                 {
                     mWorldView.setPlayerWornSource(
                         [this](FormId item) { return mInventory != nullptr && mInventory->model().isEquipped(item); });

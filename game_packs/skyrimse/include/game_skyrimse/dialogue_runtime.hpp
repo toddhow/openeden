@@ -170,6 +170,10 @@ namespace game_skyrimse
         /// stand-in's.
         void setGoldSource(std::function<float()> source) { mWorld.setGoldSource(std::move(source)); }
         /// Task 0270: the player's worn items and item counts (see SkyrimConditionWorld).
+        void setActivatorVoiceLookup(std::function<FormId(FormId)> lookup) // task 0338
+        {
+            mWorld.setActivatorVoiceLookup(std::move(lookup));
+        }
         void setPlayerWornSource(std::function<bool(std::uint32_t)> source)
         {
             mWorld.setPlayerWornSource(std::move(source));
@@ -262,8 +266,8 @@ namespace game_skyrimse
             const FormIdResolver& resolver, FormId playerLocation = kNullFormId);
 
     private:
-        static constexpr std::size_t kMaxFollowDepth = 4; ///< task 0304
-        void followNamelessLinks(openeden::sdk::game::DialogueTurn& out);
+        static constexpr std::size_t kMaxFollowDepth = 8; ///< task 0304 (4); 0338: Nelacar says four in a row
+        void followNamelessLinks(openeden::sdk::game::DialogueTurn& out, const DialogInfo* from = nullptr);
         bool mQuestGreetings = false;
         bool mLastContinues = false; ///< task 0340: the last INFO said was flagged InvisibleContinue
         std::function<void(const std::string&)> mTrace;

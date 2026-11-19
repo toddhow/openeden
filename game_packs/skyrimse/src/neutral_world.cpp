@@ -631,6 +631,12 @@ namespace game_skyrimse
         return source != nullptr ? source->displayNameOf(base) : std::string();
     }
 
+    bool SkyrimCellSource::speaksAsActivator(openeden::sdk::game::WorldId base)
+    {
+        auto* view = dynamic_cast<SkyrimWorldView*>(&mView);
+        return view != nullptr && view->talkingActivatorVoice(static_cast<FormId>(base)) != kNullFormId;
+    }
+
     bool SkyrimCellSource::beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
         openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {

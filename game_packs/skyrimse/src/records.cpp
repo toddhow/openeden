@@ -1142,6 +1142,7 @@ namespace game_skyrimse
                 std::vector<LString> buttons; // ITXT of a MESG (task 0237), at most kMaxMessageButtons
                 bool messageBox = false; // DNAM bit 0 of a MESG (task 0237): a box with buttons, not a corner text
                 LString activateText; // RNAM of an ACTI (task 0224)
+                FormId voiceType = 0; // VNAM of a TACT (task 0338)
                 std::vector<vmad::Script> baseScripts; // VMAD (task 0181)
                 std::vector<FormId> baseKeywords; // KWDA (task 0181)
                 const bool isPlant = record.mType == Content::fourCC("FLOR") || record.mType == Content::fourCC("TREE");
@@ -1196,6 +1197,14 @@ namespace game_skyrimse
                                 break;
                             ok = lstring(type, data, harvest.mActivateText);
                             hasHarvest = true;
+                            break;
+                        case Content::fourCC("VNAM"): // TACT only (task 0338): the voice type of a talking activator
+                            if (record.mType != Content::fourCC("TACT"))
+                                break;
+                            if (data.size() == 4)
+                                voiceType = resolved(readLe<std::uint32_t>(data.data()));
+                            else
+                                odd("VNAM");
                             break;
                         case Content::fourCC("DESC"): // MESG only: the message text
                             if (record.mType != Content::fourCC("MESG"))
@@ -1314,6 +1323,7 @@ namespace game_skyrimse
                     model.mButtons = std::move(buttons);
                     model.mMessageBox = messageBox;
                     model.mActivateText = std::move(activateText);
+                    model.mVoiceType = voiceType;
                     model.mLighting = templateLighting;
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);

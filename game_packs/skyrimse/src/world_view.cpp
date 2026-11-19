@@ -2949,6 +2949,9 @@ namespace game_skyrimse
         speaker.mBase = static_cast<FormId>(base);
         speaker.mReference = static_cast<FormId>(reference);
         speaker.mCell = static_cast<FormId>(cell);
+        // task 0338: a talking activator (Azura's altar) speaks with the voice type of its record; the lookup is read when
+        // a speaker is set
+        mDialogue->mRuntime->setActivatorVoiceLookup([this](FormId b) { return talkingActivatorVoice(b); });
         if (mAliasPackagesOn && speaker.mReference != kNullFormId) // task 0324: the greeting package of Lydia ends
             mTalkedTo.insert(speaker.mReference);
         // Task 0156: what the cell says about interior and location
@@ -4510,6 +4513,17 @@ namespace game_skyrimse
         out = *m.mHarvest;
         name = m.mName.mPresent ? m.mName.mText : m.mCommon.mEditorId;
         return true;
+    }
+
+    FormId SkyrimWorldView::talkingActivatorVoice(FormId base)
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId || !awaitIndex())
+            return kNullFormId;
+        const auto it = mBases.find(base);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return kNullFormId;
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        return m.mType == Content::fourCC("TACT") ? m.mVoiceType : kNullFormId;
     }
 
     bool SkyrimWorldView::resourceOf(

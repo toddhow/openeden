@@ -702,6 +702,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedawnguard.cpp
     skyrimse/testskyrimsedawnguardfort.cpp
     skyrimse/testskyrimsedaedriccontinue.cpp
+    skyrimse/testskyrimseblackstarinvisible.cpp
+    skyrimse/testskyrimseblackstaractivate.cpp
+    skyrimse/testskyrimseblackstartalking.cpp
     skyrimse/testskyrimsebardspoem.cpp
     skyrimse/testskyrimsedaedricescort.cpp
     skyrimse/testskyrimsedaedricfollow.cpp

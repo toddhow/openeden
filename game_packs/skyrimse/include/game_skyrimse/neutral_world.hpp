@@ -192,6 +192,7 @@ namespace game_skyrimse
                                    public openeden::sdk::game::PlayerImageSpaceSource,
                                    public openeden::sdk::game::ActorMechanicsSource,
                                    public openeden::sdk::game::DialogueSource,
+                                   public openeden::sdk::game::TalkingActivatorSource, // task 0338
                                    public openeden::sdk::game::DisplayNameSource,
                                    public openeden::sdk::game::ActorRules,
                                    public openeden::sdk::game::FollowerRules,
@@ -339,6 +340,7 @@ namespace game_skyrimse
         openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA, std::uint32_t variationA,
             openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
         /// Conversations (task 0141): forwarded to the view when it can run them (SkyrimWorldView does), else refused.
+        bool speaksAsActivator(openeden::sdk::game::WorldId base) override; // task 0338
         bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
             openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
         bool chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
