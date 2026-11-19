@@ -36,6 +36,9 @@ namespace game_skyrimse::pickup
         std::function<std::int32_t(FormId placement)> mCount;
         /// The player takes `count` of `item` into the inventory.
         std::function<bool(FormId item, std::int32_t count)> mAddToPlayer;
+        /// Task 0345: the placement being taken while the item goes into the inventory (0 afterwards), so a script
+        /// event of the move can name it. Optional.
+        std::function<void(FormId placement)> mSource;
         /// The placement leaves the world and stays gone.
         std::function<bool(FormId placement)> mDisable;
         /// The placement was activated (a script's OnActivate runs).

@@ -5241,6 +5241,10 @@ namespace game_skyrimse
                             cell = entry->mCell;
                     return mWorldSources->setObjectEnabled(mCellSource, cell, placement, false);
                 };
+                hooks.mSource = [this](FormId placement) { // task 0345
+                    if (mPapyrus != nullptr)
+                        mPapyrus->host().setPickupSource(placement);
+                };
                 hooks.mActivated = [this](FormId placement) { mCellSource.notifyActivated(placement); };
                 hooks.mTaken = [this](FormId placement, FormId item, std::int32_t count) {
                     onContainerTaken(placement, item, count);

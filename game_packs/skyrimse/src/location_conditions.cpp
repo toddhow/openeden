@@ -88,7 +88,8 @@ namespace game_skyrimse
     const std::vector<conditions::ExtraFunction>& aliasLocationExtraFunctions()
     {
         static const std::vector<conditions::ExtraFunction> table
-            = { { 181, &hasSameEditorLocAsRefAlias }, { 567, &getIsEditorLocAlias } };
+            = { { 180, &hasSameEditorLocAsRefAlias }, { 181, &hasSameEditorLocAsRefAlias },
+                { 567, &getIsEditorLocAlias } };
         return table;
     }
 

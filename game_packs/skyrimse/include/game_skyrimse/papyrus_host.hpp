@@ -787,6 +787,10 @@ namespace game_skyrimse
         /// OnItemAdded goes to `to`'s scripts, OnItemRemoved to `from`'s, OnContainerChanged to scripts on the item
         /// form.
         void onItemMoved(FormId from, FormId to, FormId item, std::int32_t count);
+        /// Task 0345: the placed reference being picked up while the item moves (0: none). An alias that holds a
+        /// placement of the item's base hears OnContainerChanged only when it holds THIS reference (two aliases may hold
+        /// two placements of one base: the temple's wines).
+        void setPickupSource(FormId reference);
         /// OnHit goes to the victim's scripts (and alias scripts that hold it). `attacker` 0: unknown.
         void onActorHit(FormId victim, FormId attacker, bool blocked, bool bash);
         /// Task 0292 (the College of Winterhold's tests): what a spell did. OnHit(akAggressor = caster, akSource = the

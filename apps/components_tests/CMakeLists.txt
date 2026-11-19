@@ -834,6 +834,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseforsworn.cpp
     skyrimse/testskyrimselaidtorest.cpp
     skyrimse/testskyrimselaidtorestquest.cpp
+    skyrimse/testskyrimsenighttoremember.cpp
     skyrimse/testskyrimsedragonborn.cpp
     skyrimse/testskyrimsedescribebase.cpp
     skyrimse/testskyrimsepackages.cpp

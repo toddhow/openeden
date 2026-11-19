@@ -100,7 +100,12 @@ namespace game_skyrimse::pickup
         if (!mHooks.mAddToPlayer)
             return PickupStatus::Refused;
         const std::int32_t count = placedCount(mHooks.mCount ? mHooks.mCount(placement) : 0);
-        if (!mHooks.mAddToPlayer(base, count))
+        if (mHooks.mSource)
+            mHooks.mSource(placement);
+        const bool added = mHooks.mAddToPlayer(base, count);
+        if (mHooks.mSource)
+            mHooks.mSource(0);
+        if (!added)
         {
             note("PICKUP " + inventory::formatId(placement) + " refused: the inventory could not take it");
             return PickupStatus::Refused;

@@ -29,6 +29,7 @@ namespace game_skyrimse
         }
 
         constexpr std::uint16_t kHasSameEditorLocAsRefAlias = 181;
+        constexpr std::uint16_t kHasSameEditorLocAsRef = 180; // task 0345: the same question, alias flag in the parameter
         constexpr std::uint16_t kGetIsEditorLocAlias = 567;
 
         /// Tells the environment which reference each alias holds while a location alias's conditions are evaluated.
@@ -133,7 +134,8 @@ namespace game_skyrimse
             return it != plan.end() ? it->second : state.aliasFill(questId, aliasId);
         };
         for (const survey::Ctda& c : alias.mConditions) // task 0226: HasSameEditorLocAsRefAlias reads another alias
-            if (c.mFunction == kHasSameEditorLocAsRefAlias && !filled(fillOf(c.mParam1)))
+            if ((c.mFunction == kHasSameEditorLocAsRefAlias || c.mFunction == kHasSameEditorLocAsRef)
+                && !filled(fillOf(c.mParam1)))
                 return Result::Waiting;
         for (const FormId id : locations->ids())
         {

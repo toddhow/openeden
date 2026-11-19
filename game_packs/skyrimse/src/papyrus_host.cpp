@@ -2946,6 +2946,7 @@ namespace game_skyrimse
         QuestStarted mQuestStarted; // task 0306
         QuestStopped mQuestStopped; // task 0344
         bool mCreatedInInventory = false; // task 0335
+        FormId mPickupSource = 0; // task 0345: the placed reference being picked up (0: none)
         std::vector<FormId> mPendingCreate; // task 0335: start-game quests whose in-inventory items wait for the item table
         StoryStarted mStoryStarted; ///< task 0217
         EnableChanged mEnableChanged;
@@ -3977,6 +3978,9 @@ namespace game_skyrimse
             // task 0335: with `golden claw` an alias made IN an inventory holds the item form itself (the claw)
             if (held == 0 || (!(m.mCreatedInInventory && held == item) && m.baseOfReference(held) != item))
                 continue;
+            // task 0345: a pickup names its placement, and two aliases may hold two placements of one base
+            if (m.mPickupSource != 0 && held != m.mPickupSource)
+                continue;
             for (const InstanceId instance : ids)
                 if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
                     ++m.mCounters.mItemEvents;
@@ -3997,6 +4001,11 @@ namespace game_skyrimse
                 for (const InstanceId instance : m.instancesOf(reference))
                     if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
                         ++m.mCounters.mItemEvents;
+    }
+
+    void PapyrusHost::setPickupSource(FormId reference)
+    {
+        mImpl->mPickupSource = reference;
     }
 
     void PapyrusHost::onItemRead(FormId base)
