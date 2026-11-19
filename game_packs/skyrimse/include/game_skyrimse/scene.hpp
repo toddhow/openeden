@@ -163,6 +163,8 @@ namespace game_skyrimse
             return mResolvers[scene.mPlugin];
         }
         [[nodiscard]] std::size_t count() const { return mScenes.size(); }
+        /// Task 0356: the dialogue topic of every scene action that has one (sorted, no duplicates).
+        [[nodiscard]] std::vector<FormId> dialogueTopics() const;
 
     private:
         std::vector<FormIdResolver> mResolvers;

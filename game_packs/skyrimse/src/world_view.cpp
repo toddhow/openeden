@@ -1399,6 +1399,13 @@ namespace game_skyrimse
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         raw->mRuntime->setBlockingBranches(mBlockingBranches); // task 0298
         raw->mRuntime->setQuestGreetings(mQuestGreetings); // task 0304
+        {
+            // task 0356: the topics packages (ForceGreet) and scenes say on their own are not greetings
+            std::vector<FormId> said = raw->mData->mPackages.greetTopics();
+            const std::vector<FormId> sceneTopics = raw->mData->mScenes.dialogueTopics();
+            said.insert(said.end(), sceneTopics.begin(), sceneTopics.end());
+            raw->mRuntime->setReferencedTopics(std::move(said));
+        }
         raw->mRuntime->setPromptStartsAreMenus(mPromptStartsAreMenus); // task 0343
         raw->mRuntime->setWalkAwayTopics(mWalkAwayTopics); // task 0315
         raw->mRuntime->setWalkAwayInfos(mWalkAwayInfos); // task 0326

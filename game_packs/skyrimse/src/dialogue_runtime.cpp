@@ -385,6 +385,13 @@ namespace game_skyrimse
             if (!mGreetingTopicsKnown)
             {
                 mGreetingTopics = mDialogue.questGreetingTopics(mPromptStartsAreMenus);
+                // task 0356: a topic a package or a scene says on its own is not a greeting
+                mGreetingTopics.erase(std::remove_if(mGreetingTopics.begin(), mGreetingTopics.end(),
+                                          [this](FormId id) {
+                                              return std::find(mReferencedTopics.begin(), mReferencedTopics.end(), id)
+                                                  != mReferencedTopics.end();
+                                          }),
+                    mGreetingTopics.end());
                 mGreetingTopicsKnown = true;
             }
             for (const FormId id : mGreetingTopics)

@@ -5,6 +5,7 @@
 #include "game_skyrimse/survey.hpp"
 
 #include <algorithm>
+#include <set>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -475,6 +476,16 @@ namespace game_skyrimse
     {
         const auto it = mScenes.find(id);
         return it == mScenes.end() ? nullptr : &it->second;
+    }
+
+    std::vector<FormId> SceneIndex::dialogueTopics() const
+    {
+        std::set<FormId> topics;
+        for (const auto& [id, scene] : mScenes)
+            for (const SceneAction& action : scene.mActions)
+                if (action.mTopic != kNullFormId && action.mTopic != kUnresolvedFormId)
+                    topics.insert(action.mTopic);
+        return std::vector<FormId>(topics.begin(), topics.end());
     }
 
     std::vector<FormId> SceneIndex::scenesOfQuest(FormId quest) const

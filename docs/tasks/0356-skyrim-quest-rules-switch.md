@@ -133,8 +133,8 @@ Every run: exit code 0, 0 crash dumps, 0 error lines (the Solitude s1 run has 6 
 | `skydawnguard_check/bloodline.sh` Awakening (14,000) | DLC1VQ01 (`0200352A`) 200, talk 4,3,3,3,1 | same | EQUAL; MS14 side effect only |
 | `skycivilwar_check` join chain, Castle Dour (14,800) | CW00A (`000D3C5F`) stage 7 | CW00A stage 10 (further) | after is further; more world-encounter quests start at the start of the game |
 | `solitude_check` s1 execution (4,000), s2 throne room (3,000) | SolitudeOpening scene quest (`000B2FD9`) stage 20; MS06 stage 5 | same | EQUAL (138 quests). s2's click input is not in the repository, so Falk's menu was not exercised |
-| `skymytime_check` mt1 Saadia (9,500) | MS08 (`0001CF25`) 25, talk 3,3,2,4,4,3,2 | with `side quests` kept for its stand-in: MS08 20, talk 3,1 | DIFFERENT PATH (section 6.2) |
-| `skymytime_check` mt3 Kematu (5,800) | MS08 200 | MS08 160 (side quests kept) | DIFFERENT PATH |
+| `skymytime_check` mt1 Saadia (9,500) | MS08 (`0001CF25`) 25, talk 3,3,2,4,4,3,2 | with `side quests` kept for its stand-in, after the root-cause fix (section 6.3) and new click positions: MS08 25 | EQUAL stage; two Goodbye click positions changed (section 6.3) |
+| `skymytime_check` mt3 Kematu (5,800) | MS08 200 | MS08 200 (side quests kept; one click position changed, section 6.3) | EQUAL stage |
 | `skywhiterunmq_check` mq318 outro (17,000) | same stages (133 quests); talk 4,3,2,2,1 | same stages; talk 4,3,2,1 | EQUAL stages, one button fewer (walk-away topic) |
 | `skyblade_check` intro (15,200) | MQ106 (`00032926`) 35, talk of 13 turns | with `blade in the dark` kept for its stand-ins: same stages (148 quests), talk 1,1,4,4,4,3 | EQUAL stages; the walk-away topic hides one button, so the fixed clicks stop at turn 4 |
 | `skysolstheim_check` ship (10,200; final binary) | DLC2MQ01 (`04017F8E`) 20, Gjalund 5 turns | with `dragonborn` kept (ship stand-in, `dragonborn test stage` aid): same stages (157 quests), other greetings | EQUAL stages; quest greetings change the first lines |
@@ -155,22 +155,41 @@ Every run: exit code 0, 0 crash dumps, 0 error lines (the Solitude s1 run has 6 
 
 - Walk-away topics: the blade and mq318 menus lose one button. Proved by running the old settings plus `bards college` (walk-away topics,
   quest greetings and the flush only): blade 1,1,4,4,4,3 and mq318 4,3,2,1,1,2, the same as `quest rules`.
-- Quest greetings and Blocking branches: Saadia of MS08 is greeted by a Blocking branch under `quest rules` (the condition dump shows
-  `GREETING blocking start` lines and `InitialForcegreet_var` only with the rules on); her old click path no longer reaches stage 25.
-  Switching the glue blocks off one by one, then all of them, then the driver's flags, then three other places did NOT bring the old menu
-  back (the bisection did not end: the cause is among the places not isolated, most likely the Blocking branches and quest greetings
-  that `side quests` alone never turned on). The Dragonborn ship talk changes in the same way. These scenarios need new click paths.
+- The MS08 Saadia regression is explained and fixed: section 6.3.
+
+### 6.3 Root cause of the MS08 (Saadia) regression
+
+Dialogue trace of mt1 (`NTALK`, `NQUESTGREET`, CONDDEBUG of MS08), old settings plus `quest rules = false` against `quest rules`:
+
+- First divergent turn: the GREETING. Without the rules Saadia says her plain Hello (4 bytes) and the menu holds MS08's topic. With the
+  rules (before the fix) `NQUESTGREET quest greeting topic 000DEE82: 1 considered, 1 passing, chosen 000DEE86` made her say "You want a
+  drink?" (17 bytes) and the links of that line (`000215AA`, `0007F6BB`) replaced the whole menu.
+- `000DEE82` is `WITavernServerPlayerTopic` of the radiant quest WITavern (`0DEE92`): a nameless CUST branch start that names its speaker
+  (GetIsAliasRef Server1 = Saadia). Package `0DEE98` `WITavernServerGreetPlayer` (ForceGreet) says it through its PDTO topic. The quest
+  greeting rule of task 0304 (a nameless start no INFO links to that names its speaker is the greeting) took it for a greeting, but the
+  game says it from the package, not from the Hello. The rule is part of `quest rules` and so applied to every quest; per quest setting
+  it never applied to WITavern.
+- The rule was WRONG for this case. Fix at the root, one mechanism: a nameless start that a package (`PackageIndex::greetTopics`, PDTO of a
+  ForceGreet package) or a scene (`SceneIndex::dialogueTopics`, a dialogue action's topic) says on its own is not a quest greeting
+  (`DialogueRuntime::setReferencedTopics`, built in `world_view.cpp`). Tests: `SkyrimQuestGreeting2` (3, new file, written first).
+- With the fix mt1's first talk is Hello again, 3 buttons. Two things remain different, both the game's: the INFO's end fragment now runs
+  when the line is said (the fragment flush, part B), so MS08 goes to stage 20 DURING the conversation and the topics gated on stage 10
+  vanish (turn 2 has only Goodbye, a frame was viewed); in the second talk the same rule makes one button disappear. The harness's fixed
+  click positions were updated (`tools/skymytime_check/scenarios.sh`: Goodbye of the first talk 640,442 to 640,404, the "How am I supposed
+  ..." button 640,448 to 640,431, s3's topic 640,341 to 640,366). With only `quest rules` (and `side quests` for its stand-in): mt1
+  reaches MS08 stage 25, mt3 reaches stage 200. Text of one reply is 227 bytes against 261 before: not looked into.
+- The walk-away explanation for the blade and mq318 menus stands (proved by old settings plus `bards college`).
 
 Morrowind unchanged against `I:\Projects\OpenEden-work\n6saves\build` (main, not the exact parent): `tools/worldobjects_check` 110 objects OK
 (111 result lines in both), `tools/skymap_check/morrowind_check.sh` Balmora frames `1eb68236352dc472` and `c819db116f4af8a6` identical for both
-builds (the `1c5d47ad0b5dc32d` frame of the earlier rows is another scenario and was not run).
+builds and the plain Balmora frame (`--start Balmora --random-seed 7`, fixed frame time, `--auto-screenshot 600`, this base config) is `0d6dd39995b927fa` for both builds (`1c5d47ad0b5dc32d` belongs to another config).
 
 ## 7. Decisions for toddhow
 
 1. `setPromptStartsAreMenus` stays out of `quest rules` (it adds buttons to other quests' talks). Find the condition that hides
    Aventus's three topics in the game and make it general, or keep it per quest. Until then `quest rules` alone does not make Falk's
    request (MS06) or Astrid's DB02 line a menu button.
-2. Walk-away topics, quest greetings and Blocking branches now hold for every quest: some old click paths (MS08 Saadia, the blade intro,
+2. Walk-away topics, quest greetings and Blocking branches now hold for every quest: some old click paths (MS08 Saadia (done), the blade intro,
    the Dragonborn ship) need new input scripts. Accept, or keep those rules per quest.
 3. With the rules on MS14 (Laid to Rest) goes to stage 80 about 10 script seconds after a new game starts, and more world-encounter
    quests start; both come from the quests' own scripts but are visible in a default session.

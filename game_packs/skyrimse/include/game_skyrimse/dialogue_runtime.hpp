@@ -243,6 +243,13 @@ namespace game_skyrimse
         /// Faralda's "Welcome to the College") is spoken at the start of a conversation, before the Hello lines, when
         /// one of its INFOs passes. Off by default.
         void setQuestGreetings(bool on) { mQuestGreetings = on; }
+        /// Task 0356: the topics some package (a ForceGreet's PDTO) or scene (a dialogue action) says on its own. They are
+        /// never the quest greeting (WITavernServerPlayerTopic is the topic of a ForceGreet package, not Saadia's greeting).
+        void setReferencedTopics(std::vector<FormId> topics)
+        {
+            mReferencedTopics = std::move(topics);
+            mGreetingTopicsKnown = false;
+        }
         /// task 0343 (`dark brotherhood`): a quest start whose INFOs all carry prompts is a menu topic, not a greeting.
         /// Task 0346 (`solitude`): such a start that has no name of its own and is the top of a branch that is NOT blocking
         /// is also LISTED in the menu (Falk's MS06FalkInvestigate0 reads "I hear you're looking for some help with
@@ -280,6 +287,7 @@ namespace game_skyrimse
         bool mLastContinues = false; ///< task 0340: the last INFO said was flagged InvisibleContinue
         std::function<void(const std::string&)> mTrace;
         std::function<void()> mFragmentFlush;
+        std::vector<FormId> mReferencedTopics; ///< task 0356
         std::vector<FormId> mGreetingTopics; ///< task 0304: DialogueIndex::questGreetingTopics, found once
         bool mGreetingTopicsKnown = false;
         void fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);

@@ -11,10 +11,10 @@ C="$HERE/click.sh"
 export TALKTO=
 case $S in
 s1)
-    { echo "7700 shot"; $C 7800 640 374 100; $C 8120 640 357 100; $C 8280 640 357 100; $C 8440 640 448 100; $C 8700 748 420 60; echo "9300 shot"; } > "$EX"
+    { echo "7700 shot"; $C 7800 640 374 100; $C 8120 640 357 100; $C 8280 640 357 100; $C 8440 640 431 100; $C 8700 748 420 60; echo "9300 shot"; } > "$EX"
     export OPENEDEN_PACKAGE_TRACE=80802 WATCH="'80802'" EVERY=480 EXTRA_FILE="$EX"
     export SETTINGS_EXTRA="side quests = true\nstory test quest = 01CF25:10@3\n"
-    export STEPS="{ 7500,'abs',-1300,-470,318,90,0 }, { 7600,'act','80802',0,0,0,100000 }" CLICKS="640,358 640,442"
+    export STEPS="{ 7500,'abs',-1300,-470,318,90,0 }, { 7600,'act','80802',0,0,0,100000 }" CLICKS="640,358 640,404"
     exec bash "$HERE/leg1.sh" "$BUILD" "$BASE" "$DATA" "$ROOT/$NAME" 9500 ;;
 s2)
     { echo "3790 shot"; $C 3800 643 392 100; $C 3960 643 376 40; $C 4000 643 392 40; $C 4440 640 375 100; $C 4600 640 375 100; $C 4760 640 375 100; $C 4920 640 420 100; } > "$EX"
@@ -22,7 +22,7 @@ s2)
     export EVERY=480 CLICKS="640,375 592,412 642,398 762,420" EXTRA_FILE="$EX"
     exec bash "$HERE/leg2.sh" "$BUILD" "$BASE" "$DATA" "$ROOT/$NAME" 5700 ;;
 s3)
-    { echo "4780 shot"; $C 4800 640 341 100; $C 5000 643 483 100; } > "$EX"
+    { echo "4780 shot"; $C 4800 640 366 100; $C 5000 643 483 100; } > "$EX"
     export TALKTO=1 SETTINGS_EXTRA="summons test kill = MS08Kematu@30\n" EVERY=480 CLICKS="s,0" EXTRA_FILE="$EX"
     export STEPS="{ 2300,'abs',4990,-1845,1672,90,0 }, { 4000,'cell','WhiterunBanneredMare',-256,-306,100,0,0 }, { 4700,'act','80802',0,0,0,100000 }"
     exec bash "$HERE/leg3.sh" "$BUILD" "$BASE" "$DATA" "$ROOT/$NAME" 5800 ;;

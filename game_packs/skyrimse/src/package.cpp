@@ -601,6 +601,15 @@ namespace game_skyrimse
         return false;
     }
 
+    std::vector<FormId> PackageIndex::greetTopics() const
+    {
+        std::set<FormId> topics;
+        for (const auto& [id, p] : mPackages)
+            if (p.mForceGreetTopic != kNullFormId && p.mForceGreetTopic != kUnresolvedFormId)
+                topics.insert(p.mForceGreetTopic);
+        return std::vector<FormId>(topics.begin(), topics.end());
+    }
+
     bool PackageIndex::forceGreetTopic(const PackageRecord& package, FormId& out) const
     {
         if (package.mForceGreetTopic == kNullFormId || package.mForceGreetTopic == kUnresolvedFormId)

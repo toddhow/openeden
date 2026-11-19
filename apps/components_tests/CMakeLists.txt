@@ -641,6 +641,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsethievesguild.cpp
     skyrimse/testskyrimsethievesguild2.cpp
     skyrimse/testskyrimsequestrules.cpp
+    skyrimse/testskyrimsequestgreeting2.cpp
     # Task 0213: trespass, the CELL owner, the cell access, the bench filter.
     skyrimse/testskyrimsetrespass.cpp
     skyrimse/testskyrimsebenchfilter.cpp

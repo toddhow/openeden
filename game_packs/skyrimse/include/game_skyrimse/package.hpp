@@ -258,6 +258,8 @@ namespace game_skyrimse
         /// Task 0271: the topic a ForceGreet package says to the player (its own PDTO), when its own or its template's
         /// procedures name ForceGreet. False for any other package.
         [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const;
+        /// Task 0356: the PDTO topic of every package that has one (sorted, no duplicates).
+        [[nodiscard]] std::vector<FormId> greetTopics() const;
 
     private:
         std::vector<FormIdResolver> mResolvers;
