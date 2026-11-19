@@ -1,6 +1,8 @@
 #include "light.hpp"
 
+#include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <optional>
 
@@ -9,6 +11,7 @@
 
 #include <components/animation/deltatime.hpp>
 #include <components/animation/tmutable.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/rng.hpp>
 
@@ -17,6 +20,34 @@
 
 namespace
 {
+    // OPENEDEN_LIGHT_FLICKER_TRACE=1 (developer aid, task 0355 stage h): LFLICK lines with the brightness of the first
+    // twelve flickering lights of the process, one per run of the controller (600 per light).
+    struct FlickerTrace
+    {
+        int mId = -1;
+        int mSamples = 0;
+        static bool enabled()
+        {
+            static const bool on = std::getenv("OPENEDEN_LIGHT_FLICKER_TRACE") != nullptr;
+            return on;
+        }
+        void begin(const char* kind, int flags, int radius)
+        {
+            static std::atomic<int> next{ 0 };
+            if (!enabled())
+                return;
+            mId = next++;
+            if (mId < 12)
+                Log(Debug::Info) << "LFLICKNEW id " << mId << " " << kind << " " << flags << " " << radius;
+        }
+        void sample(float time, float brightness)
+        {
+            if (mId < 0 || mId >= 12 || mSamples >= 600)
+                return;
+            ++mSamples;
+            Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness;
+        }
+    };
     class LightController : public Anim::TMutable<LightController, vsg::Light>
     {
         Anim::DeltaTime mDt;
@@ -27,12 +58,14 @@ namespace
         float mSpeed;
         int mType;
         vsg::vec3 mBaseColor;
+        FlickerTrace mTrace;
 
     public:
         LightController(int type, const vsg::vec3& baseColor)
             : mType(type)
             , mBaseColor(baseColor)
         {
+            mTrace.begin("morrowind-rule", type, 0);
             hints.autoPlay = true;
             mPhase = 0.25f + Misc::Rng::rollClosedProbability() * 0.75f;
             mSpeed = (type & ESM::Light::Flicker || type & ESM::Light::Pulse) ? 0.1f : 0.05f;
@@ -66,6 +99,7 @@ namespace
             }
             // OpenEden: the colour flickers, not the radius, as OpenMW's LightController at 442eec6e2f.
             light.color = mBaseColor * mBrightness /* * actorFade*/;
+            mTrace.sample(time, mBrightness);
         }
     };
 
@@ -78,6 +112,7 @@ namespace
         bool mStarted = false;
         MWAnim::NeutralFlicker::Walk mWalk;
         vsg::vec3 mBaseColor;
+        FlickerTrace mTrace;
 
     public:
         NeutralLightController(const MWAnim::NeutralFlicker::Params& params, bool pulse, const vsg::vec3& baseColor)
@@ -85,6 +120,7 @@ namespace
             , mBaseColor(baseColor)
         {
             hints.autoPlay = true;
+            mTrace.begin("own period_ms,amp_permille", static_cast<int>(params.mPeriod * 1000.f), static_cast<int>(params.mAmplitude * 1000.f));
         }
         void apply(vsg::Light& light, float time)
         {
@@ -94,7 +130,9 @@ namespace
                 mStarted = true;
                 mDt.last = time;
             }
-            light.color = mBaseColor * mWalk.step(mDt.get(time));
+            const float b = mWalk.step(mDt.get(time));
+            light.color = mBaseColor * b;
+            mTrace.sample(time, b);
         }
     };
 

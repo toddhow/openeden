@@ -289,3 +289,52 @@ Same hand wrote the code and then the tests (the new test files were checked by 
 **Not checked:** the Linux gate, clang-format 14 (not installed; lines wrapped by hand), clang-tidy, the Lua tests, a frame with the Slang shaders switched on, an exterior (the curve is for interiors only), the other 900 interiors (only the three), a template that supplies power or max through the inherit bits in a frame (unit tested), fog under water in a pack interior (no curve by rule, not seen), a fresh review.
 
 **Decisions for toddhow.** (1) `hdr` is a default swap at load time keyed on `[Game] neutral world`; a user who wants the old look in Skyrim writes `hdr = false`. (2) A max outside (0, 1] is 1: the 22 zeros and the three huge values in the data become linear (RECALLED-VERIFY whether the game reads max 0 as "no fog"). (3) The Bannered Mare and Dragonsreach are linear in the data, so their haze is the data's own near and far and fog colour; if it still looks wrong against the real game the cause is elsewhere (the colour space the fog colour is mixed in, the near value 128 inherited from the template against the cell's own 512, or the fog being applied to a part of the light only), not the curve. (4) The far colour is not applied.
+## Stage h log (2026-11-19): each Skyrim light's own flicker and pulse
+Branch `flicker-0355h` from `a4238aabd6`, local commit, not pushed; Windows only. Approved by toddhow 2026-11-19. Same hand
+wrote tests and code; tests first, in new files only, run red against stubs (components-tests 16 of 23 failed, the 7 that
+passed test refusals and constants; openmw-tests 4 of 6), then green (23 and 6; `*Light*` 136 and `*Light*:*Neutral*` 927
+pass); no existing test edited; no fresh reviewer.
+
+**Data (the five masters, 496 LIGH records, Python survey; layout DATA +28 period, +32 intensity amplitude, +36
+movement amplitude is RECALLED-VERIFY from xEdit, the values fit it):** flicker 190 lights (period 0.05 to 1.0 s, median
+0.33; intensity amplitude 0 to 1.5, median 0.4, 12 are 0; movement 0 to 512, median 4, 14 are 0), flicker-slow 11 (period
+1.0, amplitude 0, movement 0), pulse 49 (period 0.07 to 1.0, median 0.33; amplitude 0 to 5, median 0.3, 2 are 0), pulse-slow
+0, no animation 246.
+
+**What changed.** Before, every Skyrim light ran Morrowind's one rule (`LightController`: a random walk between 0.25 and 1
+at 15 steps a second, speed 0.1) whatever its record said. Now (`[Game] neutral light flicker`, default true, neutral
+lights only): the pack hands the three numbers on (`LightComponent::flickerPeriod/Intensity/Movement`, SDK trailing
+fields, version stays 1.1); `makeNeutralEsmLight` packs period (ms, low 16 bits) and amplitude (thousandths) into
+`ESM::Light::mData.mTime`, a per-placement seed into `mValue` and sets the OpenEden flag `ESM::Light::NeutralFlicker`
+(0x20000, cleared by `ESM::Light::load`, like `NeutralGain`); `MWAnim::addLight` then runs `NeutralLightController`
+(`components/mwanimation/lightflicker.*`, pure `Walk`): the brightness stays in [1 - amplitude, 1] (amplitude capped at
+0.95); a flicker picks a splitmix64 target every period and goes there in a straight line, a pulse goes between the two ends
+in half a period each, eased. Seed = splitmix of the placement's content file and reference index (`neutralLightSeed`): no
+clock, no global generator, the same on every run. A light whose record has an amplitude or period of 0 (the 12 flickers, 11
+slow flickers and 2 pulses of the masters) keeps Morrowind's rule. Morrowind lights never carry the flag, so their path and
+their draws from `Misc::Rng` are untouched.
+
+**Per-frame trace (`OPENEDEN_LIGHT_FLICKER_TRACE=1`, new developer aid; Bannered Mare, 700 frames at a fixed 1/60 s,
+brightness of the light colour over its base; before = setting false):**
+| light | rule | min | max | mean | turns in 600 frames | mean abs step |
+| hearth `b491470` (radius 461, period 1.0, amplitude 0.25) | Morrowind | 0.338 | 0.888 | 0.599 | 56 | 0.0249 |
+| | own | 0.752 | 0.995 | 0.863 | 5 | 0.0017 |
+| candle `b760807` (radius 77, period 0.333, amplitude 0.3) | Morrowind | 0.296 | 0.896 | 0.596 | 53 | 0.0249 |
+| | own | 0.704 | 0.998 | 0.847 | 22 | 0.0040 |
+Start of the first second (every second frame): Morrowind hearth `0.68 0.69 0.69 0.65 0.61 0.56 0.51 0.46 0.41 0.36 0.36 ...`
+(a fast random walk), own hearth `0.86 0.86 0.86 0.86 0.85 0.85 ...` (a slow shallow drift), own candle `0.71 0.71 0.72 ...
+0.76 0.76 ... 0.73` (a slow rise and fall over a third of a second).
+
+**Morrowind unchanged:** `worldobjects_check` against a copy of the n6saves build: 111 lines each, OK (110 objects);
+Balmora fixed frame `1c5d47ad0b5dc32d` and `hdr = true` `b451a8a6ca771e79` for both builds; Arrille's Tradehouse (flickering torches):
+12 lights run Morrowind's rule, 0 the new one, and the frame differs from the reference by 0 pixels over 8 levels (two runs
+of the new build differ from each other by 75 pixels over 8 levels, as two runs of one build do). Test profile: line and README entry added; `coverage.sh` OK.
+
+**Decisions for toddhow.** (1) The mean brightness is higher with the record's numbers (0.85 to 0.86 against 0.60): the walk
+stays between 1 - amplitude and full instead of a quarter and full. If the old average is to be kept, the colour needs a
+factor or the range centred below 1 (a one-line change in `Walk`). (2) The movement amplitude (a light that moves) is not used:
+a point light in this renderer has no wobble; 14 lights with 512 would need it. (3) Pulse is a smooth eased swing between the two ends;
+Skyrim's own pulse curve is not known. (4) Period meaning (seconds between new targets) and amplitude meaning (a fraction
+of the brightness) are RECALLED-VERIFY.
+**Not run:** the Linux gate, clang-format 14, clang-tidy, the Lua tests, a fresh review, Whiterun exterior, a frame sequence
+(the trace stands in; light changes are small between frames in a still image), a comparison with the real game.
