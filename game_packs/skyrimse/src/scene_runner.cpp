@@ -112,7 +112,9 @@ namespace game_skyrimse
             return false;
         }
         // a resumed scene waits for its speakers as a started one does: nobody is loaded yet while a save is loading
-        if (resume == nullptr
+        // task 0333: a scene with no actions only runs its fragments, so it needs nobody to be loaded
+        const bool needsLoaded = !(mOptions.mActionlessStartsUnloaded && record->mActions.empty());
+        if (resume == nullptr && needsLoaded
             && std::none_of(held.begin(), held.end(), [this](FormId ref) { return mEnv.actorLoaded(ref); }))
         {
             ++mStats.mRefused;

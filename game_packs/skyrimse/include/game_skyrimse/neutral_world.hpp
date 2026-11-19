@@ -372,12 +372,15 @@ namespace game_skyrimse
         }
         /// Task 0264 (`companions`): an actor the combat AI engages gets up from the furniture it sits on.
         void setStandOnEngage(bool on) { mStandOnEngage = on; }
+        /// Task 0333: the core's game clock as the last update saw it (invalid before the first update).
+        [[nodiscard]] const openeden::sdk::game::ActorClock& lastClock() const { return mLastClock; }
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
         {
             // Task 0190: the combat AI's movement. The package brain is told to wait for an engaged actor (a fight is a
             // conversation as far as it is concerned: it stands aside and takes its package up afterwards) BEFORE it
             // runs; the goals are written after it, so nothing of the brain's overrides them. Stops go first for the
             // same reason.
+            mLastClock = writer.clock(); // task 0333: the hour of day for the Papyrus global GameHour
             mAiMoves.clear();
             mCombat.drainAiMoves(mAiMoves);
             using Kind = SkyrimCombat::AiMoveIntent::Kind;
@@ -791,6 +794,7 @@ namespace game_skyrimse
         std::uint64_t mMusicSeed = 1;
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
         bool mStandOnEngage = false; ///< task 0264
+        openeden::sdk::game::ActorClock mLastClock; ///< task 0333
         std::set<openeden::sdk::game::WorldId> mDirectWalkers; ///< task 0253: dragons walked by setMovement
         // Task 0274
         void updateCarts(float seconds, openeden::sdk::game::ActorRequestWriter& writer);

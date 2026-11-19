@@ -131,6 +131,9 @@ namespace game_skyrimse
             /// quest started). Off by default: other quests' scenes are dropped as before.
             bool mRetryQuestStart = false;
             bool mSkipFailedPhases = false; ///< task 0308
+            /// Task 0333: a scene with no actions begins although none of its actors is loaded (MS11's opening scene only
+            /// runs a phase fragment that moves its actors). Off by default: other scenes are refused as before.
+            bool mActionlessStartsUnloaded = false;
             std::uint32_t mMaxPlaying = 64;
         };
         struct Stats
@@ -162,6 +165,7 @@ namespace game_skyrimse
         /// Task 0308: a phase whose start conditions fail is skipped, not waited for (the Whiterun scene's phase 7 needs
         /// quest stage 82, which only one dialogue path sets; RECALLED-VERIFY: the CK's meaning of a start condition)
         void setSkipFailedPhases(bool on) { mOptions.mSkipFailedPhases = on; }
+        void setActionlessStartsUnloaded(bool on) { mOptions.mActionlessStartsUnloaded = on; } // task 0333
         void setPhaseEnd(PhaseEndRule rule) { mOptions.mPhaseEnd = rule; } // task 0329
         // Task 0287: how long a line waits for a speaker who is not loaded (default 120 s, as before); cut to a range
         static constexpr float kMinParkSeconds = 0.5f;

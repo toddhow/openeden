@@ -9,6 +9,7 @@
 #include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/diseases.hpp"
+#include "game_skyrimse/bloodice.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
 #include "game_skyrimse/frame_split.hpp"
@@ -703,6 +704,7 @@ namespace game_skyrimse
             void enableForceGreet() { mForceOn = true; }
             void enableHelloGreetings() { mHelloOn = true; } // task 0308
             void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
+            void enableActionlessScenes() { mActionlessScenes = true; } // task 0333
             /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
             /// OnObjectEquipped (a shout equipped from the menu).
             void enablePlayerEvents() { mPlayerEvents = true; }
@@ -1004,6 +1006,8 @@ namespace game_skyrimse
                     mScenes->setHello(mHelloOn); // task 0308
                     if (mDragonbornScenes) // task 0329: a phase with completion conditions ends by them
                         mScenes->runner().setPhaseEnd(PhaseEndRule::ConditionsWhenPresent);
+                    if (mActionlessScenes) // task 0333: MS11's opening scene only runs a fragment
+                        mScenes->runner().setActionlessStartsUnloaded(true);
                 }
                 if (mForceOn) // tasks 0264 and 0271: the conversation a ForceGreet package asks for
                 {
@@ -1879,6 +1883,7 @@ namespace game_skyrimse
             ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
             bool mHelloOn = false; ///< task 0308
             bool mDragonbornScenes = false; ///< task 0329
+            bool mActionlessScenes = false; ///< task 0333
             bool mPlayerEvents = false; ///< task 0318
             bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
             bool mCompanionsOn = false; ///< task 0264
@@ -2171,6 +2176,7 @@ namespace game_skyrimse
                 registrar.registerPhaseCallback(openeden::sdk::Phase::GameSimulation, [this](float dt) {
                     // Task 0323: with OPENEDEN_PACK_FRAME_TRACE the callback is split in two (see frame_split.hpp).
                     const std::int64_t splitBegin = mFrameSplit.on() ? steadyMicroseconds() : 0;
+                    feedGameHour(); // task 0333: before the frame, so a story event's scripts read this frame's hour
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
                     const std::int64_t splitMiddle = mFrameSplit.on() ? steadyMicroseconds() : 0;
@@ -2213,6 +2219,27 @@ namespace game_skyrimse
                             mFollowerLogger->log(openeden::sdk::LogLevel::Info, line);
                     }
                 });
+            }
+
+            // Task 0333 (`blood on the ice`): the global GameHour (GLOB 0x38) is the hour of day the core's clock gives; the
+            // record's value (12) is what every script read before. The kicker of MS11 starts the quest only at night.
+            void feedGameHour()
+            {
+                if (!mBloodIceOn || mPapyrus == nullptr)
+                    return;
+                const openeden::sdk::game::ActorClock& clock = mCellSource.lastClock();
+                if (const std::optional<float> hour = bloodice::gameHourValue(clock.hour, clock.valid))
+                {
+                    mPapyrus->host().setGlobalValue(bloodice::kGameHourGlobal, *hour);
+                    const int whole = static_cast<int>(*hour);
+                    if (whole != mBloodIceHourLogged)
+                    {
+                        mBloodIceHourLogged = whole;
+                        if (mFollowerLogger != nullptr)
+                            mFollowerLogger->log(openeden::sdk::LogLevel::Info,
+                                "BLOODICE the global GameHour is now " + std::to_string(whole));
+                    }
+                }
             }
 
             // Task 0276: the game clock for the Papyrus host's game-time updates and the GameDaysPassed global that the
@@ -3137,6 +3164,11 @@ namespace game_skyrimse
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
                     mPapyrus->enableDragonbornScenes(); // task 0329
+                }
+                if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(bloodice::kKey), false))
+                {
+                    mBloodIceOn = true; // task 0333
+                    mPapyrus->enableActionlessScenes();
                 }
                 if (dawnguardOn || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
                 {
@@ -6524,6 +6556,8 @@ namespace game_skyrimse
             std::unique_ptr<travel::TravelService>
                 mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             bool mGameClockOn = false; // task 0276
+            bool mBloodIceOn = false; // task 0333
+            int mBloodIceHourLogged = -1; // task 0333
             static constexpr FormId kGameDaysPassedGlobal = 0x39; // GLOB GameDaysPassed (Skyrim.esm)
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<RidingBindings> mRidingBindings; // task 0255; refers to the cell source's riding rules
