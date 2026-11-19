@@ -59,7 +59,8 @@ namespace game_skyrimse::dragonborn
     /// (`MoveTo` DLC2MQ01NelothMarker), and his ForceGreet package asks "is he in the Earth Stone location" (fn 359).
     /// The package conditions read the cell the record places him in (the interior, which has no such location), so an
     /// actor that a script made stand in the player's exterior takes the location of the grid square he now stands on.
-    [[nodiscard]] constexpr bool movedActorStandsOutdoors(bool recordedInterior, bool haveLivePlace, bool playerOutdoors)
+    [[nodiscard]] constexpr bool movedActorStandsOutdoors(
+        bool recordedInterior, bool haveLivePlace, bool playerOutdoors)
     {
         return recordedInterior && haveLivePlace && playerOutdoors;
     }

@@ -9,6 +9,12 @@
 # Raven Rock landing (frame 5300 trace), the aid starts DLC2MQ01 at stage 10 at script time 40 s (the log entry for a player
 # on Solstheim sets stage 20), then he talks to Gjalund of Solstheim at frame 6500 ("I'd like passage back to Skyrim.",
 # "Here you go. (250 gold)", Goodbye) and lands at Windhelm's landing marker (frame 9900 trace). 10,200 frames.
+# Task 0329 (the arrival scene to Frea): INPUT=solstheim3_input.txt (Goodbye clicks for Adril, Neloth's three turns, Frea's
+# four), SETTINGS_EXTRA with `dragonborn test stage = 5+7+10,70` under [extension.skyrimse] (the aid sets the stages in order at
+# script second 70, after Adril's greeting began's talk) and PLAN="{10,'trace','start'},{2000,'talk',67207854},{5300,'trace','arrived'},
+# {13000,'go',23300,30800,900},{13200,'trace','stone'},{15500,'go',56365,62368,9700},{15600,'trace','temple'},
+# {19300,'trace','end'}" with 19500 frames. The two 'go' steps stand in for the walk to the Earth Stone and to the Temple of
+# Miraak (MQ01's end trigger); the waits are script time, which follows a real-time worker, so the frames are loose.
 #
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)

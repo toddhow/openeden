@@ -203,13 +203,14 @@ namespace
 
     TEST(SkyrimSolstheimScene, aPhaseWithNoConditionsEndsWhenItsActionsDo)
     {
-        const Parsed p(scenRecord({ phase(), phase() }, { timerAction(1, 0, 0, 3.f), dialogueAction(1, 2, 1, kTopicA) }));
+        const Parsed p(
+            scenRecord({ phase(), phase() }, { timerAction(1, 0, 0, 3.f), dialogueAction(1, 2, 1, kTopicA) }));
         ASSERT_TRUE(p.mOk);
         EXPECT_EQ(said(p, PhaseEndRule::ConditionsWhenPresent, true), 1);
     }
 }
 
-// ---- the location of an actor a script moved outdoors -----------------------------------------------------------------
+// ---- the location of an actor a script moved outdoors ----------------------------------------------------------
 
 namespace
 {

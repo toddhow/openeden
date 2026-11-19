@@ -2414,15 +2414,13 @@ namespace game_skyrimse
                                         "AMBUSH scripted sleepers wake when the player comes near");
                             }
                             const bool companions = settings->getBool(kPackId, "companions", false); // task 0264
-                            const bool dragonbornLive // task 0329: the actors a script moves outdoors need their live place
+                            // task 0329: the actors a script moves outdoors need their live place
+                            const bool dragonbornLive
                                 = settings->getBool(kPackId, std::string(dragonborn::kKey), false);
                             if (dragonbornLive)
                                 mWorldView.setMovedActorsOutdoors(true);
                             if (companions || dragonbornLive)
-                                mWorldView.setLiveActorPlace(
-                                    [this](FormId reference, double& x, double& y, double& z) {
-                                        return mCellSource.actorTable().brainPlace(reference, x, y, z);
-                                    });
+                                useLiveActorPlaces();
                             if (companions)
                             {
                                 driver->enableCompanions();
@@ -2696,6 +2694,14 @@ namespace game_skyrimse
             }
 
         private:
+            // tasks 0277, 0327 and 0329: the conditions and scenes read where an actor stands now (the brain's place),
+            // not where its record places it; one hook for companions, college and dragonborn
+            void useLiveActorPlaces()
+            {
+                mWorldView.setLiveActorPlace([this](FormId reference, double& x, double& y, double& z) {
+                    return mCellSource.actorTable().brainPlace(reference, x, y, z);
+                });
+            }
             // Task 0198: the Papyrus host's reach into the inventory and combat (see papyrus_world.hpp). Needs the
             // host; the inventory natives need the inventory (setting `inventory`), the combat events need combat to
             // run.
@@ -3159,9 +3165,7 @@ namespace game_skyrimse
                     // task 0327: Mirabelle's tour walks through the College's doors with the player following
                     mCellSource.actorTable().setCarryTravellers(true);
                     // and the scene's "Mirabelle within 100 of the marker" reads where she is now, not her placement
-                    mWorldView.setLiveActorPlace([this](FormId reference, double& x, double& y, double& z) {
-                        return mCellSource.actorTable().brainPlace(reference, x, y, z);
-                    });
+                    useLiveActorPlaces();
                     mWorldView.setQuestGreetings(true); // task 0304: Faralda's "Welcome to the College"
                     mWorldView.setFragmentFlush([this]() {
                         if (mPapyrus != nullptr)
