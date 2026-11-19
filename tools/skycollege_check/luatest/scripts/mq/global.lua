@@ -78,7 +78,8 @@ local function stepTo(s)
         for _, o in ipairs(from:getAll()) do
             local ok, id = pcall(function() return o.recordId end)
             if ok and id ~= nil and tostring(id):match(':b(%d+)$') == s[4] then
-                o:teleport(s[5], util.vector3(s[6], s[7], s[8]), { onGround = true })
+                -- task 0348: 'exterior' stands for the cell the game started in (Saarthal is in the same worldspace)
+                o:teleport((s[5] == 'exterior' and startCell) or s[5], util.vector3(s[6], s[7], s[8]), { onGround = true })
                 print('MQ step bring: base ' .. s[4] .. ' to ' .. s[5])
                 return
             end

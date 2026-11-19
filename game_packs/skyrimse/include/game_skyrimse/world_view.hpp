@@ -593,6 +593,8 @@ namespace game_skyrimse
         /// Task 0277: where an actor stands now (the pack's package brain); the view supplies where a loaded reference
         /// stands. Conversation conditions that measure a distance use them (the Companions' yard greeting).
         void setLiveActorPlace(std::function<bool(FormId reference, double& x, double& y, double& z)> lookup);
+        /// Task 0348: what the player's ward holds now, for the scenes' conditions (WardPower of the player).
+        void setPlayerWardSource(std::function<float()> source) { mPlayerWardSource = std::move(source); }
         /// Task 0258: the arrest conversation. `mWants(reference)`: should a conversation with the actor placed as
         /// `reference` open as the guard's forced greeting? The others tell the crime rules that it began, ended or
         /// could not begin. Every function may be empty (then no conversation is forced).
@@ -1070,6 +1072,7 @@ namespace game_skyrimse
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         std::function<bool(FormId, double&, double&, double&)> mLiveActorPlace; ///< task 0277
+        std::function<float()> mPlayerWardSource; ///< task 0348
         bool mMovedActorsOutdoors = false; ///< task 0329
         AliasLookup mAliasLookup; ///< task 0305
         AliasLookup mForcedAliasLookup; ///< task 0314

@@ -528,6 +528,11 @@ namespace game_skyrimse
         const SweepHit* where)
     {
         const bool hostile = (record.mFlags & MagicFlag::Hostile) != 0 && &caster != &target;
+        // Task 0348: a ward holds a harmful spell of another caster, flagged Hostile or only Detrimental (the College's
+        // MG01FireDamageFFAimed, the lesson's teaching spell, is Detrimental only: flags 0x10221804). RECALLED-VERIFY.
+        const bool wardable = &caster != &target
+            && ((record.mFlags & (MagicFlag::Hostile | MagicFlag::Detrimental)) != 0)
+            && spell.mCastType != MagicCast::Constant;
         const std::uint32_t archetype = record.mArchetype;
         const bool valueEffect = archetype == MagicArchetype::ValueModifier || archetype == MagicArchetype::Dual
             || archetype == MagicArchetype::Absorb;
@@ -556,7 +561,7 @@ namespace game_skyrimse
                 writer, caster, target, spell, effect, record, static_cast<float>(effect.mDuration), timing))
             return; // task 0248: Script effects, Calm, Cloak
         // The ward takes what it can of a hostile spell's magnitude; a spell it holds entirely does nothing at all.
-        if (hostile && target.mWardPower > 0.f)
+        if (wardable && target.mWardPower > 0.f)
         {
             if (valueEffect && timing != EffectTiming::PerSecond)
             {
@@ -565,6 +570,17 @@ namespace game_skyrimse
                 const float left = wardAbsorb(target.mWardPower, incoming);
                 trace("COMBAT ward " + who(target.mSubject) + " takes " + num(before - target.mWardPower) + " of "
                     + num(incoming) + ", power " + num(before) + " -> " + num(target.mWardPower));
+                if (mSpellEventSink && target.mWardPower < before) // task 0348: OnWardHit
+                {
+                    SpellEvent event;
+                    event.mKind = SpellEvent::Kind::WardHit;
+                    event.mCaster = caster.mSubject;
+                    event.mTarget = target.mSubject;
+                    event.mHasTarget = true;
+                    event.mSpell = spell.mCommon.mId;
+                    event.mEffect = effect.mEffect;
+                    emitSpellEvent(event);
+                }
                 if (left <= 0.f)
                 {
                     blocked = true;
@@ -1661,5 +1677,45 @@ namespace game_skyrimse
         runPlayerScroll(writer); // task 0234
         runPlayerShout(writer, step); // task 0205
         startTestCasts(writer);
+        if (!mScriptedCasts.empty())
+            runScriptedCasts(writer); // task 0348
+    }
+
+    bool SkyrimCombat::castSpellAt(openeden::sdk::game::ActorHandle caster, FormId spell)
+    {
+        // Task 0348 (a UseMagic package): validated at once when the records are ready, else when the cast is due
+        if (mData == nullptr || find(CombatSubject::of(caster)) == nullptr || mScriptedCasts.size() >= kMaxScriptedCasts)
+            return false;
+        if (dataReady() && mData->spellById(spell) == nullptr)
+            return false;
+        mScriptedCasts.emplace_back(caster, spell);
+        return true;
+    }
+
+    void SkyrimCombat::runScriptedCasts(CombatRequestWriter& writer)
+    {
+        for (std::size_t i = 0; i < mScriptedCasts.size();)
+        {
+            const auto [handle, spellId] = mScriptedCasts[i];
+            Fighter* f = find(CombatSubject::of(handle));
+            const SpellRecord* spell = mData->spellById(spellId);
+            if (f == nullptr || spell == nullptr || f->mDead)
+            {
+                mScriptedCasts.erase(mScriptedCasts.begin() + static_cast<std::ptrdiff_t>(i));
+                continue;
+            }
+            if (f->mStaggered || isBusyCasting(f->mSubject) || !ready(*f))
+            {
+                ++i; // later
+                continue;
+            }
+            mScriptedCasts.erase(mScriptedCasts.begin() + static_cast<std::ptrdiff_t>(i));
+            SubjectState player;
+            SubjectState self;
+            if (writer.subjectState(CombatSubject::ofPlayer(), player) && writer.subjectState(f->mSubject, self))
+                (void)writer.faceHeading(f->mSubject, static_cast<float>(std::atan2(player.x - self.x, player.y - self.y)));
+            trace("COMBAT scripted cast " + who(f->mSubject) + " " + spellName(*spell));
+            (void)beginCast(writer, *f, *spell, false, 0.f);
+        }
     }
 }

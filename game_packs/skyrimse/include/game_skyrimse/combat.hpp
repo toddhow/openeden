@@ -624,6 +624,11 @@ namespace game_skyrimse
         /// editor id; empty: the control swings; false when too long), the seconds between automatic presses (0,
         /// negative or not finite: the real key only) and how long an automatic press holds.
         bool setTestPlayerSpell(std::string_view editorId);
+        /// Task 0348 (a UseMagic package): `caster` casts `spell` once, at the player, when the next magic update runs
+        /// (the cast clip, magicka, the projectile and the effects are the ordinary ones). False for an actor the
+        /// combat does not know or a spell it has no record of; nothing is queued then. Capped at kMaxScriptedCasts.
+        bool castSpellAt(openeden::sdk::game::ActorHandle caster, FormId spell);
+        static constexpr std::size_t kMaxScriptedCasts = 16;
         void setTestPlayerCastEvery(float seconds);
         void setTestPlayerCastHold(float seconds);
         /// `actor:spell,actor:spell` (editor ids): the named actors cast. False (nothing set) for a list that is too
@@ -1035,6 +1040,9 @@ namespace game_skyrimse
                 Cast,
                 Hit,
                 EffectApplied,
+                /// Task 0348: the target's ward held (some of) a hostile spell's magnitude: OnWardHit(akCaster, akSpell)
+                /// of the scripts that hold the target. `mEffect` is the effect the ward took.
+                WardHit,
             };
             Kind mKind = Kind::Cast;
             openeden::sdk::game::CombatSubject mCaster;
@@ -1326,6 +1334,7 @@ namespace game_skyrimse
         void updateMagic(openeden::sdk::game::CombatRequestWriter& writer, float step);
         void resolveTestCasts();
         void startTestCasts(openeden::sdk::game::CombatRequestWriter& writer);
+        void runScriptedCasts(openeden::sdk::game::CombatRequestWriter& writer); // task 0348
         void runPlayerCast(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerPower(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerScroll(openeden::sdk::game::CombatRequestWriter& writer); // task 0234
@@ -1770,6 +1779,8 @@ namespace game_skyrimse
         std::size_t mRunesSetOff = 0;
         std::size_t mExplosionsDone = 0;
         std::vector<TestCaster> mTestCasters;
+        std::vector<std::pair<openeden::sdk::game::ActorHandle, FormId>> mScriptedCasts; ///< task 0348
+
         std::vector<std::pair<openeden::sdk::game::ActorHandle, std::string>> mActorNames; ///< lower case editor ids
         bool mPlayerCastWanted = false; ///< a press waits for the cast clip's timing
         float mPlayerCastWantedAt = 0.f;

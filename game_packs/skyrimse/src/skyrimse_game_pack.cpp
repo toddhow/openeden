@@ -709,6 +709,9 @@ namespace game_skyrimse
             void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
             void enableForceGreet() { mForceOn = true; }
             void enableHelloGreetings() { mHelloOn = true; } // task 0308
+            // Task 0348: a phase whose start conditions fail is skipped, not waited for (MG01WardScene's phase 4 "you were
+            // hit" is for the player who was hit; one whose ward held goes to phase 5), as task 0308 made it for HELO
+            void enableSkipFailedPhases() { mSkipPhasesOn = true; }
             void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
             void enableActionlessScenes() { mActionlessScenes = true; } // task 0333
             void enableCreatedInInventory() { mHost.setCreatedInInventory(true); } // task 0335
@@ -1036,6 +1039,8 @@ namespace game_skyrimse
                     if (mForceOn) // task 0264: a ForceGreet package ends with its conversation
                         mScenes->setForceGreet(&mForce);
                     mScenes->setHello(mHelloOn); // task 0308
+                    if (mSkipPhasesOn) // task 0348
+                        mScenes->runner().setSkipFailedPhases(true);
                     if (mDragonbornScenes) // task 0329: a phase with completion conditions ends by them
                         mScenes->runner().setPhaseEnd(PhaseEndRule::ConditionsWhenPresent);
                     if (mActionlessScenes) // task 0333: MS11's opening scene only runs a fragment
@@ -1917,6 +1922,7 @@ namespace game_skyrimse
             bool mTrainingPending = false;
             ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
             bool mHelloOn = false; ///< task 0308
+            bool mSkipPhasesOn = false; ///< task 0348
             bool mDragonbornScenes = false; ///< task 0329
             bool mActionlessScenes = false; ///< task 0333
             bool mPlayerEvents = false; ///< task 0318
@@ -3419,12 +3425,47 @@ namespace game_skyrimse
                             case SkyrimCombat::SpellEvent::Kind::EffectApplied:
                                 host.onMagicEffectApplied(reference(e.mCaster), reference(e.mTarget), e.mEffect);
                                 break;
+                            case SkyrimCombat::SpellEvent::Kind::WardHit: // task 0348 (the ward lesson)
+                                host.onWardHit(reference(e.mTarget), reference(e.mCaster), e.mSpell, 0);
+                                break;
                         }
                     });
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "college", false))
                 {
                     mPapyrus->enableCollege(); // quests move their actors (Faralda to the bridge)
+                    // Task 0348: MG01's Player alias (a unique actor alias of the Player NPC_) holds the player, so its
+                    // MG01PlayerScript hears OnWardHit
+                    mPapyrus->host().setPlayerAliasFill(true);
+                    mPapyrus->enableSkipFailedPhases();
+                    // Task 0348: the ward lesson. A package's OnBegin fragment runs (MG01Stage50TolfdirCastAtPlayer
+                    // sets TimerInit), a UseMagic package makes Tolfdir cast his spell at the player through the
+                    // combat's magic runtime, and the scenes read the player's WardPower from the combat
+                    mCellSource.actorTable().setPackageBeginHook(
+                        [this](openeden::sdk::game::WorldId reference, const PackageRecord& package) {
+                            if (mPapyrus == nullptr)
+                                return;
+                            FormId quest = mWorldView.aliasPackageQuest(package.mCommon.mId);
+                            if (quest == kNullFormId || quest == kUnresolvedFormId)
+                                quest = package.mQuest; // a scene's package: its own QNAM
+                            (void)mPapyrus->host().runPackageEnd(package.mCommon.mId, static_cast<FormId>(reference),
+                                quest, package.mBeginScript, package.mBeginFunction);
+                        });
+                    mCellSource.actorTable().setUseMagicHook(
+                        [this, logger](openeden::sdk::game::ActorHandle actor, FormId spell) {
+                            const bool queued = mCellSource.combat().castSpellAt(actor, spell);
+                            if (logger != nullptr)
+                                logger->log(openeden::sdk::LogLevel::Info,
+                                    "USEMAGIC the actor placed as " + std::to_string(actor.reference) + " casts "
+                                        + hexOf(spell) + (queued ? "" : ": refused"));
+                        });
+                    mWorldView.setPlayerWardSource([this]() -> float {
+                        SkyrimCombat::FighterView view;
+                        return mCellSource.combat().fighterView(
+                                   openeden::sdk::game::CombatSubject::ofPlayer(), view)
+                            ? view.mWardPower
+                            : 0.f;
+                    });
                     // task 0327: a quest's MoveTo of a student to the classroom moves the real placement into the other
                     // interior (task 0286's mechanism; its walk hook stays off: the tour walks and is carried)
                     mPapyrus->host().setCellMoves(true);

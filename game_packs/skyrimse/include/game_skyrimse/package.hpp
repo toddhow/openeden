@@ -109,6 +109,7 @@ namespace game_skyrimse
         Patrol, ///< a patrol procedure: walk a chain of linked markers, idling at each
         Follow, ///< a Follow or FollowTo procedure: stay near a target actor
         Escort, ///< recognised, not run (the target follows the actor to a place)
+        UseMagic, ///< task 0348: a UseMagic procedure: the actor casts the package's spell (its first Object ID target) once
     };
 
     /// What an actor does while a package runs (S5 implements the first four; the rest stand where they are told).
@@ -194,6 +195,10 @@ namespace game_skyrimse
         /// ("PF_MQ101CartHorse1Patrol5_000BF475") and its function ("Fragment_0"). Empty: none.
         std::string mEndScript;
         std::string mEndFunction;
+        /// Task 0348: the OnBegin fragment (MG01Stage50TolfdirCastAtPlayer sets the quest's TimerInit when it begins).
+        std::string mBeginScript;
+        std::string mBeginFunction;
+        FormId mQuest = kNullFormId; ///< task 0348: QNAM
         std::uint32_t mPlugin = 0; ///< index into PackageIndex's plugins: the plugin whose record won
     };
 

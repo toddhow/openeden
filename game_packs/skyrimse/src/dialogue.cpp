@@ -1029,6 +1029,11 @@ namespace game_skyrimse
 
     float SkyrimConditionWorld::actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const
     {
+        if (subject == kPlayer && actorValueIndex == kWardPowerValue && mWardSource)
+        {
+            const float ward = mWardSource(); // task 0348: what the player's ward holds now
+            return std::isfinite(ward) && ward > 0.f ? ward : 0.f;
+        }
         if (mFollowerOverlay != nullptr && subject != kPlayer)
         {
             const FormId reference = overlayReferenceOf(subject);

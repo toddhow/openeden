@@ -198,6 +198,14 @@ namespace game_skyrimse
                         case Content::fourCC("EDID"):
                             zstring(type, data, p.mCommon.mEditorId);
                             return;
+                        case Content::fourCC("QNAM"):
+                            // Task 0348: the quest a package belongs to (MG01Stage50TolfdirCastAtPlayer: MG01), the
+                            // GetOwningQuest of its fragments when no quest alias gives it
+                            if (data.size() == 4)
+                                p.mQuest = resolved(readLe<std::uint32_t>(data.data()));
+                            else
+                                odd(type);
+                            return;
                         case Content::fourCC("PKDT"):
                             if (data.size() != 12)
                             {
@@ -303,6 +311,12 @@ namespace game_skyrimse
                             {
                                 p.mEndScript = parsed.mVmad.mInfo.mEndScript;
                                 p.mEndFunction = parsed.mVmad.mInfo.mEndFunction;
+                            }
+                            // Task 0348: the OnBegin fragment (MG01Stage50TolfdirCastAtPlayer sets the quest's TimerInit)
+                            if (parsed.mOk && parsed.mVmad.mHasInfoFragments && parsed.mVmad.mInfo.hasBegin())
+                            {
+                                p.mBeginScript = parsed.mVmad.mInfo.mBeginScript;
+                                p.mBeginFunction = parsed.mVmad.mInfo.mBeginFunction;
                             }
                             return;
                         }
@@ -431,7 +445,7 @@ namespace game_skyrimse
 
     PackageActivity classifyActivity(std::span<const std::string> names)
     {
-        bool patrol = false, follow = false, escort = false, sandbox = false;
+        bool patrol = false, follow = false, escort = false, sandbox = false, useMagic = false;
         for (const std::string& raw : names)
         {
             const std::string name = lowerAscii(raw);
@@ -449,6 +463,8 @@ namespace game_skyrimse
                 follow = true;
             else if (name == "escort")
                 escort = true;
+            else if (name == "usemagic")
+                useMagic = true; // task 0348
         }
         if (sandbox && (patrol || !follow)) // a sandbox package sandboxes; a Follow with a sandbox branch follows
             return PackageActivity::None;
@@ -458,6 +474,8 @@ namespace game_skyrimse
             return PackageActivity::Follow;
         if (escort)
             return PackageActivity::Escort;
+        if (useMagic)
+            return PackageActivity::UseMagic; // task 0348
         return PackageActivity::None;
     }
 

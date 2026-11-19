@@ -1034,6 +1034,16 @@ namespace game_skyrimse
                 mTravellerRefs.erase(actor.mHandle.reference);
             }
         }
+        if (actor.mActivity == PackageActivity::UseMagic && actor.mActive != nullptr)
+        {
+            // Task 0348: a UseMagic package casts its spell (its first Object ID target) once, at the player, and stands
+            PackageTarget target;
+            if (mUseMagicHook && mSource.targetOf(*actor.mActive, target) && target.mType == PackageTargetType::ObjectId
+                && target.mValue != kNullFormId && target.mValue != kUnresolvedFormId)
+                mUseMagicHook(actor.mHandle, static_cast<FormId>(target.mValue));
+            actor.mPhase = Phase::Done;
+            return;
+        }
         if (actor.mPackageFollow) // task 0310
         {
             actor.mToFollow = true;
@@ -1258,6 +1268,9 @@ namespace game_skyrimse
             const auto radius = static_cast<double>(loc.mRadius);
             actor.mRadius = static_cast<float>(std::clamp(radius, 0.0, static_cast<double>(kMaxPackageRadius)));
         }
+        // Task 0348: a package's OnBegin fragment (the ward lesson's package sets the quest's TimerInit)
+        if (package != nullptr && !package->mBeginFunction.empty() && mBeginHook)
+            mBeginHook(actor.mHandle.reference, *package);
         begin(actor, writer);
     }
 

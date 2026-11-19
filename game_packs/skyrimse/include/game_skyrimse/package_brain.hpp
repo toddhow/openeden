@@ -387,6 +387,13 @@ namespace game_skyrimse
         /// actor: a travel or a patrol with no further marker has arrived. Told once per start of the package.
         using EndHook = std::function<void(openeden::sdk::game::WorldId reference, const PackageRecord& package)>;
         void setPackageEndHook(EndHook hook) { mEndHook = std::move(hook); }
+        /// Task 0348: a package that carries an OnBegin script fragment (`PackageRecord::mBeginFunction`) has begun for an
+        /// actor (told once per start of the package, after the brain has taken it). Same shape as the end hook.
+        void setPackageBeginHook(EndHook hook) { mBeginHook = std::move(hook); }
+        /// Task 0348: a package with a UseMagic procedure has begun: the actor `reference` is to cast `spell` (the
+        /// package's first Object ID target) at the player, once. The hook only records the wish; the combat casts.
+        using UseMagicHook = std::function<void(openeden::sdk::game::ActorHandle actor, FormId spell)>;
+        void setUseMagicHook(UseMagicHook hook) { mUseMagicHook = std::move(hook); }
         [[nodiscard]] bool isVehicleRider(openeden::sdk::game::WorldId reference) const
         {
             return mRiderRefs.count(reference) != 0;
@@ -598,6 +605,8 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, openeden::sdk::game::ActorHandle> mMounts; ///< rider -> horse (0274)
         [[nodiscard]] openeden::sdk::game::ActorHandle moverOf(const Actor& actor) const;
         EndHook mEndHook;
+        EndHook mBeginHook; // task 0348
+        UseMagicHook mUseMagicHook; // task 0348
         void fireEnd(Actor& actor);
         std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)
         /// task 0277: waiting for the player to reach the target

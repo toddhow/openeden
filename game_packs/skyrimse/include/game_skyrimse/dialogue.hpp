@@ -375,6 +375,10 @@ namespace game_skyrimse
         /// count of GetItemCount and the bribe check read it (at the moment of the check; a negative or non-finite
         /// answer is 0); without one (the default) they read the stand-in's gold, as before.
         void setGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
+        /// Task 0348: what the player's ward holds now (GetActorValue of WardPower, index 63: MG01WardScene's phases wait
+        /// for it to be above 0). Read at the moment of the check; none set: 0.
+        static constexpr std::uint32_t kWardPowerValue = 63;
+        void setPlayerWardSource(std::function<float()> source) { mWardSource = std::move(source); }
         /// Task 0270: what the player wears and carries, read at the moment of the check (the inventory's equipment and
         /// stacks). Without a source (the default) the stand-in wears and carries nothing but gold, as before.
         void setPlayerWornSource(std::function<bool(std::uint32_t)> source) { mWornSource = std::move(source); }
@@ -741,6 +745,7 @@ namespace game_skyrimse
         FormId mPlayerCell = kNullFormId;
         FormId mPlayerWorld = kNullFormId;
         std::function<float()> mGoldSource; // task 0184
+        std::function<float()> mWardSource; // task 0348
         std::function<bool(std::uint32_t)> mWornSource; // task 0270
         std::function<FormId(FormId)> mActivatorVoice; // task 0338
         std::function<float(std::uint32_t)> mItemSource; // task 0270

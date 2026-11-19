@@ -755,6 +755,9 @@ namespace game_skyrimse
         /// Task 0286: MoveTo asks PapyrusWorldHooks::moveToCell first (any distance from the player, any cell); the
         /// relocation above is the fallback when the hook refuses. Off by default.
         void setCellMoves(bool on);
+        /// Task 0348: a unique-actor alias whose actor is the Player NPC_ (0x00000007: MG01's Player alias, which carries
+        /// MG01PlayerScript) holds the player's reference (0x14), as in the game. Off by default.
+        void setPlayerAliasFill(bool on);
         /// Task 0317: the scripts of unplaced item forms (see PapyrusHostOptions::mFormScripts).
         void setFormScripts(bool on);
         /// Task 0305: what an alias holds now (a script's ForceRefTo or ForceLocationTo, else the quest state's fill);
@@ -815,6 +818,10 @@ namespace game_skyrimse
         void onMagicEffectApplied(FormId caster, FormId target, FormId effect);
         /// OnSpellCast(akSpell) goes to the scripts that hold `caster`.
         void onSpellCast(FormId caster, FormId spell);
+        /// Task 0348: OnWardHit(akCaster, akSpell, aiStatus) goes to the scripts that hold `target` (MG01PlayerScript on
+        /// the player alias): the target's ward held (some of) a hostile spell of `caster`. `status` 0 = the ward
+        /// absorbed it (the game's 1 = broke, 2 = unharmed are not told).
+        void onWardHit(FormId target, FormId caster, FormId spell, int status);
         /// Task 0318: OnLocationChange(akOldLoc, akNewLoc) goes to the scripts that hold `actor` (the player's alias
         /// scripts: MQ104PlayerScript sets the Greybeards' call when he enters Solitude or Windhelm, MQ105PlayerScript
         /// stage 15 when he enters High Hrothgar). A location the pack does not know is 0 (none).

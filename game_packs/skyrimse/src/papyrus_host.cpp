@@ -555,6 +555,8 @@ namespace game_skyrimse
             }
             return false;
         }
+        static constexpr FormId kPlayerNpcBase = 0x00000007; // the Player NPC_ (task 0348)
+        bool mPlayerAliasFill = false; // task 0348
         std::set<std::string> mGetUpScripts; ///< loaded scripts whose string table names OnGetUp
         std::map<std::string, std::string> mParentOf; ///< loaded script to its parent (lower case)
 
@@ -3095,6 +3097,8 @@ namespace game_skyrimse
             if (mState != nullptr)
             {
                 const AliasFill fill = mState->aliasFill(quest, alias);
+                if (fill.mKnown && fill.mReference == 0 && fill.mActor == kPlayerNpcBase && mPlayerAliasFill)
+                    return 0x14; // task 0348: the player reference
                 if (fill.mKnown)
                     return fill.mReference;
             }
@@ -4103,6 +4107,26 @@ namespace game_skyrimse
         for (const InstanceId instance : m.instancesHolding(caster))
             if (m.sendEvent(instance, "OnSpellCast", { m.formValue(spell) }))
                 ++m.mCounters.mCombatEvents;
+    }
+
+    void PapyrusHost::setPlayerAliasFill(bool on)
+    {
+        mImpl->mPlayerAliasFill = on;
+    }
+
+    void PapyrusHost::onWardHit(FormId target, FormId caster, FormId spell, int status)
+    {
+        Impl& m = *mImpl;
+        std::size_t sent = 0;
+        for (const InstanceId instance : m.instancesHolding(target))
+            if (m.sendEvent(instance, "OnWardHit",
+                    { m.formValue(caster), m.formValue(spell), PapyrusValue::makeInt(status) }))
+            {
+                ++m.mCounters.mCombatEvents;
+                ++sent;
+            }
+        m.say(false, "Papyrus: ward of " + hex(target) + " held spell " + hex(spell) + " of " + hex(caster)
+                + ", OnWardHit sent to " + std::to_string(sent) + " script(s)");
     }
 
     void PapyrusHost::onLocationChange(FormId actor, FormId oldLocation, FormId newLocation)

@@ -129,6 +129,17 @@ namespace game_skyrimse
             if (mBrain)
                 mBrain->setPackageEndHook(std::move(hook));
         }
+        /// Task 0348: see PackageBrain::setPackageBeginHook and setUseMagicHook.
+        void setPackageBeginHook(PackageBrain::EndHook hook)
+        {
+            if (mBrain)
+                mBrain->setPackageBeginHook(std::move(hook));
+        }
+        void setUseMagicHook(PackageBrain::UseMagicHook hook)
+        {
+            if (mBrain)
+                mBrain->setUseMagicHook(std::move(hook));
+        }
         /// Task 0274: see PackageBrain::setMount.
         void setMount(openeden::sdk::game::WorldId rider, openeden::sdk::game::ActorHandle horse)
         {
