@@ -84,3 +84,15 @@ quest chain and a player who walks beside the leader; the mechanism they need is
 gate, clang-format 14, clang-tidy, the Lua tests, a fresh review. Cliff-like rock faces still stop a walk (normals under
 0.35); another actor's capsule can stop a walk as before; the 4.5 s first-path wait is the navmesh build of the r22 agent,
 not reduced here.
+
+## 8. Cost and Morrowind (measured)
+
+- Task 0323 walk (`tools/streaming_check`, play profile, cold navmesh, shared machine, two runs each): median 3.73 and 3.69 ms
+  (settings off) against 3.76 and 3.74 (both on); p99 12.8 and 23.9 against 38.2 and 43.1; frames over 25 ms 53 and 55 against
+  56 and 58; `world.navigator.wait` 18.7 and 18.2 s against 19.6 and 19.4 s. The medians differ by 0.04 ms (noise); the p99 is
+  worse with the settings on in both pairs (the NPCs also walk farther, so more cells and objects are touched: not separated).
+- First path of the r22 agent: 4.5 s from the goal (1,300 tile jobs), as before; not reduced.
+- Morrowind unchanged against a copy of the build before: `worldobjects_check` 110 objects OK (also after the rebase onto
+  `748641d7d3`), fixed Balmora frames `1eb68236352dc472` and `c819db116f4af8a6` equal, six Balmora `nearby.findPath` queries equal
+  in three runs (md5 `d3d2c95a9d64`). Three parallel guard runs after the rebase: md5 `27578e831cf3` again.
+- Frame kept: `I:\Projects\OpenEden-work\followers\keep336\guard_riverwood.png`.
