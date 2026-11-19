@@ -255,6 +255,22 @@ namespace game_skyrimse
             out.mFogPower = templateLighting->mFogPower;
         if ((own.mInherit & LightingInherit::FogMax) != 0)
             out.mFogMax = templateLighting->mFogMax;
+        // Task 0355 stages f and j: the rotation (both angles), the directional fade, the clip distance and the two
+        // light fade distances.
+        if ((own.mInherit & LightingInherit::Rotation) != 0)
+        {
+            out.mRotationXY = templateLighting->mRotationXY;
+            out.mRotationZ = templateLighting->mRotationZ;
+        }
+        if ((own.mInherit & LightingInherit::DirectionalFade) != 0)
+            out.mDirectionalFade = templateLighting->mDirectionalFade;
+        if ((own.mInherit & LightingInherit::ClipDistance) != 0)
+            out.mClipDistance = templateLighting->mClipDistance;
+        if ((own.mInherit & LightingInherit::LightFade) != 0)
+        {
+            out.mLightFadeBegin = templateLighting->mLightFadeBegin;
+            out.mLightFadeEnd = templateLighting->mLightFadeEnd;
+        }
         return out;
     }
 
