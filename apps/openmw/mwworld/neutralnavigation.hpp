@@ -57,6 +57,20 @@ namespace MWWorld
     /// lights stay out. Exteriors are as `neutralKindBlocksNavigation` says.
     [[nodiscard]] bool neutralKindBlocksNavigationIn(openeden::sdk::game::BaseKind kind, bool interior);
 
+    /// Task 0336: whether a walking neutral actor's capsule passes through an object (with `[Game] neutral actor walk
+    /// through`). It is the set the navigator leaves out (flora, trees, lights, items outside, the stand-in boxes), so
+    /// that the path the navmesh gives is a path the mover can walk: a Riverwood guard stopped `blocked` against a fern
+    /// and a pine the navmesh never knew. The player and everything else still collide with all of them.
+    [[nodiscard]] bool neutralActorWalksThrough(openeden::sdk::game::BaseKind kind, bool standInBox, bool interior);
+
+    /// Task 0336: the fractions of the line to a goal beyond the built navmesh at which a path is asked for, farthest
+    /// first (ESTIMATES: a 12,000 unit goal is tried at 10,200, 8,400 ... 1,440 units).
+    struct LongPathPull
+    {
+        float mFraction;
+    };
+    [[nodiscard]] std::span<const LongPathPull> longPathPulls();
+
     /// Whether a neutral object's physics shape is the stand-in box (`Neutral::insertObjectPhysics`: the box of the
     /// bounds an object gets when its model gives no collision triangles, such as an effect or marker model with no
     /// surface). That box is only a guess for the physics body: it is not a surface that an actor walks on or is

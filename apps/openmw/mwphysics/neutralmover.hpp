@@ -12,7 +12,8 @@
 
 #include <components/misc/vsgmath.hpp>
 
-#include <vector>
+#include <cstdint>
+#include <unordered_set>
 #include <vsg/maths/vec3.h>
 
 #include <vector>
@@ -132,6 +133,7 @@ namespace MWPhysics::NeutralMover
         bool mHit = false;
         float mFraction = 1.f;
         vsg::vec3 mNormal = vsg::vec3(0.f, 0.f, 1.f); ///< of the surface hit, pointing out of it
+        std::uint32_t mBody = 0xFFFFFFFFu; ///< task 0336: the Jolt body hit (JPH::BodyID::GetIndexAndSequenceNumber), or none
     };
 
     /// The world as the mover sees it. `from` is the position of the capsule's feet; `delta` the whole motion.
@@ -157,6 +159,17 @@ namespace MWPhysics::NeutralMover
         bool mMoved = false;
         bool mBlocked = false; ///< a wall, a ledge too high, a slope too steep or no floor stopped some of the move
         bool mEdge = false; ///< a pass was refused because the capsule's centre had no floor within kStepDown
+        /// Task 0336 (a trace aid): why the last pass that stopped the move stopped it, and the body a wall was.
+        enum class Refusal : std::uint8_t
+        {
+            None,
+            Wall, ///< the sideways sweep hit a body
+            NoFloor, ///< no floor under the landing or under the capsule's centre
+            Slope, ///< the ground under the centre was too steep
+        };
+        Refusal mRefusal = Refusal::None;
+        std::uint32_t mHitBody = 0xFFFFFFFFu; ///< the body of the wall (Refusal::Wall) or of the steep ground (Slope)
+        float mGroundNormalZ = 1.f; ///< Refusal::Slope: the z of the ground's normal
     };
 
     /// Heading of a velocity in ESM::Position::rot[2] terms: 0 faces +Y, positive turns towards +X. Zero velocity -> 0.
@@ -182,7 +195,8 @@ namespace MWPhysics::NeutralMover
         /// `actors` (task 0280, optional) are the bodies of the other actors: a large creature never walks over those.
         JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self, int layerMask,
             const Limits& limits = Limits(), const std::vector<JPH::BodyID>* actors = nullptr,
-            const std::vector<JPH::BodyID>* alsoIgnore = nullptr);
+            const std::vector<JPH::BodyID>* alsoIgnore = nullptr,
+            const std::unordered_set<std::uint32_t>* walkThrough = nullptr);
         /// `alsoIgnore` (task 0274, optional) lists bodies left out of every sweep: a mount walks through the other
         /// actors' capsules (its rider's, a herd's). It must outlive the sweeper.
         [[nodiscard]] Sweep sweep(const vsg::vec3& from, const vsg::vec3& delta) const override;
@@ -193,6 +207,7 @@ namespace MWPhysics::NeutralMover
         JPH::RefConst<JPH::Shape> mShape;
         JPH::BodyID mSelf;
         const std::vector<JPH::BodyID>* mAlsoIgnore;
+        const std::unordered_set<std::uint32_t>* mWalkThrough; ///< task 0336: bodies left out of every sweep
         int mLayerMask;
         Limits mLimits;
         const std::vector<JPH::BodyID>* mActors;

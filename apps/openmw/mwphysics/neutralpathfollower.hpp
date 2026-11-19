@@ -42,6 +42,10 @@ namespace MWPhysics::NeutralPath
     inline constexpr float kStallProgress = 0.2f;
     /// A stall asks for a new path at most this many times for one goal; the next stall ends the goal as Blocked.
     inline constexpr int kMaxRepaths = 3;
+    /// Task 0336: a partial path counts as progress when its end is this much nearer to the goal (on the ground plane)
+    /// than the actor is, and at most this many partial paths are walked for one goal. ESTIMATES.
+    inline constexpr float kLongPathProgress = 200.f;
+    inline constexpr int kMaxPartialRounds = 64;
     /// A navigator that is not ready (no navmesh yet, no polygon at the start) is asked again after this many seconds,
     /// at most this many times in all, then the goal ends as NoPath.
     inline constexpr float kNotReadyInterval = 0.5f;
@@ -57,6 +61,13 @@ namespace MWPhysics::NeutralPath
     /// (at most kMaxPathDrop). Pure.
     [[nodiscard]] float pathStepDown(
         float feetZ, const std::vector<vsg::vec3>& path, std::size_t reached, float baseStepDown);
+
+    /// Task 0336: the steepest ground (the z of its normal) a walker on a navmesh path stands on: recast's voxels pass
+    /// lumpy rock faces whose analytic slope is a little steeper than the mover's 0.64 (found: a rock of normal z 0.628
+    /// stopped Riverwood guards on a path the navmesh drew over the rock). While a path vouches for the
+    /// ground the limit is this or the base, whichever is lower. ESTIMATE (about 70 degrees; rock faces of normal z 0.63, 0.47 and 0.43 each stopped a walk the navmesh had drawn).
+    inline constexpr float kPathMinFloorNormalZ = 0.35f;
+    [[nodiscard]] float pathMinFloorNormalZ(float baseMinNormalZ);
 
     enum class FindStatus : std::uint8_t
     {
@@ -98,6 +109,11 @@ namespace MWPhysics::NeutralPath
         /// Starts a goal, replacing any earlier one without a result. A non-finite target or speed is refused (false,
         /// no goal).
         bool setGoal(const vsg::vec3& target, float speed);
+        /// Task 0336: with long paths a PARTIAL path that gets at least kLongPathProgress nearer to the goal is walked to
+        /// its end and the path is asked for again there (the goal lies beyond the navmesh built round the player: it
+        /// grows as the walk goes on); without them a partial path is no way to the goal, as before. Set before or
+        /// after `setGoal`; it stays until changed.
+        void setLongPaths(bool on) { mLongPaths = on; }
         /// Drops the goal without a result.
         void cancel();
         [[nodiscard]] bool active() const { return mState != State::Idle; }
@@ -130,6 +146,9 @@ namespace MWPhysics::NeutralPath
         int mRepaths = 0;
         vsg::vec3 mStallFrom;
         float mStallTime = 0.f;
+        bool mLongPaths = false;
+        bool mPartial = false; ///< the path being followed stops short of the goal
+        int mPartialRounds = 0;
     };
 
     /// The navmesh agent for an actor of the capsule's radius: its horizontal half extent is the larger of the radius

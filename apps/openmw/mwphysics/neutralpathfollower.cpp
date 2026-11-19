@@ -36,6 +36,8 @@ namespace MWPhysics::NeutralPath
         mNotReadyAttempts = 0;
         mRepaths = 0;
         mStallTime = 0.f;
+        mPartial = false;
+        mPartialRounds = 0;
         return true;
     }
 
@@ -55,6 +57,13 @@ namespace MWPhysics::NeutralPath
         result.mSetVelocity = true; // the actor stops where it ended
         result.mOutcome = outcome;
         return result;
+    }
+
+    float pathMinFloorNormalZ(float baseMinNormalZ)
+    {
+        if (!std::isfinite(baseMinNormalZ))
+            return baseMinNormalZ;
+        return std::min(baseMinNormalZ, kPathMinFloorNormalZ);
     }
 
     float pathStepDown(float feetZ, const std::vector<vsg::vec3>& path, std::size_t reached, float baseStepDown)
@@ -106,6 +115,15 @@ namespace MWPhysics::NeutralPath
                 case FindStatus::NoPath:
                     return finish(Outcome::NoPath);
                 case FindStatus::Partial:
+                    // Task 0336: the goal is beyond the navmesh built so far: walk what there is, then ask again, as
+                    // long as each part gets nearer (a cliff or a sea the navmesh never crosses ends the goal).
+                    if (mLongPaths && !mPath.empty() && mPartialRounds < kMaxPartialRounds
+                        && groundDistance(mPath.back(), mTarget) + kLongPathProgress <= groundDistance(feet, mTarget))
+                    {
+                        mPartial = true;
+                        ++mPartialRounds;
+                        break;
+                    }
                     // A path that stops short of the goal is no way to it, and neither is one that ends under or over
                     // it on another floor (task 0158: Lucia's upstairs bed, the path ended on the cellar floor below
                     // it).
@@ -121,6 +139,8 @@ namespace MWPhysics::NeutralPath
                     }
                     break;
             }
+            if (status != FindStatus::Partial)
+                mPartial = false;
             mNotReadyAttempts = 0;
             mIndex = 0;
             mState = State::Following;
@@ -140,7 +160,17 @@ namespace MWPhysics::NeutralPath
             && std::fabs(feet.z - mPath[mIndex].z) <= kWaypointHeight)
             ++mIndex;
         if (mIndex >= mPath.size())
-            return finish(Outcome::Arrived);
+        {
+            if (!mPartial)
+                return finish(Outcome::Arrived);
+            // The end of a partial path (task 0336): the navmesh has grown while we walked; ask for the next part.
+            mPartial = false;
+            mState = State::NeedPath;
+            mRetryWait = 0.f;
+            StepResult next;
+            next.mSetVelocity = true;
+            return next;
+        }
 
         mStallTime += dt;
         if (mStallTime >= kStallWindow)

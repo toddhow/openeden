@@ -548,9 +548,38 @@ namespace MWWorld
                 // built on the worker threads, so the first answers are NavMeshNotFound and the follower asks again).
                 if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))
                     return MWPhysics::NeutralPath::FindStatus::NoPath;
-                const DetourNavigator::Status status = DetourNavigator::findPath(*mNavigator, bounds, from, to,
-                    static_cast<DetourNavigator::Flags>(DetourNavigator::Flag_walk | DetourNavigator::Flag_openDoor),
+                const auto flags = static_cast<DetourNavigator::Flags>(
+                    DetourNavigator::Flag_walk | DetourNavigator::Flag_openDoor);
+                DetourNavigator::Status status = DetourNavigator::findPath(*mNavigator, bounds, from, to, flags,
                     DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {}, std::back_inserter(out));
+                // Task 0336: a goal beyond the navmesh built round the player has no polygon: take the farthest point of
+                // the line to it that has one and say Partial (the follower walks it and asks again from there).
+                if (Settings::game().mNeutralActorLongPaths.get()
+                    && (status == DetourNavigator::Status::EndPolygonNotFound
+                        || status == DetourNavigator::Status::TargetPolygonNotFound))
+                    for (const MWWorld::LongPathPull& pull : MWWorld::longPathPulls())
+                    {
+                        const vsg::vec3 nearer = from + (to - from) * pull.mFraction;
+                        out.clear();
+                        status = DetourNavigator::findPath(*mNavigator, bounds, from, nearer, flags,
+                            DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {},
+                            std::back_inserter(out));
+                        if (status == DetourNavigator::Status::Success || status == DetourNavigator::Status::PartialPath)
+                        {
+                            status = DetourNavigator::Status::PartialPath;
+                            break;
+                        }
+                        if (status != DetourNavigator::Status::EndPolygonNotFound
+                            && status != DetourNavigator::Status::TargetPolygonNotFound)
+                            break;
+                    }
+
+                static const bool pathTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+                if (pathTrace && status != DetourNavigator::Status::Success) // task 0336: the raw answer and the worker queue
+                    Log(Debug::Info) << "NACTNAV raw status " << DetourNavigator::getMessage(status) << " from " << from.x
+                                     << " " << from.y << " " << from.z << " to " << to.x << " " << to.y << " " << to.z
+                                     << " radius " << bounds.mHalfExtents.x << " jobs "
+                                     << mNavigator->getStats().mUpdater.mJobs;
                 switch (status)
                 {
                     case DetourNavigator::Status::Success:

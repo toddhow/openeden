@@ -53,6 +53,7 @@
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/esmstore.hpp"
+#include "../mwworld/neutralnavigation.hpp"
 #include "../mwworld/player.hpp"
 #include "../mwworld/refdata.hpp"
 
@@ -1007,6 +1008,23 @@ namespace MWPhysics
         mObjects.emplace(ptr.mRef, obj);
     }
 
+    void PhysicsSystem::noteNeutralWalkThrough(
+        const MWWorld::Ptr& ptr, openeden::sdk::game::BaseKind kind, bool standInBox, bool interior) const
+    {
+        if (!Settings::game().mNeutralActorWalkThrough.get())
+            return;
+        const auto found = mObjects.find(ptr.mRef);
+        if (found == mObjects.end())
+            return;
+        const JPH::BodyID body = found->second->getPhysicsBody();
+        if (body.IsInvalid())
+            return;
+        if (!MWWorld::neutralActorWalksThrough(kind, standInBox, interior))
+            return;
+        mNeutralWalkThrough.insert(body.GetIndexAndSequenceNumber());
+        mNeutralWalkThroughOf[ptr.mRef] = body.GetIndexAndSequenceNumber();
+    }
+
     void PhysicsSystem::remove(const MWWorld::Ptr& ptr)
     {
         if (auto foundObject = mObjects.find(ptr.mRef); foundObject != mObjects.end())
@@ -1019,6 +1037,11 @@ namespace MWPhysics
                 mNeutralRemoved.note(ptr.mRef); // task 0273b: the world forgets what it kept for the actor
             std::erase_if(mNeutralDoors, [&](const NeutralDoorEntry& e) { return e.mRef == ptr.mRef; });
             mAnimatedObjects.erase(foundObject->second.get());
+            if (const auto through = mNeutralWalkThroughOf.find(ptr.mRef); through != mNeutralWalkThroughOf.end())
+            {
+                mNeutralWalkThrough.erase(through->second);
+                mNeutralWalkThroughOf.erase(through);
+            }
 
             mObjects.erase(foundObject);
         }
@@ -1695,6 +1718,7 @@ namespace MWPhysics
                                         ? actor->second->getPtr().getCellRef().getRefId().toDebugString()
                                         : std::string("?"));
         }
+        entry->mFollow.setLongPaths(Settings::game().mNeutralActorLongPaths.get());
         if (!entry->mFollow.setGoal(target, speed))
             mPhysics.mNeutralBridge.reportGoal(key, openeden::sdk::game::GoalResult::NoPath); // a float overflow
     }
@@ -2531,6 +2555,26 @@ namespace MWPhysics
                              << " at " << feet.x << " " << feet.y << " " << feet.z;
     }
 
+    std::string PhysicsSystem::describeNeutralRefusal(const NeutralMover::Result& result) const
+    {
+        // Task 0336 (trace only): which rule stopped the walk and, for a wall, what the wall is.
+        std::string text = result.mRefusal == NeutralMover::Result::Refusal::Wall ? " refusal wall"
+            : result.mRefusal == NeutralMover::Result::Refusal::NoFloor          ? " refusal no-floor"
+            : result.mRefusal == NeutralMover::Result::Refusal::Slope            ? " refusal slope"
+                                                                                 : " refusal none";
+        if (result.mRefusal == NeutralMover::Result::Refusal::Slope)
+            text += " normal.z " + std::to_string(result.mGroundNormalZ);
+        if ((result.mRefusal == NeutralMover::Result::Refusal::Wall || result.mRefusal == NeutralMover::Result::Refusal::Slope)
+            && result.mHitBody != 0xFFFFFFFFu)
+        {
+            JPH::BodyLockRead lock(mPhysicsSystem.GetBodyLockInterface(), JPH::BodyID(result.mHitBody));
+            if (lock.Succeeded())
+                if (const PtrHolder* holder = Misc::Convert::toPointerFromUserData<PtrHolder>(lock.GetBody().GetUserData()))
+                    text += " body " + std::string(holder->getPtr().getCellRef().getRefId().toDebugString());
+        }
+        return text;
+    }
+
     void PhysicsSystem::walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace)
     {
         const MWWorld::Ptr ptr = object.getPtr();
@@ -2572,9 +2616,12 @@ namespace MWPhysics
         if (entry.mFollow.active())
             limits.mStepDown
                 = NeutralPath::pathStepDown(feet.z, entry.mFollow.path(), entry.mFollow.reached(), limits.mStepDown);
+        // Task 0336: and the navmesh vouches for ground a little steeper than the mover's own limit.
+        if (entry.mFollow.active() && Settings::game().mNeutralActorWalkThrough.get())
+            limits.mMinFloorNormalZ = NeutralPath::pathMinFloorNormalZ(limits.mMinFloorNormalZ);
         const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
             object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, limits, &neutralSightIgnore(),
-            &mNeutralSweepIgnore);
+            &mNeutralSweepIgnore, &mNeutralWalkThrough);
         const NeutralMover::Result result = NeutralMover::step(feet, entry.mRequest, dt, sweeper, limits);
         ++entry.mWalkFrames;
 
@@ -2606,6 +2653,7 @@ namespace MWPhysics
             Log(Debug::Info) << "NACTWALK " << ptr.getCellRef().getRefId() << " frame " << entry.mWalkFrames << " pos "
                              << pos.pos[0] << " " << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2]
                              << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "") << (ridden ? " mount" : " foot")
+                             << (result.mBlocked ? describeNeutralRefusal(result) : std::string())
                              << (limits.mStepDown > NeutralMover::kStepDown ? " step down " : "")
                              << (limits.mStepDown > NeutralMover::kStepDown ? std::to_string(limits.mStepDown) : "")
                              << " handle " << handle.reference;

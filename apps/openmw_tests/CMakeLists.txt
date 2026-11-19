@@ -268,6 +268,9 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralmoverbevel.cpp
     mwphysics/testneutralmoverrim.cpp
     mwphysics/testneutralmovergap.cpp
+    mwphysics/testneutralwalkthrough.cpp
+    mwphysics/testneutralpathlong.cpp
+    mwphysics/testneutralpathslope.cpp
     mwphysics/testneutralplanelinks.cpp
     mwphysics/testneutralpathwaypointz.cpp
     mwphysics/testneutralmoversteep.cpp

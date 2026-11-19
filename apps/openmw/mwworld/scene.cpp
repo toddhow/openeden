@@ -264,12 +264,16 @@ namespace
                 && !MWWorld::neutralKindBlocksNavigationIn(ptr.get<MWWorld::NeutralBase>()->mBase->mKind, isInterior))
             {
                 // Task 0134: flora, items and lights of a neutral cell are physics objects but not navmesh obstacles
+                // Task 0336: and not in a walking NPC's way, as far as the plant-sized trees go
+                physics.noteNeutralWalkThrough(ptr, ptr.get<MWWorld::NeutralBase>()->mBase->mKind, false, isInterior);
             }
             else if (ptr.getType() == MWWorld::NeutralBase::sRecordId
                 && MWWorld::neutralShapeIsStandInBox(*object->getShapeInstance()->mCollisionShape))
             {
                 // Task 0134: the stand-in box of a neutral object whose model has no collision triangles is a guess for
                 // physics, not a surface: it is not given to the navigator
+                // Task 0336: nor is it in a walking NPC's way
+                physics.noteNeutralWalkThrough(ptr, ptr.get<MWWorld::NeutralBase>()->mBase->mKind, true, isInterior);
             }
             else if (object->getShapeInstance()->mVisualCollisionType == Resource::VisualCollisionType::None)
             {

@@ -33,6 +33,17 @@ namespace MWWorld
         return kind != BaseKind::Flora && kind != BaseKind::Tree && kind != BaseKind::Item && kind != BaseKind::Light;
     }
 
+    bool neutralActorWalksThrough(openeden::sdk::game::BaseKind kind, bool standInBox, bool interior)
+    {
+        return standInBox || !neutralKindBlocksNavigationIn(kind, interior);
+    }
+
+    std::span<const LongPathPull> longPathPulls()
+    {
+        static constexpr LongPathPull kPulls[] = { { 0.85f }, { 0.7f }, { 0.55f }, { 0.4f }, { 0.25f }, { 0.12f } };
+        return kPulls;
+    }
+
     bool neutralShapeIsStandInBox(const JPH::Shape& shape)
     {
         const JPH::Shape* current = &shape;

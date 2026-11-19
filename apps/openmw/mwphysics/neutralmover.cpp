@@ -130,6 +130,7 @@ namespace MWPhysics::NeutralMover
             {
                 result.mBlocked = true;
                 result.mEdge = true;
+                result.mRefusal = Result::Refusal::NoFloor;
                 break;
             }
             const vsg::vec3 rest(landing.x, landing.y, landing.z - drop * down.mFraction);
@@ -174,6 +175,7 @@ namespace MWPhysics::NeutralMover
             {
                 result.mBlocked = true;
                 result.mEdge = true;
+                result.mRefusal = Result::Refusal::NoFloor;
                 break;
             }
             const float groundBelowRest = rest.z - (rest.z + kProbeLift - ground.mFraction * probeDepth);
@@ -183,6 +185,9 @@ namespace MWPhysics::NeutralMover
             if (!bridged && ground.mNormal.z < limits.mMinFloorNormalZ && groundBelowRest > kBevelSlack && !climbing)
             {
                 result.mBlocked = true;
+                result.mRefusal = Result::Refusal::Slope;
+                result.mHitBody = ground.mBody;
+                result.mGroundNormalZ = ground.mNormal.z;
                 break;
             }
             pos = rest;
@@ -191,6 +196,8 @@ namespace MWPhysics::NeutralMover
             if (!side.mHit)
                 break;
             result.mBlocked = true;
+            result.mRefusal = Result::Refusal::Wall;
+            result.mHitBody = side.mBody;
             // Slide along the wall with what is left of the motion.
             const float nl = length2d(side.mNormal.x, side.mNormal.y);
             if (!(nl > 1e-4f))
@@ -221,8 +228,9 @@ namespace MWPhysics::NeutralMover
         {
         public:
             SweepBodyFilter(JPH::BodyID self, const Limits& limits, float feetZ, const std::vector<JPH::BodyID>* actors,
-                const std::vector<JPH::BodyID>* alsoIgnore)
+                const std::vector<JPH::BodyID>* alsoIgnore, const std::unordered_set<std::uint32_t>* walkThrough)
                 : mSelf(self)
+                , mWalkThrough(walkThrough)
                 , mLimits(limits)
                 , mFeetZ(feetZ)
                 , mActors(actors)
@@ -232,6 +240,9 @@ namespace MWPhysics::NeutralMover
             bool ShouldCollide(const JPH::BodyID& id) const override
             {
                 if (id == mSelf)
+                    return false;
+                // Task 0336: what the navigator leaves out is not in the actor's way
+                if (mWalkThrough != nullptr && mWalkThrough->count(id.GetIndexAndSequenceNumber()) != 0)
                     return false;
                 // Task 0274: bodies a mount walks through (its rider, the other actors' capsules)
                 return mAlsoIgnore == nullptr
@@ -251,6 +262,7 @@ namespace MWPhysics::NeutralMover
 
         private:
             JPH::BodyID mSelf;
+            const std::unordered_set<std::uint32_t>* mWalkThrough;
             Limits mLimits;
             float mFeetZ;
             const std::vector<JPH::BodyID>* mActors;
@@ -260,11 +272,12 @@ namespace MWPhysics::NeutralMover
 
     JoltSweeper::JoltSweeper(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape, JPH::BodyID self,
         int layerMask, const Limits& limits, const std::vector<JPH::BodyID>* actors,
-        const std::vector<JPH::BodyID>* alsoIgnore)
+        const std::vector<JPH::BodyID>* alsoIgnore, const std::unordered_set<std::uint32_t>* walkThrough)
         : mSystem(system)
         , mShape(std::move(shape))
         , mSelf(self)
         , mAlsoIgnore(alsoIgnore)
+        , mWalkThrough(walkThrough)
         , mLayerMask(layerMask)
         , mLimits(limits)
         , mActors(actors)
@@ -289,7 +302,7 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore);
+        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore, mWalkThrough);
         JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
         mSystem.GetNarrowPhaseQuery().CastShape(
             cast, settings, JPH::RVec3::sZero(), collector, allBroadPhaseLayers, objectLayers, ownBody);
@@ -298,6 +311,7 @@ namespace MWPhysics::NeutralMover
         {
             result.mHit = true;
             result.mFraction = std::clamp(collector.mHit.mFraction, 0.f, 1.f);
+            result.mBody = collector.mHit.mBodyID2.GetIndexAndSequenceNumber();
             const JPH::Vec3 normal = -collector.mHit.mPenetrationAxis.NormalizedOr(JPH::Vec3::sAxisZ());
             result.mNormal = vsg::vec3(normal.GetX(), normal.GetY(), normal.GetZ());
         }
@@ -312,7 +326,7 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore); // a probe starts just above the feet
+        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore, mWalkThrough); // a probe starts just above the feet
         // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by
         // steep bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by
         // five rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal
@@ -358,6 +372,7 @@ namespace MWPhysics::NeutralMover
                 candidates[i].mHit.mSubShapeID2, candidates[i].mRay.GetPointOnRay(candidates[i].mHit.mFraction));
             if (!haveNormal || normal.GetZ() > result.mNormal.z)
             {
+                result.mBody = candidates[i].mHit.mBodyID.GetIndexAndSequenceNumber();
                 result.mNormal = vsg::vec3(normal.GetX(), normal.GetY(), normal.GetZ());
                 haveNormal = true;
             }
