@@ -1171,4 +1171,34 @@ namespace Render::Gi
     {
         return "openeden/probes/exterior/" + std::to_string(cellX) + "_" + std::to_string(cellY) + ".skyvis.json";
     }
+
+    std::string skyVisFilePath(int cellX, int cellY, std::string_view world)
+    {
+        if (world.empty())
+            return skyVisFilePath(cellX, cellY);
+        std::string key;
+        for (const char c : world)
+        {
+            const char lower = lowerAscii(c);
+            const bool keep = (lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9');
+            key += keep ? lower : '_';
+        }
+        return "openeden/probes/exterior/" + key + "/" + std::to_string(cellX) + "_" + std::to_string(cellY)
+            + ".skyvis.json";
+    }
+
+    std::pair<int, int> skyFieldCellOf(int cellX, int cellY, int cellSize)
+    {
+        if (cellSize <= 0)
+            return { cellX, cellY };
+        const auto fieldOf = [cellSize](int cell) {
+            const long long units = static_cast<long long>(cell) * cellSize;
+            const long long side = static_cast<long long>(exteriorCellSize);
+            long long q = units / side;
+            if (units % side != 0 && units < 0)
+                --q;
+            return static_cast<int>(q);
+        };
+        return { fieldOf(cellX), fieldOf(cellY) };
+    }
 }

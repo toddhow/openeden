@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 
 #include <components/esm3/loadligh.hpp>
 
@@ -48,6 +49,20 @@ namespace MWWorld
 
     /// The multiplier above 1 that neutralLightColor leaves out (1 when none): fade / the scale it applied.
     [[nodiscard]] float neutralLightGain(const openeden::sdk::game::LightComponent& light);
+
+    /// Task 0358: what the baked global illumination (`--bake-gi`) needs of a neutral light: the same colour and
+    /// radius the engine's light gets (makeNeutralEsmLight), so the bake lights a room as the game does.
+    struct NeutralGiLight
+    {
+        std::uint32_t mColor = 0; ///< As ESM::Light::mData.mColor (sRGB bytes, red lowest)
+        float mGain = 1.f; ///< The brightness the colour byte cannot hold (1 when none); a multiplier of the linear colour
+        float mRadius = 0.f; ///< Units, as the engine's light radius
+        bool mNegative = false;
+    };
+
+    /// The light the bake sees for a neutral light: nothing for a light that is off by default or has no radius.
+    [[nodiscard]] std::optional<NeutralGiLight> neutralGiLight(
+        const openeden::sdk::game::LightComponent& light, bool fadeGain);
 }
 
 #endif

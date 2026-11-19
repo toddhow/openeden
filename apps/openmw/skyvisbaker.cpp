@@ -14,13 +14,21 @@
 #include <components/render/skyvisibility.hpp>
 #include <components/settings/values.hpp>
 
+#include <components/esmbridge/exteriorcelllocation.hpp>
+#include <components/esmbridge/util.hpp>
+#include <components/worldmodel/store.hpp>
+
 #include "mwbase/environment.hpp"
+#include "mwbase/extensionmanager.hpp"
 #include "mwbase/world.hpp"
 #include "mwphysics/joltlayers.hpp"
 #include "mwphysics/physicssystem.hpp"
 #include "mwrender/rendermanager.hpp"
 #include "mwworld/cellstore.hpp"
+#include "mwworld/neutraldoor.hpp"
+#include "mwworld/neutralstart.hpp"
 #include "mwworld/ptr.hpp"
+#include "mwworld/worldmodel.hpp"
 
 namespace OMW
 {
@@ -40,12 +48,18 @@ namespace OMW
         // The terrain is looked for between these heights (Morrowind's land runs from about -2000 to 8000).
         constexpr float groundTop = 20000.f;
         constexpr float groundBottom = -20000.f;
+        // Task 0358: a game pack's world has its own heights (Skyrim's mountains stand far above Morrowind's land).
+        constexpr float neutralGroundTop = 70000.f;
+        // How far above the land the player is put in a neutral world; he settles on the ground from there.
+        constexpr double neutralDropAboveLand = 20.0;
+        constexpr float neutralInsideNudge = 64.f;
 
         class JoltSkyWorld final : public Render::Gi::SkyRayWorld
         {
         public:
-            explicit JoltSkyWorld(const MWPhysics::PhysicsSystem& physics)
+            explicit JoltSkyWorld(const MWPhysics::PhysicsSystem& physics, float top = groundTop)
                 : mPhysics(physics)
+                , mTop(top)
             {
             }
 
@@ -73,7 +87,7 @@ namespace OMW
                     const float px = x + offset[0];
                     const float py = y + offset[1];
                     const auto result = mPhysics.castRay(
-                        vsg::vec3(px, py, groundTop), vsg::vec3(px, py, groundBottom), MWPhysics::Layers::HEIGHTMAP);
+                        vsg::vec3(px, py, mTop), vsg::vec3(px, py, groundBottom), MWPhysics::Layers::HEIGHTMAP);
                     if (result.mHit)
                     {
                         z = result.mHitPos.z;
@@ -85,6 +99,7 @@ namespace OMW
 
         private:
             const MWPhysics::PhysicsSystem& mPhysics;
+            float mTop;
         };
 
         std::string readFile(const std::filesystem::path& path)
@@ -201,6 +216,13 @@ namespace OMW
         std::chrono::steady_clock::time_point started;
         std::chrono::steady_clock::time_point lastSave;
         std::size_t lastLogged = 99;
+        // Task 0358: a game pack's world (the player starts in a neutral exterior): the field is still made of 8192 unit
+        // cells (the argument's x and y), the game's cells are smaller (Skyrim's 4096), and the files are the world's.
+        bool neutral = false;
+        ESM::RefId worldspace;
+        std::string worldKey;
+        int gameCellSize = 8192;
+        std::pair<int, int> targetSquare{ 0, 0 }; // the game cell the player is moved into
 
         State(std::string arg, std::filesystem::path out)
             : argument(std::move(arg))
@@ -213,7 +235,7 @@ namespace OMW
         void setPaths()
         {
             const auto [x, y] = current();
-            const std::filesystem::path base = outFolder / Render::Gi::skyVisFilePath(x, y);
+            const std::filesystem::path base = outFolder / Render::Gi::skyVisFilePath(x, y, worldKey);
             outFile = base;
             partialFile = base;
             partialFile.replace_extension(".partial");
@@ -244,6 +266,17 @@ namespace OMW
             settings.rays = static_cast<std::uint32_t>(renderSettings.mGiBakeSkyRays.get());
             settings.seed = static_cast<std::uint32_t>(renderSettings.mGiBakeSeed.get());
             settings.spacing = snapSpacing(renderSettings.mGiBakeSkySpacing);
+            // Task 0358: the world the player stands in decides where the field's cells are and which files they go to.
+            const MWWorld::CellStore* start = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
+            if (start != nullptr && start->isNeutral() && start->getCell()->isExterior())
+            {
+                neutral = true;
+                worldspace = start->getCell()->getWorldSpace();
+                worldKey = worldspace.serializeText();
+                gameCellSize = ESM::getCellSize(worldspace);
+                Log(Debug::Info) << "[GI] the world \"" << worldKey << "\": field cells of "
+                                 << Render::Gi::exteriorCellSize << " units over game cells of " << gameCellSize;
+            }
         }
 
         // True when the cell already has a file made with these settings.
@@ -322,7 +355,8 @@ namespace OMW
         {
             auto gameWorld = MWBase::Environment::get().getWorld();
             bakedCell = gameWorld->getPlayerPtr().getCell();
-            world = std::make_unique<JoltSkyWorld>(*gameWorld->getPhysicsSystem());
+            world = std::make_unique<JoltSkyWorld>(
+                *gameWorld->getPhysicsSystem(), neutral ? neutralGroundTop : groundTop);
             baker = std::make_unique<Render::Gi::SkyVisBaker>(settings, *world, current().first, current().second);
             Log(Debug::Info) << "[GI] baking exterior cell " << current().first << "," << current().second << ": "
                              << baker->total() << " probes, " << settings.rays << " rays, spacing " << settings.spacing;
@@ -369,14 +403,51 @@ namespace OMW
             nextCell();
         }
 
-        void moveTo(int x, int y)
+        // False (with the reason logged) when the cell cannot be entered.
+        bool moveTo(int x, int y)
         {
             ESM::Position pos;
             pos.pos[0] = (static_cast<float>(x) + 0.5f) * Render::Gi::exteriorCellSize;
             pos.pos[1] = (static_cast<float>(y) + 0.5f) * Render::Gi::exteriorCellSize;
             pos.pos[2] = 0.f;
             pos.rot[0] = pos.rot[1] = pos.rot[2] = 0.f;
-            MWBase::Environment::get().getWorld()->changeToCell(ESM::RefId::esm3ExteriorCell(x, y), pos, true);
+            if (!neutral)
+            {
+                MWBase::Environment::get().getWorld()->changeToCell(ESM::RefId::esm3ExteriorCell(x, y), pos, true);
+                return true;
+            }
+            // A game pack's world: the land under the centre of the field cell decides the height, and the game cell
+            // that holds the centre is the one the player is moved into (the same path a door to an exterior takes).
+            MWWorld::WorldModel& model = *MWBase::Environment::get().getWorldModel();
+            const MWWorld::NeutralWorldspace* const known = model.neutralWorldspace(worldspace);
+            NeutralWorld::NeutralWorldStore* const store
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+            openeden::sdk::game::WorldCellSource* const source
+                = known != nullptr && store != nullptr ? store->source(known->mGameId) : nullptr;
+            if (source == nullptr)
+            {
+                Log(Debug::Error) << "[GI] no world source for \"" << worldKey << "\"";
+                return false;
+            }
+            // The centre of a field cell is the corner of four of Skyrim's cells; the player is put a little inside one of
+            // them, so that no rounding of his position can leave him in its neighbour.
+            pos.pos[0] += neutralInsideNudge;
+            pos.pos[1] += neutralInsideNudge;
+            std::string error;
+            const auto land = MWWorld::neutralLandHeight(*source, known->mWorld, pos.pos[0], pos.pos[1], error);
+            const auto square = MWWorld::neutralExteriorSquare(pos.pos[0], pos.pos[1], gameCellSize);
+            if (!land || !square)
+            {
+                Log(Debug::Error) << "[GI] there is no land at the centre of field cell " << x << "," << y << " in \""
+                                  << worldKey << "\": " << error;
+                return false;
+            }
+            pos.pos[2] = static_cast<float>(*land + neutralDropAboveLand);
+            targetSquare = *square;
+            MWWorld::CellStore& cell
+                = model.getExterior(ESM::ExteriorCellLocation(square->first, square->second, worldspace));
+            MWBase::Environment::get().getWorld()->changeToCell(cell.getCell()->getId(), pos, true);
+            return true;
         }
 
         // True when finished.
@@ -413,15 +484,22 @@ namespace OMW
                         nextCell();
                         return false;
                     }
-                    moveTo(current().first, current().second);
+                    if (!moveTo(current().first, current().second))
+                    {
+                        ++failed;
+                        nextCell();
+                        return false;
+                    }
                     entered = true;
                     return false;
                 }
                 auto gameWorld = MWBase::Environment::get().getWorld();
                 const MWWorld::CellStore* cell = gameWorld->getPlayerPtr().getCell();
+                const std::pair<int, int> wantedSquare = neutral ? targetSquare : current();
                 const bool right = cell && cell->getCell()->isExterior()
-                    && cell->getCell()->getGridX() == current().first
-                    && cell->getCell()->getGridY() == current().second;
+                    && cell->getCell()->getGridX() == wantedSquare.first
+                    && cell->getCell()->getGridY() == wantedSquare.second
+                    && (!neutral || cell->getCell()->getWorldSpace() == worldspace);
                 if (right)
                     ++settled;
                 else
@@ -429,7 +507,9 @@ namespace OMW
                 if (++waited > giveUpFrames)
                 {
                     Log(Debug::Error) << "[GI] exterior cell " << current().first << "," << current().second
-                                      << " did not load; nothing was baked for it";
+                                      << " did not load; nothing was baked for it (the player is in "
+                                      << (cell ? std::string(cell->getCell()->getDescription()) : std::string("no cell"))
+                                      << ", wanted game cell " << wantedSquare.first << "," << wantedSquare.second << ")";
                     ++failed;
                     nextCell();
                     return false;

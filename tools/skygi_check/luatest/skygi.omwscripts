@@ -1,0 +1,2 @@
+GLOBAL: scripts/skygi/global.lua
+PLAYER: scripts/skygi/player.lua

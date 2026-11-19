@@ -24,6 +24,9 @@
 #include "mwrender/rendermanager.hpp"
 #include "mwworld/cellstore.hpp"
 #include "mwworld/class.hpp"
+#include "mwworld/livecellref.hpp"
+#include "mwworld/neutrallight.hpp"
+#include "mwworld/neutralstore.hpp"
 #include "mwworld/ptr.hpp"
 
 namespace OMW
@@ -380,6 +383,26 @@ namespace OMW
                 const ESM::RefNum num = ptr.getCellRef().getRefNum();
                 found.push_back({ { static_cast<int>(num.mContentFile), static_cast<int>(num.mIndex) }, bl });
                 return true;
+            });
+            // Task 0358: the lights of a game pack's neutral cell are not ESM::Light references: each placement's base
+            // carries a LightComponent, and the engine draws it through makeNeutralEsmLight (scene.cpp, insertModel). The
+            // bake takes the same colour, gain and radius, so a Skyrim interior is baked with the light it is shown with.
+            cell->forEachNeutralRef([&](const MWWorld::LiveCellRef<MWWorld::NeutralBase>& live) {
+                if (live.mBase == nullptr || !live.mBase->mLight || !live.mData.isEnabled()
+                    || live.mRef.getCount(false) == 0)
+                    return;
+                const auto baked = MWWorld::neutralGiLight(*live.mBase->mLight, Settings::game().mNeutralLightFadeGain);
+                if (!baked)
+                    return;
+                Render::Gi::BakeLight bl;
+                const auto& pos = live.mData.getPosition();
+                bl.position = vsg::vec3(pos.pos[0], pos.pos[1], pos.pos[2]);
+                bl.color = Render::Hdr::toLinear(MWAnim::rgbColor(baked->mColor)) * baked->mGain;
+                if (baked->mNegative)
+                    bl.color = bl.color * -1.f;
+                bl.radius = baked->mRadius;
+                const ESM::RefNum num = live.mRef.getRefNum();
+                found.push_back({ { static_cast<int>(num.mContentFile), static_cast<int>(num.mIndex) }, bl });
             });
             // The same order every run: by reference number.
             std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) { return a.first < b.first; });

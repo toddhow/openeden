@@ -110,4 +110,22 @@ namespace MWWorld
         z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
         return static_cast<std::uint32_t>((z ^ (z >> 31)) >> 16);
     }
+
+    std::optional<NeutralGiLight> neutralGiLight(const LightComponent& light, bool fadeGain)
+    {
+        if (light.offByDefault)
+            return std::nullopt;
+        // The engine's own record: what the bake lights with is what scene.cpp hands to MWAnim::createObject.
+        const ESM::Light record = makeNeutralEsmLight(light, fadeGain);
+        if (record.mData.mRadius <= 0)
+            return std::nullopt;
+        NeutralGiLight out;
+        out.mColor = static_cast<std::uint32_t>(record.mData.mColor);
+        if ((record.mData.mFlags & ESM::Light::NeutralGain) != 0 && std::isfinite(record.mData.mWeight)
+            && record.mData.mWeight > 0.f)
+            out.mGain = record.mData.mWeight;
+        out.mRadius = static_cast<float>(record.mData.mRadius);
+        out.mNegative = (record.mData.mFlags & ESM::Light::Negative) != 0;
+        return out;
+    }
 }

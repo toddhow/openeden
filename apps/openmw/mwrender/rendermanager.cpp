@@ -2224,24 +2224,29 @@ namespace MWRender
         mLightPosition = vsg::vec3(-0.15f, 0.15f, 1.f);
     }
 
-    void RenderManager::exteriorCellLoaded(int x, int y)
+    void RenderManager::exteriorCellLoaded(int x, int y, int cellSize, const std::string& world)
     {
         ++mLoadedExteriorCells; // task 0054 counters
         ++mExteriorCellLoadsTotal;
         if (!mGiSkyEnabled)
             return;
+        const auto field = Render::Gi::skyFieldCellOf(x, y, cellSize);
         std::lock_guard<std::mutex> lock(mSkyVisMutex);
-        mSkyCells.insert({ x, y });
+        ++mSkyCells[SkyKey(world, field.first, field.second)];
+        mSkyWorldLast = world;
         mSkyCellsChanged = true;
     }
 
-    void RenderManager::exteriorCellUnloaded(int x, int y)
+    void RenderManager::exteriorCellUnloaded(int x, int y, int cellSize, const std::string& world)
     {
         --mLoadedExteriorCells;
         if (!mGiSkyEnabled)
             return;
+        const auto field = Render::Gi::skyFieldCellOf(x, y, cellSize);
         std::lock_guard<std::mutex> lock(mSkyVisMutex);
-        mSkyCells.erase({ x, y });
+        const auto it = mSkyCells.find(SkyKey(world, field.first, field.second));
+        if (it != mSkyCells.end() && --it->second <= 0)
+            mSkyCells.erase(it);
         mSkyCellsChanged = true;
     }
 
@@ -2252,14 +2257,15 @@ namespace MWRender
         bool rewritten = false;
         // The scene may load and unload cells on another thread: take the wanted set under the lock, and read and
         // parse files without it (the files and the packed buffers are only touched here, on the render thread).
-        std::set<std::pair<int, int>> wanted;
+        std::set<SkyKey> wanted;
         bool changed = false;
         {
             std::lock_guard<std::mutex> lock(mSkyVisMutex);
             changed = mSkyCellsChanged;
             mSkyCellsChanged = false;
             if (changed)
-                wanted = mSkyCells;
+                for (const auto& entry : mSkyCells)
+                    wanted.insert(entry.first);
         }
         if (changed)
         {
@@ -2272,7 +2278,7 @@ namespace MWRender
                 if (mSkyFields.count(cell))
                     continue;
                 std::unique_ptr<Render::Gi::SkyVisField> field;
-                const std::string path = Render::Gi::skyVisFilePath(cell.first, cell.second);
+                const std::string path = Render::Gi::skyVisFilePath(std::get<1>(cell), std::get<2>(cell), std::get<0>(cell));
                 if (vfs.exists(path))
                 {
                     std::string text;
@@ -2286,7 +2292,7 @@ namespace MWRender
                     auto parsed = Render::Gi::parseSkyVis(text, path, error);
                     if (!parsed)
                         Log(Debug::Warning) << "[Rendering] gi exterior: skipped file " << error.describe();
-                    else if (parsed->cellX != cell.first || parsed->cellY != cell.second)
+                    else if (parsed->cellX != std::get<1>(cell) || parsed->cellY != std::get<2>(cell))
                         Log(Debug::Warning)
                             << "[Rendering] gi exterior: " << path << " is the bake of another cell, skipped";
                     else
@@ -2459,7 +2465,7 @@ namespace MWRender
         const vsg::vec3 eye(mViewMatrix->eye);
         const int cellX = static_cast<int>(std::floor(eye.x / Render::Gi::exteriorCellSize));
         const int cellY = static_cast<int>(std::floor(eye.y / Render::Gi::exteriorCellSize));
-        const auto found = mSkyFields.find({ cellX, cellY });
+        const auto found = mSkyFields.find(SkyKey(mSkyWorldLast, cellX, cellY));
         const Render::Gi::SkyVisField* field = found != mSkyFields.end() ? found->second.get() : nullptr;
         if (!field)
         {

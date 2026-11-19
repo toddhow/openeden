@@ -50,6 +50,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutrallight.cpp
     mwworld/testneutrallightgain.cpp
     mwworld/testneutrallightflicker.cpp
+    mwworld/testneutralgilight.cpp
     mwworld/testneutrallightreal.cpp
     mwworld/testneutralcellstore.cpp
     mwworld/testneutralcellatmosphere.cpp

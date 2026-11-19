@@ -443,7 +443,9 @@ namespace MWWorld
             mRendering.setCellObjectsPending(cell->getCell()->getGridX(), cell->getCell()->getGridY(), false);
         mBuildStartUs.erase(cell);
         if (cell->isExterior())
-            mRendering.exteriorCellUnloaded(cell->getCell()->getGridX(), cell->getCell()->getGridY());
+            mRendering.exteriorCellUnloaded(cell->getCell()->getGridX(), cell->getCell()->getGridY(),
+                cell->isNeutral() ? ESM::getCellSize(cell->getCell()->getWorldSpace()) : 8192,
+                cell->isNeutral() ? cell->getCell()->getWorldSpace().serializeText() : std::string());
         if (cell->isExterior() && cell->isNeutral())
             mRendering.removeNeutralCellWater(cell->getCell()->getGridX(), cell->getCell()->getGridY());
         MWBase::Environment::get().getExtensionManager()->cellUnloaded(cell->getCell()->getDescription());
@@ -676,7 +678,9 @@ namespace MWWorld
         else
             mRendering.disableProbes(); // task 0028: exteriors keep the flat ambient
         if (cell.isExterior())
-            mRendering.exteriorCellLoaded(cellX, cellY); // task 0036: the sky-visibility field of the exterior
+            mRendering.exteriorCellLoaded(cellX, cellY, // task 0036: the sky-visibility field of the exterior
+                neutralExterior ? ESM::getCellSize(worldspace) : 8192,
+                neutralExterior ? worldspace.serializeText() : std::string()); // task 0358: a neutral world's own files
     }
 
     void Scene::clear()

@@ -20,6 +20,7 @@
 #include <mutex>
 #include <optional>
 #include <set>
+#include <tuple>
 
 #include <chrono>
 
@@ -290,8 +291,11 @@ namespace MWRender
         void updateProbeDebug();
         // Task 0036: the loaded exterior cells, from the scene (any thread; read in onFrame). The renderer reads each
         // cell's sky-visibility file when it is wanted and drops it when the cell is unloaded.
-        void exteriorCellLoaded(int x, int y);
-        void exteriorCellUnloaded(int x, int y);
+        /// `cellSize` is the cell's side in units and `world` the neutral world's key (task 0358): the sky-visibility
+        /// field is made of 8192 unit cells whatever the game's own cells measure, and each world has its own files. The
+        /// defaults are Morrowind's.
+        void exteriorCellLoaded(int x, int y, int cellSize = 8192, const std::string& world = std::string());
+        void exteriorCellUnloaded(int x, int y, int cellSize = 8192, const std::string& world = std::string());
         void configureFog(const MWWorld::Cell& cell);
         void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour);
 
@@ -597,10 +601,13 @@ namespace MWRender
         vsg::ref_ptr<vsg::vec4Array> mSkyVisPool;
         vsg::ref_ptr<vsg::vec4Array> mSkyVisHeader;
         std::mutex mSkyVisMutex;
-        std::set<std::pair<int, int>> mSkyCells;
+        // Task 0358: a field cell (world, x, y) with the number of loaded game cells inside it (up to 4 in Skyrim).
+        using SkyKey = std::tuple<std::string, int, int>;
+        std::map<SkyKey, int> mSkyCells;
+        std::string mSkyWorldLast; // the world of the last loaded cell (the debug view's)
         bool mSkyCellsChanged = false;
         // The parsed files of the loaded cells; a null entry is a cell with no (or a bad) file.
-        std::map<std::pair<int, int>, std::unique_ptr<Render::Gi::SkyVisField>> mSkyFields;
+        std::map<SkyKey, std::unique_ptr<Render::Gi::SkyVisField>> mSkyFields;
         // The sky colours the header was last written for, to write it again only when they move.
         vsg::vec3 mSkyVisLastSky{ -1.f, -1.f, -1.f };
         vsg::vec3 mSkyVisLastHorizon{ -1.f, -1.f, -1.f };

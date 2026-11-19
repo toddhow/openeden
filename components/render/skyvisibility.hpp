@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "probes.hpp"
@@ -74,6 +75,16 @@ namespace Render::Gi
 
     // "openeden/probes/exterior/<x>_<y>.skyvis.json"
     std::string skyVisFilePath(int cellX, int cellY);
+
+    // Task 0358: the file of a field cell of a game pack's own world ("openeden/probes/exterior/<world>/<x>_<y>.skyvis.json",
+    // <world> lower-cased with every character that is not a letter or digit turned into '_'). A field cell is always
+    // exteriorCellSize (8192) units wide, whatever the game's own cells measure, and a world has its own coordinates, so
+    // two worlds must not share files. An empty world is the old path (Morrowind, byte for byte).
+    std::string skyVisFilePath(int cellX, int cellY, std::string_view world);
+
+    // The field cell (exteriorCellSize wide) that the game cell (x, y) of `cellSize` units lies in, or lies in first
+    // when a game cell is wider than the field's (it covers several). 8192 gives (x, y) back.
+    std::pair<int, int> skyFieldCellOf(int cellX, int cellY, int cellSize);
 }
 
 #endif
