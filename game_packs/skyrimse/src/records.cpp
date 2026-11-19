@@ -789,6 +789,11 @@ namespace game_skyrimse
                                     lighting.mInherit = readLe<std::uint32_t>(p + 88);
                                     lighting.mFogMax = readLe<float>(p + 76);
                                 }
+                                // Task 0355 stage e: the ambient cube, six colours at 40 (both sizes).
+                                for (std::size_t face = 0; face < 6; ++face)
+                                    for (std::size_t i = 0; i < 3; ++i)
+                                        lighting.mCube[face][i] = static_cast<std::uint8_t>(p[40 + 4 * face + i]);
+                                lighting.mHasCube = true;
                                 c.mLighting = lighting;
                             }
                             else
@@ -1137,6 +1142,8 @@ namespace game_skyrimse
                 const bool isLight = record.mType == Content::fourCC("LIGH");
                 const bool isLightingTemplate = record.mType == Content::fourCC("LGTM");
                 std::optional<CellLightingData> templateLighting;
+                // Task 0355 stage e: the LGTM's DALC (the template's ambient cube), joined to its lighting at the end.
+                std::optional<std::array<std::array<std::uint8_t, 3>, 6>> templateCube;
                 LightData light;
                 bool hasLightData = false;
                 float lightFade = 1.0f;
@@ -1228,6 +1235,21 @@ namespace game_skyrimse
                                 messageBox = (readLe<std::uint32_t>(data.data()) & 1u) != 0;
                             else
                                 odd("DNAM");
+                            break;
+                        case Content::fourCC("DALC"): // LGTM only (task 0355 stage e): 32 bytes (126 of 131 in the
+                                                      // masters) or 24: six colours, then specular and fresnel
+                            if (!isLightingTemplate)
+                                break;
+                            if (data.size() >= 24)
+                            {
+                                std::array<std::array<std::uint8_t, 3>, 6> cube{};
+                                for (std::size_t face = 0; face < 6; ++face)
+                                    for (std::size_t i = 0; i < 3; ++i)
+                                        cube[face][i] = static_cast<std::uint8_t>(data[4 * face + i]);
+                                templateCube = cube;
+                            }
+                            else
+                                odd("DALC");
                             break;
                         case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
                             if (isLightingTemplate)
@@ -1332,6 +1354,11 @@ namespace game_skyrimse
                     model.mMessageBox = messageBox;
                     model.mActivateText = std::move(activateText);
                     model.mVoiceType = voiceType;
+                    if (templateLighting && templateCube)
+                    {
+                        templateLighting->mCube = *templateCube;
+                        templateLighting->mHasCube = true;
+                    }
                     model.mLighting = templateLighting;
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);

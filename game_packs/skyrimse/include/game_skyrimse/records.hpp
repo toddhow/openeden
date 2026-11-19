@@ -321,6 +321,11 @@ namespace game_skyrimse
         /// to 0.9 in 147, 0.0 in 22 and wild numbers (6000, 8, 13000) in 4. 1 = the plain linear fog.
         float mFogPower = 1.0f;
         float mFogMax = 1.0f;
+        /// Task 0355 stage e: the ambient cube, +X, -X, +Y, -Y, +Z, -Z (XCLL bytes 40 to 63, both sizes; a lighting
+        /// template's DALC). Field order RECALLED-VERIFY (xEdit); the data agrees (up is the darkest face, down the
+        /// brightest and warmest, as a floor bounce lights a room). mHasCube is false when no record gave one.
+        std::array<std::array<std::uint8_t, 3>, 6> mCube{};
+        bool mHasCube = false;
     };
 
     /// Task 0303: the XCLL inherit flag bits that matter to the neutral world's interior lighting. Order and meaning

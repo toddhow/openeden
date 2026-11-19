@@ -132,6 +132,8 @@ namespace Pipeline
                 return "INSTANCE_TINT";
             case Mode::FORCE_PER_PIXEL_LIGHTING:
                 return "FORCE_PER_PIXEL_LIGHTING";
+            case Mode::AMBIENT_CUBE:
+                return "AMBIENT_CUBE";
         }
         return "";
     }

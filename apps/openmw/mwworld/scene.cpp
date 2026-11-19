@@ -674,9 +674,15 @@ namespace MWWorld
             mPhysics->disableWater(); // task 0129: a neutral exterior leaves the plane to changePlayerCell
 
         if (!cell.isExterior() && !cellVariant.isQuasiExterior())
+        {
             mRendering.configureAmbient(cellVariant);
+            applyNeutralAmbientCube(cell, mRendering); // task 0355 stage e: the interior's six-colour ambient
+        }
         else
+        {
             mRendering.disableProbes(); // task 0028: exteriors keep the flat ambient
+            applyNeutralAmbientCube(cell, mRendering);
+        }
         if (cell.isExterior())
             mRendering.exteriorCellLoaded(cellX, cellY, // task 0036: the sky-visibility field of the exterior
                 neutralExterior ? ESM::getCellSize(worldspace) : 8192,

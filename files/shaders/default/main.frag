@@ -1,4 +1,4 @@
-#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD, PRECIPITATION_LIT, LOD_FADE, POINT_SHADOW, FORCE_PER_PIXEL_LIGHTING)
+#pragma import_defines (NORMAL, PARTICLE, COLOR, TEXCOORD, DIFFUSE_MAP, DARK_MAP, DETAIL_MAP, DECAL_MAP, GLOW_MAP, BUMP_MAP, ENV_MAP, MATERIAL, NORMAL_MAP, PARALLAX, RECONSTRUCT_NORMAL_Z, SPECULAR_MAP, ALPHA_TO_COVERAGE, ADJUST_COVERAGE, SOFT_PARTICLE, PARTICLE_OCCLUSION, GBUFFER, GBUFFER_MOTION, GBUFFER_MATERIAL, PBR, PBR_PHYSICAL, MATERIAL_MAP, MATERIAL_MAP_RMAOS, GI, GI_SKY, GBUFFER_AMBIENT, WETNESS, WETNESS_PUDDLES, WETNESS_DEBUG, COVER, COVER_DEBUG, HEIGHT_MAP, PARALLAX_POM, PARALLAX_POM_LOW, PARALLAX_POM_HIGH, PARALLAX_DISCARD, PRECIPITATION_LIT, LOD_FADE, POINT_SHADOW, FORCE_PER_PIXEL_LIGHTING, AMBIENT_CUBE)
 
 #include "lib/material/descriptors_frag.glsl"
 
@@ -51,6 +51,10 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
  #ifdef GI_SKY
 #include "lib/view/skyvis.glsl"
  #endif
+#endif
+#ifdef AMBIENT_CUBE
+// OpenEden (task 0355 stage e): the interior's six-colour ambient (after the sky-visibility header's other users).
+#include "lib/view/ambientcube.glsl"
 #endif
 #ifdef WET_LIT
 #include "lib/material/wetness.glsl"
@@ -351,6 +355,10 @@ void main()
         coverS.mask *= (1.0 - coverSkin) * (1.0 - coverGlow);
     }
 #endif
+#if defined(AMBIENT_CUBE) && defined(NORMAL)
+    // Task 0355 stage e: the cell's ambient cube by the surface's world normal (the flat ambient where no cube is loaded).
+    ambientLight = ambientCubeAmbient(mat3(scene.invView) * viewNormal, ambientLight);
+#endif
 #ifdef GI
     ambientLight = giAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
  #ifdef GI_SKY
@@ -506,7 +514,7 @@ void main()
   #endif
     }
 #else
-#ifdef GI
+#if defined(GI) || defined(AMBIENT_CUBE)
     outColor *= materialTermsAmbient(ambientLight, diffuseLight, vertexColor);
 #else
     outColor *= materialTerms(diffuseLight, vertexColor);

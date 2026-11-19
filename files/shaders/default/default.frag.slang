@@ -60,6 +60,9 @@ import lib.view.reflection;
 #include "lib/view/skyvis.slang"
 #endif
 #endif
+#ifdef AMBIENT_CUBE
+#include "lib/view/ambientcube.slang"
+#endif
 #ifdef WET_LIT
 #include "lib/material/wetness.slang"
 #ifdef WETNESS_PUDDLES
@@ -370,6 +373,10 @@ FragmentOutput fragMain(FragmentInput input)
         coverS.mask *= (1.0 - coverSkin) * (1.0 - coverGlow);
     }
 #endif
+#if defined(AMBIENT_CUBE) && defined(NORMAL)
+    // Task 0355 stage e: the cell's ambient cube by the surface's world normal (the flat ambient where none is loaded).
+    ambientLight = ambientCubeAmbient(mul((float3x3)scene.invView, viewNormal), ambientLight);
+#endif
 #ifdef GI
     ambientLight = giAmbient(
         mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz, mul((float3x3)scene.invView, viewNormal), ambientLight);
@@ -525,7 +532,7 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
     }
 #else
-#ifdef GI
+#if defined(GI) || defined(AMBIENT_CUBE)
     outColor *= materialTermsAmbient(ambientLight, diffuseLight, vertexColor);
 #else
     outColor *= materialTerms(diffuseLight, vertexColor);

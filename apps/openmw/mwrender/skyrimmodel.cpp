@@ -396,6 +396,9 @@ namespace MWRender::SkyrimModel
             // indices and weights, texture coordinates.
             shader.addMode(Pipeline::Mode::VERTEX);
             shader.addMode(Pipeline::Mode::NORMAL);
+            // Task 0355 stage e: lit by the cell's ambient cube where one is loaded (else the flat ambient).
+            if (Settings::game().mNeutralAmbientCube.get())
+                shader.addMode(Pipeline::Mode::AMBIENT_CUBE);
             shader.addMode(Pipeline::Mode::SKIN);
             // Task 0355 follow-up: Skyrim surfaces take their point lights per pixel (round pools, not vertex smears).
             shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
@@ -501,6 +504,9 @@ namespace MWRender::SkyrimModel
             shader.addMode(Pipeline::Mode::NORMAL);
             // Task 0355 follow-up: Skyrim surfaces take their point lights per pixel (round pools, not vertex smears).
             shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
+            // Task 0355 stage e: as above.
+            if (Settings::game().mNeutralAmbientCube.get())
+                shader.addMode(Pipeline::Mode::AMBIENT_CUBE);
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
             vsgUtil::setID(*dataList.back(), static_cast<int>(Pipeline::Mode::NORMAL));
             const bool swaying = key.mSway && context.mSwayUniform && !shape.mColors.empty();

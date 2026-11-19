@@ -10,6 +10,7 @@
 #include <components/settings/values.hpp>
 #include <components/worldmodel/store.hpp>
 
+#include <openeden/game/ambient_cube_source.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -130,6 +131,27 @@ namespace MWWorld
                          << g.saturation << " stops " << g.stops << " contrast " << g.contrast << " tint "
                          << g.tintAmount << " lookup " << micros << " us";
         return false;
+    }
+
+    void applyNeutralAmbientCube(const CellStore& cell, MWRender::RenderManager& rendering)
+    {
+        if (!rendering.ambientCubeEnabled())
+            return;
+        const openeden::sdk::game::WorldCell* neutral = cell.neutralCell();
+        openeden::sdk::game::AmbientCube cube;
+        bool has = false;
+        if (neutral != nullptr && neutral->interior && MWBase::Environment::exists())
+        {
+            MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+            NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+            auto* source = store != nullptr
+                ? dynamic_cast<openeden::sdk::game::AmbientCubeSource*>(store->source(cell.neutralGameId()))
+                : nullptr;
+            has = source != nullptr && source->ambientCubeForCell(neutral->id, cube);
+        }
+        rendering.setAmbientCube(has ? &cube.colour : nullptr);
+        if (neutral != nullptr && neutral->interior)
+            Log(Debug::Info) << "NAMBIENTCUBE " << neutral->editorId << (has ? " cube" : " none");
     }
 
     void resetNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering)

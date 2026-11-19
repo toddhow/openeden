@@ -29,6 +29,7 @@
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/cell_fog_source.hpp>
+#include <openeden/game/ambient_cube_source.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
@@ -219,6 +220,7 @@ namespace game_skyrimse
                                    public openeden::sdk::game::WeatherSource,
                                    public openeden::sdk::game::CellImageSpaceSource, // task 0355
                                    public openeden::sdk::game::CellFogSource, // task 0355 (fog power and max)
+                                   public openeden::sdk::game::AmbientCubeSource, // task 0355 stage e
                                    public openeden::sdk::game::MusicSource,
                                    public openeden::sdk::game::GrassSource,
                                    public openeden::sdk::game::PlayerItemSource,
@@ -785,6 +787,7 @@ namespace game_skyrimse
         bool imageSpacePending() override;
         /// Task 0355 (follow-up): forwards to the view when it can name the fog curve of a cell.
         bool fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max) override;
+        bool ambientCubeForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out) override;
 
         /// Task 0209 (music, M-S7): off unless the pack setting `music` is true (setMusic); the data comes from the
         /// view's MusicRuntime (a worker reads the records) and "the player is in a fight" from the combat rules.

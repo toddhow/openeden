@@ -201,7 +201,15 @@ namespace game_skyrimse
         if (templateLighting == nullptr)
             return out;
         if ((own.mInherit & LightingInherit::Ambient) != 0)
+        {
             out.mAmbient = templateLighting->mAmbient;
+            // Task 0355 stage e: the ambient cube comes with the ambient (a template with no DALC leaves the cell's own).
+            if (templateLighting->mHasCube)
+            {
+                out.mCube = templateLighting->mCube;
+                out.mHasCube = true;
+            }
+        }
         if ((own.mInherit & LightingInherit::Directional) != 0)
             out.mDirectional = templateLighting->mDirectional;
         if ((own.mInherit & LightingInherit::FogColor) != 0)
@@ -795,6 +803,13 @@ namespace game_skyrimse
         out = {};
         auto* source = dynamic_cast<openeden::sdk::game::CellImageSpaceSource*>(&mView);
         return source != nullptr && source->imageSpaceForCell(cell, out);
+    }
+
+    bool SkyrimCellSource::ambientCubeForCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::AmbientCubeSource*>(&mView);
+        return source != nullptr && source->ambientCubeForCell(cell, out);
     }
 
     bool SkyrimCellSource::imageSpacePending()

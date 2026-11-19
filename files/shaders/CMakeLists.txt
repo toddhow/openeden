@@ -32,6 +32,7 @@ set(SHADER_FILES
     lib/view/gi.glsl
     lib/view/reflection.glsl
     lib/view/skyvis.glsl
+    lib/view/ambientcube.glsl
     lib/view/cloudshadow.glsl
     lib/view/volumecloudshadow.glsl
     lib/material/wetness.glsl

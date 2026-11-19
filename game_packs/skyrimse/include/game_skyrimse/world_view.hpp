@@ -46,6 +46,7 @@
 #include <game_skyrimse/background_value.hpp>
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/cell_fog_source.hpp>
+#include <openeden/game/ambient_cube_source.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
@@ -149,6 +150,7 @@ namespace game_skyrimse
                                   public openeden::sdk::game::WeatherSource,
                                   public openeden::sdk::game::CellImageSpaceSource, // task 0355
                                   public openeden::sdk::game::CellFogSource, // task 0355 (fog power and max)
+                                  public openeden::sdk::game::AmbientCubeSource, // task 0355 stage e
                                   public music::MusicDataSource,
                                   public PackageSource,
                                   public FurnitureSource,
@@ -953,6 +955,8 @@ namespace game_skyrimse
         /// Task 0355 (follow-up): the fog power and maximum of an interior (its own XCLL with the lighting template's
         /// values where the cell inherits them). Reads no file: the cell's lighting is part of the index.
         bool fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max) override;
+        /// Task 0355 stage e: the ambient cube of an interior loadCell has returned (kept per cell, capped).
+        bool ambientCubeForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out) override;
 
         // ---- music (task 0209): the runtime reads the music records of every plugin on a worker ----
         music::MusicRuntime* musicRuntime() override;
@@ -1212,6 +1216,8 @@ namespace game_skyrimse
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         /// Task 0291 (follow-up): what each interior cell loadCell returned says about its water plane (capped).
         std::map<openeden::sdk::game::WorldId, InteriorWaterEvidence> mWaterEvidence;
+        /// Task 0355 stage e: the ambient cube of each interior loadCell returned (template applied); capped.
+        std::map<openeden::sdk::game::WorldId, openeden::sdk::game::AmbientCube> mAmbientCubes;
         static InteriorWaterEvidence gatherWaterEvidence(const std::vector<openeden::sdk::game::PlacedObject>& objects,
             const std::map<FormId, PlacementComponents>& components); ///< task 0330
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included

@@ -96,6 +96,12 @@ namespace MWWorld
     /// ("not yet"; the renderer is told nothing then), false once it has answered or when it does not apply.
     [[nodiscard]] bool applyNeutralCellImageSpace(const CellStore& cell, MWRender::RenderManager& rendering);
 
+    /// Task 0355 stage e: called when a cell is loaded, after the flat ambient is configured. For a neutral interior
+    /// with [Game] neutral ambient cube asks the pack for the cell's ambient cube and hands it to the renderer; for any
+    /// other cell (an exterior, a Morrowind interior) it tells the renderer there is none. Does nothing when the
+    /// renderer has no room for a cube (the setting or [Game] neutral world off).
+    void applyNeutralAmbientCube(const CellStore& cell, MWRender::RenderManager& rendering);
+
     /// Called when the player enters an exterior of a neutral world: puts the renderer's grade back to "off" (the
     /// weather sets its own every frame when [Game] neutral weather image space is on), so an interior's grade does
     /// not stay on the street.

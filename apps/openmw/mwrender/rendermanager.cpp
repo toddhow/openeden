@@ -46,6 +46,7 @@
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/puddle/puddlegpu.hpp>
+#include <components/render/ambientcube.hpp>
 #include <components/render/ambientocclusion.hpp>
 #include <components/render/aomath.hpp>
 #include <components/render/atmospheremath.hpp>
@@ -529,6 +530,9 @@ namespace MWRender
             Log(Debug::Info) << "Parallax: occlusion mapping from height files, quality "
                              << Settings::rendering().mParallaxQuality.get();
         }
+        // Task 0355 stage e: the interior ambient cube of a game pack's world (its pipelines ask for AMBIENT_CUBE; the
+        // header buffer that carries it is real from here on, with or without hdr).
+        mAmbientCubeEnabled = Settings::game().mNeutralWorld.get() && Settings::game().mNeutralAmbientCube.get();
         if (hdr)
         {
             mHdrContext = context;
@@ -800,7 +804,7 @@ namespace MWRender
             descriptors.emplace_back(View::skyVisBuffer(mSkyVisPool));
         else
             descriptors.emplace_back(View::dummySkyVis());
-        if (mGiSkyEnabled || mCloudShadowEnabled)
+        if (mGiSkyEnabled || mCloudShadowEnabled || mAmbientCubeEnabled)
             descriptors.emplace_back(View::skyVisSkyBuffer(mSkyVisHeader));
         else
             descriptors.emplace_back(View::dummySkyVisSky());
@@ -2224,6 +2228,22 @@ namespace MWRender
         mLightPosition = vsg::vec3(-0.15f, 0.15f, 1.f);
     }
 
+    void RenderManager::setAmbientCube(const std::array<std::array<std::uint8_t, 3>, 6>* colours)
+    {
+        if (!mAmbientCubeEnabled)
+            return;
+        if (colours == nullptr)
+        {
+            mAmbientCube.reset();
+            return;
+        }
+        Render::AmbientCube::Cube cube = Render::AmbientCube::fromBytes(*colours);
+        // As the flat ambient: an interior is never darker than the minimum luminance (the same rule, on the average).
+        if (!Settings::shaders().mClassicFalloff)
+            cube = Render::AmbientCube::brightened(cube, mMinimumAmbientLuminance);
+        mAmbientCube = cube;
+    }
+
     void RenderManager::exteriorCellLoaded(int x, int y, int cellSize, const std::string& world)
     {
         ++mLoadedExteriorCells; // task 0054 counters
@@ -3090,6 +3110,30 @@ namespace MWRender
         ambient += vsg::vec4(0.7, 0.7, 0.7, 0.0) * mNightEyeFactor;
         mDisplayAmbient = ambient;
         sceneData.ambient = toView(ambient);
+        // Task 0355 stage e: the cube's six colours and the flat ambient they were made for, in the view's colour space,
+        // written into the header buffer only when they change.
+        if (mAmbientCubeEnabled && mSkyVisHeader && mSkyVisHeader->size() >= Render::AmbientCube::headerTotalVec4s)
+        {
+            Render::AmbientCube::Cube viewCube{};
+            if (mAmbientCube)
+                for (std::size_t i = 0; i < 6; ++i)
+                {
+                    const vsg::vec4 c = toView(vsg::vec4((*mAmbientCube)[i], 1.f));
+                    viewCube[i] = vsg::vec3(c.x, c.y, c.z);
+                }
+            const vsg::vec4 baseline = toView(mAmbientColor);
+            std::array<vsg::vec4, Render::AmbientCube::vec4s> packed{};
+            std::vector<vsg::vec4> scratch(Render::AmbientCube::headerTotalVec4s);
+            Render::AmbientCube::write(
+                scratch.data(), mAmbientCube ? &viewCube : nullptr, vsg::vec3(baseline.x, baseline.y, baseline.z));
+            std::copy(scratch.begin() + Render::AmbientCube::base, scratch.end(), packed.begin());
+            vsg::vec4* header = mSkyVisHeader->data() + Render::AmbientCube::base;
+            if (!std::equal(packed.begin(), packed.end(), header))
+            {
+                std::copy(packed.begin(), packed.end(), header);
+                mSkyVisHeader->dirty();
+            }
+        }
         // Task 0037: the wetness rides in the ambient colour's alpha, as 1 + wetness (the scene block cannot grow, see
         // lib/view/data.glsl). Other views (map, preview, editor) leave the alpha at 1 or 0 and so see a dry world; the
         // shaders read max(alpha - 1, 0). Off, the alpha is not touched.

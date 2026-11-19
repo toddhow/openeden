@@ -4370,6 +4370,17 @@ namespace game_skyrimse
         return it != mLastComponents.end() ? &it->second : nullptr;
     }
 
+    bool SkyrimWorldView::ambientCubeForCell(sdkgame::WorldId cell, sdkgame::AmbientCube& out)
+    {
+        if (!awaitIndex())
+            return false;
+        const auto it = mAmbientCubes.find(cell);
+        if (it == mAmbientCubes.end())
+            return false;
+        out = it->second;
+        return true;
+    }
+
     std::optional<sdkgame::CellLighting> SkyrimWorldView::findCellLighting(sdkgame::WorldId cell) const
     {
         if (!awaitIndex() || cell == kNullFormId || cell != mLastCell)
@@ -4617,8 +4628,22 @@ namespace game_skyrimse
             if (entry.mLighting && entry.mInfo.interior)
             {
                 // Task 0303: the values the cell inherits come from its lighting template, not from its own XCLL.
-                mLastLighting = makeCellLighting(
-                    applyLightingTemplate(*entry.mLighting, lightingTemplateOf(entry.mLightingTemplate)));
+                const CellLightingData applied
+                    = applyLightingTemplate(*entry.mLighting, lightingTemplateOf(entry.mLightingTemplate));
+                mLastLighting = makeCellLighting(applied);
+                // Task 0355 stage e: the ambient cube, none when no record gave one or all six colours are black.
+                if (applied.mHasCube && mAmbientCubes.size() < 65536)
+                {
+                    sdkgame::AmbientCube cube;
+                    cube.colour = applied.mCube;
+                    bool any = false;
+                    for (const auto& face : cube.colour)
+                        any = any || face[0] != 0 || face[1] != 0 || face[2] != 0;
+                    if (any)
+                        mAmbientCubes[cell] = cube;
+                    else
+                        mAmbientCubes.erase(cell);
+                }
             }
             return true;
         }

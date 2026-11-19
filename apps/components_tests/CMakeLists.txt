@@ -384,6 +384,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testaerialmath.cpp
     render/testfogcurve.cpp
     render/testwatermath.cpp
+    render/testambientcube.cpp
     render/testgputiming.cpp
     render/testscenecensus.cpp
     render/testhdrmath.cpp
@@ -929,6 +930,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseneutralworld.cpp
     skyrimse/testskyrimselightingtemplate.cpp
     skyrimse/testskyrimsefogcurve.cpp
+    skyrimse/testskyrimseambientcube.cpp
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimselocallights.cpp
     skyrimse/testskyrimselightflicker.cpp

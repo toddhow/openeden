@@ -102,7 +102,11 @@ namespace Pipeline
         // OpenEden (task 0355 follow-up): the object shader sums the point lights per pixel in this draw, as it does with
         // a normal or specular map. Set by the neutral model loader and by Pipeline::Graphics for the setting
         // `[Shaders] force per pixel lighting`.
-        FORCE_PER_PIXEL_LIGHTING
+        FORCE_PER_PIXEL_LIGHTING,
+        // OpenEden (task 0355 stage e): the object shader takes its ambient light from the cell's ambient cube (six
+        // colours by the surface's world normal, lib/view/ambientcube.glsl). Requested by the neutral model loader;
+        // the cube itself rides in the sky-visibility header buffer and is off (flat ambient) where none is loaded.
+        AMBIENT_CUBE
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
@@ -113,7 +117,7 @@ namespace Pipeline
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,
         Mode::ALPHA_TO_COVERAGE, Mode::ADJUST_COVERAGE, Mode::SOFT_PARTICLE, Mode::PARTICLE_OCCLUSION,
         Mode::MATERIAL_MAP, Mode::MATERIAL_MAP_RMAOS, Mode::HEIGHT_MAP, Mode::PARALLAX_DISCARD, Mode::PRECIPITATION_LIT,
-        Mode::LOD_FADE };
+        Mode::LOD_FADE, Mode::AMBIENT_CUBE };
 
     using Modes = std::vector<bool>;
 
