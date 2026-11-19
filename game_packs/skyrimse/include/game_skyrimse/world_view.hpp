@@ -653,6 +653,7 @@ namespace game_skyrimse
         void setWalkAwayInfos(bool on); ///< task 0326: and the last topic's own walk-away INFO (flag 0x80)
         /// Task 0308: a ForceGreet package whose topic is the subtype HELO makes the actor say its greeting.
         void setHelloGreetings(bool on) { mHelloGreetings = on; }
+        void setMovedActorsOutdoors(bool on) { mMovedActorsOutdoors = on; } // task 0329
         /// The class data of an NPC_ base (templates followed): CLAS DATA's trained skill and maximum training level.
         /// Ready (with `hasData` false for a class with no data), Pending until the actor index is built, NotVendor
         /// when the NPC or its class is unknown. Main thread; reads the actor index like vendorOf.
@@ -1033,6 +1034,7 @@ namespace game_skyrimse
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         std::function<bool(FormId, double&, double&, double&)> mLiveActorPlace; ///< task 0277
+        bool mMovedActorsOutdoors = false; ///< task 0329
         AliasLookup mAliasLookup; ///< task 0305
         AliasLookup mForcedAliasLookup; ///< task 0314
         std::function<std::uint32_t()> mAliasRevision;

@@ -14,7 +14,10 @@
 // load order (the DLC's records have the load-order index of Dragonborn.esm in their top byte) and the test aid.
 
 #include <cstdint>
+#include <cstdlib>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace game_skyrimse::dragonborn
 {
@@ -49,6 +52,57 @@ namespace game_skyrimse::dragonborn
     [[nodiscard]] constexpr bool keepsEnabledDuringTheRide(std::uint32_t local)
     {
         return local == kRavenRockShipLocal;
+    }
+
+
+    /// Task 0329: Neloth is moved from his Tel Mithryn interior to the Earth Stone by DLC2MQ01's stage 10 fragment
+    /// (`MoveTo` DLC2MQ01NelothMarker), and his ForceGreet package asks "is he in the Earth Stone location" (fn 359).
+    /// The package conditions read the cell the record places him in (the interior, which has no such location), so an
+    /// actor that a script made stand in the player's exterior takes the location of the grid square he now stands on.
+    [[nodiscard]] constexpr bool movedActorStandsOutdoors(bool recordedInterior, bool haveLivePlace, bool playerOutdoors)
+    {
+        return recordedInterior && haveLivePlace && playerOutdoors;
+    }
+    /// The 4096 unit grid square a coordinate is in (floor, also below zero).
+    [[nodiscard]] constexpr std::int32_t gridSquareOf(double coordinate)
+    {
+        constexpr double kSquare = 4096.0;
+        const double q = coordinate / kSquare;
+        const auto t = static_cast<std::int32_t>(q);
+        return (static_cast<double>(t) > q) ? t - 1 : t;
+    }
+
+
+    /// Task 0329: the aid `dragonborn test stage = 5+7+10,40` sets the stages in that order (each runs its own
+    /// fragments: stage 5 starts the Frea scene quest, as the note read in the game does) at the script second after
+    /// the comma; one number is what it always was.
+    struct TestStages
+    {
+        std::vector<std::int32_t> mStages;
+        double mDelay = 0.0;
+    };
+    [[nodiscard]] inline TestStages parseTestStages(std::string_view text)
+    {
+        TestStages out;
+        const std::string whole(text);
+        const std::size_t comma = whole.find(',');
+        if (comma != std::string::npos)
+            out.mDelay = std::strtod(whole.c_str() + comma + 1, nullptr);
+        const std::string list = whole.substr(0, comma);
+        std::size_t at = 0;
+        while (at <= list.size())
+        {
+            const std::size_t plus = list.find('+', at);
+            const std::string piece = list.substr(at, plus == std::string::npos ? std::string::npos : plus - at);
+            char* end = nullptr;
+            const long value = std::strtol(piece.c_str(), &end, 10);
+            if (!piece.empty() && end == piece.c_str() + piece.size() && value > 0)
+                out.mStages.push_back(static_cast<std::int32_t>(value));
+            if (plus == std::string::npos)
+                break;
+            at = plus + 1;
+        }
+        return out;
     }
 
     /// The aid's one stage: `quest` and `stage` of the prerequisite, nothing else is ever faked.

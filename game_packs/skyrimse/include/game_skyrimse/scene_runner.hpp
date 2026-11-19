@@ -108,6 +108,10 @@ namespace game_skyrimse
         ActionsAndConditions,
         ActionsOnly,
         ConditionsOnly,
+        /// Task 0329: a phase that lists completion conditions ends when they pass (its remaining actions are
+        /// stopped); one that lists none ends when its actions do. The Raven Rock arrival scene's phase 5 lists "the
+        /// timer OR the forced greeting is done" while its other package runs on: only this rule lets it end.
+        ConditionsWhenPresent,
     };
 
     class SceneRunner
@@ -158,6 +162,7 @@ namespace game_skyrimse
         /// Task 0308: a phase whose start conditions fail is skipped, not waited for (the Whiterun scene's phase 7 needs
         /// quest stage 82, which only one dialogue path sets; RECALLED-VERIFY: the CK's meaning of a start condition)
         void setSkipFailedPhases(bool on) { mOptions.mSkipFailedPhases = on; }
+        void setPhaseEnd(PhaseEndRule rule) { mOptions.mPhaseEnd = rule; } // task 0329
         // Task 0287: how long a line waits for a speaker who is not loaded (default 120 s, as before); cut to a range
         static constexpr float kMinParkSeconds = 0.5f;
         static constexpr float kMaxParkSeconds = 600.f;

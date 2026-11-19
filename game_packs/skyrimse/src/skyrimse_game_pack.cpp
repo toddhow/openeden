@@ -702,6 +702,7 @@ namespace game_skyrimse
             void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
             void enableForceGreet() { mForceOn = true; }
             void enableHelloGreetings() { mHelloOn = true; } // task 0308
+            void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
             /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
             /// OnObjectEquipped (a shout equipped from the menu).
             void enablePlayerEvents() { mPlayerEvents = true; }
@@ -864,22 +865,21 @@ namespace game_skyrimse
             // did not play the ambush)
             void setDragonbornTestStage(const std::string& text)
             {
-                if (text.empty())
-                    return;
-                const std::size_t comma = text.find(',');
-                mDragonbornTestStage = static_cast<std::int32_t>(std::strtol(text.c_str(), nullptr, 10));
-                mDragonbornTestDelay = comma == std::string::npos ? 0.0 : std::strtod(text.c_str() + comma + 1, nullptr);
+                const dragonborn::TestStages parsed = dragonborn::parseTestStages(text); // task 0329: 5+7+10,40
+                mDragonbornTestStages = parsed.mStages;
+                mDragonbornTestDelay = parsed.mDelay;
             }
             void applyDragonbornTestStage()
             {
-                if (mDragonbornTestStage <= 0 || !mHost.started() || mHost.scriptTime() < mDragonbornTestDelay)
+                if (mDragonbornTestStages.empty() || !mHost.started() || mHost.scriptTime() < mDragonbornTestDelay)
                     return;
-                const std::int32_t stage = mDragonbornTestStage;
-                mDragonbornTestStage = 0;
+                const std::vector<std::int32_t> stages = std::move(mDragonbornTestStages);
+                mDragonbornTestStages.clear();
                 const FormId quest = mData.formFromFile(dragonborn::kDragonbornFile, dragonborn::kDragonbornQuestLocal);
-                say(openeden::sdk::LogLevel::Info,
-                    "DRAGONBORN test stage " + std::to_string(stage) + " of " + hexId(quest) + " "
-                        + (quest != 0 && mHost.startQuestForTest(quest, stage) ? "set" : "refused"));
+                for (const std::int32_t stage : stages)
+                    say(openeden::sdk::LogLevel::Info,
+                        "DRAGONBORN test stage " + std::to_string(stage) + " of " + hexId(quest) + " "
+                            + (quest != 0 && mHost.startQuestForTest(quest, stage) ? "set" : "refused"));
             }
 
             void applyDragonbornPrerequisite()
@@ -997,6 +997,8 @@ namespace game_skyrimse
                     if (mForceOn) // task 0264: a ForceGreet package ends with its conversation
                         mScenes->setForceGreet(&mForce);
                     mScenes->setHello(mHelloOn); // task 0308
+                    if (mDragonbornScenes) // task 0329: a phase with completion conditions ends by them
+                        mScenes->runner().setPhaseEnd(PhaseEndRule::ConditionsWhenPresent);
                 }
                 if (mForceOn) // tasks 0264 and 0271: the conversation a ForceGreet package asks for
                 {
@@ -1838,7 +1840,7 @@ namespace game_skyrimse
             bool mDragonbornPrerequisite = false; ///< task 0306
             bool mDragonborn = false; ///< task 0306
             bool mDragonbornApplied = false;
-            std::int32_t mDragonbornTestStage = 0; ///< task 0312
+            std::vector<std::int32_t> mDragonbornTestStages; ///< task 0312 (a list since task 0329)
             double mDragonbornTestDelay = 0.0;
             bool mMainQuest = false; ///< task 0268
             float mSceneParkSeconds = 0.f; ///< task 0287: 0 keeps the runner's default
@@ -1867,6 +1869,7 @@ namespace game_skyrimse
             bool mTrainingPending = false;
             ForceGreet mForce; ///< task 0264 (before the scene glue that points at it)
             bool mHelloOn = false; ///< task 0308
+            bool mDragonbornScenes = false; ///< task 0329
             bool mPlayerEvents = false; ///< task 0318
             bool mForceOn = false; ///< tasks 0264 and 0271: forced greetings (companions or quest alias packages)
             bool mCompanionsOn = false; ///< task 0264
@@ -2411,14 +2414,19 @@ namespace game_skyrimse
                                         "AMBUSH scripted sleepers wake when the player comes near");
                             }
                             const bool companions = settings->getBool(kPackId, "companions", false); // task 0264
-                            if (companions)
-                            {
-                                driver->enableCompanions();
-                                mCellSource.actorTable().setCarryTravellers(true); // task 0277
+                            const bool dragonbornLive // task 0329: the actors a script moves outdoors need their live place
+                                = settings->getBool(kPackId, std::string(dragonborn::kKey), false);
+                            if (dragonbornLive)
+                                mWorldView.setMovedActorsOutdoors(true);
+                            if (companions || dragonbornLive)
                                 mWorldView.setLiveActorPlace(
                                     [this](FormId reference, double& x, double& y, double& z) {
                                         return mCellSource.actorTable().brainPlace(reference, x, y, z);
                                     });
+                            if (companions)
+                            {
+                                driver->enableCompanions();
+                                mCellSource.actorTable().setCarryTravellers(true); // task 0277
                                 if (settings->getBool(kPackId, "companions test training", false))
                                     driver->enableCompanionsTraining();
                             }
@@ -3087,6 +3095,7 @@ namespace game_skyrimse
                     // task 0320: Adril's arrival ForceGreet package (topic subtype HELO) makes him say his greeting
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
+                    mPapyrus->enableDragonbornScenes(); // task 0329
                 }
                 if (dawnguardOn || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
                 {

@@ -1,5 +1,6 @@
 #include "game_skyrimse/world_view.hpp"
 
+#include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/dragons.hpp"
 #include "game_skyrimse/quest_priority.hpp"
 #include "game_skyrimse/vampirism.hpp"
@@ -1908,6 +1909,16 @@ namespace game_skyrimse
         {
             if (const PlacedEntry* ref = mDialogue->mData->mPlacedRefs.find(actorReference))
                 fillSpeakerCell(speaker, ref->mCell);
+            double liveX = 0, liveY = 0, liveZ = 0;
+            if (mMovedActorsOutdoors && mLiveActorPlace // task 0329: an actor a script moved to the player's exterior
+                && dragonborn::movedActorStandsOutdoors(speaker.mInterior.value_or(false),
+                    actorReference != kNullFormId && mLiveActorPlace(actorReference, liveX, liveY, liveZ),
+                    mPlayerPlaceKnown && !mPlayerInterior))
+            {
+                speaker.mInterior = false;
+                speaker.mLocation = locationOfGridSquare(
+                    mPlayerWorld, dragonborn::gridSquareOf(liveX), dragonborn::gridSquareOf(liveY));
+            }
             world.setLocations(&mDialogue->mData->mLocations);
             world.setQuestVariables(mDialogue->mQuestVariables.get());
             world.setPlacedRefs(&mDialogue->mData->mPlacedRefs);

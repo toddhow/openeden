@@ -646,6 +646,9 @@ namespace game_skyrimse
                     case PhaseEndRule::ConditionsOnly:
                         complete = conditionsDone;
                         break;
+                    case PhaseEndRule::ConditionsWhenPresent: // task 0329
+                        complete = phase.mCompletionConditions.empty() ? actionsDone : conditionsDone;
+                        break;
                 }
                 if (!complete && sSceneWaitTrace && ++in.mNote % 300 == 0)
                 {
