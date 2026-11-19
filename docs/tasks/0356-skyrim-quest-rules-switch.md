@@ -117,7 +117,7 @@ Method: the same binary, two settings sets. **before** = the harness with its ow
 **after** = the harness with those per-quest settings (and `quest alias packages`) removed, so only `quest rules` (default) plus
 the infrastructure settings (`papyrus`, `actor packages`, `inventory`, the neutral ones, `actor cell moves`, ...) and the test
 aids. Copies of `tools/` with the quest settings stripped were used; run folders were
-`I:\Projects\OpenEden-work\papyrus\qr56\runs`, a small `keep/` (go.sh, scen.sh, sumq.sh, strip.py, the highest-stage lists, some logs) stays.
+`I:\Projects\OpenEden-work\papyrus\qr56\runs`, they were deleted at the end (the stage lists above are what is kept).
 "Furthest stage" is the highest stage whose fragment ran per quest (`PAPYRUS quest X stage N runs` or `set to stage`); the talk
 shape is the number of buttons of each turn of the scripted real-click conversation (`NTALK turn`).
 The input scripts of most of the documented long scenarios (the in8, in345, in349 files of earlier tasks) were NOT in the repository,
