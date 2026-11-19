@@ -995,6 +995,13 @@ namespace ScriptPapyrus::Vm
     {
         const Script& owner = mScripts[resolved.script];
         const CFunc& function = owner.mFuncs[resolved.func];
+        if (!mCallTraceFilter.empty()
+            && nameText(function.name).find(mCallTraceFilter) != std::string_view::npos) // OPENEDEN_PAPYRUS_CALL_TRACE
+        {
+            worldLog(Severity::Warning,
+                "call " + owner.mClass + "." + std::string(nameText(function.name)) + " self kind "
+                    + std::to_string(static_cast<int>(self.kind)));
+        }
         if (argCount != function.paramCount)
         {
             return fail(ErrorKind::ArgumentCount,

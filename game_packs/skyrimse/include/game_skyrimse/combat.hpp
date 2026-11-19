@@ -1061,6 +1061,11 @@ namespace game_skyrimse
         void setAggression(openeden::sdk::game::ActorHandle actor, std::uint8_t aggression);
         /// The most placements whose aggression a script set that the combat remembers.
         static constexpr std::size_t kMaxAggressionSet = 4096;
+        /// Task 0347 (a brawl): a script set the actor's Confidence (DGIntimidateQuest: 4, so the opponent never runs
+        /// from a fist fight). The profile of an actor already read changes now; a later one gets it when it is read.
+        /// A value above 4 is cut to 4. `aiConfidenceOf` answers the number the combat uses (-1: the actor is not known).
+        void setConfidence(openeden::sdk::game::ActorHandle actor, std::uint8_t confidence);
+        [[nodiscard]] int aiConfidenceOf(openeden::sdk::game::ActorHandle actor) const;
         /// A damage report as it went to the core: a living actor that lost health says a hurt line.
         void barkNoteDamage(const openeden::sdk::game::DamageReport& report)
         {
@@ -1091,6 +1096,7 @@ namespace game_skyrimse
             float mStamina = 0.f;
             float mStaminaMax = 0.f;
             bool mDead = false;
+            bool mBleedout = false; ///< task 0347: an essential actor collapsed (health held at 1) and is bleeding out
             bool mStaggered = false; ///< a stagger clip is playing
             bool mBlocking = false; ///< the block rule holds now
             std::uint32_t mArrowsKept = 0; ///< task 0178: arrows that ended in this fighter's inventory
@@ -1537,6 +1543,7 @@ namespace game_skyrimse
         }
         CombatStateSink mCombatStateSink; ///< task 0302
         std::map<openeden::sdk::game::WorldId, std::uint8_t> mAggressionSet; ///< task 0302: what scripts set, by placement
+        std::map<openeden::sdk::game::WorldId, std::uint8_t> mConfidenceSet; ///< task 0347: the same for Confidence
         BleedoutSink mBleedoutSink; ///< task 0264
         bool mEssentialBleedout = false; ///< task 0264
         KillMoveHook mKillMoveHook; ///< task 0278

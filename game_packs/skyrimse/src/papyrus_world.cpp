@@ -183,6 +183,11 @@ namespace game_skyrimse
         return mEnv.setHealth && mEnv.setHealth(actor, health);
     }
 
+    bool PackWorldHooks::isBleedingOut(FormId actor)
+    {
+        return mEnv.isBleedingOut && mEnv.isBleedingOut(actor);
+    }
+
     bool PackWorldHooks::isDead(FormId actor)
     {
         return mEnv.isDead && mEnv.isDead(actor);

@@ -15,7 +15,12 @@ namespace game_skyrimse
             return false;
         Fighter* f = find(CombatSubject::of(handle));
         if (f == nullptr || f->mDead || !ready(*f))
+        {
+            if (mTrace) // task 0347: why a script's StartCombat did nothing
+                trace(std::string("COMBAT script start refused for ") + std::to_string(handle.reference) + ": "
+                    + (f == nullptr ? "no fighter" : f->mDead ? "dead" : "records not ready"));
             return false;
+        }
         if (aiFind(handle) != nullptr)
             return true; // already fighting
         return aiBegin(*f, "provoked", CombatSubject::ofPlayer());

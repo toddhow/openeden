@@ -265,6 +265,8 @@ namespace game_skyrimse
         f->mHealth = std::clamp(std::isfinite(health) ? health : 0.f, 0.f, f->mProfile.mHealthMax);
         if (f->mHealth <= 0.f)
             f->mDead = true;
+        else if (f->mBleedout && f->mHealth > 1.f)
+            f->mBleedout = false; // task 0347: a script that restores a bleeding actor's health stands it up
         return true;
     }
 
@@ -386,6 +388,27 @@ namespace game_skyrimse
                 applyAggression(f, aggression);
                 return;
             }
+    }
+
+    void SkyrimCombat::setConfidence(openeden::sdk::game::ActorHandle actor, std::uint8_t confidence)
+    {
+        if (actor.reference == openeden::sdk::game::kNoWorldId)
+            return;
+        confidence = std::min<std::uint8_t>(confidence, 4);
+        if (mConfidenceSet.size() >= kMaxAggressionSet && mConfidenceSet.count(actor.reference) == 0)
+            return;
+        mConfidenceSet[actor.reference] = confidence;
+        for (Fighter& f : mFighters)
+            if (!f.mSubject.player && f.mSubject.actor.reference == actor.reference && f.mReady && f.mHasProfile)
+                f.mProfile.mAi.mConfidence = confidence;
+    }
+
+    int SkyrimCombat::aiConfidenceOf(openeden::sdk::game::ActorHandle actor) const
+    {
+        for (const Fighter& f : mFighters)
+            if (!f.mSubject.player && f.mSubject.actor.reference == actor.reference && f.mReady && f.mHasProfile)
+                return f.mProfile.mAi.mConfidence;
+        return -1;
     }
 
     // The same rule an NPC record's own number goes through (computeActorDisposition): the aggression and the relation

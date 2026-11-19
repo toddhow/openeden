@@ -372,6 +372,8 @@ namespace ScriptPapyrus::Vm
         bool setArrayProperty(openeden::script::InstanceId instance, std::string_view name,
             std::span<const openeden::script::PapyrusValue> elements) noexcept override;
         void setMaxArrayLength(std::uint32_t length) noexcept override { mOptions.maxArrayLength = length; }
+        /// Developer aid: log the next `count` script function calls (OPENEDEN_PAPYRUS_CALL_TRACE).
+        void setCallTrace(std::string_view filter) override { mCallTraceFilter = filter; }
         std::string stateOf(openeden::script::InstanceId instance) const override;
         std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const override;
         std::map<std::string, std::map<std::string, std::uint64_t>> nativeCallers() const override;
@@ -483,6 +485,7 @@ namespace ScriptPapyrus::Vm
         // errors and logging
         bool fail(ErrorKind kind, const std::string& message);
         void logOnce(const std::string& key, const std::string& message);
+        std::string mCallTraceFilter; ///< developer aid: log the calls of the script functions whose name has this text
         /// Every call into the world goes through here or through WorldScope: the runtime refuses call, tick,
         /// loadScript and registerNative while a native or a world callback is running.
         void worldLog(openeden::script::Severity severity, std::string_view message);

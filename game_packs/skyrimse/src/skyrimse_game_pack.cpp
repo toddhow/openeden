@@ -722,6 +722,7 @@ namespace game_skyrimse
             [[nodiscard]] bool forceGreetOn() const { return mForceOn; }
             void enableCompanions() { mCompanionsOn = true; }
             [[nodiscard]] bool companionsOn() const { return mCompanionsOn; }
+            [[nodiscard]] bool thievesOn() const { return mThieves; } // task 0347
             [[nodiscard]] ForceGreet& forceGreet() { return mForce; }
 
             // Task 0261: bought houses. A stage's fragment runs only when its log entry's conditions hold
@@ -2859,7 +2860,12 @@ namespace game_skyrimse
                         || !mCellSource.combat().fighterView(openeden::sdk::game::CombatSubject::of(handle), view))
                         return false;
                     if (name == "health")
-                        current = view.mHealth, maximum = view.mHealthMax;
+                    {
+                        // task 0347: a bleeding actor's health reads 0 (the game's bleedout holds it at or under 0), so
+                        // a script that restores it (DGIntimidateQuest's last stage) finds it down and stands it up
+                        current = view.mBleedout ? 0.0 : view.mHealth;
+                        maximum = view.mHealthMax;
+                    }
                     else if (name == "magicka")
                         current = view.mMagicka, maximum = view.mMagickaMax;
                     else if (name == "stamina")
@@ -2877,6 +2883,14 @@ namespace game_skyrimse
                     return handle.valid()
                         && mCellSource.combat().setFighterHealth(
                             openeden::sdk::game::CombatSubject::of(handle), static_cast<float>(health));
+                };
+                env.isBleedingOut = [this](FormId actor) { // task 0347
+                    if (actor == kPapyrusPlayerReference)
+                        return false;
+                    SkyrimCombat::FighterView view;
+                    return mCellSource.combat().fighterView(
+                               openeden::sdk::game::CombatSubject::of(mCellSource.actorTable().handleOf(actor)), view)
+                        && view.mBleedout;
                 };
                 env.isDead = [this](FormId actor) {
                     const openeden::sdk::game::CombatSubject subject = actor == kPapyrusPlayerReference
@@ -2964,6 +2978,15 @@ namespace game_skyrimse
                                     "SHOUTS the dragon's death sequence gave a soul: "
                                         + std::to_string(mShouts->state().souls()) + " souls");
                         }
+                        return;
+                    }
+                    if (name == "confidence" && mPapyrus != nullptr && mPapyrus->thievesOn()) // task 0347: a brawl
+                    {
+                        openeden::sdk::game::ActorHandle brawler = handleOfActor(actor);
+                        if (!brawler.valid())
+                            brawler.reference = static_cast<openeden::sdk::game::WorldId>(actor);
+                        mCellSource.combat().setConfidence(
+                            brawler, static_cast<std::uint8_t>(std::clamp(value, 0.0, 4.0)));
                         return;
                     }
                     if (!(mAmbushOn || mDragonbornOn) || name != "aggression") // task 0306: the cultists' Aggression
@@ -3425,7 +3448,7 @@ namespace game_skyrimse
                         [&host](openeden::sdk::game::ActorHandle actor, bool engaged) {
                             host.onCombatStateChanged(actor.reference, engaged ? kPapyrusPlayerReference : 0, engaged ? 1 : 0);
                         });
-                if (mPapyrus != nullptr && mPapyrus->companionsOn()) // task 0264
+                if (mPapyrus != nullptr && (mPapyrus->companionsOn() || mPapyrus->thievesOn())) // task 0264, 0347: a brawl's bleedout
                 {
                     mCellSource.combat().setEssentialBleedout(true);
                     mCellSource.setStandOnEngage(true);

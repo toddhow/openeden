@@ -831,6 +831,17 @@ namespace game_skyrimse
         }
     }
 
+    void QuestState::resetStages(FormId quest)
+    {
+        const auto it = mQuests.find(quest);
+        if (it == mQuests.end())
+            return;
+        it->second.mStage = 0;
+        it->second.mDone.clear();
+        it->second.mCompleted = false;
+        ++mRevision;
+    }
+
     void QuestState::stop(FormId quest)
     {
         const auto it = mQuests.find(quest);

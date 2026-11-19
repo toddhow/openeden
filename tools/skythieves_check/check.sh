@@ -19,6 +19,7 @@ LUA="$WORK.luatest"
 rm -rf "$LUA"; mkdir -p "$LUA"; cp -r "$HERE/luatest/." "$LUA/"
 CFG_LUA="return { every = ${EVERY:-120}, from = 1, near = ${NEAR:-6}, radius = ${RADIUS:-900}, hour = ${HOUR:-12}"
 [ -n "${TELEPORT:-}" ] && CFG_LUA="$CFG_LUA, teleport = { $TELEPORT }"
+[ -n "${KEYSTEPS:-}" ] && CFG_LUA="$CFG_LUA, keysteps = true" # task 0347: the steps run one a press of '[' (STEPS, in order)
 [ -n "${AIM:-}" ] && CFG_LUA="$CFG_LUA, aim = { $AIM }"
 [ -n "${MOVES:-}" ] && CFG_LUA="$CFG_LUA, moves = { $MOVES }"
 [ -n "${ACTIVATE:-}" ] && CFG_LUA="$CFG_LUA, activate = { $ACTIVATE }"

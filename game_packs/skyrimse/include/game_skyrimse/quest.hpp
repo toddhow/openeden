@@ -316,6 +316,9 @@ namespace game_skyrimse
         /// The state changes a script would make (the caller wires them; nothing here runs scripts).
         void start(FormId quest);
         void stop(FormId quest);
+        /// Task 0347: a quest the story manager starts AGAIN (DGIntimidateQuest, the brawl) begins clean: its stage
+        /// progress and its stage numbers are forgotten, as a repeatable quest's are in the game. Running is untouched.
+        void resetStages(FormId quest);
         /// Sets the stage: it becomes current and done; a log entry that completes the quest completes it; a shut
         /// down stage stops it. A quest that is not running is started first (RECALLED-VERIFY: the game does).
         void setStage(const QuestIndex& index, FormId quest, std::uint32_t stage);

@@ -46,6 +46,7 @@ namespace game_skyrimse
         std::function<bool(FormId actor, std::string_view lowerName, double& current, double& maximum)> actorValue;
         std::function<bool(FormId actor, double health)> setHealth;
         std::function<bool(FormId actor)> isDead;
+        std::function<bool(FormId actor)> isBleedingOut; // task 0347
         std::function<bool(FormId actor)> queueKill;
         std::function<bool(FormId form)> isItem;
         std::function<std::int32_t(FormId form)> goldValue; ///< task 0285: the item's base value, -1 unknown
@@ -118,6 +119,7 @@ namespace game_skyrimse
         bool actorValue(FormId actor, std::string_view lowerName, double& current, double& maximum) override;
         bool setHealth(FormId actor, double health) override;
         bool isDead(FormId actor) override;
+        bool isBleedingOut(FormId actor) override; // task 0347
         bool killActor(FormId actor) override;
         bool isItem(FormId form) override;
         bool fireWeapon(const WeaponFireRequest& request) override

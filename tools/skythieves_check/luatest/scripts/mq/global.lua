@@ -62,6 +62,9 @@ end
 -- the side of (fromx, fromy), turned to face it, and his first-person camera is pitched down by pitchDegrees. Everything after
 -- that (the key, the clicks) is the real input; this only walks him to the spot (a hand-written aid, named in the task log).
 local doneSteps = {}
+local faceBase = nil
+local chain = nil -- task 0347: { cell, from, delay, step }: a step that waits for the cell to be the player's and then some updates
+local nextKeyStep = 1
 local startCell = nil
 local lookAgain = nil
 local function stepTo(s)
@@ -70,6 +73,22 @@ local function stepTo(s)
         -- { update, 'event', name, { field = value } }: the event the engine's activation would send (a stand-in for AIMING)
         print('MQ step event: ' .. tostring(s[3]))
         core.sendGlobalEvent(s[3], s[4])
+        return
+    end
+    if s[2] == 'multi' then
+        -- task 0347: { update, 'multi', step, step, ... }: several steps at once
+        for i = 3, #s do stepTo(s[i]) end
+        return
+    end
+    if s[2] == 'then' then
+        -- task 0347: { update, 'then', cellName, delay, step }: the step runs `delay` updates after the player is in that cell
+        chain = { s[3], nil, s[4], s[5] }
+        return
+    end
+    if s[2] == 'face' then
+        -- task 0347: { update, 'face', base | false }
+        faceBase = s[3] or nil
+        print('MQ step face: ' .. tostring(s[3]))
         return
     end
     if s[2] == 'talk' then
@@ -146,6 +165,17 @@ local function sample()
 end
 
 return {
+    eventHandlers = {
+        -- task 0347: cfg.keysteps = true: the input script presses a key and the player script sends this; the steps run in
+        -- order, one a press (the Lua update count stops while a conversation holds the world, so a count cannot time them)
+        MQStep = function()
+            local s = (cfg.steps or {})[nextKeyStep]
+            if s == nil then return end
+            nextKeyStep = nextKeyStep + 1
+            print('MQ keystep ' .. tostring(nextKeyStep - 1))
+            stepTo(s)
+        end,
+    },
     engineHandlers = {
         onUpdate = function()
             if world.players[1] == nil then return end
@@ -167,7 +197,7 @@ return {
                 world.players[1]:sendEvent('MQLook', { pitch = lookAgain[2] })
                 lookAgain = nil
             end
-            for i, s in ipairs(cfg.steps or {}) do
+            for i, s in ipairs(cfg.keysteps and {} or cfg.steps or {}) do
                 if not doneSteps[i] and updates >= s[1] then
                     doneSteps[i] = true
                     stepTo(s)
@@ -179,6 +209,32 @@ return {
             end
             if cfg.aim and updates >= cfg.aim[1] and updates % 20 == 0 then
                 aimAt(cfg.aim[2]) -- again every 20 updates: the actor walks to its post after the first talk
+            end
+            if chain ~= nil then
+                local name = tostring(world.players[1].cell.name)
+                if name == chain[1] then
+                    chain[2] = (chain[2] or updates)
+                    if updates >= chain[2] + chain[3] then
+                        local run = chain[4]
+                        chain = nil
+                        stepTo(run)
+                    end
+                else
+                    chain[2] = nil
+                end
+            end
+            if faceBase ~= nil and updates % (cfg.facesEvery or 15) == 0 then
+                -- task 0347: a turn aid for a brawl (step kind 'face'): the player keeps his place and turns to the actor of that base
+                local player = world.players[1]
+                local target = nil
+                for _, o in ipairs(player.cell:getAll()) do
+                    local ok, id = pcall(function() return o.recordId end)
+                    if ok and id ~= nil and tostring(id):match(':b(%d+)$') == faceBase then target = o end
+                end
+                if target ~= nil then
+                    local d = target.position - player.position
+                    player:teleport(player.cell, player.position, { rotation = util.transform.rotateZ(math.atan2(d.x, d.y)) })
+                end
             end
             if not hourSet and updates > 5 then
                 hourSet = true

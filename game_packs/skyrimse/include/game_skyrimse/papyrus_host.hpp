@@ -478,6 +478,12 @@ namespace game_skyrimse
             (void)actor;
             return false;
         }
+        /// Task 0347: is the actor bleeding out (an essential actor the combat collapsed)? False when unknown.
+        [[nodiscard]] virtual bool isBleedingOut(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
         /// Starts the death of an actor now (the combat rules' death path). False when it cannot (stale, the player).
         virtual bool killActor(FormId actor)
         {

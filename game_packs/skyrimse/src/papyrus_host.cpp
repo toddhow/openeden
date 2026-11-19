@@ -97,6 +97,8 @@ namespace game_skyrimse
             runtimeOptions.maxInstances = options.mMaxInstances;
             mRuntime = ScriptPapyrus::createRuntime(
                 *this, openeden::script::UnknownFunctionPolicy::Tolerant, runtimeOptions);
+            if (const char* callTrace = std::getenv("OPENEDEN_PAPYRUS_CALL_TRACE"))
+                mRuntime->setCallTrace(callTrace);
             ScriptPapyrus::PureNativesOptions pure;
             pure.randomSeed = options.mRandomSeed;
             mPure = std::make_unique<ScriptPapyrus::PureNatives>(*this, pure);
@@ -928,6 +930,7 @@ namespace game_skyrimse
             {
                 if (mState->running(quest) || mState->completed(quest))
                     continue;
+                mState->resetStages(quest); // task 0347: a quest the story manager starts again begins clean
                 if (mFiller != nullptr)
                     (void)mFiller->fillEventAliases(quest, *mState, event); // task 0194: R1 and R2 of the event
                 startQuest(quest);
@@ -2791,6 +2794,10 @@ namespace game_skyrimse
             reg("Actor", "ModActorValue", false, change(1.0));
             reg("Actor", "RestoreActorValue", false, change(1.0));
             reg("Actor", "DamageActorValue", false, change(-1.0));
+            reg("Actor", "IsBleedingOut", false, [this](const NativeCall& c) { // task 0347: DGIntimidateQuest's end
+                const FormId actor = formOf(c.self);
+                return result(PapyrusValue::makeBool(mHooks != nullptr && actor != 0 && mHooks->isBleedingOut(actor)));
+            });
             reg("Actor", "IsDead", false,
                 [this](const NativeCall& c) { return result(PapyrusValue::makeBool(actorDead(formOf(c.self)))); });
             // Task 0264: the Companions' training fight (C00VilkasTrainingScript) and the like

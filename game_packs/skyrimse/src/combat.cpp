@@ -976,6 +976,7 @@ namespace game_skyrimse
         out.mStamina = f->mStamina;
         out.mStaminaMax = f->mProfile.mStaminaMax;
         out.mDead = f->mDead;
+        out.mBleedout = f->mBleedout; // task 0347
         out.mStaggered = f->mStaggered;
         out.mBlocking = isBlocking(*f);
         out.mMagicka = f->mMagicka;
@@ -1049,11 +1050,18 @@ namespace game_skyrimse
         }
         if (!fighter.mReady)
         {
+            // Task 0347: a script's Actor.StartCombat can ask before the records are read; the actor is not marked as
+            // having no numbers for good (the ask is refused, and the next one finds them)
+            if (!fighter.mSubject.player && !mData->combatReady())
+                return false;
             fighter.mReady = true;
             fighter.mHasProfile = fighter.mSubject.player
                 ? true
                 : mData->fighterFor(
                     fighter.mBase, static_cast<std::uint32_t>(fighter.mSubject.actor.reference), fighter.mProfile);
+            if (mTrace && !fighter.mHasProfile) // task 0347: why an actor has no fighting numbers
+                trace("COMBAT no fighting numbers for " + name(fighter.mSubject) + " (base "
+                    + std::to_string(fighter.mBase) + "): its stats are refused");
             if (mTrace && fighter.mHasProfile && fighter.mProfile.mCreature != nullptr)
                 trace("COMBAT creature " + name(fighter.mSubject) + " is a "
                     + std::string(fighter.mProfile.mCreature->mName));
@@ -1064,6 +1072,10 @@ namespace game_skyrimse
                 mBasePieces = fighter.mProfile.mPieces;
                 mBaseMitigationKnown = true;
             }
+            if (fighter.mHasProfile && !fighter.mSubject.player) // task 0347: a script's SetAV("Confidence") came first
+                if (const auto scripted = mConfidenceSet.find(fighter.mSubject.actor.reference);
+                    scripted != mConfidenceSet.end())
+                    fighter.mProfile.mAi.mConfidence = scripted->second;
             applyRealGear(fighter); // task 0214 (nothing with the setting off)
             if (fighter.mSubject.player && mBeast)
                 applyBeastToProfile(fighter); // task 0259: a form that began before his data was read
