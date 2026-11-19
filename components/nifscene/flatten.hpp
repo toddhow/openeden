@@ -26,6 +26,7 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -125,12 +126,18 @@ namespace NifScene::Flat
         /// The effect shader's greyscale (palette) texture when its flags say the colour comes from it, else empty. The
         /// host takes one texel of it as the tint (the lookup itself is not played).
         std::string mPalette;
+        /// Task 0359: 0, or a number that tells the shapes of different UV animations apart (the shapes of one scrolling
+        /// material share it; Shape::mScroll holds the animation).
+        std::uint32_t mScroll = 0;
         friend auto operator<=>(const MaterialKey&, const MaterialKey&) = default;
     };
 
     struct Shape
     {
         MaterialKey mKey;
+        /// Task 0359: the effect shader's UV controllers when it has any (then mUV is the file's own, not baked with the
+        /// shader's offset and scale: the texture matrix applies them). Null otherwise.
+        std::shared_ptr<const NifScene::UvAnimation> mScroll;
         std::string mName; // the first geometry's name (diagnostics)
         std::vector<std::array<float, 3>> mPositions;
         std::vector<std::array<float, 3>> mNormals; // one per vertex, unit length

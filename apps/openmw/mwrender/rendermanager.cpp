@@ -467,8 +467,11 @@ namespace MWRender
                 }
                 Log(Debug::Info) << "Skyrim tree sway is on.";
             }
+            if (Settings::game().mNeutralFireEffects)
+                mEffectScroll = std::make_shared<SkyrimEffectScroll::Driver>();
             resourceSystem->nifReader->sceneReader = SkyrimModel::makeSceneReader(*resourceSystem->builder,
-                resourceSystem->textureOptions, Bin_DepthSorted, mTreeSway ? mTreeSway->uniform() : nullptr);
+                resourceSystem->textureOptions, Bin_DepthSorted, mTreeSway ? mTreeSway->uniform() : nullptr,
+                mEffectScroll);
         }
         mCamera.reset(new Camera);
 
@@ -3920,6 +3923,8 @@ mCensusEye = vsg::dvec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
         if (mTreeSway)
             mTreeSway->update(paused ? 0.0 : static_cast<double>(dt),
                 mTreeWindOverride ? *mTreeWindOverride : (mSky ? mSky->getBaseWindSpeed() : 0.f));
+        if (mEffectScroll)
+            mEffectScroll->update(paused ? 0.0 : static_cast<double>(dt));
         traceDistant.end();
         if (mRenderModes[Render_Sky])
             mSky->update(dt);

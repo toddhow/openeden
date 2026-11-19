@@ -531,6 +531,10 @@ namespace NifScene::Flat
             if (normals.empty())
                 normals = makeNormals(positions, indices);
 
+            // Task 0359: an effect shader whose UV controllers move its coordinates keeps the file's own: the texture
+            // matrix applies the shader's offset and scale (UvAnim::matrixAt), animated or not.
+            const bool scrolled = isEffect && material.mUvAnimation.any();
+
             // Texture coordinates with the shader's offset and scale baked in.
             std::vector<std::array<float, 2>> uvs;
             if (geometry.mUV0.size() == vertexCount)
@@ -538,8 +542,10 @@ namespace NifScene::Flat
                 uvs.resize(vertexCount);
                 for (std::size_t v = 0; v < vertexCount; ++v)
                 {
-                    const float u = geometry.mUV0[v][0] * material.mUVScale[0] + material.mUVOffset[0];
-                    const float w = geometry.mUV0[v][1] * material.mUVScale[1] + material.mUVOffset[1];
+                    const float u = scrolled ? geometry.mUV0[v][0]
+                                             : geometry.mUV0[v][0] * material.mUVScale[0] + material.mUVOffset[0];
+                    const float w = scrolled ? geometry.mUV0[v][1]
+                                             : geometry.mUV0[v][1] * material.mUVScale[1] + material.mUVOffset[1];
                     uvs[v] = { std::isfinite(u) ? u : 0.f, std::isfinite(w) ? w : 0.f };
                 }
             }
@@ -591,6 +597,9 @@ namespace NifScene::Flat
                 if (!uvs.empty() && !material.mSourceTexture.empty()
                     && material.mSourceTexture.size() <= limits.mMaxPathLength)
                     key.mDiffuse = material.mSourceTexture;
+                // Task 0359: the shapes of one scrolling material are one group of draws, apart from the others.
+                if (scrolled && !uvs.empty())
+                    key.mScroll = geometry.mMaterial + 1;
             }
             else if (!uvs.empty() && material.mTextureSet < scene.mTextureSets.size())
             {
@@ -663,6 +672,13 @@ namespace NifScene::Flat
                 shape->mFlags1 = material.mFlags1;
                 shape->mFlags2 = material.mFlags2;
                 shape->mAnimNode = animNode;
+                if (key.mScroll != 0)
+                {
+                    auto animation = std::make_shared<NifScene::UvAnimation>(material.mUvAnimation);
+                    animation->mBaseOffset = material.mUVOffset;
+                    animation->mBaseScale = material.mUVScale;
+                    shape->mScroll = std::move(animation);
+                }
                 open[mergeKey] = model.mShapes.size() - 1;
             }
             const auto base = static_cast<std::uint32_t>(shape->mPositions.size());

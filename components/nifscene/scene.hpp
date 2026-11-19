@@ -36,6 +36,46 @@ namespace NifScene
         float mScale = 1.f;
     };
 
+    /// Task 0359: the keys of a BSEffectShaderPropertyFloatController on one of the UV variables of an effect shader
+    /// (U offset, V offset, U scale, V scale), with the controller's own clock. Interpolation codes are the NIF's: 1
+    /// linear, 2 quadratic (Hermite with the stored tangents), 3 TCB (the reader turns it into tangents too), 5
+    /// constant. A key's tangents are the file's per-second slopes.
+    struct FloatKey
+    {
+        float mTime = 0.f;
+        float mValue = 0.f;
+        float mInTan = 0.f;
+        float mOutTan = 0.f;
+    };
+
+    struct FloatTrack
+    {
+        std::vector<FloatKey> mKeys; ///< sorted by time; empty: the controller has no usable keys
+        std::uint32_t mInterpolation = 1;
+        float mFrequency = 1.f;
+        float mPhase = 0.f;
+        float mStart = 0.f; ///< the controller's time window (start/stop)
+        float mStop = 0.f;
+        /// NiTimeController extrapolation: 0 cycle (loop), 1 reverse (ping-pong), 2 constant (clamp).
+        std::uint32_t mCycle = 0;
+        bool empty() const { return mKeys.empty(); }
+    };
+
+    /// What the controllers of one effect shader do to its texture coordinates: uv' = uv * scale(t) + offset(t), each
+    /// of the four components from its own track, else from the property's stored value. Empty (the default) for a
+    /// shader no controller touches.
+    struct UvAnimation
+    {
+        std::array<FloatTrack, 2> mOffset; ///< U then V
+        std::array<FloatTrack, 2> mScale;
+        Vec2 mBaseOffset{ 0.f, 0.f }; ///< the property's own UV offset and scale
+        Vec2 mBaseScale{ 1.f, 1.f };
+        bool any() const
+        {
+            return !mOffset[0].empty() || !mOffset[1].empty() || !mScale[0].empty() || !mScale[1].empty();
+        }
+    };
+
     /// A node of the scene graph: every NiAVObject of the file, in record order. A shape is a node with a geometry.
     struct Node
     {
@@ -167,6 +207,8 @@ namespace NifScene
         float mBaseColorScale = 0.f;
         float mSoftFalloffDepth = 0.f;
         float mEffectEnvMapScale = 0.f; // Fallout 4
+        /// Task 0359: the shader's UV controllers (effect shaders only; empty when none).
+        UvAnimation mUvAnimation;
     };
 
     /// A NiAlphaProperty. The blend factors are the property's own codes: 0 one, 1 zero, 2 source colour, 3 inverse

@@ -420,6 +420,71 @@ namespace NifScene
                 }
             }
 
+            // Task 0359: the UV variables (U offset 6, U scale 7, V offset 8, V scale 9; the other variables of a
+            // BSEffectShaderPropertyFloatController are brightness, falloff and alpha, not read here) of the
+            // controllers on an effect shader, with their own clock. A controller whose interpolator is not a plain
+            // float interpolator with keys (a blend, a sequence-managed one) is skipped.
+            static constexpr std::uint32_t sUOffset = 6, sUScale = 7, sVOffset = 8, sVScale = 9;
+
+            void fillUvAnimation(ShaderMaterial& m, const Nif::BSShaderProperty& property)
+            {
+                for (const Nif::NiTimeController* c = property.mController.getPtr(); c != nullptr;
+                     c = c->mNext.getPtr())
+                {
+                    const auto* controller = dynamic_cast<const Nif::BSEffectShaderPropertyFloatController*>(c);
+                    if (controller == nullptr || controller->mInterpolator.empty())
+                        continue;
+                    FloatTrack* track = nullptr;
+                    switch (controller->mControlledVariable)
+                    {
+                        case sUOffset:
+                            track = &m.mUvAnimation.mOffset[0];
+                            break;
+                        case sVOffset:
+                            track = &m.mUvAnimation.mOffset[1];
+                            break;
+                        case sUScale:
+                            track = &m.mUvAnimation.mScale[0];
+                            break;
+                        case sVScale:
+                            track = &m.mUvAnimation.mScale[1];
+                            break;
+                        default:
+                            continue;
+                    }
+                    const auto* interpolator
+                        = dynamic_cast<const Nif::NiFloatInterpolator*>(controller->mInterpolator.getPtr());
+                    if (interpolator == nullptr || interpolator->mData.empty() || interpolator->mData->mKeyList == nullptr)
+                        continue;
+                    const auto& keys = *interpolator->mData->mKeyList;
+                    if (keys.mKeys.empty())
+                        continue;
+                    FloatTrack t;
+                    t.mInterpolation = keys.mInterpolationType;
+                    t.mFrequency = controller->mFrequency;
+                    t.mPhase = controller->mPhase;
+                    t.mStart = controller->mTimeStart;
+                    t.mStop = controller->mTimeStop;
+                    t.mCycle = (static_cast<std::uint32_t>(controller->mFlags)
+                                   & static_cast<std::uint32_t>(Nif::NiTimeController::Mask))
+                        >> 1;
+                    bool finite = std::isfinite(t.mFrequency) && std::isfinite(t.mPhase) && std::isfinite(t.mStart)
+                        && std::isfinite(t.mStop);
+                    for (const auto& [time, key] : keys.mKeys)
+                    {
+                        finite = finite && std::isfinite(time) && std::isfinite(key.mValue);
+                        // only quadratic and TCB keys store tangents (the others leave them uninitialised)
+                        const bool tangents = t.mInterpolation == 2 || t.mInterpolation == 3;
+                        t.mKeys.push_back(
+                            { time, key.mValue, tangents ? key.mInTan : 0.f, tangents ? key.mOutTan : 0.f });
+                        finite = finite && std::isfinite(t.mKeys.back().mInTan) && std::isfinite(t.mKeys.back().mOutTan);
+                    }
+                    if (!finite || t.mKeys.size() > 4096)
+                        continue;
+                    *track = std::move(t);
+                }
+            }
+
             std::uint32_t buildMaterial(const Nif::BSShaderProperty& property, const std::string& shapeName)
             {
                 const auto known = mMaterialOfRecord.find(property.mRecordIndex);
@@ -449,7 +514,10 @@ namespace NifScene
                 if (lighting != nullptr)
                     fillLighting(m, *lighting);
                 else
+                {
                     fillEffect(m, *effect);
+                    fillUvAnimation(m, property);
+                }
                 const auto index = static_cast<std::uint32_t>(mScene.mMaterials.size());
                 mScene.mMaterials.push_back(std::move(m));
                 mMaterialOfRecord[property.mRecordIndex] = index;

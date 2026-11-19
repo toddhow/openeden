@@ -114,6 +114,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimmaterial.cpp
     mwrender/testskyrimtreesway.cpp
     mwrender/testskyrimactor.cpp
+    mwrender/testskyrimfireeffects.cpp
+    mwrender/testskyrimeffectscroll.cpp
     mwrender/testskyrimsequence.cpp
     mwrender/testskyrimhavok.cpp
     mwrender/testskyrimheldgear.cpp

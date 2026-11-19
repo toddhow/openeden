@@ -38,6 +38,11 @@ namespace Pipeline
     class Override;
 }
 
+namespace MWRender::SkyrimEffectScroll
+{
+    class Driver;
+}
+
 namespace MWRender::SkyrimModel
 {
     struct BuildContext
@@ -57,6 +62,9 @@ namespace MWRender::SkyrimModel
         /// Task 0153: the pipeline override of the options a model is read with (groundcover asks for instancing and
         /// alpha testing this way, as it does for Morrowind's NIFs). Null (the default): shapes are built as before.
         const Pipeline::Override* mOverride = nullptr;
+        /// Task 0359 (`[Game] neutral fire effects`): the driver that scrolls an effect shape's texture. Null (the
+        /// default): such a shape is drawn still, its coordinates transformed once at the start of its animation.
+        SkyrimEffectScroll::Driver* mEffectScroll = nullptr;
     };
 
     /// What building one model did.
@@ -70,6 +78,11 @@ namespace MWRender::SkyrimModel
         /// tint shader (BSLightingShaderType 4), in file order.
         std::vector<vsg::ref_ptr<vsg::vec3Array>> mFaceShapes;
     };
+
+    /// Task 0359: whether a model's BSEffectShaderProperty shapes are drawn. The spell models under meshes/magic follow
+    /// `spellEffects` ([Game] neutral spell effects, task 0191), every other model follows `worldEffects` ([Game] neutral
+    /// fire effects). Refraction shapes are left out by the flattener whatever this says.
+    [[nodiscard]] bool effectShapesWanted(const std::string& filename, bool spellEffects, bool worldEffects);
 
     BuildResult buildNode(const NifScene::Flat::FlatModel& model, const BuildContext& context);
 
@@ -85,7 +98,8 @@ namespace MWRender::SkyrimModel
     /// `swayUniform` (task 0136): the uniform of SkyrimTreeSway::Driver, or null for no tree sway.
     std::shared_ptr<const vsgAdapters::nif::SceneReader> makeSceneReader(const Pipeline::Builder& builder,
         vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin,
-        vsg::ref_ptr<vsg::mat4Value> swayUniform = {});
+        vsg::ref_ptr<vsg::mat4Value> swayUniform = {},
+        std::shared_ptr<SkyrimEffectScroll::Driver> effectScroll = {});
 
     /// Process-wide totals for the log line of a neutral cell. Relaxed atomics: a count, not a synchronisation.
     struct Counters
@@ -110,6 +124,7 @@ namespace MWRender::SkyrimModel
         std::atomic<std::uint64_t> mNormalMapsNoTangents{ 0 };
         std::atomic<std::uint64_t> mNormalMapsModelSpace{ 0 };
         std::atomic<std::uint64_t> mSwayShapes{ 0 }; // task 0136: shapes built with the tree sway path
+        std::atomic<std::uint64_t> mScrollShapes{ 0 }; // task 0359: effect shapes whose texture scrolls
         std::atomic<std::uint64_t> mFailed{ 0 }; // models whose read threw
     };
 

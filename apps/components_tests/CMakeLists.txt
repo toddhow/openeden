@@ -309,12 +309,14 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testfacetint.cpp
     nifscene/testflatten.cpp
     nifscene/testflatteneffects.cpp
+    nifscene/testflatteneffectscroll.cpp
     nifscene/testflattenmaterials.cpp
     nifscene/testflattentreesway.cpp
     nifscene/testflattenskinnedatrest.cpp
     nifscene/testskyrimmaterialsreal.cpp
     nifscene/testcollision.cpp
     nifscene/testsequence.cpp
+    nifscene/testuvanim.cpp
     nifscene/testsequenceflatten.cpp
     nifscene/testsequencereal.cpp
 
@@ -959,6 +961,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsenativecoverage.cpp
     skyrimse/testskyrimsepapyrusformnatives.cpp
     skyrimse/testskyrimsesurveyreal.cpp
+    skyrimse/testskyrimsefiresurvey.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/scene_options.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp

@@ -1,5 +1,7 @@
 #include "skyrimmodel.hpp"
 
+#include "skyrimeffectscroll.hpp"
+
 #include "skyrimmaterial.hpp"
 #include "skyrimtreesway.hpp"
 
@@ -110,8 +112,8 @@ namespace MWRender::SkyrimModel
             return texel != nullptr && texel->at(0, 0) == vsg::ubvec4(0xff, 0x00, 0xff, 0xff);
         }
 
-        // Task 0191: the spell models live under meshes/magic; only they draw their effect shader shapes (the effect
-        // shapes of a world model, a torch's flame cards for one, stay out as before).
+        // Task 0191: the spell models live under meshes/magic and draw their effect shader shapes behind their own
+        // setting; task 0359: every other model draws them behind [Game] neutral fire effects (effectShapesWanted).
         bool isMagicModelPath(const std::string& filename)
         {
             std::string path;
@@ -120,6 +122,9 @@ namespace MWRender::SkyrimModel
                 path.push_back(c == '\\' ? '/' : static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c));
             return path.find("meshes/magic/") != std::string::npos;
         }
+
+        // Task 0359: see the palette effect branch of buildShape.
+        constexpr float kPaletteAlphaGain = 2.f;
 
         // OPENEDEN_NIFSCENE_TRACE=1 writes one line per drawn shape to stderr (a developer aid, read once).
         bool traceEnabled()
@@ -516,6 +521,7 @@ namespace MWRender::SkyrimModel
                 // included): the shader's base colour times the file's vertex colour, and its alpha times the vertex
                 // alpha when the shader uses it. Blending comes from the key.
                 std::array<float, 4> base = key.mEffectColor;
+                bool paletteRead = false; // set when the palette texel below replaced the colour
                 if (!key.mPalette.empty())
                 {
                     // The palette lookup is not played: one texel of the greyscale texture (below) replaces the base
@@ -549,16 +555,54 @@ namespace MWRender::SkyrimModel
                             std::max({ palette.mRgba[i], palette.mRgba[i + 1], palette.mRgba[i + 2] }));
                         for (std::size_t c = 0; c < 3; ++c)
                             base[c] = peak > 0.f ? static_cast<float>(palette.mRgba[i + c]) / peak : base[c];
+                        paletteRead = true;
                     }
                 }
                 if (traceEnabled())
+                {
+                    float alphaMin = 1.f, alphaMax = 0.f, alphaSum = 0.f;
+                    for (const auto& colour : shape.mColors)
+                    {
+                        alphaMin = std::min(alphaMin, colour[3]);
+                        alphaMax = std::max(alphaMax, colour[3]);
+                        alphaSum += colour[3];
+                    }
                     Log(Debug::Info) << "NIFSCENE effect base " << base[0] << "," << base[1] << "," << base[2]
-                                     << " palette '" << key.mPalette << "' in " << context.mFilename;
+                                     << " palette '" << key.mPalette << "' in " << context.mFilename << " vertex alpha "
+                                     << alphaMin << ".." << alphaMax << " mean "
+                                     << (shape.mColors.empty() ? 0.f : alphaSum / static_cast<float>(shape.mColors.size()))
+                                     << " blend " << int(key.mSourceBlend) << "," << int(key.mDestinationBlend)
+                                     << " scroll " << key.mScroll;
+                }
+                // (the spell models of task 0191 keep their look: only world models take this)
+                const bool ignoreVertexRgb = paletteRead && !isMagicModelPath(context.mFilename);
                 std::vector<std::array<float, 4>> tinted(shape.mPositions.size(), base);
                 if (shape.mColors.size() == tinted.size())
                     for (std::size_t v = 0; v < tinted.size(); ++v)
-                        for (std::size_t c = 0; c < 4; ++c)
+                        // Task 0359: a palette effect (the flame cards) gets its colour from the palette, so the
+                        // vertex colour only carries its alpha here: its RGB is a dim authoring value (0.1 to 0.3 on
+                        // the hearth's flames) that would leave a still, un-pulsed card nearly black.
+                    {
+                        for (std::size_t c = ignoreVertexRgb ? 3 : 0; c < 4; ++c)
                             tinted[v][c] *= shape.mColors[v][c];
+                        // The real shader's alpha comes from the palette (near 1 where the flame is bright); the
+                        // vertex alpha (0.4 on average on the hearth's cards) only softens the edges, so a still draw
+                        // doubles it (ours, set by eye).
+                        if (ignoreVertexRgb)
+                            tinted[v][3] = std::min(1.f, tinted[v][3] * kPaletteAlphaGain);
+                    }
+                // OPENEDEN_NIFSCENE_EFFECT_DEBUG=1 (developer aid, task 0359): every effect shape of a world model is
+                // drawn in opaque-ish magenta, to see where the cards are.
+                static const bool effectDebug = std::getenv("OPENEDEN_NIFSCENE_EFFECT_DEBUG") != nullptr;
+                static const char* debugMode = std::getenv("OPENEDEN_NIFSCENE_EFFECT_DEBUG");
+                if (effectDebug && !isMagicModelPath(context.mFilename))
+                    for (auto& colour : tinted)
+                    {
+                        if (debugMode[0] == '2') // the palette colour at full alpha
+                            colour = { base[0], base[1], base[2], 1.f };
+                        else
+                            colour = { 1.f, 0.f, 1.f, 1.f };
+                    }
                 shader.addMode(Pipeline::Mode::COLOR);
                 dataList.emplace_back(copyArray<vsg::vec4Array>(tinted));
                 options.colorMode = 3;
@@ -595,17 +639,43 @@ namespace MWRender::SkyrimModel
             // The tangent array goes before the texture coordinates (Pipeline::Graphics, lib/attributes.glsl); it is
             // inserted below only if the normal map was read.
             const std::size_t tangentPosition = dataList.size();
+            // Task 0359: an effect shape with UV controllers has the file's raw coordinates; the driver's texture matrix
+            // applies them (and moves them), or, with no driver, the matrix at time 0 is applied here once.
+            const bool scrolls = shape.mScroll != nullptr && !shape.mUV.empty();
+            const bool animatedScroll = scrolls && context.mEffectScroll != nullptr;
             if (!shape.mUV.empty())
             {
                 shader.addMode(Pipeline::Mode::TEXCOORD);
-                dataList.emplace_back(copyArray<vsg::vec2Array>(shape.mUV));
+                if (scrolls && !animatedScroll)
+                {
+                    const vsg::mat4 m = SkyrimEffectScroll::matrixAt(*shape.mScroll, 0.0);
+                    std::vector<std::array<float, 2>> placed = shape.mUV;
+                    for (auto& uv : placed)
+                        uv = { uv[0] * m(0, 0) + m(3, 0), uv[1] * m(1, 1) + m(3, 1) };
+                    dataList.emplace_back(copyArray<vsg::vec2Array>(placed));
+                }
+                else
+                    dataList.emplace_back(copyArray<vsg::vec2Array>(shape.mUV));
                 options.numUvSets = 1;
+            }
+            vsg::ref_ptr<vsg::mat4Value> scrollUniform;
+            if (animatedScroll)
+            {
+                scrollUniform = vsg::mat4Value::create();
+                shader.addMode(Pipeline::Mode::TEXMAT);
             }
 
             vsg::Descriptors descriptors;
             addSurface(key, context, result, totals, options, descriptors);
             if (swaying)
                 totals.mSwayShapes.fetch_add(1, std::memory_order_relaxed);
+            if (scrollUniform)
+            {
+                descriptors.push_back(vsg::DescriptorBuffer::create(
+                    scrollUniform, Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
+                context.mEffectScroll->add(scrollUniform, shape.mScroll);
+                totals.mScrollShapes.fetch_add(1, std::memory_order_relaxed);
+            }
             if (swaying)
                 descriptors.push_back(vsg::DescriptorBuffer::create(
                     context.mSwayUniform, Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
@@ -630,10 +700,13 @@ namespace MWRender::SkyrimModel
             auto bindPipeline = context.mBuilder.graphics->getOrCreate(options);
             vsg::ref_ptr<vsg::PipelineLayout> layout = bindPipeline->pipeline->layout;
             auto descriptorSet = vsg::DescriptorSet::create(layout->setLayouts[Pipeline::TEXTURE_SET], descriptors);
-            vsgUtil::share_if(context.mSharedObjects, descriptorSet);
+            // a scrolling shape's set holds its own uniform, so it is never merged with another shape's equal-looking one
+            if (!scrollUniform)
+                vsgUtil::share_if(context.mSharedObjects, descriptorSet);
             auto bindDescriptors = vsg::BindDescriptorSet::create(
                 VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, descriptorSet);
-            vsgUtil::share_if(context.mSharedObjects, bindDescriptors);
+            if (!scrollUniform)
+                vsgUtil::share_if(context.mSharedObjects, bindDescriptors);
 
             auto stateGroup = vsg::StateGroup::create();
             stateGroup->children = { geometry };
@@ -714,7 +787,8 @@ namespace MWRender::SkyrimModel
             << c.mDroppedTriangles.load() << " bad triangles; materials: " << c.mNormalMaps.load() << " normal maps, "
             << c.mGlowMaps.load() << " glow maps, " << c.mNormalMapsNoTangents.load()
             << " normal maps without tangents, " << c.mNormalMapsModelSpace.load()
-            << " model-space normal maps left out, " << c.mSwayShapes.load() << " swaying tree shapes";
+            << " model-space normal maps left out, " << c.mSwayShapes.load() << " swaying tree shapes, " << c.mScrollShapes.load()
+            << " scrolling effect shapes";
         return out.str();
     }
 
@@ -797,15 +871,22 @@ namespace MWRender::SkyrimModel
         return result;
     }
 
+    bool effectShapesWanted(const std::string& filename, bool spellEffects, bool worldEffects)
+    {
+        return isMagicModelPath(filename) ? spellEffects : worldEffects;
+    }
+
     std::shared_ptr<const vsgAdapters::nif::SceneReader> makeSceneReader(const Pipeline::Builder& builder,
-        vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin, vsg::ref_ptr<vsg::mat4Value> swayUniform)
+        vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin, vsg::ref_ptr<vsg::mat4Value> swayUniform,
+        std::shared_ptr<SkyrimEffectScroll::Driver> effectScroll)
     {
         auto reader = std::make_shared<vsgAdapters::nif::SceneReader>();
         const bool surfaceMaps = Settings::game().mNeutralWorldMaterials; // read once, as the neutral world switch is
         const bool spellEffects = Settings::game().mNeutralSpellEffects; // task 0191, read once as well
+        const bool worldEffects = Settings::game().mNeutralFireEffects; // task 0359
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
         reader->read
-            = [&builder, imageOptions, depthSortedBin, surfaceMaps, spellEffects, swayUniform](std::string data,
+            = [&builder, imageOptions, depthSortedBin, surfaceMaps, spellEffects, worldEffects, swayUniform, effectScroll](std::string data,
                   const std::string& filename, vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
             Counters& totals = counters();
             try
@@ -817,7 +898,7 @@ namespace MWRender::SkyrimModel
                 NifScene::Flat::Limits limits;
                 limits.mSurfaceMaps = surfaceMaps;
                 limits.mTreeSway = swayUniform != nullptr;
-                limits.mEffects = spellEffects && isMagicModelPath(filename);
+                limits.mEffects = effectShapesWanted(filename, spellEffects, worldEffects);
                 // Task 0136: the trunks and branches of trees are skinned shapes; as static models they are drawn in
                 // the rest pose (this reader is for statics only, actors have their own skinned path).
                 limits.mSkinnedAtRest = true;
@@ -827,6 +908,7 @@ namespace MWRender::SkyrimModel
                 BuildContext context{ builder, imageOptions, options->sharedObjects, depthSortedBin, filename,
                     swayUniform };
                 context.mOverride = options ? Pipeline::Override::get(*options) : nullptr;
+                context.mEffectScroll = effectScroll.get(); // the reader holds the driver, so it outlives the build
                 BuildResult built = buildNode(flat, context);
                 if (!built.mNode)
                     return vsg::Group::create(); // a model that draws nothing is still a model, not a missing one

@@ -8,6 +8,7 @@
 #include "rain.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
+#include "skyrimeffectscroll.hpp"
 #include "skyrimtreesway.hpp"
 #include "waterripples.hpp"
 
@@ -750,6 +751,9 @@ namespace MWRender
         std::unique_ptr<LodClusters> mLodClusters;
         // Task 0136: the wind of Skyrim trees, only with `[Game] neutral world` and `neutral tree sway`.
         std::unique_ptr<SkyrimTreeSway::Driver> mTreeSway;
+        // Task 0359: scrolls the texture of Skyrim effect shapes (fire cards), only with `[Game] neutral world` and
+        // `neutral fire effects`. Shared with the scene reader.
+        std::shared_ptr<SkyrimEffectScroll::Driver> mEffectScroll;
         std::optional<float> mTreeWindOverride; // OPENEDEN_NEUTRAL_TREE_WIND, a developer aid
         bool mLodClustersAttached = false;
         std::uint64_t mLodClustersPushed = 0;
