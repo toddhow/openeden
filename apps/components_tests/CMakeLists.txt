@@ -317,6 +317,8 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testcollision.cpp
     nifscene/testsequence.cpp
     nifscene/testuvanim.cpp
+    nifscene/testparticleanalytic.cpp
+    nifscene/testflattenparticles.cpp
     nifscene/testsequenceflatten.cpp
     nifscene/testsequencereal.cpp
 
@@ -962,6 +964,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrusformnatives.cpp
     skyrimse/testskyrimsesurveyreal.cpp
     skyrimse/testskyrimsefiresurvey.cpp
+    skyrimse/testskyrimseparticlesurvey.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/scene_options.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp

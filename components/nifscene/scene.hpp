@@ -312,6 +312,61 @@ namespace NifScene
         std::uint32_t mUnsupportedBlocks = 0; // controlled blocks that were not a plain transform interpolator
     };
 
+    /// Task 0359 stage b: one NiParticleSystem (a Skyrim SE flame, smoke or spark system) as plain numbers. Only what a
+    /// static model's analytic drawing needs is kept (docs/research/0148-skyrim-fire-effects.md): the emitter, the birth
+    /// rate from the system's NiPSysEmitterCtlr, and the colour, scale, sub-texture, gravity, drag and rotation
+    /// modifiers. BSStripParticleSystem, NiMeshParticleSystem and systems driven by a master system are not read
+    /// (counted in Scene::mWarnings).
+    struct ParticleSystem
+    {
+        enum class Emitter : std::uint8_t
+        {
+            Point, // mesh emitters, and any emitter this reader does not know: every particle starts at the emitter node
+            Box,
+            Cylinder,
+            Sphere,
+        };
+
+        std::string mName;
+        std::uint32_t mNode = sNone; // the system's own node
+        std::uint32_t mEmitterNode = sNone; // the emitter object's node (position, orientation); sNone: the system's own
+        std::uint32_t mMaterial = sNone; // index into Scene::mMaterials (a BSEffectShaderProperty), or none
+        std::uint32_t mAlpha = sNone; // index into Scene::mAlphaProperties, or none
+        bool mWorldSpace = true;
+        std::uint32_t mMaxParticles = 0; // the system's data vertex count
+        float mBirthRate = 0.f; // particles a second (the emitter controller's value, the mean of its keys)
+
+        Emitter mEmitter = Emitter::Point;
+        Vec3 mEmitterSize{ 0.f, 0.f, 0.f }; // box width, height, depth; cylinder radius, height; sphere radius
+        float mSpeed = 0.f, mSpeedVariation = 0.f;
+        float mDeclination = 0.f, mDeclinationVariation = 0.f; // radians from the emitter's Z axis
+        float mPlanarAngle = 0.f, mPlanarAngleVariation = 0.f; // radians about it
+        float mRadius = 1.f, mRadiusVariation = 0.f; // a particle's half size at birth
+        float mLife = 1.f, mLifeVariation = 0.f; // seconds
+        Vec4 mInitialColor{ 1.f, 1.f, 1.f, 1.f };
+
+        std::vector<float> mScales; // BSPSysScaleModifier: the size factor over a life, evenly spaced; empty: 1
+
+        bool mHasColor = false; // BSPSysSimpleColorModifier
+        float mFadeIn = 0.f, mFadeOut = 0.f; // shares of the life over which alpha rises and falls
+        Vec4 mColorStops{ 0.f, 0.5f, 0.5f, 1.f }; // ascending: colour 1 until [0], blends to colour 2 by [1], holds to [2], blends to colour 3 by [3]
+        std::array<Vec4, 3> mColors{ Vec4{ 1.f, 1.f, 1.f, 1.f }, Vec4{ 1.f, 1.f, 1.f, 1.f }, Vec4{ 1.f, 1.f, 1.f, 1.f } };
+
+        bool mHasSubTexture = false; // BSPSysSubTexModifier (a flipbook atlas)
+        std::vector<Vec4> mSubTextures; // the data's rectangles as stored: left, width, top, height (UV)
+        float mSubStart = 0.f, mSubStartFudge = 0.f, mSubEnd = 0.f, mSubLoopStart = 0.f, mSubCount = 0.f,
+              mSubCountFudge = 0.f;
+        float mAspectRatio = 1.f; // the data's width over height
+
+        Vec3 mGravity{ 0.f, 0.f, 0.f }; // the sum of the planar gravity modifiers (axis times strength), units a second squared
+        bool mGravityWorldAligned = true; // false: the axis is in the system's own frame
+        float mDrag = 0.f; // the sum of the drag modifiers' percentages
+
+        float mRotationSpeed = 0.f, mRotationSpeedVariation = 0.f; // radians a second
+        float mRotationAngle = 0.f, mRotationAngleVariation = 0.f; // radians at birth
+        bool mRandomRotationSign = false;
+    };
+
     struct Scene
     {
         std::uint32_t mVersion = 0;
@@ -326,6 +381,8 @@ namespace NifScene
         std::vector<std::uint32_t> mRoots; // indices into mNodes
         /// Task 0232: the controller sequences of the file's NiControllerManager(s), in file order.
         std::vector<Sequence> mSequences;
+        /// Task 0359 stage b: the NiParticleSystems of the file (Skyrim SE only), in file order.
+        std::vector<ParticleSystem> mParticleSystems;
         /// The bhk collision data (task 0144), only filled when SceneOptions::mReadHavok is set.
         Havok::Collision mHavok;
         /// Things a consumer may want to log: a vertex layout that disagrees with its declared size, partition bone

@@ -90,6 +90,9 @@ namespace NifScene::Flat
         /// and is never merged with a shape that has another value. Positions stay baked in the model's rest frame.
         /// Empty (the default): nothing changes.
         std::vector<std::uint32_t> mAnimatedNodes;
+        /// Task 0359 stage b: also collect the model particle systems (FlatModel::mParticles). Needs mEffects (a
+        /// system look is its effect shader). Off (the default): none are collected and nothing changes.
+        bool mParticles = false;
     };
 
     /// What makes two shapes drawable by one StateGroup.
@@ -153,6 +156,19 @@ namespace NifScene::Flat
         std::uint32_t mAnimNode = 0xFFFFFFFFu;
     };
 
+    /// Task 0359 stage b: a particle system placed in the model frame. The numbers of mSystem are the file's; the
+    /// placement is baked here: the emitter centre and rotation, and the scales of the emitter and of the system.
+    struct ParticleSystem
+    {
+        MaterialKey mKey; // the effect shader look, as an effect shape has (mEffect, mDiffuse, mPalette, blend)
+        NifScene::ParticleSystem mSystem;
+        std::array<float, 3> mCentre{ 0.f, 0.f, 0.f }; // the emitter object origin in the model frame
+        std::array<float, 9> mRotation{ 1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f }; // row-major, emitter axes
+        float mEmitterScale = 1.f; // scales the emitter volume
+        float mSystemScale = 1.f; // scales a particle size, speed and gravity
+        std::array<float, 3> mGravity{ 0.f, 0.f, 0.f }; // acceleration in the model frame, scale applied
+    };
+
     /// What flatten did, for logging and tests. Counts of geometries unless said otherwise.
     struct Report
     {
@@ -187,6 +203,8 @@ namespace NifScene::Flat
         /// The axis-aligned bounds of all shapes (min, max); both zero when nothing is drawn.
         std::array<float, 3> mBoundsMin{ 0.f, 0.f, 0.f };
         std::array<float, 3> mBoundsMax{ 0.f, 0.f, 0.f };
+        /// Task 0359 stage b: only filled under Limits::mParticles; systems with no birth rate or look are dropped.
+        std::vector<ParticleSystem> mParticles;
     };
 
     /// Never throws for any scene; the result obeys the caps in `limits`.

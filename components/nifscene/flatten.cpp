@@ -354,6 +354,95 @@ namespace NifScene::Flat
         return true;
     }
 
+    namespace
+    {
+        // Task 0359 stage b: the particle systems of the scene, placed in the model frame. The look is the effect
+        // shape's (the key is made as flatten makes an effect shape key); a system with no birth rate or no effect
+        // shader draws nothing and is left out.
+        void collectParticles(const Scene& scene, const std::vector<NodeInfo>& nodes, std::size_t walked,
+            const Limits& limits, FlatModel& model)
+        {
+            constexpr std::size_t maxSystems = 32;
+            for (const NifScene::ParticleSystem& source : scene.mParticleSystems)
+            {
+                if (model.mParticles.size() >= maxSystems)
+                    break;
+                if (source.mNode >= walked || nodes[source.mNode].hidden || source.mBirthRate <= 0.f
+                    || source.mMaterial >= scene.mMaterials.size())
+                    continue;
+                const ShaderMaterial& material = scene.mMaterials[source.mMaterial];
+                if (material.mKind != ShaderKind::Effect
+                    || (material.mFlags1 & (ShaderFlags::sRefraction | ShaderFlags::sFireRefraction)) != 0)
+                    continue;
+                ParticleSystem out;
+                out.mSystem = source;
+                MaterialKey& key = out.mKey;
+                key.mEffect = true;
+                key.mDoubleSided = true;
+                key.mClampMode = static_cast<std::uint8_t>(material.mClampMode & 3u);
+                const bool scaled = std::isfinite(material.mBaseColorScale) && material.mBaseColorScale > 0.f;
+                const float scale = scaled ? material.mBaseColorScale : 1.f;
+                for (std::size_t c = 0; c < 3; ++c)
+                {
+                    const float value = material.mBaseColor[c];
+                    key.mEffectColor[c] = (std::isfinite(value) ? std::max(0.f, value) : 1.f) * scale;
+                }
+                const float alpha = material.mBaseColor[3];
+                key.mEffectColor[3] = (std::isfinite(alpha) && alpha > 0.f) ? std::min(alpha, 1.f) : 1.f;
+                key.mAlpha = key.mEffectColor[3];
+                if ((material.mFlags1 & ShaderFlags::sGreyscaleToPaletteColor) != 0
+                    && material.mGreyscaleTexture.size() <= limits.mMaxPathLength)
+                    key.mPalette = material.mGreyscaleTexture;
+                if (!material.mSourceTexture.empty() && material.mSourceTexture.size() <= limits.mMaxPathLength)
+                    key.mDiffuse = material.mSourceTexture;
+                if (source.mAlpha < scene.mAlphaProperties.size())
+                {
+                    const AlphaProperty& property = scene.mAlphaProperties[source.mAlpha];
+                    key.mBlend = property.mBlend;
+                    key.mTest = property.mTest;
+                    if (property.mBlend)
+                    {
+                        key.mSourceBlend = property.mSourceBlend;
+                        key.mDestinationBlend = property.mDestinationBlend;
+                        key.mNoSorter = property.mNoSorter;
+                    }
+                    if (property.mTest)
+                    {
+                        key.mTestMode = property.mTestMode;
+                        key.mThreshold = property.mThreshold;
+                    }
+                }
+                const Pose& system = nodes[source.mNode].world;
+                const std::uint32_t emitterNode = source.mEmitterNode < walked ? source.mEmitterNode : source.mNode;
+                const Pose& emitter = nodes[emitterNode].world;
+                const Vec3d centre = apply(emitter, { 0, 0, 0 });
+                bool good = true;
+                for (int i = 0; i < 3; ++i)
+                {
+                    good = good && usable(centre[i], limits.mMaxCoordinate);
+                    out.mCentre[i] = static_cast<float>(centre[i]);
+                }
+                for (int i = 0; i < 9; ++i)
+                {
+                    good = good && std::isfinite(emitter.r[i]);
+                    out.mRotation[i] = static_cast<float>(emitter.r[i]);
+                }
+                out.mEmitterScale = static_cast<float>(std::clamp(emitter.s, 0.0, 1000.0));
+                out.mSystemScale = static_cast<float>(std::clamp(system.s, 0.0, 1000.0));
+                // gravity: a world aligned axis stays as written; otherwise it is in the system frame
+                Vec3d g{ source.mGravity[0], source.mGravity[1], source.mGravity[2] };
+                if (!source.mGravityWorldAligned)
+                    for (int row = 0; row < 3; ++row)
+                        g[row] = system.r[row * 3] * source.mGravity[0] + system.r[row * 3 + 1] * source.mGravity[1]
+                            + system.r[row * 3 + 2] * source.mGravity[2];
+                for (int i = 0; i < 3; ++i)
+                    out.mGravity[i] = static_cast<float>(g[i] * out.mSystemScale);
+                if (good)
+                    model.mParticles.push_back(std::move(out));
+            }
+        }
+    }
+
     FlatModel flatten(const Scene& scene, const Limits& limits)
     {
         FlatModel model;
@@ -698,6 +787,9 @@ namespace NifScene::Flat
             report.mSkinnedAtRest += skinnedAtRest ? 1u : 0u;
             report.mSwayShapes += treeSway ? 1u : 0u;
         }
+
+        if (limits.mEffects && limits.mParticles)
+            collectParticles(scene, nodes, walked, limits, model);
 
         std::set<std::string> textures;
         for (const Shape& shape : model.mShapes)

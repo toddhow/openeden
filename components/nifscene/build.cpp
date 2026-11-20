@@ -13,6 +13,7 @@
 #include <components/nif/data.hpp>
 #include <components/nif/exception.hpp>
 #include <components/nif/node.hpp>
+#include <components/nif/particle.hpp>
 #include <components/nif/property.hpp>
 #include <components/nif/texture.hpp>
 
@@ -485,6 +486,189 @@ namespace NifScene
                 }
             }
 
+            // Task 0359 stage b: the Skyrim SE particle systems of a static model. Reads only what the analytic drawing
+            // uses; every number is bounded here so that a hostile file cannot make a consumer allocate or loop.
+            void buildParticleSystems()
+            {
+                constexpr std::size_t maxSystems = 64;
+                constexpr std::size_t maxScales = 4096;
+                constexpr std::size_t maxSubTextures = 4096;
+                auto finite = [](float v, float fallback) { return std::isfinite(v) ? v : fallback; };
+                auto bounded = [&finite](float v, float fallback, float limit) {
+                    return std::clamp(finite(v, fallback), -limit, limit);
+                };
+                if (mFile.mBethVersion < Nif::NIFFile::BethVersion::BETHVER_SSE)
+                    return;
+                for (const auto& record : mFile.mRecords)
+                {
+                    const auto* source = dynamic_cast<const Nif::NiParticleSystem*>(record.get());
+                    if (source == nullptr)
+                        continue;
+                    if (source->mRecordName != "NiParticleSystem")
+                    {
+                        warn("particle system '" + source->mName + "' is a " + source->mRecordName
+                            + ", which is not read");
+                        continue;
+                    }
+                    if (mScene.mParticleSystems.size() >= maxSystems)
+                    {
+                        warn("particle systems beyond " + std::to_string(maxSystems) + " are ignored");
+                        break;
+                    }
+                    ParticleSystem ps;
+                    ps.mName = source->mName;
+                    ps.mNode = nodeIndex(source);
+                    ps.mWorldSpace = source->mWorldSpace;
+                    if (!source->mShaderProperty.empty())
+                        ps.mMaterial = buildMaterial(*source->mShaderProperty.getPtr(), ps.mName);
+                    if (!source->mAlphaProperty.empty())
+                        ps.mAlpha = buildAlpha(*source->mAlphaProperty.getPtr());
+                    const auto* data = dynamic_cast<const Nif::NiPSysData*>(source->mData.getPtr());
+                    if (data == nullptr || ps.mNode == sNone)
+                        continue;
+                    ps.mMaxParticles = data->mNumVertices;
+                    ps.mAspectRatio = std::clamp(finite(data->mAspectRatio, 1.f), 0.05f, 20.f);
+                    for (const auto& rect : data->mSubtextureOffsets)
+                    {
+                        if (ps.mSubTextures.size() >= maxSubTextures)
+                            break;
+                        ps.mSubTextures.push_back(
+                            { finite(rect.x, 0.f), finite(rect.y, 1.f), finite(rect.z, 0.f), finite(rect.w, 1.f) });
+                    }
+
+                    bool emitterSeen = false;
+                    for (const auto& modifier : source->mModifiers)
+                    {
+                        if (modifier.empty())
+                            continue;
+                        const Nif::NiPSysModifier& m = *modifier.getPtr();
+                        if (!m.mActive)
+                            continue;
+                        if (const auto* e = dynamic_cast<const Nif::NiPSysEmitter*>(&m))
+                        {
+                            if (emitterSeen)
+                                continue; // the first emitter stands for the system
+                            emitterSeen = true;
+                            ps.mSpeed = bounded(e->mSpeed, 0.f, 1.0e5f);
+                            ps.mSpeedVariation = bounded(e->mSpeedVariation, 0.f, 1.0e5f);
+                            ps.mDeclination = bounded(e->mDeclination, 0.f, 7.f);
+                            ps.mDeclinationVariation = bounded(e->mDeclinationVariation, 0.f, 7.f);
+                            ps.mPlanarAngle = bounded(e->mPlanarAngle, 0.f, 7.f);
+                            ps.mPlanarAngleVariation = bounded(e->mPlanarAngleVariation, 0.f, 7.f);
+                            ps.mRadius = std::clamp(finite(e->mInitialRadius, 1.f), 0.f, 1.0e4f);
+                            ps.mRadiusVariation = std::clamp(finite(e->mRadiusVariation, 0.f), 0.f, 1.0e4f);
+                            ps.mLife = std::clamp(finite(e->mLifespan, 1.f), 0.01f, 600.f);
+                            ps.mLifeVariation = std::clamp(finite(e->mLifespanVariation, 0.f), 0.f, ps.mLife);
+                            ps.mInitialColor = { std::clamp(finite(e->mInitialColor.x, 1.f), 0.f, 8.f),
+                                std::clamp(finite(e->mInitialColor.y, 1.f), 0.f, 8.f),
+                                std::clamp(finite(e->mInitialColor.z, 1.f), 0.f, 8.f),
+                                std::clamp(finite(e->mInitialColor.w, 1.f), 0.f, 1.f) };
+                            if (const auto* box = dynamic_cast<const Nif::NiPSysBoxEmitter*>(&m))
+                            {
+                                ps.mEmitter = ParticleSystem::Emitter::Box;
+                                ps.mEmitterSize = { std::clamp(finite(box->mWidth, 0.f), 0.f, 1.0e5f),
+                                    std::clamp(finite(box->mHeight, 0.f), 0.f, 1.0e5f),
+                                    std::clamp(finite(box->mDepth, 0.f), 0.f, 1.0e5f) };
+                            }
+                            else if (const auto* cyl = dynamic_cast<const Nif::NiPSysCylinderEmitter*>(&m))
+                            {
+                                ps.mEmitter = ParticleSystem::Emitter::Cylinder;
+                                ps.mEmitterSize = { std::clamp(finite(cyl->mRadius, 0.f), 0.f, 1.0e5f),
+                                    std::clamp(finite(cyl->mHeight, 0.f), 0.f, 1.0e5f), 0.f };
+                            }
+                            else if (const auto* sph = dynamic_cast<const Nif::NiPSysSphereEmitter*>(&m))
+                            {
+                                ps.mEmitter = ParticleSystem::Emitter::Sphere;
+                                ps.mEmitterSize = { std::clamp(finite(sph->mRadius, 0.f), 0.f, 1.0e5f), 0.f, 0.f };
+                            }
+                            if (const auto* volume = dynamic_cast<const Nif::NiPSysVolumeEmitter*>(&m))
+                                if (!volume->mEmitterObject.empty())
+                                    ps.mEmitterNode = nodeIndex(volume->mEmitterObject.getPtr());
+                        }
+                        else if (const auto* scale = dynamic_cast<const Nif::BSPSysScaleModifier*>(&m))
+                        {
+                            for (float v : scale->mScales)
+                            {
+                                if (ps.mScales.size() >= maxScales)
+                                    break;
+                                ps.mScales.push_back(std::clamp(finite(v, 1.f), 0.f, 100.f));
+                            }
+                        }
+                        else if (const auto* color = dynamic_cast<const Nif::BSPSysSimpleColorModifier*>(&m))
+                        {
+                            ps.mHasColor = color->mColors.size() >= 3;
+                            ps.mFadeIn = std::clamp(finite(color->mFadeInPercent, 0.f), 0.f, 1.f);
+                            ps.mFadeOut = std::clamp(finite(color->mFadeOutPercent, 0.f), 0.f, 1.f);
+                            // read order: colour 1 end, colour 1 start, colour 2 end, colour 2 start (ascending in the data)
+                            ps.mColorStops = { std::clamp(finite(color->mColor1EndPercent, 0.f), 0.f, 1.f),
+                                std::clamp(finite(color->mColor1StartPercent, 0.5f), 0.f, 1.f),
+                                std::clamp(finite(color->mColor2EndPercent, 0.5f), 0.f, 1.f),
+                                std::clamp(finite(color->mColor2StartPercent, 1.f), 0.f, 1.f) };
+                            for (std::size_t i = 0; i < 3 && i < color->mColors.size(); ++i)
+                                ps.mColors[i] = { std::clamp(finite(color->mColors[i].x, 1.f), 0.f, 8.f),
+                                    std::clamp(finite(color->mColors[i].y, 1.f), 0.f, 8.f),
+                                    std::clamp(finite(color->mColors[i].z, 1.f), 0.f, 8.f),
+                                    std::clamp(finite(color->mColors[i].w, 1.f), 0.f, 1.f) };
+                        }
+                        else if (const auto* sub = dynamic_cast<const Nif::BSPSysSubTexModifier*>(&m))
+                        {
+                            ps.mHasSubTexture = true;
+                            ps.mSubStart = bounded(sub->mStartFrame, 0.f, 4096.f);
+                            ps.mSubStartFudge = bounded(sub->mStartFrameFudge, 0.f, 4096.f);
+                            ps.mSubEnd = bounded(sub->mEndFrame, 0.f, 4096.f);
+                            ps.mSubLoopStart = bounded(sub->mLoopStartFrame, 0.f, 4096.f);
+                            ps.mSubCount = bounded(sub->mFrameCount, 0.f, 4096.f);
+                            ps.mSubCountFudge = bounded(sub->mFrameCountFudge, 0.f, 4096.f);
+                        }
+                        else if (const auto* gravity = dynamic_cast<const Nif::NiPSysGravityModifier*>(&m))
+                        {
+                            if (gravity->mForceType == Nif::ForceType::Wind) // the planar force
+                            {
+                                const float strength = bounded(gravity->mStrength, 0.f, 1.0e5f);
+                                ps.mGravity[0] += bounded(gravity->mGravityAxis.x, 0.f, 1.f) * strength;
+                                ps.mGravity[1] += bounded(gravity->mGravityAxis.y, 0.f, 1.f) * strength;
+                                ps.mGravity[2] += bounded(gravity->mGravityAxis.z, 0.f, 1.f) * strength;
+                                ps.mGravityWorldAligned = gravity->mWorldAligned;
+                            }
+                        }
+                        else if (const auto* drag = dynamic_cast<const Nif::NiPSysDragModifier*>(&m))
+                            ps.mDrag += std::clamp(finite(drag->mPercentage, 0.f), 0.f, 1.f);
+                        else if (const auto* rotation = dynamic_cast<const Nif::NiPSysRotationModifier*>(&m))
+                        {
+                            ps.mRotationSpeed = bounded(rotation->mRotationSpeed, 0.f, 100.f);
+                            ps.mRotationSpeedVariation = bounded(rotation->mRotationSpeedVariation, 0.f, 100.f);
+                            ps.mRotationAngle = bounded(rotation->mRotationAngle, 0.f, 100.f);
+                            ps.mRotationAngleVariation = bounded(rotation->mRotationAngleVariation, 0.f, 100.f);
+                            ps.mRandomRotationSign = rotation->mRandomRotSpeedSign;
+                        }
+                    }
+                    // the birth rate: the system's own emitter controller (its interpolator's value, or the mean of its keys)
+                    for (const auto& other : mFile.mRecords)
+                    {
+                        const auto* ctlr = dynamic_cast<const Nif::NiPSysEmitterCtlr*>(other.get());
+                        if (ctlr == nullptr || ctlr->mTarget.getPtr() != source || ctlr->mInterpolator.empty())
+                            continue;
+                        const auto* interpolator
+                            = dynamic_cast<const Nif::NiFloatInterpolator*>(ctlr->mInterpolator.getPtr());
+                        if (interpolator == nullptr)
+                            continue;
+                        float rate = interpolator->mDefaultValue;
+                        if (!interpolator->mData.empty() && interpolator->mData->mKeyList
+                            && !interpolator->mData->mKeyList->mKeys.empty())
+                        {
+                            double sum = 0.0;
+                            for (const auto& [time, key] : interpolator->mData->mKeyList->mKeys)
+                                sum += std::isfinite(key.mValue) ? key.mValue : 0.f;
+                            rate = static_cast<float>(
+                                sum / static_cast<double>(interpolator->mData->mKeyList->mKeys.size()));
+                        }
+                        ps.mBirthRate = std::clamp(finite(rate, 0.f), 0.f, 10000.f);
+                        break;
+                    }
+                    mScene.mParticleSystems.push_back(std::move(ps));
+                }
+            }
+
             std::uint32_t buildMaterial(const Nif::BSShaderProperty& property, const std::string& shapeName)
             {
                 const auto known = mMaterialOfRecord.find(property.mRecordIndex);
@@ -874,6 +1058,7 @@ namespace NifScene
                 buildNodes();
                 buildSequences();
                 buildGeometries();
+                buildParticleSystems();
                 if (mOptions.mReadHavok)
                     mScene.mHavok = Havok::readCollision(mFile);
                 return std::move(mScene);
@@ -1059,6 +1244,23 @@ namespace NifScene
                 << " outside=" << s.mInfluencesOutsidePartitionBones << "\n";
         }
         dumpMaterials(out, scene);
+        // Task 0359 stage b: only a scene that has particle systems prints them, so older dumps are unchanged.
+        for (std::size_t i = 0; i < scene.mParticleSystems.size(); ++i)
+        {
+            const ParticleSystem& p = scene.mParticleSystems[i];
+            out << "psys " << i << " name=" << p.mName << " node=" << static_cast<std::int64_t>(p.mNode == sNone ? -1 : p.mNode)
+                << " emitterNode=" << static_cast<std::int64_t>(p.mEmitterNode == sNone ? -1 : p.mEmitterNode)
+                << " material=" << static_cast<std::int64_t>(p.mMaterial == sNone ? -1 : p.mMaterial)
+                << " alpha=" << static_cast<std::int64_t>(p.mAlpha == sNone ? -1 : p.mAlpha)
+                << " world=" << p.mWorldSpace << " max=" << p.mMaxParticles << " rate=" << p.mBirthRate
+                << " emitter=" << static_cast<int>(p.mEmitter) << " size=" << p.mEmitterSize[0] << "," << p.mEmitterSize[1]
+                << "," << p.mEmitterSize[2] << " speed=" << p.mSpeed << "+-" << p.mSpeedVariation
+                << " decl=" << p.mDeclination << "+-" << p.mDeclinationVariation << " planar=" << p.mPlanarAngle << "+-"
+                << p.mPlanarAngleVariation << " radius=" << p.mRadius << "+-" << p.mRadiusVariation << " life=" << p.mLife
+                << "+-" << p.mLifeVariation << " scales=" << p.mScales.size() << " color=" << p.mHasColor
+                << " subtex=" << p.mHasSubTexture << "/" << p.mSubTextures.size() << " gravity=" << p.mGravity[0] << ","
+                << p.mGravity[1] << "," << p.mGravity[2] << " drag=" << p.mDrag << "\n";
+        }
         for (const std::string& warning : scene.mWarnings)
             out << "warning " << warning << "\n";
         return out.str();
