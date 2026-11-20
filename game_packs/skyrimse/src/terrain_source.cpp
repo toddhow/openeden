@@ -2,6 +2,7 @@
 
 #include "game_skyrimse/pack_core.hpp"
 
+#include <array>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -514,8 +515,10 @@ namespace game_skyrimse
             out.hasColours = true;
             out.colours = std::move(land.mColours);
         }
+        std::array<bool, LandConstants::kQuadrants> noBase{};
         for (std::size_t q = 0; q < LandConstants::kQuadrants; ++q)
         {
+            noBase[q] = land.mQuadrants[q].mBase == kNullFormId;
             out.baseTextures[q] = mapTexture(land.mQuadrants[q].mBase);
 
             // Task 0149: the alpha layers in layer number order (the file order breaks ties), each with its opacity
@@ -539,6 +542,40 @@ namespace game_skyrimse
                         converted.opacity[entry.mPosition] = static_cast<std::uint8_t>(std::lround(clamped * 255.0f));
                     }
                 out.layers[q].push_back(std::move(converted));
+            }
+        }
+
+        // Task 0361b: a child world that borrows its parent's land has its own LAND for some cells with only part of the
+        // data (WhiterunWorld (6, -3): no VCLR, a BTXT for one quadrant of four, while Tamriel's (6, -3) has all of
+        // them). What the record lacks comes from the parent's land of the same cell; its own fields, layers included, stay.
+        bool needsParent = !out.hasColours;
+        for (const bool missing : noBase)
+            needsParent = needsParent || missing;
+        const auto own = mWorlds.find(world);
+        if (needsParent && own != mWorlds.end())
+        {
+            const WorldSpaceRecord& rec = own->second;
+            const bool lends = rec.mParent != kNullFormId && rec.mParent != kUnresolvedFormId
+                && (rec.mParentUsage.value_or(0) & ParentUsage::Land) != 0;
+            sdk::TerrainCell inherited;
+            std::string ignored;
+            // A cycle of parents (hostile data) ends at the depth limit.
+            thread_local int depth = 0;
+            struct DepthGuard
+            {
+                DepthGuard() { ++depth; }
+                ~DepthGuard() { --depth; }
+            } guard;
+            if (lends && depth <= 8 && buildTerrain(rec.mParent, x, y, inherited, ignored) == sdk::TerrainResult::Built)
+            {
+                if (!out.hasColours && inherited.hasColours)
+                {
+                    out.hasColours = true;
+                    out.colours = std::move(inherited.colours);
+                }
+                for (std::size_t q = 0; q < LandConstants::kQuadrants; ++q)
+                    if (noBase[q])
+                        out.baseTextures[q] = inherited.baseTextures[q];
             }
         }
         return sdk::TerrainResult::Built;

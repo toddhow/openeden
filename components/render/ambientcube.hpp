@@ -42,6 +42,22 @@ namespace Render::AmbientCube
         return out;
     }
 
+    /// OpenEden (task 0361b): the cube of a Skyrim SE record in the order this file's faces are sampled. The record's six
+    /// colours are stored +X, -X, +Y, -Y, then the vertical pair with the SKY colour LAST (the stored fifth colour is the
+    /// one a surface facing DOWN takes, the sixth the one a surface facing UP takes). Measured on the five masters:
+    /// in all 284 weather records with a directional ambient (that differ) the sixth colour is the brighter, and per
+    /// weather the six read as a sky dome only in this order (day: down 77/129/136 teal from the ground, horizontals
+    /// about 100/140/155, up 191/214/221 pale sky; night 44/58/67, 60/85/100, 65/103/126); in 559 of 560 interiors
+    /// the sixth is the brighter too. Read the other way round, every up-facing surface (the ground, roofs) took
+    /// the dark ground colour and shadowed ground drew black. The faces of `cube` are the stored order; the result
+    /// is +X, -X, +Y, -Y, +Z (up), -Z (down) as `sample` and the shaders read them.
+    inline Cube fromStoredOrder(const Cube& stored)
+    {
+        Cube out = stored;
+        std::swap(out[4], out[5]);
+        return out;
+    }
+
     /// A cube whose six faces are one colour: lights every surface alike (a weather that has no directional ambient, in a
     /// blend with one that has).
     inline Cube flat(const vsg::vec3& colour)

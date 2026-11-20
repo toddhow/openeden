@@ -393,6 +393,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testwatermath.cpp
     render/testambientcube.cpp
     render/testambientcubeexterior.cpp
+    render/testambientcubeorder.cpp
     render/testgputiming.cpp
     render/testscenecensus.cpp
     render/testhdrmath.cpp
@@ -932,6 +933,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseterrain.cpp
     skyrimse/testskyrimseterrainreal.cpp
     skyrimse/testskyrimseterrainlayers.cpp
+    skyrimse/testskyrimseterraininherit.cpp
     skyrimse/testskyrimsewater.cpp
     skyrimse/testskyrimsewaterreal.cpp
     skyrimse/testskyrimselandreal.cpp

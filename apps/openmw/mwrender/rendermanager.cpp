@@ -3173,11 +3173,15 @@ namespace MWRender
             const std::optional<std::array<vsg::vec3, 6>>& shown = mAmbientCube ? mAmbientCube : mWeatherAmbientCube;
             Render::AmbientCube::Cube viewCube{};
             if (shown)
+            {
+                // The game stores the sky colour last (Render::AmbientCube::fromStoredOrder): up-facing surfaces take it.
+                const Render::AmbientCube::Cube ordered = Render::AmbientCube::fromStoredOrder(*shown);
                 for (std::size_t i = 0; i < 6; ++i)
                 {
-                    const vsg::vec4 c = toView(vsg::vec4((*shown)[i], 1.f));
+                    const vsg::vec4 c = toView(vsg::vec4(ordered[i], 1.f));
                     viewCube[i] = vsg::vec3(c.x, c.y, c.z);
                 }
+            }
             const vsg::vec4 baseline
                 = toView(mAmbientCube ? mAmbientColor : vsg::vec4(mWeatherAmbientBase, mAmbientColor.w));
             std::array<vsg::vec4, Render::AmbientCube::vec4s> packed{};
