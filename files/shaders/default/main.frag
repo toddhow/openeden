@@ -263,6 +263,12 @@ void main()
 
 #ifdef COLOR
     vec4 vertexColor = frag_in.color;
+#elif defined(PARTICLE)
+    // Task 0359 stage b: colour mode 5 is an analytic Skyrim particle, which has its own colour; every other
+    // particle (colour mode 0 to 4) keeps the white it had.
+    vec4 vertexColor = vec4(1);
+    if (colorMode == 5)
+        vertexColor = frag_in.color;
 #else
     vec4 vertexColor = vec4(1);
 #endif

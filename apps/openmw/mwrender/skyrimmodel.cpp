@@ -13,12 +13,14 @@
 #include <iostream>
 #include <sstream>
 
+#include <vsg/commands/Draw.h>
 #include <vsg/core/MipmapLayout.h>
 #include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/DepthSorted.h>
 #include <vsg/nodes/Group.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/VertexIndexDraw.h>
+#include <vsg/state/ArrayState.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/DescriptorBuffer.h>
 #include <vsg/state/DescriptorImage.h>
@@ -29,9 +31,12 @@
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/facetint.hpp>
 #include <components/nifscene/header.hpp>
+#include <components/nifscene/particleanalytic.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/material.hpp>
+#include <components/pipeline/options.hpp>
+#include <components/pipeline/particledata.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/settings/values.hpp>
@@ -125,6 +130,9 @@ namespace MWRender::SkyrimModel
 
         // Task 0359: see the palette effect branch of buildShape.
         constexpr float kPaletteAlphaGain = 2.f;
+        // Task 0359 stage b: the same for the particles of a palette effect (ours, set by eye: the real lookup moves along
+        // the palette with the alpha, which brightens the flames).
+        constexpr float kParticlePaletteAlphaGain = 3.f;
 
         // OPENEDEN_NIFSCENE_TRACE=1 writes one line per drawn shape to stderr (a developer aid, read once).
         bool traceEnabled()
@@ -764,6 +772,152 @@ namespace MWRender::SkyrimModel
                 return vsg::DepthSorted::create(context.mDepthSortedBin, vsgUtil::getBounds(stateGroup), stateGroup);
             return stateGroup;
         }
+
+        // Task 0359 stage b: one analytic particle system (components/nifscene/particleanalytic.hpp) as one draw. The
+        // buffer is the PARTICLE storage buffer of the object shader, static: nothing is simulated, the vertex stage
+        // works every particle out from the scene time. The look is an effect shape's: unlit, colour mode 5 (the
+        // particle's own colour, alpha included, times the texture), blend from the system's alpha property.
+        vsg::ref_ptr<vsg::Node> buildParticleSystem(const NifScene::Flat::ParticleSystem& system,
+            std::uint32_t seed, const BuildContext& context, BuildResult& result, Counters& totals)
+        {
+            NifScene::Flat::MaterialKey key = system.mKey;
+            // OPENEDEN_PARTICLE_DEBUG=2 also leaves the texture off: solid quads.
+            if (const char* debugMode = std::getenv("OPENEDEN_PARTICLE_DEBUG"); debugMode != nullptr && debugMode[0] == '2')
+                key.mDiffuse.clear();
+            // The greyscale-to-palette lookup, baked into a copy of the atlas: each texel's grey picks a column of the palette
+            // gradient, at a row a little below the middle (the real lookup also moves along the gradient with the particle's
+            // alpha, which a still picture cannot do; ours, chosen by eye). Without a readable palette the effect colour
+            // alone tints the atlas.
+            std::array<float, 4> tint = key.mEffectColor;
+            vsg::ref_ptr<vsg::Data> bakedAtlas;
+            if (!key.mPalette.empty() && !key.mDiffuse.empty())
+            {
+                NifScene::FaceTint::Image palette, atlas;
+                if (readRgba(key.mPalette, context, palette) && readRgba(key.mDiffuse, context, atlas) && palette.mWidth > 0
+                    && palette.mHeight > 0 && atlas.mWidth > 0 && atlas.mHeight > 0
+                    && static_cast<std::size_t>(atlas.mWidth) * atlas.mHeight * 4 == atlas.mRgba.size()
+                    && static_cast<std::size_t>(palette.mWidth) * palette.mHeight * 4 == palette.mRgba.size())
+                {
+                    const std::size_t row = static_cast<std::size_t>(0.55f * static_cast<float>(palette.mHeight - 1));
+                    std::vector<std::uint8_t> out(atlas.mRgba.size());
+                    for (std::size_t t = 0; t < static_cast<std::size_t>(atlas.mWidth) * atlas.mHeight; ++t)
+                    {
+                        const std::uint8_t* in = &atlas.mRgba[t * 4];
+                        const std::size_t column
+                            = static_cast<std::size_t>(in[0]) * (palette.mWidth - 1) / 255;
+                        const std::uint8_t* p = &palette.mRgba[(row * palette.mWidth + column) * 4];
+                        out[t * 4] = p[0];
+                        out[t * 4 + 1] = p[1];
+                        out[t * 4 + 2] = p[2];
+                        out[t * 4 + 3] = static_cast<std::uint8_t>(static_cast<int>(in[3]) * p[3] / 255);
+                        if (const char* d = std::getenv("OPENEDEN_PARTICLE_DEBUG"); d != nullptr && d[0] == '3') // opaque atlas
+                        {
+                            out[t * 4] = in[0];
+                            out[t * 4 + 1] = in[3];
+                            out[t * 4 + 2] = 0;
+                            out[t * 4 + 3] = 255;
+                        }
+                    }
+                    if (traceEnabled())
+                    {
+                        double sr = 0, sa = 0, ba = 0;
+                        const std::size_t n = static_cast<std::size_t>(atlas.mWidth) * atlas.mHeight;
+                        for (std::size_t t = 0; t < n; ++t)
+                        {
+                            sr += atlas.mRgba[t * 4];
+                            sa += atlas.mRgba[t * 4 + 3];
+                            ba += out[t * 4 + 3];
+                        }
+                        std::ostringstream pal;
+                        for (std::size_t c = 0; c < 8; ++c)
+                        {
+                            const std::uint8_t* q = &palette.mRgba[(row * palette.mWidth + c * (palette.mWidth - 1) / 7) * 4];
+                            pal << " (" << int(q[0]) << "," << int(q[1]) << "," << int(q[2]) << "," << int(q[3]) << ")";
+                        }
+                        Log(Debug::Info) << "NIFSCENE palette bake " << atlas.mWidth << "x" << atlas.mHeight << " atlas mean r "
+                                         << sr / static_cast<double>(n) << " a " << sa / static_cast<double>(n) << " baked a "
+                                         << ba / static_cast<double>(n) << " palette " << palette.mWidth << "x" << palette.mHeight
+                                         << " row " << row << pal.str();
+                    }
+                    bakedAtlas = makeMippedRgba8(atlas.mWidth, atlas.mHeight, std::move(out));
+                    tint = { 1.f, 1.f, 1.f, key.mEffectColor[3] }; // the palette is the colour: no base colour on top (it is 0.24 on the hearth's fire columns)
+                }
+            }
+            // OPENEDEN_PARTICLE_DEBUG=1 (developer aid, task 0359): every particle is opaque magenta, to see where they are.
+            static const bool particleDebug = std::getenv("OPENEDEN_PARTICLE_DEBUG") != nullptr;
+            if (particleDebug && std::getenv("OPENEDEN_PARTICLE_DEBUG")[0] == '5')
+                tint = { 1.f, 1.f, 1.f, 1.f };
+            if (particleDebug && std::getenv("OPENEDEN_PARTICLE_DEBUG")[0] == '6')
+                tint = { 1.4f, 1.4f, 1.4f, 1.f };
+            if (particleDebug && std::getenv("OPENEDEN_PARTICLE_DEBUG")[0] == '7')
+                tint = { 1.4f, 1.1f, 0.9f, 1.f };
+            if (particleDebug && (std::getenv("OPENEDEN_PARTICLE_DEBUG")[0] == '1' || std::getenv("OPENEDEN_PARTICLE_DEBUG")[0] == '2'))
+                tint = { 1.f, 0.f, 1.f, 1.f };
+            // A palette effect takes its colour from the palette, so the particle colour only carries its alpha (as stage a
+            // does for the flame cards).
+            NifScene::Flat::ParticleSystem placed = system;
+            if (bakedAtlas)
+            {
+                for (auto& colour : placed.mSystem.mColors)
+                    colour = { 1.f, 1.f, 1.f,
+                        std::getenv("OPENEDEN_PARTICLE_DEBUG") ? 1.f : std::min(1.f, colour[3] * kParticlePaletteAlphaGain) };
+                placed.mSystem.mInitialColor = { 1.f, 1.f, 1.f, placed.mSystem.mInitialColor[3] };
+            }
+            const NifScene::ParticleAnalytic::Pack pack = NifScene::ParticleAnalytic::pack(placed, seed, tint);
+            if (traceEnabled())
+                Log(Debug::Info) << "NIFSCENE particles '" << system.mSystem.mName << "' in " << context.mFilename << " slots "
+                                 << pack.mSlots << " period " << pack.mPeriod << " reach " << pack.mReach << " centre "
+                                 << pack.mCentre[0] << "," << pack.mCentre[1] << "," << pack.mCentre[2] << " tint " << tint[0] << ","
+                                 << tint[1] << "," << tint[2] << "," << tint[3] << " palette '" << key.mPalette << "' tex '" << key.mDiffuse << "' blend "
+                                 << key.mBlend << " " << int(key.mSourceBlend) << "," << int(key.mDestinationBlend) << " c0 " << pack.mEntries[3].mPositionSize[0] << "," << pack.mEntries[3].mPositionSize[3] << " c1 " << pack.mEntries[3].mColor[0] << "," << pack.mEntries[3].mColor[3] << " c2 " << pack.mEntries[3].mVelocityAge[0] << "," << pack.mEntries[3].mVelocityAge[3] << " stops " << pack.mEntries[3].mMaxAge[0] << "," << pack.mEntries[3].mMaxAge[1] << "," << pack.mEntries[3].mMaxAge[2] << "," << pack.mEntries[3].mMaxAge[3];
+            if (pack.mEntries.empty())
+                return {};
+
+            auto buffer = vsg::Array<Pipeline::Data::Particle>::create(static_cast<std::uint32_t>(pack.mEntries.size()));
+            buffer->properties.dataVariance = vsg::DataVariance::STATIC_DATA;
+            for (std::size_t i = 0; i < pack.mEntries.size(); ++i)
+            {
+                const auto& e = pack.mEntries[i];
+                auto& out = buffer->at(static_cast<std::uint32_t>(i));
+                out.positionSize = vsg::vec4(e.mPositionSize[0], e.mPositionSize[1], e.mPositionSize[2], e.mPositionSize[3]);
+                out.color = vsg::vec4(e.mColor[0], e.mColor[1], e.mColor[2], e.mColor[3]);
+                out.velocityAge = vsg::vec4(e.mVelocityAge[0], e.mVelocityAge[1], e.mVelocityAge[2], e.mVelocityAge[3]);
+                out.maxAge = vsg::vec4(e.mMaxAge[0], e.mMaxAge[1], e.mMaxAge[2], e.mMaxAge[3]);
+            }
+
+            Pipeline::Options options;
+            auto& shader = options.shader;
+            vsg::Descriptors descriptors;
+            addSurface(key, context, result, totals, options, descriptors, bakedAtlas);
+            shader.addMode(Pipeline::Mode::PARTICLE);
+            descriptors.push_back(vsg::DescriptorBuffer::create(
+                buffer, Pipeline::Descriptors::PARTICLE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
+            options.numUvSets = 1;
+            options.primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+            options.cullMode = VK_CULL_MODE_NONE;
+            options.colorMode = Pipeline::analyticParticleColorMode;
+            if (context.mOverride && context.mOverride->pipelineOptions)
+                context.mOverride->pipelineOptions(options);
+            auto bindPipeline = context.mBuilder.graphics->getOrCreate(options);
+            vsg::ref_ptr<vsg::PipelineLayout> layout = bindPipeline->pipeline->layout;
+            auto descriptorSet = vsg::DescriptorSet::create(layout->setLayouts[Pipeline::TEXTURE_SET], descriptors);
+            auto bindDescriptors = vsg::BindDescriptorSet::create(
+                VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, descriptorSet);
+
+            // the first header entries are not drawn: the draw starts at the first slot entry
+            auto draw = vsg::Draw::create(pack.mSlots * 6, 1,
+                static_cast<std::uint32_t>(NifScene::ParticleAnalytic::kHeaderEntries * 6), 0);
+            auto stateGroup = vsg::StateGroup::create();
+            stateGroup->children = { draw };
+            stateGroup->stateCommands = { bindPipeline, bindDescriptors };
+            stateGroup->prototypeArrayState = vsg::NullArrayState::create();
+            ++result.mDraws;
+            totals.mParticleSystems.fetch_add(1, std::memory_order_relaxed);
+            const vsg::dsphere bound(vsg::dvec3(pack.mCentre[0], pack.mCentre[1], pack.mCentre[2]), pack.mReach);
+            if (key.mBlend && !key.mNoSorter)
+                return vsg::DepthSorted::create(context.mDepthSortedBin, bound, stateGroup);
+            return vsg::CullNode::create(bound, stateGroup);
+        }
     }
 
     Counters& counters()
@@ -788,7 +942,7 @@ namespace MWRender::SkyrimModel
             << c.mGlowMaps.load() << " glow maps, " << c.mNormalMapsNoTangents.load()
             << " normal maps without tangents, " << c.mNormalMapsModelSpace.load()
             << " model-space normal maps left out, " << c.mSwayShapes.load() << " swaying tree shapes, " << c.mScrollShapes.load()
-            << " scrolling effect shapes";
+            << " scrolling effect shapes, " << c.mParticleSystems.load() << " analytic particle systems";
         return out.str();
     }
 
@@ -826,6 +980,15 @@ namespace MWRender::SkyrimModel
         const float modelHeight = model.mBoundsMax[2] - model.mBoundsMin[2];
         for (const NifScene::Flat::Shape& shape : model.mShapes)
             nodes.emplace_back(buildShape(shape, context, result, totals, modelHeight));
+        // Task 0359 stage b: the particle systems (only collected under Limits::mParticles). Each draws its own flame,
+        // seeded from the model's name and its place in the file, so equal models always look the same.
+        for (std::size_t i = 0; i < model.mParticles.size(); ++i)
+        {
+            const auto seed = static_cast<std::uint32_t>(
+                (std::hash<std::string>{}(context.mFilename) + 7919u * (i + 1u)) & 0xFFFFFFu);
+            if (auto node = buildParticleSystem(model.mParticles[i], seed, context, result, totals))
+                nodes.emplace_back(std::move(node));
+        }
         totals.mDraws += result.mDraws;
         if (nodes.empty())
         {
@@ -884,9 +1047,10 @@ namespace MWRender::SkyrimModel
         const bool surfaceMaps = Settings::game().mNeutralWorldMaterials; // read once, as the neutral world switch is
         const bool spellEffects = Settings::game().mNeutralSpellEffects; // task 0191, read once as well
         const bool worldEffects = Settings::game().mNeutralFireEffects; // task 0359
+        const bool fireParticles = Settings::game().mNeutralFireParticles; // task 0359 stage b
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
         reader->read
-            = [&builder, imageOptions, depthSortedBin, surfaceMaps, spellEffects, worldEffects, swayUniform, effectScroll](std::string data,
+            = [&builder, imageOptions, depthSortedBin, surfaceMaps, spellEffects, worldEffects, fireParticles, swayUniform, effectScroll](std::string data,
                   const std::string& filename, vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
             Counters& totals = counters();
             try
@@ -899,6 +1063,7 @@ namespace MWRender::SkyrimModel
                 limits.mSurfaceMaps = surfaceMaps;
                 limits.mTreeSway = swayUniform != nullptr;
                 limits.mEffects = effectShapesWanted(filename, spellEffects, worldEffects);
+                limits.mParticles = fireParticles && worldEffects && !isMagicModelPath(filename); // spell models move: not here
                 // Task 0136: the trunks and branches of trees are skinned shapes; as static models they are drawn in
                 // the rest pose (this reader is for statics only, actors have their own skinned path).
                 limits.mSkinnedAtRest = true;

@@ -26,6 +26,7 @@ layout(std430, set=TEXTURE_SET, binding=MORPH_WEIGHTS_BINDING) readonly buffer M
 layout(std430, set=TEXTURE_SET, binding=PARTICLE_BINDING) readonly buffer ParticleBuffer{
     Particle particles[];
 };
+#include "lib/particle/analytic.glsl"
 #endif
 
 #ifdef BILLBOARD
@@ -55,16 +56,37 @@ void main()
     /*bool*/ int secondTriangle = gl_VertexIndex/3;
     int vertexIndex = (secondTriangle*3) + ((gl_VertexIndex + secondTriangle) % 3) * (-secondTriangle*2+1);
     vec2 texCoord = vec2(vertexIndex & 1, (vertexIndex >> 1) & 1);
+    // OpenEden: osgParticle, which drew OpenMW's NIF particles, put the corners at +- size on each axis, so a quad is
+    // twice the particle size across (ParticleSystem::drawImplementation, OSG 3.6.5).
+    vec2 offsetCoord = (texCoord - 0.5) * 2.0;
+    vec2 particleUv = texCoord;
+    if (particle.velocityAge.w < -0.5)
+    {
+        // OpenEden (task 0359 stage b): an analytic Skyrim particle (lib/particle/analytic.glsl). Its slot entry marks
+        // itself with an age of -1, which no simulated particle has; the system's description is in entries 0 to 4.
+        // the quad's corners from the vertex's place in its six (the triangles (0, 1, 2) and (2, 1, 3) of the corners)
+        int sixth = gl_VertexIndex % 6;
+        int corner = sixth == 0 ? 0 : ((sixth == 1 || sixth == 4) ? 1 : ((sixth == 2 || sixth == 3) ? 2 : 3));
+        texCoord = vec2(corner & 1, (corner >> 1) & 1);
+        offsetCoord = (texCoord - 0.5) * 2.0;
+        AnalyticParticle ap = analyticParticle(particle, particles[0], particles[1], particles[2], particles[3],
+            particles[4], scene.time);
+        float spinCos = cos(ap.angle), spinSin = sin(ap.angle);
+        offsetCoord = vec2(spinCos * offsetCoord.x - spinSin * offsetCoord.y, spinSin * offsetCoord.x + spinCos * offsetCoord.y)
+            * vec2(ap.aspect, 1.0);
+        particleUv = vec2(ap.rect.x + texCoord.x * ap.rect.y, ap.rect.z + (1.0 - texCoord.y) * ap.rect.w);
+        particle.positionSize = vec4(ap.position, ap.size);
+        particle.color = ap.color;
+        particle.velocityAge.w = ap.age;
+        particle.maxAge = vec4(ap.life, ap.size, 0.0, 0.0);
+    }
     vec4 vertex = vec4(particle.positionSize.xyz, 1.0);
     float deadFactor = isDead(particle) ? 0 : 1;
     vec3 xAxis = (vec4(1,0,0,0) * pc.modelview).xyz;
     vec3 yAxis = (vec4(0,1,0,0) * pc.modelview).xyz;
-    // OpenEden: osgParticle, which drew OpenMW's NIF particles, put the corners at +- size on each axis, so a quad is
-    // twice the particle size across (ParticleSystem::drawImplementation, OSG 3.6.5).
-    vec2 offsetCoord = (texCoord - 0.5) * 2.0;
     vertex.xyz += (offsetCoord.x * normalize(xAxis) + offsetCoord.y * normalize(yAxis)) * particle.positionSize.w * deadFactor;
 
-    vert_out.texCoord[0] = texCoord;
+    vert_out.texCoord[0] = particleUv;
     vert_out.color = particle.color * deadFactor;
  #ifdef SOFT_PARTICLE
     vert_out.softParticleSize = particle.maxAge.y;

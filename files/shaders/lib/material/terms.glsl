@@ -38,6 +38,8 @@ vec4 materialTermsAmbient(vec3 ambientLight, vec3 lightDiffuse, vec4 vertexColor
     // OpenEden (task 0028): materialTerms with the ambient light given (the baked probes' value, lib/view/gi.glsl).
     if (colorMode == 3)
         return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    if (colorMode == 5) // task 0359 stage b: an analytic Skyrim particle, unlit like mode 3 (but fogged)
+        return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
     vec3 ambient = ambientLight * getAmbient(vertexColor);
     vec4 materialDiffuse = getDiffuse(vertexColor);
     vec3 diffuse = lightDiffuse * materialDiffuse.xyz;
@@ -58,6 +60,8 @@ vec4 materialTerms(vec3 lightDiffuse, vec4 vertexColor /*, Material material, Sc
 {
     // OpenEden: colour mode 3 draws the vertex colour unlit, alpha included (debug geometry, mwrender/debuggeometry).
     if (colorMode == 3)
+        return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    if (colorMode == 5) // task 0359 stage b: an analytic Skyrim particle, unlit like mode 3 (but fogged)
         return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
     vec3 ambient = scene.ambient.xyz * getAmbient(vertexColor);
     vec4 materialDiffuse = getDiffuse(vertexColor);
@@ -81,6 +85,8 @@ vec4 materialTerms(vec3 lightDiffuse, vec4 vertexColor /*, Material material, Sc
 vec4 materialTermsScaled(vec3 ambientLight, vec3 lightDiffuse, vec4 vertexColor, float ambientScale, float diffuseScale)
 {
     if (colorMode == 3)
+        return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
+    if (colorMode == 5) // task 0359 stage b: an analytic Skyrim particle, unlit like mode 3 (but fogged)
         return vec4(toLinearIfView(vertexColor.xyz), vertexColor.w);
     vec3 ambient = ambientLight * getAmbient(vertexColor) * ambientScale;
     vec4 materialDiffuse = getDiffuse(vertexColor);

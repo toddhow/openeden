@@ -23,6 +23,7 @@ set(SHADER_FILES
     lib/light/pixellighting.glsl
     lib/light/pbrlighting.glsl
     lib/light/directional.glsl
+    lib/particle/analytic.glsl
     lib/particle/util.glsl
     lib/particle/weatherocclusion.glsl
     lib/util/quickstep.glsl

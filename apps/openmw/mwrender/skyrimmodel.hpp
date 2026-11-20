@@ -108,6 +108,7 @@ namespace MWRender::SkyrimModel
         std::atomic<std::uint64_t> mModels{ 0 }; // models built from a scene (not cache hits: the cache is VSG's)
         std::atomic<std::uint64_t> mModelsEmpty{ 0 }; // of those, models that draw nothing
         std::atomic<std::uint64_t> mDraws{ 0 };
+        std::atomic<std::uint64_t> mParticleSystems{ 0 }; // task 0359 stage b: analytic particle systems drawn
         std::atomic<std::uint64_t> mTriangles{ 0 };
         std::atomic<std::uint64_t> mVertices{ 0 };
         std::atomic<std::uint64_t> mTexturesLoaded{ 0 };

@@ -70,6 +70,7 @@ float4 materialTermsAmbient(float3 ambientLight, float3 lightDiffuse, float4 ver
 {
     switch (colorMode)
     {
+        case 5: // task 0359 stage b: an analytic Skyrim particle, unlit like colour mode 3 (but fogged)
         case 3:
             return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
         default:
@@ -95,6 +96,7 @@ float4 materialTerms(float3 lightDiffuse, float4 vertexColor)
 {
     switch (colorMode)
     {
+        case 5: // task 0359 stage b: an analytic Skyrim particle, unlit like colour mode 3 (but fogged)
         case 3:
             return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
         default:
@@ -121,6 +123,7 @@ float4 materialTermsScaled(
 {
     switch (colorMode)
     {
+        case 5: // task 0359 stage b: an analytic Skyrim particle, unlit like colour mode 3 (but fogged)
         case 3:
             return float4(toLinearIfView(vertexColor.xyz), vertexColor.w);
         default:

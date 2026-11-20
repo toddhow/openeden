@@ -25,6 +25,7 @@ import lib.attributes;
 #ifdef PARTICLE
 import lib.particle.data;
 [[vk::binding(PARTICLE_BINDING, TEXTURE_SET)]] StructuredBuffer<Particle> particles;
+#include "lib/particle/analytic.slang"
 #endif
 
 #ifdef BILLBOARD
@@ -59,16 +60,35 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
     int secondTriangle = vertexIndexI / 3;
     int vertexIndex = (secondTriangle * 3) + ((vertexIndexI + secondTriangle) % 3) * (-secondTriangle * 2 + 1);
     float2 texCoord = float2(float(vertexIndex & 1), float((vertexIndex >> 1) & 1));
+    // osgParticle's corners at +- size on each axis (see the GLSL).
+    float2 offsetCoord = (texCoord - 0.5) * 2.0;
+    float2 particleUv = texCoord;
+    if (particle.velocityAge.w < -0.5)
+    {
+        // Task 0359 stage b: an analytic Skyrim particle (see the GLSL and lib/particle/analytic.slang).
+        int sixth = vertexIndexI % 6;
+        int corner = sixth == 0 ? 0 : ((sixth == 1 || sixth == 4) ? 1 : ((sixth == 2 || sixth == 3) ? 2 : 3));
+        texCoord = float2(float(corner & 1), float((corner >> 1) & 1));
+        offsetCoord = (texCoord - 0.5) * 2.0;
+        AnalyticParticle ap = analyticParticle(
+            particle, particles[0], particles[1], particles[2], particles[3], particles[4], scene.time);
+        float spinCos = cos(ap.angle), spinSin = sin(ap.angle);
+        offsetCoord = float2(spinCos * offsetCoord.x - spinSin * offsetCoord.y, spinSin * offsetCoord.x + spinCos * offsetCoord.y)
+            * float2(ap.aspect, 1.0);
+        particleUv = float2(ap.rect.x + texCoord.x * ap.rect.y, ap.rect.z + (1.0 - texCoord.y) * ap.rect.w);
+        particle.positionSize = float4(ap.position, ap.size);
+        particle.color = ap.color;
+        particle.velocityAge.w = ap.age;
+        particle.maxAge = float4(ap.life, ap.size, 0.0, 0.0);
+    }
     float4 vertex = float4(particle.positionSize.xyz, 1.0);
     float deadFactor = isDead(particle) ? 0 : 1;
     float3 xAxis = mul(float4(1, 0, 0, 0), pc.modelview).xyz;
     float3 yAxis = mul(float4(0, 1, 0, 0), pc.modelview).xyz;
-    // osgParticle's corners at +- size on each axis (see the GLSL).
-    float2 offsetCoord = (texCoord - 0.5) * 2.0;
     vertex.xyz
         += (offsetCoord.x * normalize(xAxis) + offsetCoord.y * normalize(yAxis)) * particle.positionSize.w * deadFactor;
 
-    output.io.texCoord[0] = texCoord;
+    output.io.texCoord[0] = particleUv;
     output.io.color = particle.color * deadFactor;
 #ifdef SOFT_PARTICLE
     output.io.softParticleSize = particle.maxAge.y;
