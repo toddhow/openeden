@@ -95,3 +95,32 @@ about 0.12 against 1.7 in sun) leaves a light ratio shadow:sun of 1:14 where the
 (0.02 linear) makes anything below 0.1 black. The next suspects, not tested: the AO pass on the terrain (`ao terrain`;
 an `ao = false` run draws no terrain at all in this build, which is a separate bug to look at), the GI exterior bake (not
 baked in these runs), and whether Skyrim's terrain shading scales the diffuse (RECALLED-VERIFY, no source read).
+
+## Follow-up round (coordinator's two questions)
+
+**1. `ao = false` draws no terrain.** Not reproduced as an `ao` effect. `ao = false` and `ao = false` plus `ao temporal = false`
+drew the terrain in 4 of 4 later runs (`diag` poses, dwell 0.6 to 4 s). The sky-coloured ground (a sky/water-coloured plane
+with a straight edge) was seen in 4 early runs (the `ao`-off run, two default-setting runs, `[VideoMemory] enabled = false`)
+and in the first survey3 shot, never in 8 later runs with the same plain shaders (3 parallel default runs, 3 with
+`slang shaders = false`, 2 more), so it is INTERMITTENT and unrelated to `ao` (it happened with `ao` on). With `[WorldLod]
+enabled = false`, `map view = false`, `haze = false`, `ao terrain = false` or `gi exterior = false` it did not appear in the
+single run made of each. Two false leads, both my own: debug shaders I wrote into the terrain fragment shader failed to
+compile in some define sets (`m1`, `n2` logs: "undeclared identifier"), which also draws no terrain; and saturated debug
+colours tonemap to a sky-blue that looks like sky. The fog (aerial perspective) was measured on the ground in GLSL: fog share 0,
+optical depth 0, so the haze does not hide it. No root cause found; leads not followed: a race between the terrain chunk
+builder and the cell cache (2460 "chunk reads of cells that were not loaded" are logged in every run, good or bad, so the
+count does not tell them apart) and the runtime Slang compile of the unlisted terrain set swapping in. Morrowind terrain with
+`ao` off was not looked at.
+
+**2. Black ground in a cliff's sun shadow.** One suspect at a time on `diag` pose 3 (mean pixel of the slab):
+`ao terrain = false` 0.22/0.22/0.01 against 0.15/0.16/0.01 with it on (a small effect); `gi exterior = false`
+0.07/0.14/0.01 (no help; the sky-visibility field is not baked in these runs, `skyvis` header off, so it cannot be the
+cause here); `ao = false` plus `ao temporal = false` plus `gi exterior = false` 0.10/0.16/0.03 (no help). So the occlusion
+passes are not what blacks the slab. The ambient cube reaches the terrain shader (cube enabled, up colour at least 0.25 per
+channel), the sun term is 0 there (`sunShadow` 0, a real cliff shadow), and the albedo is 0.016 linear, so the final
+colour is albedo x ambient x `getAmbient(vertexColor)` of about 0.002: dark because the Skyrim ground textures are dark
+and the shadow gets ambient only. I did not find a defect that explains the 1:14 light ratio beyond that; the sunlit ground
+(albedo times about 1.3) is correct arithmetic, the shadowed ground is not lifted. NOT FIXED. Remaining suspects: how
+Skyrim itself lights shadowed terrain (RECALLED-VERIFY, possibly a fill light or a different ambient scale on the land) and
+the `getAmbient(vertexColor)` factor (about 0.45 on the shadowed ground in one reading, taken from a region that may
+include a wall).
