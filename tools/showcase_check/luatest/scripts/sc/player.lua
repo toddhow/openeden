@@ -4,6 +4,9 @@ local camera = require('openmw.camera')
 local debug = require('openmw.debug')
 local util = require('openmw.util')
 local self = require('openmw.self')
+local I = require('openmw.interfaces')
+local noHud = pcall(require, 'scripts.sc.nohud')
+local hudHidden = false
 
 local setup, cam, shotIn, moving = nil, nil, nil, nil
 
@@ -15,6 +18,7 @@ return {
     },
     engineHandlers = {
         onFrame = function()
+            if noHud and not hudHidden then hudHidden = true; I.UI.setHudVisibility(false) end
             if moving then
                 self.controls.movement = 1
                 self.controls.run = (moving == 'run')

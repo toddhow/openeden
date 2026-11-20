@@ -12,7 +12,7 @@
 #                                `start` field. Screenshots are renamed to <work>/keep/<group>/<NN>_<name>.png from the SHOWCASE log lines.
 # <work dir> must be under I:/Projects/OpenEden-work. Bakes are derived from the user's game data: they stay in <work dir>.
 # The game opens off-screen (OPENEDEN_QUIET_WINDOW=1) and plays no sound ([Sound] master volume = 0.0).
-# Environment: SC_FRAMES (frame limit, default 40000), SC_TIMEOUT (seconds, default 900), SC_OVERRIDES (extra INI merged last),
+# Environment: SC_NOHUD (1 = hide the whole HUD in the shots), SC_FRAMES (frame limit, default 40000), SC_TIMEOUT (seconds, default 900), SC_OVERRIDES (extra INI merged last),
 #              SC_BASE_CFG (an openmw.cfg of a Morrowind setup: its data folders, archives and fallback= lines are kept; default the n6saves mwA copy),
 #              SC_HOUR (the group's first hour), OPENEDEN_FIXED_FRAME_TIME (default 0.016667).
 set -e
@@ -31,6 +31,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 mkdir -p "$WORK/config" "$WORK/user" "$WORK/luatest" "$WORK/keep"
 cp -r "$HERE/luatest/." "$WORK/luatest/"
+# SC_NOHUD=1: clean captures with no HUD at all ([GUI] rmlui off, Morrowind HUD hidden by Lua ui.setHudVisibility)
+rm -f "$WORK/luatest/scripts/sc/nohud.lua"; [ "${SC_NOHUD-}" = 1 ] && echo "return true" > "$WORK/luatest/scripts/sc/nohud.lua"
 B=$(native "$BUILD")
 START_AT=${START_AT:-@WhiterunWorld,25670,-7633}
 GROUP=""
@@ -75,7 +77,13 @@ master volume = 0.0
 neutral world = true
 [WorldLod]
 view distance = auto
+[GUI]
+# task 0361d: the Skyrim HUD (RmlUi) needs the overlay; its debug panel does not belong in a showcase shot
+rmlui = true
+rmlui debug panel = false
 [extension.skyrimse]
+hud style = true
+sneak = true
 menus = __DEL__
 character creation = __DEL__
 combat ai = true
@@ -84,6 +92,10 @@ combat factions = true
 combat test weapon = IronSword
 ${SC_OVERRIDES:-}
 OV
+# SC_NOHUD=1: no RmlUi overlay (so none of the pack's HUD) and, from the player script, no Morrowind HUD either
+[ "${SC_NOHUD-}" = 1 ] && printf '[GUI]
+rmlui = false
+' >> "$WORK/overrides.cfg"
 [ -n "$GROUP" ] && [ -f "$HERE/groups/$GROUP.ini" ] && cat "$HERE/groups/$GROUP.ini" >> "$WORK/overrides.cfg"
 awk -f "$HERE/merge.awk" "$WORK/overrides.cfg" "${SC_BASE:-$REPO/tools/testprofile/profile.cfg}" > "$WORK/config/settings.cfg"
 [ -n "${SC_EXTRA_INI:-}" ] && printf '%b' "$SC_EXTRA_INI" > "$WORK/extra.ini"
