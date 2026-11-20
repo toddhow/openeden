@@ -44,7 +44,14 @@ namespace Lod
             source.vertexColours(cellX, cellY, sizeInCells, colours);
             const std::size_t blendTexels = std::size_t{ blendTexelsPerCell } * sizeInCells;
             const std::size_t vertices = std::size_t{ verticesPerCell - 1 } * sizeInCells + 1;
-            if (blend.size() != blendTexels * blendTexels * 4)
+            const std::size_t splatSide = source.splatSide(sizeInCells);
+            if (splatSide != 0)
+            {
+                const std::size_t k = std::size_t{ 2 } * sizeInCells;
+                if (splatSide < 2 || splatSide > 4096 || blend.size() != k * splatSide * (k * splatSide + k) * 4)
+                    return fail("blendMap", "the source returned a splat blend map of the wrong size");
+            }
+            else if (blend.size() != blendTexels * blendTexels * 4)
                 return fail("blendMap", "the source returned a blend map of the wrong size");
             if (colours.size() != vertices * vertices * 3)
                 return fail("vertexColours", "the source returned vertex colours of the wrong size");
@@ -169,6 +176,43 @@ namespace Lod
         }
     }
 
+
+    namespace
+    {
+        // Task 0361: the weights and layer indices of the picture point (u, v) in [0, 1] of a splat blend map, the maths
+        // of terrain/main.frag's splat branch (Splat::lookupFor): four texel reads blended bilinearly inside one
+        // quadrant slot, never across two slots.
+        void splatTexel(const std::vector<std::uint8_t>& blend, std::uint32_t k, std::uint32_t s, double u, double v,
+            double (&weights)[4], std::size_t (&ids)[4])
+        {
+            const std::size_t width = std::size_t{ k } * s;
+            const double slotX = std::clamp(u, 0.0, 1.0) * k;
+            const double slotY = std::clamp(v, 0.0, 1.0) * k;
+            const std::uint32_t sx = std::min(static_cast<std::uint32_t>(slotX), k - 1);
+            const std::uint32_t sy = std::min(static_cast<std::uint32_t>(slotY), k - 1);
+            const double vertexX = (slotX - sx) * (s - 1);
+            const double vertexY = (slotY - sy) * (s - 1);
+            const std::uint32_t x0 = std::min(static_cast<std::uint32_t>(vertexX), s - 1);
+            const std::uint32_t y0 = std::min(static_cast<std::uint32_t>(vertexY), s - 1);
+            const std::uint32_t x1 = std::min(x0 + 1, s - 1);
+            const std::uint32_t y1 = std::min(y0 + 1, s - 1);
+            const double fx = vertexX - x0;
+            const double fy = vertexY - y0;
+            const auto texel = [&](std::uint32_t x, std::uint32_t y, int channel) {
+                return static_cast<double>(blend[((std::size_t{ sy } * s + y) * width + std::size_t{ sx } * s + x) * 4
+                           + static_cast<std::size_t>(channel)])
+                    / 255.0;
+            };
+            for (int channel = 0; channel < 4; ++channel)
+            {
+                const double low = texel(x0, y0, channel) * (1 - fx) + texel(x1, y0, channel) * fx;
+                const double high = texel(x0, y1, channel) * (1 - fx) + texel(x1, y1, channel) * fx;
+                weights[channel] = low * (1 - fy) + high * fy;
+                ids[channel] = blend[((width + sy) * width + sx) * 4 + static_cast<std::size_t>(channel)];
+            }
+        }
+    }
+
     LodError bakeAlbedoImage(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
         std::uint32_t sizeInCells, std::uint32_t albedoSize, std::vector<std::uint8_t>& rgba,
         std::uint32_t verticesPerCell)
@@ -189,6 +233,8 @@ namespace Lod
         const std::uint32_t blendSize = blendTexelsPerCell * sizeInCells;
         const std::uint32_t vertices = (verticesPerCell - 1) * sizeInCells + 1;
         const double repeatsPerTexel = static_cast<double>(blendSize) / albedoSize;
+        const std::uint32_t splatSide = source.splatSide(sizeInCells);
+        const std::uint32_t splatK = 2 * sizeInCells;
 
         std::vector<std::uint8_t> out(std::size_t{ albedoSize } * albedoSize * 4, 255);
         for (std::uint32_t j = 0; j < albedoSize; ++j)
@@ -199,19 +245,31 @@ namespace Lod
                 const double u = (i + 0.5) / albedoSize;
                 const double coordX = u * blendSize;
                 const double coordY = v * blendSize;
-                const std::uint32_t texelX = std::min(static_cast<std::uint32_t>(coordX), blendSize - 1);
-                const std::uint32_t texelY = std::min(static_cast<std::uint32_t>(coordY), blendSize - 1);
-                const double px = std::clamp((coordX - texelX - 0.5) * 2 + 0.5, 0.0, 1.0);
-                const double py = std::clamp((coordY - texelY - 0.5) * 2 + 0.5, 0.0, 1.0);
-                const double weights[4] = { (1 - px) * (1 - py), px * (1 - py), (1 - px) * py, px * py };
-                const std::uint8_t* indices = &blend[(std::size_t{ texelY } * blendSize + texelX) * 4];
+                double weights[4];
+                std::size_t ids[4];
+                if (splatSide != 0)
+                    splatTexel(blend, splatK, splatSide, u, v, weights, ids);
+                else
+                {
+                    const std::uint32_t texelX = std::min(static_cast<std::uint32_t>(coordX), blendSize - 1);
+                    const std::uint32_t texelY = std::min(static_cast<std::uint32_t>(coordY), blendSize - 1);
+                    const double px = std::clamp((coordX - texelX - 0.5) * 2 + 0.5, 0.0, 1.0);
+                    const double py = std::clamp((coordY - texelY - 0.5) * 2 + 0.5, 0.0, 1.0);
+                    weights[0] = (1 - px) * (1 - py);
+                    weights[1] = px * (1 - py);
+                    weights[2] = (1 - px) * py;
+                    weights[3] = px * py;
+                    const std::uint8_t* indices = &blend[(std::size_t{ texelY } * blendSize + texelX) * 4];
+                    for (int corner = 0; corner < 4; ++corner)
+                        ids[corner] = indices[corner];
+                }
 
                 double sum[3] = { 0, 0, 0 };
                 for (int corner = 0; corner < 4; ++corner)
                 {
                     if (weights[corner] <= 0.0)
                         continue;
-                    const std::size_t index = indices[corner];
+                    const std::size_t index = ids[corner];
                     float rgb[3];
                     if (index >= layerCount)
                     {
@@ -231,6 +289,12 @@ namespace Lod
                             const double footprint
                                 = repeatsPerTexel * std::max(mips.mLevels[0].mWidth, mips.mLevels[0].mHeight);
                             lod = footprint > 1.0 ? std::log2(footprint) : 0.0;
+                            // Task 0361: a splat (neutral world) picture holds each layer as its mean colour. With 4 or
+                            // fewer picture texels to a repeat of the ground texture the mip level the footprint calls
+                            // for still has a pattern a texel or two wide, which the picture cannot hold: it showed as
+                            // a regular lattice of dots on snow slopes.
+                            if (splatSide != 0)
+                                lod = static_cast<double>(mips.mLevels.size() - 1);
                         }
                         sampleLayer(mips, coordX, coordY, lod, rgb);
                     }
@@ -288,12 +352,23 @@ namespace Lod
         putU32(hasher, albedoAlgorithmVersion);
         putU32(hasher, sizeInCells);
         putU32(hasher, albedoSize);
+        const std::uint32_t splatSide = source.splatSide(sizeInCells);
+        if (splatSide != 0)
+        {
+            putU32(hasher, 0x53504c54u); // "SPLT": only a splat bake adds these words
+            putU32(hasher, splatSide);
+            putU32(hasher, splatAlgorithmVersion);
+        }
         hasher.update(blend.data(), blend.size());
         hasher.update(colours.data(), colours.size());
 
         const std::size_t layerCount = source.layerCount();
         std::vector<bool> used(layerCount, false);
-        for (std::size_t i = 0; i < blend.size(); ++i)
+        // In a splat map only the rows under the weight slots hold layer indices (the weights are not indices).
+        const std::size_t firstIndexByte = splatSide != 0
+            ? std::size_t{ 2 } * sizeInCells * splatSide * std::size_t{ 2 } * sizeInCells * splatSide * 4
+            : 0;
+        for (std::size_t i = firstIndexByte; i < blend.size(); ++i)
         {
             if (blend[i] < layerCount)
                 used[blend[i]] = true;

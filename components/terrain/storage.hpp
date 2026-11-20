@@ -49,6 +49,10 @@ namespace Terrain
         /// the thread that builds the chunk.
         virtual vsg::ref_ptr<vsg::Data> getDiffuseOverride(const Bounds&) { return {}; }
 
+        /// OpenEden (task 0361): when getBlendmap() answers a chunk of `sizeInCells` cells with a splat blend map (the
+        /// neutral world's alpha layers), the texels a quadrant slot side holds; 0 when it gives the corner-index map.
+        virtual std::uint32_t splatBlendSide(float /*sizeInCells*/) const { return 0; }
+
         virtual float getHeightAt(const vsg::vec3& worldPos, ESM::RefId worldspace) = 0;
 
         /// The transformation factor for mapping cell units to world units.

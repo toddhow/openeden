@@ -713,6 +713,56 @@ namespace OMW
                                  << (level > Lod::maxClusterLevel ? ", not baked" : "") << "): " << kept << " of "
                                  << seen << " objects would be kept.";
             }
+            // Task 0361: the largest models a level 1 cluster would leave out, and why. A landmark that is missing from
+            // the far field shows up here with the reason.
+            {
+                const float error = Lod::objectClusterLevelError(1, state.mNeutral);
+                std::vector<std::pair<float, std::string>> left[static_cast<std::size_t>(Lod::ExcludeReason::Count)];
+                for (const ModelEntry& model : state.mModels)
+                {
+                    if (!model.mOk)
+                        continue;
+                    Lod::ObjectTraits traits = model.mFlat.mTraits;
+                    traits.mRadius *= model.mMaxScale;
+                    const Lod::ExcludeReason reason
+                        = Lod::classifyObject(traits, Lod::ClusterLevelParams{ 1, error, dropFactor });
+                    if (reason != Lod::ExcludeReason::None && traits.mRadius >= 1000.f)
+                        left[static_cast<std::size_t>(reason)].emplace_back(traits.mRadius, model.mPath);
+                }
+                for (std::size_t r = 0; r < std::size(left); ++r)
+                {
+                    std::sort(left[r].begin(), left[r].end(),
+                        [](const auto& x, const auto& y) { return x.first > y.first; });
+                    for (std::size_t i = 0; i < left[r].size() && i < 12; ++i)
+                        Log(Debug::Info) << "LOD object bake: large model left out (reason " << r << "): "
+                                         << left[r][i].second << ", radius " << left[r][i].first << " (" << left[r].size()
+                                         << " such models)";
+                }
+            }
+            // Task 0361: models that flatten to nothing, with how many placements each has (the cluster bake counts
+            // their objects as "empty").
+            {
+                std::vector<std::size_t> placements(state.mModels.size(), 0);
+                for (const PlacedObject& object : state.mObjects)
+                    ++placements[object.mModel];
+                std::vector<std::pair<std::size_t, std::string>> empty;
+                std::size_t total = 0;
+                for (std::size_t i = 0; i < state.mModels.size(); ++i)
+                {
+                    const ModelEntry& model = state.mModels[i];
+                    if (model.mOk && model.mFlat.mTraits.mTriangleCount == 0)
+                    {
+                        empty.emplace_back(placements[i], model.mPath);
+                        total += placements[i];
+                    }
+                }
+                std::sort(empty.begin(), empty.end(), [](const auto& x, const auto& y) { return x.first > y.first; });
+                Log(Debug::Info) << "LOD object bake: " << empty.size() << " models flatten to nothing (" << total
+                                 << " placements)";
+                for (std::size_t i = 0; i < empty.size() && i < 25; ++i)
+                    Log(Debug::Info) << "LOD object bake: empty model " << empty[i].second << ": " << empty[i].first
+                                     << " placements";
+            }
             state.mPhase = Phase::Build;
             Log(Debug::Info) << "LOD object bake: " << state.mModels.size() - state.mModelsFailed << " models read ("
                              << state.mModelsFailed << " failed"

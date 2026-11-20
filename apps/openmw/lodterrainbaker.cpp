@@ -143,6 +143,11 @@ namespace OMW
                 return false;
             }
             state.mNeutralStorage = std::make_unique<NeutralTerrain::Storage>(state.mNeutralCache);
+            // Task 0361: the ground picture blends the alpha layers of each quadrant (as the live terrain does with
+            // `[Game] neutral terrain layers`), not only its base texture: the base-only picture showed hard
+            // quadrant-sized patches and a step where it met the live ground. Levels of up to 8 cells (the splat
+            // map's limit); the larger far levels keep the base layer.
+            state.mNeutralStorage->setLayerSplat(Settings::game().mNeutralTerrainLayers);
             state.mStorage = state.mNeutralStorage.get();
             state.mSource = std::make_unique<MWRender::StorageLandSource>(*state.mStorage);
             const openeden::sdk::game::WorldSpaceInfo& info = state.mNeutralCache->world();

@@ -61,6 +61,8 @@ namespace NeutralTerrain
         /// Task 0149: build the blend map as a splat map (splat.hpp) that carries the quadrants' alpha layers.
         void setLayerSplat(bool on) { mLayerSplat = on; }
         [[nodiscard]] bool layerSplat() const { return mLayerSplat; }
+        /// Task 0361: Splat::kSide when getBlendmap gives a splat map for a chunk of this size, else 0.
+        [[nodiscard]] std::uint32_t splatBlendSide(float sizeInCells) const override;
 
     private:
         std::shared_ptr<CellCache> mCache;

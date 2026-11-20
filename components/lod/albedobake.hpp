@@ -36,6 +36,9 @@ namespace Lod
     inline constexpr std::uint32_t blendTexelsPerCell = 16;
     /// Version of the blending algorithm; it goes into the inputs digest, so a change makes old packs stale.
     inline constexpr std::uint32_t albedoAlgorithmVersion = 1;
+    /// Task 0361: the version of the splat bake (mean-colour layers); only a splat bake's digest carries it, so a
+    /// change makes neutral packs stale and leaves Morrowind's digests as they are.
+    inline constexpr std::uint32_t splatAlgorithmVersion = 2;
 
     /// Where the blend data, vertex colours and layer textures come from (the game's terrain storage, or test data).
     class AlbedoSource
@@ -54,6 +57,15 @@ namespace Lod
         /// corners, see above). `indices` gets n * n * 4 bytes.
         virtual void blendMap(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& indices) const = 0;
+
+        /// Task 0361: the splat layout (the neutral world's alpha layers, components/neutralterrain/splat.hpp). 0 (the
+        /// default) means blendMap() gives the corner-index map above for a square of `sizeInCells` cells. Otherwise it
+        /// returns the splat map of the same square: k = 2 * sizeInCells quadrant slots a side of s = this many texels
+        /// (one texel a vertex), width k * s and height k * s + k, 4 bytes a texel: the slots hold the weights (0..255)
+        /// of the four layers of each vertex, and the k rows under them hold the four layer indices of each quadrant.
+        /// The ground texture repeats 16 times a cell, as with the corner map.
+        /// A splat bake also draws every layer as its mean colour (see bakeAlbedoImage).
+        virtual std::uint32_t splatSide(std::uint32_t /*sizeInCells*/) const { return 0; }
 
         /// The vertex colours of the same square: n = (verticesPerCell - 1) * sizeInCells + 1 vertices a side (cells
         /// share their edge vertices; 65 vertices a cell for Morrowind, 33 for Skyrim SE: task 0133), x fastest, south

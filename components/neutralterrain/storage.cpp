@@ -225,6 +225,11 @@ namespace NeutralTerrain
         }
     }
 
+    std::uint32_t Storage::splatBlendSide(float sizeInCells) const
+    {
+        return mLayerSplat && sizeInCells <= Splat::kMaxChunkCells ? static_cast<std::uint32_t>(Splat::kSide) : 0u;
+    }
+
     vsg::ref_ptr<vsg::Data> Storage::getBlendmap(const Terrain::Bounds& bounds)
     {
         if (mLayerSplat && bounds.size <= Splat::kMaxChunkCells)

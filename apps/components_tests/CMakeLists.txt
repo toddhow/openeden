@@ -492,6 +492,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testtilebake.cpp
     lod/testtexturedecode.cpp
     lod/testalbedobake.cpp
+    lod/testalbedosplat.cpp
     lod/testobjectcluster.cpp
     lod/testclusterbuild.cpp
     lod/testclusterreview.cpp

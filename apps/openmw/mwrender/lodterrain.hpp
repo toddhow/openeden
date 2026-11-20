@@ -94,6 +94,10 @@ namespace MWRender
         std::string describeLayer(std::size_t index) const;
         void blendMap(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& indices) const override;
+        std::uint32_t splatSide(std::uint32_t sizeInCells) const override
+        {
+            return mStorage.splatBlendSide(static_cast<float>(sizeInCells));
+        }
         void vertexColours(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& rgb) const override;
 
