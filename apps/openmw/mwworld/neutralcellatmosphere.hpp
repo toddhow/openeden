@@ -14,6 +14,7 @@
 // Everything here is read only for cells a game pack made (neutral cells); Morrowind cells never reach it.
 
 #include <array>
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -51,6 +52,21 @@ namespace MWWorld
     /// crushes the picture to black (seen in Bleak Falls Barrow, task 0355 stage c, and the same reason task 0257 left
     /// Night Eye's contrast neutral). Until the pivot is the scene's, contrast is left out of the cell grade.
     inline constexpr float kCellGradeContrastShare = 0.f;
+
+    /// Task 0361b follow-up: the same rule for a pack WEATHER's image space (the exterior): with a contrast above 1 the
+    /// ground in a cliff's shadow (display value 0.08) went to 0 under the tonemap's GRADE; objects in the same light
+    /// stayed lit. 0 = contrast not applied.
+    inline constexpr float kWeatherGradeContrastShare = 0.f;
+
+    /// The contrast handed to the renderer for a weather grade: 1 + (contrast - 1) * share; a value that is not a number
+    /// is the neutral 1.
+    [[nodiscard]] inline float neutralWeatherGradeContrast(
+        float contrast, float share = kWeatherGradeContrastShare)
+    {
+        if (!std::isfinite(contrast) || !std::isfinite(share))
+            return 1.f;
+        return 1.f + (contrast - 1.f) * share;
+    }
 
     /// The conversion, with no engine type. A null grade gives the "off" grade (nothing graded, no exposure change).
     /// A value that is not a number is the neutral one (as in the weather path). `contrastShare` scales the grade's

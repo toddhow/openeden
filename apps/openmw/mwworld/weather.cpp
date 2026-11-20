@@ -30,6 +30,7 @@
 
 #include "cellstore.hpp"
 #include "esmstore.hpp"
+#include "neutralcellatmosphere.hpp"
 #include "neutralweather.hpp"
 #include "player.hpp"
 
@@ -1254,7 +1255,8 @@ namespace MWWorld
         {
             // Stage W-S4: the grade grade.y saturation, grade.z contrast, grade.w tint amount (ImageSpaceParams).
             mRendering.setImageSpaceGrade(
-                mResult.mHasGrade, mResult.mGrade.y, mResult.mGrade.z, mResult.mGrade.w, mResult.mGradeTint);
+                mResult.mHasGrade, mResult.mGrade.y, neutralWeatherGradeContrast(mResult.mGrade.z), mResult.mGrade.w,
+                mResult.mGradeTint);
         }
 
         // Play sounds

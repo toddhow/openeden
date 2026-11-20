@@ -124,3 +124,20 @@ and the shadow gets ambient only. I did not find a defect that explains the 1:14
 Skyrim itself lights shadowed terrain (RECALLED-VERIFY, possibly a fill light or a different ambient scale on the land) and
 the `getAmbient(vertexColor)` factor (about 0.45 on the shadowed ground in one reading, taken from a region that may
 include a wall).
+
+## Follow-up round 2: root cause of the black ground in shadow (FIXED)
+
+Question: is the Skyrim terrain albedo decoded wrong (sRGB twice)? No. `readImage` and the array reader both strip the sRGB tags
+(`removeSrgb`), the terrain blends layers on encoded values and converts once (`toLinearIfView`), and ambient x albedo is
+a product, equal in linear and encoded space for a pure power law. Evidence by toggles (`diag` pose 3, mean pixel of the slab,
+`sc.sh`, `SC_OVERRIDES` is INI text): default (0,0,0); `hdr = false` (20,19,11); `pbr = false` (0,0,0); `gi`, `ao`, `sss`,
+`atmosphere`, `taa`, `volumetrics`, `wetness`, `cover`, cloud shadows, volumetric clouds and bloom all false with hdr on
+(0,0,0); **`neutral weather image space = false` and `neutral image space effects = false` (23,22,13)**.
+
+Cause: the tonemap's `GRADE` (hdr only) applies the weather image space's contrast about display value 0.5; the contrast of
+Skyrim's weather image spaces is above 1, so the shadowed ground (about 0.08 to 0.1) clamps to 0. The cell grade had the same
+problem and already leaves contrast out (`kCellGradeContrastShare` 0, task 0355 stage c); the weather path did not.
+Fix: `kWeatherGradeContrastShare` 0 and `neutralWeatherGradeContrast` (`neutralcellatmosphere.hpp`), used where
+`WeatherManager` calls `setImageSpaceGrade`. After: slab (24,23,15), rock (35,45,52) unchanged in look.
+Tests: `apps/openmw_tests/mwworld/testneutralweathergrade.cpp` (4; compile-red first). Morrowind: Balmora `1c5d47ad0b5dc32d`,
+hdr `b451a8a6ca771e79`, `worldobjects_check` 110 OK. Not investigated further: the intermittent sky-coloured missing terrain.
