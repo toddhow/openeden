@@ -28,6 +28,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     # Task 0105 stage N3a-2: the neutral world's base records and the stub player.
     mwworld/testneutralstore.cpp
+    mwworld/testneutralplayerspeed.cpp
     mwworld/testneutralstub.cpp
 
     # Task 0213: the neutral game clock through a save.

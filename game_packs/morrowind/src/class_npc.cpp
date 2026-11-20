@@ -54,6 +54,7 @@
 #include <apps/openmw/mwworld/failedaction.hpp>
 #include <apps/openmw/mwworld/inventorystore.hpp>
 #include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/neutralplayerspeed.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/worldmodel.hpp>
 
@@ -257,6 +258,16 @@ namespace
                 = MWMechanics::autoCalcNpcSpells(npcStats.getSkills(), npcStats.getAttributes(), race);
             npcStats.getSpells().addAllToInstance(spells);
         }
+    }
+
+    // Task 0361e: the player of a Skyrim (neutral world) session moves at the speeds of the Skyrim walk and run clips
+    float skyrimPlayerSpeed(const MWWorld::Ptr& ptr, bool running, float original)
+    {
+        if (!Settings::game().mNeutralWorld.get() || !Settings::game().mNeutralPlayerSpeeds.get())
+            return original;
+        if (!(ptr == MWBase::Environment::get().getWorld()->getPlayerPtr()))
+            return original;
+        return MWWorld::neutralPlayerSpeed(true, true, running, original);
     }
 }
 
@@ -1428,6 +1439,7 @@ namespace MWClass
                 * (gmst.fMaxWalkSpeed->mValue.getFloat() - gmst.fMinWalkSpeed->mValue.getFloat());
         walkSpeed *= 1.0f - gmst.fEncumberedMoveEffect->mValue.getFloat() * normalizedEncumbrance;
         walkSpeed = std::max(0.0f, walkSpeed);
+        walkSpeed = skyrimPlayerSpeed(ptr, false, walkSpeed); // task 0361e
         if (sneaking)
             walkSpeed *= gmst.fSneakSpeedMultiplier->mValue.getFloat();
 
@@ -1437,9 +1449,10 @@ namespace MWClass
     float Npc::getRunSpeed(const MWWorld::Ptr& ptr) const
     {
         const GMST& gmst = getGmst();
-        return getWalkSpeed(ptr)
+        const float runSpeed = getWalkSpeed(ptr)
             * (0.01f * getSkill(ptr, ESM::Skill::Athletics) * gmst.fAthleticsRunBonus->mValue.getFloat()
                 + gmst.fBaseRunMultiplier->mValue.getFloat());
+        return skyrimPlayerSpeed(ptr, true, runSpeed); // task 0361e
     }
 
     float Npc::getSwimSpeed(const MWWorld::Ptr& ptr) const

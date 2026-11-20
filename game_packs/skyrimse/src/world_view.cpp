@@ -282,6 +282,15 @@ namespace game_skyrimse
     {
         if (mActorIndex != nullptr)
             return true;
+        // Task 0361e: a worker that loadCell started has the actor records ready or nearly so: adopt them (this is the
+        // main thread) instead of reading every plugin again here, which took about 2 s of a cell load with the masters.
+        if (mCombatState.load(std::memory_order_acquire) != 0)
+        {
+            (void)combatReady();
+            if (mActorIndex != nullptr)
+                return true;
+        }
+        const auto readStarted = std::chrono::steady_clock::now();
         {
             auto index = std::make_unique<ActorIndex>();
             const ActorLimits limits;
@@ -303,6 +312,12 @@ namespace game_skyrimse
             }
             mActorIndex = std::move(index);
         }
+        if (mOptions.mNotice)
+            mOptions.mNotice("actor records read on the main thread in "
+                + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     std::chrono::steady_clock::now() - readStarted)
+                                     .count())
+                + " ms");
         return true;
     }
 
@@ -4554,6 +4569,11 @@ namespace game_skyrimse
             error = "the world index is not ready";
             return false;
         }
+        // Task 0361e: with the player body on the actor records are wanted by the first frame (the body needs them):
+        // the worker that reads them starts with the first cell build instead of the first poll of the body, which
+        // only comes after the whole cell load. Main thread (this is the cell source's build).
+        if (mPlayerBodyOn && mCombatState.load(std::memory_order_acquire) == 0)
+            (void)combatReady();
         mLastCell = kNullFormId;
         mLastComponents.clear();
         mLastLighting.reset();

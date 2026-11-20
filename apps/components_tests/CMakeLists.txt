@@ -712,6 +712,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepackworldsource.cpp
     skyrimse/testskyrimsepacksession.cpp
     skyrimse/testskyrimseasyncindex.cpp
+    skyrimse/testskyrimseactorindexearly.cpp
     skyrimse/testskyrimserecords.cpp
     skyrimse/testskyrimseactors.cpp
     skyrimse/testskyrimsedialogue.cpp
