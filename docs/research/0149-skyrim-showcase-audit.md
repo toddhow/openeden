@@ -1,4 +1,4 @@
-# Research note 0148: Skyrim showcase audit (task 0360)
+# Research note 0149: Skyrim showcase audit (task 0360)
 
 Date 2026-11-19. Audit only, no engine code changed. Build of `081d52c325` (branch `showcase-0360`), RTX 4070, 1600 x 900, fixed frame time
 (1/60 s), quiet window, sound off, weather forced to `SkyrimClear` (`OPENEDEN_NEUTRAL_FORCE_WEATHER`), game clock stopped, the five Skyrim SE
