@@ -87,6 +87,7 @@ file(GLOB UNITTEST_SRC_FILES
     settings/parser.cpp
     settings/shadermanager.cpp
     settings/testneutraldefaults.cpp
+    settings/testneutraldefaultshud.cpp
     settings/testvalues.cpp
 
     sqlite3/db.cpp

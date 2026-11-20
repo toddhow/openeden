@@ -383,7 +383,7 @@
     {
       "key": "map",
       "type": "bool",
-      "default": false
+      "default": true
     },
     {
       "key": "menus",
@@ -448,12 +448,12 @@
     {
       "key": "hud style",
       "type": "bool",
-      "default": false
+      "default": true
     },
     {
       "key": "sneak",
       "type": "bool",
-      "default": false
+      "default": true
     },
     {
       "key": "rest test ignore owner",

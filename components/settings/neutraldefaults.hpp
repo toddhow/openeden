@@ -32,27 +32,42 @@ namespace Settings
             return false;
         }
 
-        /// True when the neutral default for `hdr` applies: a neutral world, no user value for `hdr`, and the defaults
+        /// True when the neutral default of `category`/`key` applies: a neutral world, no user value for it, and the defaults
         /// (which include the other config folders' settings.cfg) still hold the original value of the shipped file.
-        inline bool hdrDefaultApplies(const CategorySettingValueMap& defaults, const CategorySettingValueMap& user,
+        inline bool defaultApplies(std::string_view category, std::string_view key,
+            const CategorySettingValueMap& defaults, const CategorySettingValueMap& user,
             const CategorySettingValueMap& originalDefaults)
         {
-            const auto key = std::make_pair(std::string_view("Rendering"), std::string_view("hdr"));
-            if (!neutralWorldOn(defaults, user) || user.contains(key))
+            const auto k = std::make_pair(category, key);
+            if (!neutralWorldOn(defaults, user) || user.contains(k))
                 return false;
-            const auto now = defaults.find(key);
-            const auto original = originalDefaults.find(key);
+            const auto now = defaults.find(k);
+            const auto original = originalDefaults.find(k);
             if (now == defaults.end() || original == originalDefaults.end())
                 return false;
             return now->second == original->second;
         }
 
+        inline bool hdrDefaultApplies(const CategorySettingValueMap& defaults, const CategorySettingValueMap& user,
+            const CategorySettingValueMap& originalDefaults)
+        {
+            return defaultApplies("Rendering", "hdr", defaults, user, originalDefaults);
+        }
+
         /// Writes the neutral defaults into `defaults` (never into the user's settings: nothing is saved by it).
+        /// Task 0361d: `[GUI] rmlui` on and its C++ debug panel off, so the pack's own HUD shows in a Skyrim session.
         inline void apply(CategorySettingValueMap& defaults, const CategorySettingValueMap& user,
             const CategorySettingValueMap& originalDefaults)
         {
-            if (hdrDefaultApplies(defaults, user, originalDefaults))
-                defaults.find(std::make_pair(std::string_view("Rendering"), std::string_view("hdr")))->second = "true";
+            struct Rule
+            {
+                std::string_view mCategory, mKey, mValue;
+            };
+            static constexpr Rule rules[] = { { "Rendering", "hdr", "true" }, { "GUI", "rmlui", "true" },
+                { "GUI", "rmlui debug panel", "false" } };
+            for (const Rule& r : rules)
+                if (defaultApplies(r.mCategory, r.mKey, defaults, user, originalDefaults))
+                    defaults.find(std::make_pair(r.mCategory, r.mKey))->second = std::string(r.mValue);
         }
     }
 }

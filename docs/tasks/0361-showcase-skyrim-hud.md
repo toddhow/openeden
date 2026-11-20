@@ -8,8 +8,10 @@ Goal: a Skyrim session shows only the Skyrim-style HUD and no Morrowind skill-up
   also the sneak icon and minimap, but only with `[Game] neutral combat` AND `[GUI] rmlui` (the overlay draws the replacement).
   The showcase harness (tools/showcase_check) ran the testprofile, which has neither `[GUI] rmlui` (a variant: its debug panel) nor
   the pack setting `hud style`/`sneak` (pack settings are not in the profile), so nothing was hidden. Root cause: configuration of
-  the harness, not a missing engine rule. Fix: the harness overrides now set `[GUI] rmlui = true`, `rmlui debug panel = false`,
-  `hud style = true`, `sneak = true` (`map = true` is in the profile). `SC_NOHUD=1` additionally hides the whole HUD
+  the harness, not a missing engine rule. Fix (final): defaults, no hand settings. `Settings::NeutralDefaults::apply` (components/settings/neutraldefaults.hpp, the hdr mechanism of task 0355) now
+  also gives a neutral session `[GUI] rmlui = true` and `rmlui debug panel = false` (an explicit user value wins; Morrowind untouched);
+  the pack's `hud style`, `sneak` and `map` default true in `game_packs/skyrimse/extension.json`, and `HUD::updateReplacedParts` repeats
+  that default (the engine does not see manifest defaults). The harness has no HUD overrides any more. `SC_NOHUD=1` additionally hides the whole HUD
   (Lua `ui.setHudVisibility(false)` from the harness player script) for clean captures.
 - The skill message. Running, jumping, swimming and fighting call `Class::skillUsageSucceeded` of the stub Morrowind NPC player, which
   queues `OnSkillUse` for Lua; the built-in skill scripts raise the skill and show "Your Athletics skill increased to 2" with the
@@ -29,3 +31,10 @@ Neutral cells only; no setting added; Morrowind bit-identical.
   item: the tooltip reads "Cow" and they are the horns of a cow behind the fence in shade (actor lighting, audit lighting 4). The
   first-person camera shows no mesh of the stub player. It was not reproduced as a HUD or first-person issue; nothing to remove.
 - Not covered: a unit test for the `LuaManager::skillUse` guard (it needs a live Lua manager; shown in game), the Linux gate.
+
+## Follow-up (defaults)
+- New test file `apps/components_tests/settings/testneutraldefaultshud.cpp` (4 tests; run red first: 1 of 4 failed against the old rule, the other 3
+  pin Morrowind, explicit values and other folders' values). All `NeutralDefaults*` pass (9). `LuaManager::skillUse`'s neutral guard has no unit
+  test: it needs a live Lua manager and a neutral cell; it is shown in game (no message in the walk/run/stop shots).
+- Frames with a default config (no HUD overrides): `keep/default_whiterun.png`, `keep/default_mare.png`: Skyrim bars, compass and crosshair only.
+- Morrowind: `worldobjects_check` 110 OK; Balmora `1c5d47ad0b5dc32d`, hdr `b451a8a6ca771e79`, both builds. `coverage.sh` OK.

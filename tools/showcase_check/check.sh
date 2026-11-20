@@ -77,13 +77,7 @@ master volume = 0.0
 neutral world = true
 [WorldLod]
 view distance = auto
-[GUI]
-# task 0361d: the Skyrim HUD (RmlUi) needs the overlay; its debug panel does not belong in a showcase shot
-rmlui = true
-rmlui debug panel = false
 [extension.skyrimse]
-hud style = true
-sneak = true
 menus = __DEL__
 character creation = __DEL__
 combat ai = true
