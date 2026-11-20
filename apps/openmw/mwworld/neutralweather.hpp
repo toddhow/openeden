@@ -21,6 +21,14 @@
 
 namespace MWWorld
 {
+    /// Task 0361 (a): the exposure, in stops, a game pack's exterior is lifted by at dusk and night. `nightShare` is the
+    /// time of day's share of the night (0 by day, 1 at full night; the interpolator of the sunrise and sunset hours
+    /// gives the values in between), `fullStops` is `[Game] neutral weather night exposure`. Skyrim lights in gamma
+    /// space and sums ambient and directional light there; the engine lights in linear space, where the same numbers
+    /// come out darker once the light is dim, so a Skyrim night reads black unless it is lifted. Not finite input gives
+    /// 0; a negative one too; the result is never above 3 stops.
+    [[nodiscard]] float neutralNightLiftStops(float nightShare, float fullStops);
+
     /// The clock of a pack's weather when the data gives none, and the constants the conversions below add. GUESS
     /// values (nothing in the data settles them), each pinned by a test.
     namespace NeutralWeatherConstants

@@ -295,6 +295,8 @@ namespace MWRender
         /// after configureAmbient. clearNeutralInteriorSun() puts the multiplier back to 1 (the direction is left to
         /// configureAmbient and the weather).
         void setNeutralInteriorSun(const vsg::vec3& towardLight, float intensity);
+        /// Task 0361: the player's cell is a game pack's interior (the volumetric fog is scaled for it). Main thread.
+        void setNeutralInterior(bool neutralInterior);
         void clearNeutralInteriorSun();
         /// Task 0355 stage j: the lights fade out between these distances from the eye (0, 0: none), and the far clip
         /// is the cell's clip distance when it is nearer than the far plane (0: none).
@@ -661,6 +663,7 @@ namespace MWRender
         std::chrono::steady_clock::time_point mPreviousCameraTime;
         void updateVelocity();
         float mImageSpaceStops = 0.f; // wanted (task 0127)
+        bool mNeutralInterior = false; // task 0361
         float mImageSpaceStopsApplied = 0.f; // what the tonemap's parameters hold now
         struct ImageSpaceGradeState
         {

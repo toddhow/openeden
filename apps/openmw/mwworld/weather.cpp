@@ -1232,11 +1232,26 @@ namespace MWWorld
         mRendering.setSunColour(rendered->mSunColor, rendered->mSunColor * rendered->mGlareView * glareFade);
 
         mRendering.getSky()->setWeather(*rendered);
+        // Task 0361 (a): a game pack's exterior is lifted by an exposure at dusk and night (neutralNightLiftStops). Only an
+        // exterior of a neutral weather writes it (an interior keeps its cell's grade); a setting of 0 writes nothing.
+        const bool nightLiftActive
+            = mRegionProvider != nullptr && isExterior && Settings::game().mNeutralWeatherNightExposure.get() > 0.f;
+        const bool weatherImageSpace = Settings::game().mNeutralWeatherImageSpace.get();
+        if (weatherImageSpace || nightLiftActive)
+        {
+            const float nightLift = nightLiftActive
+                ? neutralNightLiftStops(TimeOfDayInterpolator<float>(1.f / 3.f, 0.f, 1.f / 3.f, 1.f)
+                                            .getValue(time.getHour(), mTimeSettings, "Ambient"),
+                    Settings::game().mNeutralWeatherNightExposure.get())
+                : 0.f;
+            const float graded
+                = weatherImageSpace && mResult.mHasGrade ? std::log2(std::max(mResult.mGrade.x, 0.25f)) : 0.f;
+            mRendering.setImageSpaceStops(graded + nightLift);
+        }
         // Task 0127 stage W-S3: only with the setting (a game pack's image space brightness is a linear multiplier, so
         // its logarithm is the exposure in stops); otherwise the renderer is never told.
-        if (Settings::game().mNeutralWeatherImageSpace.get())
+        if (weatherImageSpace)
         {
-            mRendering.setImageSpaceStops(mResult.mHasGrade ? std::log2(std::max(mResult.mGrade.x, 0.25f)) : 0.f);
             // Stage W-S4: the grade grade.y saturation, grade.z contrast, grade.w tint amount (ImageSpaceParams).
             mRendering.setImageSpaceGrade(
                 mResult.mHasGrade, mResult.mGrade.y, mResult.mGrade.z, mResult.mGrade.w, mResult.mGradeTint);

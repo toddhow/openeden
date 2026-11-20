@@ -678,9 +678,11 @@ namespace MWWorld
         {
             mRendering.configureAmbient(cellVariant);
             applyNeutralAmbientCube(cell, mRendering); // task 0355 stage e: the interior's six-colour ambient
+            mRendering.setNeutralInterior(cell.neutralCell() != nullptr); // task 0361
         }
         else
         {
+            mRendering.setNeutralInterior(false);
             mRendering.disableProbes(); // task 0028: exteriors keep the flat ambient
             applyNeutralAmbientCube(cell, mRendering);
         }

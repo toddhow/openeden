@@ -2244,6 +2244,11 @@ namespace MWRender
         mLightIntensityScale = intensity;
     }
 
+    void RenderManager::setNeutralInterior(bool neutralInterior)
+    {
+        mNeutralInterior = neutralInterior;
+    }
+
     void RenderManager::clearNeutralInteriorSun()
     {
         mLightIntensityScale = 1.f;
@@ -3501,6 +3506,12 @@ namespace MWRender
         // is lit by the sun everywhere, as an even glow round it, and never forces the cascades on.
         input.sunGain = Render::Volume::defaultSunGain;
         input.lampGain = Render::Volume::defaultLampGain;
+        if (mNeutralInterior)
+        {
+            // Task 0361: a game pack's interior, thinner fog and quieter lamps (see settings-default.cfg).
+            input.densityScale *= Settings::game().mNeutralInteriorVolumetricsDensity.get();
+            input.lampGain *= Settings::game().mNeutralInteriorVolumetricsLamps.get();
+        }
         input.debug = rendering.mVolumetricsDebug;
         if (mShadow->shadow)
         {

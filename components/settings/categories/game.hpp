@@ -122,6 +122,14 @@ namespace Settings
         SettingValue<bool> mNeutralAmbientCube{ mIndex, "Game", "neutral ambient cube" }; // task 0355 e
         SettingValue<bool> mNeutralWeatherAmbientCube{ mIndex, "Game", "neutral weather ambient cube" }; // task 0355 k
         SettingValue<bool> mNeutralInteriorSun{ mIndex, "Game", "neutral interior sun" }; // task 0355 f
+        // Task 0361: a game pack's exterior lifted by an exposure at dusk and night, in stops (0 is off).
+        SettingValue<float> mNeutralWeatherNightExposure{
+            mIndex, "Game", "neutral weather night exposure", makeClampSanitizerFloat(0.f, 3.f) };
+        // Task 0361: the volumetric fog of a game pack's interior, as a share of the density and of the lamps' scattering.
+        SettingValue<float> mNeutralInteriorVolumetricsDensity{
+            mIndex, "Game", "neutral interior volumetrics density", makeClampSanitizerFloat(0.f, 4.f) };
+        SettingValue<float> mNeutralInteriorVolumetricsLamps{
+            mIndex, "Game", "neutral interior volumetrics lamps", makeClampSanitizerFloat(0.f, 4.f) };
         SettingValue<bool> mNeutralLightFade{ mIndex, "Game", "neutral light fade" }; // task 0355 j
         SettingValue<bool> mNeutralLightFadeGain{ mIndex, "Game", "neutral light fade gain" }; // task 0355 stage b
         SettingValue<bool> mNeutralLightFlicker{ mIndex, "Game", "neutral light flicker" }; // task 0355 stage h

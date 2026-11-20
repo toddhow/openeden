@@ -17,6 +17,13 @@
 
 namespace MWWorld
 {
+    float neutralNightLiftStops(float nightShare, float fullStops)
+    {
+        if (!std::isfinite(nightShare) || !std::isfinite(fullStops))
+            return 0.f;
+        return std::clamp(nightShare, 0.f, 1.f) * std::clamp(fullStops, 0.f, 3.f);
+    }
+
     namespace
     {
         vsg::vec4 colour(const openeden::sdk::game::WeatherColour& c)
