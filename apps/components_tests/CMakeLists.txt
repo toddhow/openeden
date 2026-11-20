@@ -291,6 +291,8 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testidle.cpp
     havokpack/testskeletonfallback.cpp
     havokpack/testobjectproject.cpp
+    havokpack/testidlefidget.cpp
+    havokpack/testidlefidgetreal.cpp
     havokpack/testlocomotion.cpp
     havokpack/testpairedsurvey.cpp
     havokpack/testpaired.cpp

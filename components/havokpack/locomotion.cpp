@@ -29,11 +29,16 @@ namespace HavokPack::Gait
         return w;
     }
 
+    float balancedSwitchSpeed(const Params& p)
+    {
+        return std::sqrt(std::max(p.mWalkSpeed, 0.f) * std::max(p.mRunSpeed, 0.f));
+    }
+
     bool wantRun(float speed, bool wasRunning, const Params& p)
     {
         if (!std::isfinite(speed) || speed < 0.f)
             return false;
-        const float edge = 0.5f * (p.mWalkSpeed + p.mRunSpeed);
+        const float edge = p.mSwitchSpeed > 0.f ? p.mSwitchSpeed : 0.5f * (p.mWalkSpeed + p.mRunSpeed);
         const float band = std::max(p.mSwitchBand, 0.f);
         if (wasRunning)
             return speed >= edge * (1.f - band);

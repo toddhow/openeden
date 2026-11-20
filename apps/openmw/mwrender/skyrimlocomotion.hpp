@@ -28,6 +28,7 @@
 
 #include <components/animation/controller.hpp>
 #include <components/animation/transform.hpp>
+#include <components/havokpack/idlefidget.hpp>
 #include <components/havokpack/locomotion.hpp>
 
 #include "skyrimidle.hpp"
@@ -50,6 +51,16 @@ namespace MWRender::SkyrimLocomotion
             float idlePhaseFraction, HavokPack::Gait::Params params = {});
 
         /// Main thread. The actor's measured ground speed in units a second (0 when it stands or is blocked).
+        /// A name for the developer trace (OPENEDEN_NEUTRAL_LOCO_TRACE): which actor a line belongs to.
+        void setTraceName(std::string name) { mTraceName = std::move(name); }
+        /// Task 0361: a one-shot idle variant (HavokPack::Fidget) laid over the standing idle on the actor's own schedule.
+        /// Main thread, before the first run. A null future is a variant that does not exist: the plain idle.
+        void setFidget(SkyrimIdle::ClipFuture clip, HavokPack::Fidget::Schedule schedule)
+        {
+            mFidget.mFuture = std::move(clip);
+            mFidgetSchedule = schedule;
+            mHaveFidget = true;
+        }
         void setGroundSpeed(float unitsPerSecond) { mGroundSpeed.store(unitsPerSecond, std::memory_order_relaxed); }
 
         void run(vsg::Object& target, float time) const override;
@@ -64,6 +75,7 @@ namespace MWRender::SkyrimLocomotion
             bool mIdleReady = false;
             bool mWalkReady = false;
             bool mRunReady = false;
+            float mFidgetWeight = 0.f; ///< task 0361: how much of the standing idle is the variant now
         };
         const State& state() const { return mState; }
 
@@ -83,7 +95,9 @@ namespace MWRender::SkyrimLocomotion
         HavokPack::Gait::Params mParams;
         float mIdlePhaseFraction;
 
-        mutable Slot mIdle, mWalk, mRun;
+        mutable Slot mIdle, mWalk, mRun, mFidget;
+        HavokPack::Fidget::Schedule mFidgetSchedule;
+        bool mHaveFidget = false;
         mutable std::vector<vsg::ref_ptr<Anim::Transform>> mTargets;
         mutable std::unordered_map<std::string, int> mIndex; // bone name -> slot in mTargets
         mutable std::vector<HavokPack::Transform> mAccum;
@@ -95,6 +109,7 @@ namespace MWRender::SkyrimLocomotion
         mutable bool mHaveGait = false;
         mutable bool mIsRun = false;
         mutable unsigned mTraceCounter = 0;
+        std::string mTraceName;
         mutable State mState;
     };
 }

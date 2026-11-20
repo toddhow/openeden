@@ -8,11 +8,11 @@ local I = require('openmw.interfaces')
 local noHud = pcall(require, 'scripts.sc.nohud')
 local hudHidden = false
 
-local setup, cam, shotIn, moving = nil, nil, nil, nil
+local setup, cam, shotIn, moving, turning = nil, nil, nil, nil, nil
 
 return {
     eventHandlers = {
-        ScSetup = function(d) setup = d; cam = nil; moving = d.move end,
+        ScSetup = function(d) setup = d; cam = nil; moving = d.move; turning = d.turn end,
         ScCam = function(d) cam = d end,
         ScShot = function() shotIn = 3 end,
     },
@@ -25,6 +25,7 @@ return {
             else
                 self.controls.movement = 0
             end
+            if turning then self.controls.yawChange = turning * 0.016667 end
             if setup and setup.first then
                 if camera.getMode() ~= camera.MODE.FirstPerson then camera.setMode(camera.MODE.FirstPerson) end
                 camera.setYaw(setup.yaw)

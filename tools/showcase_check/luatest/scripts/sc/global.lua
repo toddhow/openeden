@@ -4,8 +4,9 @@
 --   name, hour (game hour, optional), x, y, z (player place; z nil = land + 40 outside; nothing = stay), yaw (radians, 0 = north),
 --   cam = { cx, cy, cz, lx, ly, lz }          a fixed camera looking at a point
 --   follow = { id = 'b80803', dx, dy, dz, ldz } a camera that stays at the offset from the first actor whose recordId contains id
---   tp = { dist, up }                          a camera behind and above the player (third person look at the player's body)
+--   tp = { dist, up, lookHeight, side }                          a camera behind and above the player (third person look at the player's body)
 --   pitch                                      first person when there is no cam, follow or tp (pitch > 0 looks down)
+--   turn = radians per second the player turns while moving; stopAt = the picture number after which the controls are released
 --   move = 'walk' | 'run'                      the player's controls while the shot runs
 --   dwell (real seconds before the first picture, default 12), n (pictures, default 1), step (simulation seconds, default 0.1)
 local core = require('openmw.core')
@@ -92,7 +93,8 @@ local function camEvent(player)
         local p = player.position
         local yaw = shot.yaw or 0
         local d, up = shot.tp[1], shot.tp[2]
-        player:sendEvent('ScCam', { x = p.x - math.sin(yaw) * d, y = p.y - math.cos(yaw) * d, z = p.z + up, lx = p.x, ly = p.y, lz = p.z + (shot.tp[3] or 70) })
+        local side = shot.tp[4] or 0
+        player:sendEvent('ScCam', { x = p.x - math.sin(yaw) * d + math.cos(yaw) * side, y = p.y - math.cos(yaw) * d - math.sin(yaw) * side, z = p.z + up, lx = p.x, ly = p.y, lz = p.z + (shot.tp[3] or 70) })
     end
 end
 
@@ -125,7 +127,7 @@ return {
                     local z = shot.z or landZ(player, shot.x, shot.y) or player.position.z
                     player:teleport(player.cell, util.vector3(shot.x, shot.y, z), { rotation = util.transform.rotateZ(shot.yaw or 0), onGround = shot.z == nil })
                 end
-                player:sendEvent('ScSetup', { first = not (shot.cam or shot.follow or shot.face or shot.tp), yaw = shot.yaw or 0, pitch = shot.pitch or 0, move = shot.move })
+                player:sendEvent('ScSetup', { first = not (shot.cam or shot.follow or shot.face or shot.tp), yaw = shot.yaw or 0, pitch = shot.pitch or 0, move = shot.move, turn = shot.turn })
                 local okh, hh = pcall(function() return world.mwscript.getGlobalVariables(player).gamehour end)
                 print(string.format('SHOWCASE setup %d %s hour %s', idx, shot.name, tostring(hh)))
                 goAt = t; state = 'wait'; k = 0
@@ -142,6 +144,7 @@ return {
                 local n, step = shot.n or 1, shot.step or 0.1
                 k = k + 1
                 nextSim = s + step
+                if shot.stopAt and k == shot.stopAt then player:sendEvent('ScSetup', { first = false, yaw = shot.yaw or 0, pitch = 0, move = nil }) end
                 local nm = n > 1 and string.format('%s_%02d', shot.name, k) or shot.name
                 print('SHOWCASE shot ' .. nm)
                 player:sendEvent('ScShot')

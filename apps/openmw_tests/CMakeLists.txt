@@ -127,6 +127,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimfirstperson3.cpp
     mwrender/testskyrimidle.cpp
     mwrender/testskyrimpaired.cpp
+    mwrender/testskyrimidlefidget.cpp
     mwrender/testskyrimlocomotion.cpp
     mwrender/testskyrimlip.cpp
     mwrender/testragdollbonemath.cpp

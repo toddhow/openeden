@@ -85,6 +85,8 @@ namespace MWRender::SkyrimLocomotion
         poll(mIdle);
         poll(mWalk);
         poll(mRun);
+        if (mHaveFidget)
+            poll(mFidget);
         mState.mIdleReady = mIdle.ready();
         mState.mWalkReady = mWalk.ready();
         mState.mRunReady = mRun.ready();
@@ -159,7 +161,25 @@ namespace MWRender::SkyrimLocomotion
             mIdleOffsetSet = true;
             mIdleOffset = mIdlePhaseFraction * mIdle.mClip->mClip.mDuration;
         }
-        add(mIdle, w.mIdle, time + mIdleOffset);
+        // Task 0361: while the actor stands, its idle variant takes over for a few seconds now and then.
+        float fidgetWeight = 0.f;
+        float fidgetTime = 0.f;
+        if (mHaveFidget && mFidget.ready() && w.mIdle > 0.f)
+        {
+            const HavokPack::Fidget::Play play
+                = HavokPack::Fidget::at(mFidgetSchedule, time, mFidget.mClip->mClip.mDuration);
+            fidgetWeight = play.mWeight;
+            fidgetTime = play.mClipTime;
+        }
+        static const bool sFidgetTrace = std::getenv("OPENEDEN_NEUTRAL_LOCO_TRACE") != nullptr;
+        if (sFidgetTrace && mHaveFidget && (fidgetWeight > 0.f) != (mState.mFidgetWeight > 0.f))
+            Log(Debug::Info) << "NFIDGET " << mTraceName << " t=" << time << (fidgetWeight > 0.f ? " starts" : " ends")
+                             << " clip=" << (mFidget.ready() ? "ready" : "missing") << " first=" << mFidgetSchedule.mFirst
+                             << " period=" << mFidgetSchedule.mPeriod;
+        mState.mFidgetWeight = fidgetWeight;
+        add(mIdle, w.mIdle * (1.f - fidgetWeight), time + mIdleOffset);
+        if (fidgetWeight > 0.f)
+            add(mFidget, w.mIdle * fidgetWeight, fidgetTime);
         if (mWalk.ready())
             add(mWalk, w.mWalk,
                 HavokPack::Gait::clipTime(mState.mPhase, mParams.mWalkLeftFoot, mWalk.mClip->mClip.mDuration));
@@ -184,7 +204,7 @@ namespace MWRender::SkyrimLocomotion
         const float runSeconds = mRun.ready() ? mRun.mClip->mClip.mDuration : 1.f;
         const float cycleSeconds = walkSeconds + (runSeconds - walkSeconds) * mState.mRunMix;
         if (sTrace && (mState.mSmoothedSpeed > 1.f || target > 0.f) && (++mTraceCounter % 10) == 0)
-            Log(Debug::Info) << "NLOCO t=" << time << " target=" << target << " smoothed=" << mState.mSmoothedSpeed
+            Log(Debug::Info) << "NLOCO " << mTraceName << " t=" << time << " target=" << target << " smoothed=" << mState.mSmoothedSpeed
                              << " idle=" << w.mIdle << " walk=" << w.mWalk << " run=" << w.mRun
                              << " phase=" << mState.mPhase << " cps=" << w.mCyclesPerSecond << " played=" << played
                              << " mix=" << mState.mRunMix << " rate=" << w.mCyclesPerSecond * cycleSeconds;

@@ -512,9 +512,21 @@ namespace MWRender
                     gait.mWalkLeftFoot = 0.f;
                     gait.mRunLeftFoot = 0.f;
                 }
+                else if (Settings::game().mNeutralActorIdleFidgets)
+                    gait.mSwitchSpeed = HavokPack::Gait::balancedSwitchSpeed(gait); // task 0361
                 auto controller = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(
                     std::move(future), SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, walkName),
                     SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, runName), bones, phase, gait));
+                controller->setTraceName(id);
+                if (!creature && Settings::game().mNeutralActorIdleFidgets)
+                {
+                    // Task 0361: an idle variant of the actor's own, now and then, so that a row of guards does not
+                    // sway as one. From the reference alone, like the idle's phase.
+                    const std::uint64_t key = static_cast<std::uint64_t>(std::hash<std::string>{}(id));
+                    controller->setFidget(SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex,
+                                              HavokPack::Fidget::kVariants[HavokPack::Fidget::variantFor(key)]),
+                        HavokPack::Fidget::scheduleFor(key));
+                }
                 anim.addController(controller, anim.transform());
                 anim.keepAlive.push_back(controller);
                 addPose();

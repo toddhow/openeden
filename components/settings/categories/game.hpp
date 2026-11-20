@@ -132,6 +132,7 @@ namespace Settings
             mIndex, "Game", "neutral interior volumetrics lamps", makeClampSanitizerFloat(0.f, 4.f) };
         SettingValue<bool> mNeutralLightFade{ mIndex, "Game", "neutral light fade" }; // task 0355 j
         SettingValue<bool> mNeutralLightFadeGain{ mIndex, "Game", "neutral light fade gain" }; // task 0355 stage b
+        SettingValue<bool> mNeutralActorIdleFidgets{ mIndex, "Game", "neutral actor idle fidgets" }; // task 0361
         SettingValue<bool> mNeutralLightFlicker{ mIndex, "Game", "neutral light flicker" }; // task 0355 stage h
         SettingValue<bool> mNeutralLightTypes{ mIndex, "Game", "neutral light types" }; // task 0355 stage g
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
