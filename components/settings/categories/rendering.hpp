@@ -71,6 +71,27 @@ namespace Settings
         SettingValue<float> mAoTemporalClamp{ mIndex, "Rendering", "ao temporal clamp", makeClampSanitizerFloat(0, 4) };
         SettingValue<std::string> mAoTemporalDebug{ mIndex, "Rendering", "ao temporal debug" };
 
+        // Task 0364a: automatic exposure (scene luminance histogram, adaptation over time). Read at start; needs hdr.
+        SettingValue<bool> mAutoExposure{ mIndex, "Rendering", "auto exposure" };
+        SettingValue<float> mAutoExposureKey{ mIndex, "Rendering", "auto exposure key",
+            makeClampSanitizerFloat(0.01f, 2) };
+        SettingValue<float> mAutoExposureMin{ mIndex, "Rendering", "auto exposure min",
+            makeClampSanitizerFloat(-10, 10) };
+        SettingValue<float> mAutoExposureMax{ mIndex, "Rendering", "auto exposure max",
+            makeClampSanitizerFloat(-10, 10) };
+        SettingValue<float> mAutoExposureSpeedUp{ mIndex, "Rendering", "auto exposure speed up",
+            makeClampSanitizerFloat(0, 20) };
+        SettingValue<float> mAutoExposureSpeedDown{ mIndex, "Rendering", "auto exposure speed down",
+            makeClampSanitizerFloat(0, 20) };
+        SettingValue<float> mAutoExposureLowPercentile{ mIndex, "Rendering", "auto exposure low percentile",
+            makeClampSanitizerFloat(0, 0.5f) };
+        SettingValue<float> mAutoExposureHighlightPercentile{ mIndex, "Rendering", "auto exposure highlight percentile",
+            makeClampSanitizerFloat(0, 1) };
+        SettingValue<float> mAutoExposureHighlightWhite{ mIndex, "Rendering", "auto exposure highlight white",
+            makeClampSanitizerFloat(0.1f, 16) };
+        SettingValue<float> mAutoExposureHighPercentile{ mIndex, "Rendering", "auto exposure high percentile",
+            makeClampSanitizerFloat(0.5f, 1) };
+
         // Task 0033 (R7): screen-space subsurface scattering on skin. Read at start; needs hdr, gbuffer and pbr. The
         // width is in game units.
         SettingValue<bool> mSss{ mIndex, "Rendering", "sss" };

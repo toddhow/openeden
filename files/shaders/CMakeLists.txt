@@ -531,3 +531,10 @@ openeden_add_slang_shader(
     SOURCE post/aotemporal.slang
     OUTPUT_DIR post
     STAGES genMain:compute:aogen resolveMain:compute:aoresolve copyMain:compute:aocopy)
+
+# Automatic exposure (task 0364a), new in Slang. Three compute passes loaded whenever [Rendering] auto exposure is on,
+# whatever [Rendering] slang shaders says; a missing file turns it off with a log line.
+openeden_add_slang_shader(
+    SOURCE post/autoexposure.slang
+    OUTPUT_DIR post
+    STAGES clearMain:compute:aeclear histMain:compute:aehist resolveMain:compute:aeresolve)

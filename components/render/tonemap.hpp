@@ -59,6 +59,9 @@ namespace Render
             float gradeContrast = 1.f;
             float gradeTintAmount = 0.f;
             std::array<float, 3> gradeTint{ 1.f, 1.f, 1.f };
+            // Task 0364a: the contrast pivot (the encoded, tonemapped grey of the scene's mean brightness) measured by
+            // the auto exposure pass; 0 means the shader measures it itself with its 36 taps (the default).
+            float gradePivot = 0.f;
         };
 
         /// Task 0033: what the subsurface scattering step needs: the material output (its alpha marks skin), and the
@@ -137,7 +140,7 @@ namespace Render
         static vsg::vec4 sssPushConstants(float strength, float width, float focalPixels);
 
         /// The grade's two push constants (after the debug view's): x saturation, y contrast, z tint amount, w 1 when
-        /// the grade applies (else 0); and the tint colour in xyz. Public for the unit tests.
+        /// the grade applies (else 0); and the tint colour in xyz, with the measured contrast pivot in w (0: none). Public for the unit tests.
         static vsg::vec4 gradePushConstants(const Parameters& parameters);
         static vsg::vec4 gradeTintPushConstants(const Parameters& parameters);
 

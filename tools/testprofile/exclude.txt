@@ -24,6 +24,15 @@ Rendering|ao slices|tuning of ao
 Rendering|ao steps|tuning of ao
 Rendering|ao strength|tuning of ao
 Rendering|ao temporal clamp|tuning of ao temporal
+Rendering|auto exposure key|tuning of auto exposure
+Rendering|auto exposure min|tuning of auto exposure
+Rendering|auto exposure max|tuning of auto exposure
+Rendering|auto exposure speed up|tuning of auto exposure
+Rendering|auto exposure speed down|tuning of auto exposure
+Rendering|auto exposure low percentile|tuning of auto exposure
+Rendering|auto exposure high percentile|tuning of auto exposure
+Rendering|auto exposure highlight percentile|tuning of auto exposure
+Rendering|auto exposure highlight white|tuning of auto exposure
 Rendering|ao temporal history|tuning of ao temporal
 Rendering|atmosphere look|tuning: vanilla or physical sky colours; the default is the reviewed one
 Rendering|cirrus altitude|tuning of cirrus

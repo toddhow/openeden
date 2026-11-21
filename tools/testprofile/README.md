@@ -112,6 +112,10 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Ambient occlusion* (0029, terrain 0048, temporal 0076): creases, wall bases, rocks on the ground and the bottoms of
   cliffs are darker. Wrong: a fixed grain that does not change (temporal is not on), or a dark halo that trails behind a
   moving thing. `ao temporal debug = raw` or `weight` shows the accumulation.
+- *Automatic exposure* (0364a): walk from a dark interior into a sunlit street: the picture is first dark and settles
+  over about two seconds, and the way back brightens more slowly. Wrong: a pumping brightness while standing still, or
+  a scene that never settles. The log shows `Auto exposure: ...`; `OPENEDEN_AUTOEXPOSURE_TRACE=1` prints the measure and
+  the exposure once a second.
 - *Subsurface scattering* (0033): close to a face (third person, stand near an NPC) the skin is slightly soft and warm at
   edges. `gbuffer debug view = subsurface` shows what is marked as skin (eyes are not).
 - *TAA* (0075): edges are smooth and thin wires do not shimmer when you turn. Wrong: ghost trails behind things that

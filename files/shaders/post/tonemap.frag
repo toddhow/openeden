@@ -216,7 +216,8 @@ vec3 gradeApply(vec3 c)
     float tintLuma = dot(push.gradeTint.xyz, lumaWeights);
     if (amount > 0.0 && tintLuma > 1e-4)
         c = c + (dot(c, lumaWeights) * push.gradeTint.xyz / tintLuma - c) * amount;
-    float pivot = contrast != 1.0 ? gradePivot() : 0.5;
+    // Task 0364a: auto exposure measures the mean brightness once (gradeTint.w > 0); else the 36 taps above.
+    float pivot = contrast != 1.0 ? (push.gradeTint.w > 0.0 ? push.gradeTint.w : gradePivot()) : 0.5;
     return clamp((c - vec3(pivot)) * contrast + vec3(pivot), vec3(0.0), vec3(1.0));
 }
 #endif

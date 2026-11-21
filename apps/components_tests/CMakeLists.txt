@@ -411,6 +411,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtaapass.cpp
     render/testaotemporalmath.cpp
     render/testaotemporalpass.cpp
+    render/testautoexposuremath.cpp
     render/testpointshadowmath.cpp
     render/testpointshadowselect.cpp
     render/testpointshadowcache.cpp

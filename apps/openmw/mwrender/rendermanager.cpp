@@ -1125,6 +1125,30 @@ namespace MWRender
                 Log(Debug::Info) << "AO: temporal accumulation, history " << aoTemporal.history << ", clamp "
                                  << aoTemporal.clampGamma << (mTaaJitter ? ", with the TAA state" : "");
             }
+            // Task 0364a: automatic exposure, after the scene (and its TAA resolve) and before the bloom and tonemap.
+            if (Settings::rendering().mAutoExposure)
+            {
+                if (Render::AutoExposurePass::shadersAvailable(shaderOptions))
+                {
+                    const auto& rendering = Settings::rendering();
+                    mAutoExposureSettings.key = rendering.mAutoExposureKey;
+                    mAutoExposureSettings.minStops = rendering.mAutoExposureMin;
+                    mAutoExposureSettings.maxStops = rendering.mAutoExposureMax;
+                    mAutoExposureSettings.speedUp = rendering.mAutoExposureSpeedUp;
+                    mAutoExposureSettings.speedDown = rendering.mAutoExposureSpeedDown;
+                    mAutoExposureSettings.lowPercentile = rendering.mAutoExposureLowPercentile;
+                    mAutoExposureSettings.highPercentile = rendering.mAutoExposureHighPercentile;
+                    mAutoExposureSettings.highlightPercentile = rendering.mAutoExposureHighlightPercentile;
+                    mAutoExposureSettings.highlightWhite = rendering.mAutoExposureHighlightWhite;
+                    mAutoExposure = std::make_unique<Render::AutoExposurePass>(mCompileContext->clone(~vsg::Mask(0)),
+                        shaderOptions, mAutoExposureSettings.lowPercentile, mAutoExposureSettings.highPercentile,
+                        mAutoExposureSettings.highlightPercentile);
+                    Log(Debug::Info) << "Auto exposure: key " << mAutoExposureSettings.key << ", "
+                                     << mAutoExposureSettings.minStops << " to " << mAutoExposureSettings.maxStops
+                                     << " stops, speed up " << mAutoExposureSettings.speedUp << ", down "
+                                     << mAutoExposureSettings.speedDown;
+                }
+            }
             // Task 0075: the temporal anti-aliasing resolve, between the occlusion pass and the bloom.
             if (mTaaJitter)
             {
@@ -1264,6 +1288,8 @@ namespace MWRender
         // The first index after the scene (and its velocity and occlusion passes).
         const int afterScene
             = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0) + (mAoTemporal ? 1 : 0) + (mTaa ? 2 : 0);
+        // Task 0364a: the exposure measurement follows the scene (and the TAA overlay) and precedes the bloom.
+        const int afterExposure = afterScene + (mAutoExposure ? 1 : 0);
         if (mTonemapGraph)
         {
             // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
@@ -1293,16 +1319,18 @@ namespace MWRender
                 mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 2, mTaa->node());
                 mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 1, mOverlayGraph);
             }
+            if (mAutoExposure)
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene, mAutoExposure->node());
             if (mBloom)
             {
-                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene, mBloom->node());
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterExposure, mBloom->node());
                 addCompileViews.emplace_back([this, context, resourceRequirements] {
                     mCompileContext->compileManager->add(
                         *mBloom->registrationFramebuffer(*context), mBloom->view(), resourceRequirements);
                 });
             }
             mCommandGraph->children.insert(
-                mCommandGraph->children.begin() + afterScene + (mBloom ? 1 : 0), mTonemapGraph);
+                mCommandGraph->children.begin() + afterExposure + (mBloom ? 1 : 0), mTonemapGraph);
             addCompileViews.emplace_back([this, resourceRequirements] {
                 mCompileContext->compileManager->add(*mTonemapGraph->window, mTonemap->view(), resourceRequirements);
             });
@@ -1314,7 +1342,7 @@ namespace MWRender
             mPostProcess->setMainView(mTonemap ? mTonemap->view() : mView);
             mGuiRenderGraph->children.insert(mGuiRenderGraph->children.begin(), mPostProcess->presentNode());
             mCommandGraph->children.insert(
-                mCommandGraph->children.begin() + (mTonemapGraph ? (mBloom ? 1 : 0) + afterScene + 1 : 2),
+                mCommandGraph->children.begin() + (mTonemapGraph ? (mBloom ? 1 : 0) + afterExposure + 1 : 2),
                 mPostProcess->node());
         }
         timeChild(mGpuTimer, mCommandGraph->children, mRenderGraph.get(), "main scene");
@@ -1329,6 +1357,8 @@ namespace MWRender
             timeChild(mGpuTimer, mCommandGraph->children, mTaa->node().get(), "taa");
             timeChild(mGpuTimer, mCommandGraph->children, mOverlayGraph.get(), "taa overlay");
         }
+        if (mAutoExposure)
+            timeChild(mGpuTimer, mCommandGraph->children, mAutoExposure->node().get(), "auto exposure");
         if (mBloom)
             timeChild(mGpuTimer, mCommandGraph->children, mBloom->node().get(), "bloom");
         if (mTonemapGraph)
@@ -1461,6 +1491,13 @@ namespace MWRender
                 throw std::runtime_error("The temporal anti-aliasing pass could not be built");
             if (mTaa && !rebuildTaaOverlay())
                 throw std::runtime_error("The temporal anti-aliasing overlay could not be built");
+            if (mAutoExposure
+                && !mAutoExposure->setSource(sceneColourView(), mHdrTarget->extent(),
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+            {
+                Log(Debug::Error) << "The auto exposure pass could not be built; it is off";
+                mAutoExposure.reset();
+            }
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, sceneColourView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
@@ -3499,6 +3536,56 @@ namespace MWRender
         mPreviousEye = eye;
     }
 
+    void RenderManager::updateAutoExposure(float dt)
+    {
+        if (!mAutoExposure || !mTonemap)
+            return;
+        // A post-processing technique that sets hdr tonemaps for itself: nothing of ours applies (the parameters were
+        // rebuilt without it, see mTonemapSteppedAside).
+        if (mTonemapSteppedAside)
+            return;
+        // No special case for a camera cut (a door, a teleport, a load): the exposure the eye had stays and follows the
+        // new scene at the adaptation speed, so stepping from a cellar into the sun is dazzling for a moment, as it
+        // is for the eye. The first measurement of a session is taken as it is (State::started), and a long frame (a
+        // loading screen) counts as at most Render::AutoExposure::maxStep of adaptation.
+        mAutoExposure->beginFrame();
+        if (const auto measurement = mAutoExposure->read())
+        {
+            {
+                mAutoExposureState.update(*measurement, dt, mAutoExposureSettings);
+                auto parameters = mTonemap->parameters();
+                // The pivot of the colour grade's contrast comes from the same measure (the mean brightness, as the
+                // shader's own taps would find), at the exposure the picture is shown with.
+                float pivot = 0.f;
+                const float stops = mAutoExposureState.stops;
+                const float wantedStops = parameters.exposureStops + stops - mAutoStopsApplied;
+                if (parameters.gradeShader)
+                    pivot = Render::AutoExposure::pivotFromMeanLuma(
+                        measurement->meanLuma, wantedStops, parameters.curve, parameters.encode);
+                if (std::abs(stops - mAutoStopsApplied) > 0.0005f || pivot != mAutoPivotApplied)
+                {
+                    parameters.exposureStops = wantedStops;
+                    parameters.gradePivot = pivot;
+                    mTonemap->setParameters(parameters);
+                    mAutoStopsApplied = stops;
+                    mAutoPivotApplied = pivot;
+                }
+                static const bool trace = std::getenv("OPENEDEN_AUTOEXPOSURE_TRACE") != nullptr;
+                mAutoExposureTraceTime += dt;
+                if (trace && mAutoExposureTraceTime >= 1.f)
+                {
+                    mAutoExposureTraceTime = 0.f;
+                    Log(Debug::Info) << "AUTOEXP mean log2 " << measurement->meanLog2 << " mean luma "
+                                     << measurement->meanLuma << " weight " << measurement->weight << " target "
+                                     << Render::AutoExposure::targetStops(
+                                            measurement->meanLog2, measurement->highLog2, mAutoExposureSettings)
+                                     << " high log2 " << measurement->highLog2
+                                     << " stops " << stops << " pivot " << pivot;
+                }
+            }
+        }
+    }
+
     void RenderManager::updateVolume()
     {
         if (!mVolumeFog)
@@ -3610,6 +3697,8 @@ namespace MWRender
                 mTonemapSteppedAside = steppedAside;
                 mTonemap->setParameters(tonemapParameters(steppedAside));
                 mImageSpaceStopsApplied = 0.f; // the parameters were rebuilt without the grade; the next frame adds it
+                mAutoStopsApplied = 0.f;
+                mAutoPivotApplied = 0.f;
                 mImageSpaceGradeApplied = ImageSpaceGradeState();
                 if (steppedAside)
                     Log(Debug::Info) << "HDR: a post-processing technique sets hdr, so the built-in tonemap only clips";
@@ -3670,6 +3759,7 @@ namespace MWRender
                 mTonemap->setParameters(parameters);
             }
         }
+        updateAutoExposure(dt);
         if (mAmbientOcclusion)
         {
             const vsg::dmat4 projection = mProjectionMatrix->transform();
@@ -4492,6 +4582,10 @@ mCensusEye = vsg::dvec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
                 Log(Debug::Error) << "The temporal anti-aliasing pass could not be rebuilt after a resize";
             if (mTaa && !rebuildTaaOverlay())
                 Log(Debug::Error) << "The temporal anti-aliasing overlay could not be rebuilt after a resize";
+            if (mAutoExposure
+                && !mAutoExposure->setSource(sceneColourView(), extent,
+                    [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
+                Log(Debug::Error) << "The auto exposure pass could not be rebuilt after a resize";
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, sceneColourView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))

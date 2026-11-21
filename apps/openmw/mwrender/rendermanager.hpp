@@ -32,6 +32,7 @@
 #include <components/esm3/cellref.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/render/aotemporal.hpp>
+#include <components/render/autoexposure.hpp>
 #include <components/render/cloudgpu.hpp>
 #include <components/render/covermath.hpp>
 #include <components/render/imagespacemath.hpp>
@@ -556,6 +557,13 @@ namespace MWRender
         // fragment pass above, which is then not made.
         bool mAoTemporalEnabled = false;
         std::unique_ptr<Render::AoTemporalPass> mAoTemporal;
+        // Task 0364a: automatic exposure (needs hdr). mAutoStopsApplied is what the tonemap's exposure holds of it now.
+        std::unique_ptr<Render::AutoExposurePass> mAutoExposure;
+        Render::AutoExposure::Settings mAutoExposureSettings;
+        Render::AutoExposure::State mAutoExposureState;
+        float mAutoStopsApplied = 0.f;
+        float mAutoPivotApplied = 0.f;
+        float mAutoExposureTraceTime = 0.f;
         Render::Tonemap::AoSources aoSources() const;
         // Task 0033: subsurface scattering of skin ([Rendering] sss); off without its images. Read at start.
         bool mSssEnabled = false;
@@ -665,6 +673,8 @@ namespace MWRender
         bool mHavePreviousCamera = false;
         std::chrono::steady_clock::time_point mPreviousCameraTime;
         void updateVelocity();
+        // Task 0364a: reads the auto exposure measurement and adapts the tonemap's exposure by dt.
+        void updateAutoExposure(float dt);
         float mImageSpaceStops = 0.f; // wanted (task 0127)
         bool mNeutralInterior = false; // task 0361
         float mImageSpaceStopsApplied = 0.f; // what the tonemap's parameters hold now
