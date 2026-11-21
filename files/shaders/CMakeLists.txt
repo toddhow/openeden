@@ -80,10 +80,6 @@ set(SHADER_FILES
     water/main.frag
     water/fresnel.glsl
     water/rainripples.glsl
-    gui/gui.vert
-    gui/gui.frag
-    gui/rml.vert
-    gui/rml.frag
     sky/atmosphere/inout.glsl
     sky/atmosphere/main.frag
     sky/atmosphere/main.vert
