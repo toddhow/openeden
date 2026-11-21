@@ -256,3 +256,27 @@ Branch rebased onto `main` `ce89b4d3c2` (the stage b commit was already in `main
 **Morrowind checks after the flip** (the new build now uses Slang by default; the `integ2` reference build still has it off): `tools/skymap_check/morrowind_check.sh` gives the two Balmora frames `1eb68236352dc472` and `c819db116f4af8a6` for both builds (the log of the new run shows 30 "Using the Slang permutations" lines, the reference none, so the Slang path drew a byte-identical default frame). With `hdr = true` the Balmora frames differ by 3 and 1 pixels of 921,600, each by one level (`e260ad4a71086a3f`/`993fef6a37f86258` Slang, `ac666a15ede8726c`/`7bf0ac8154fee556` GLSL). `tools/worldobjects_check`: 110 objects OK, no dumps. `components-tests` filter `ShaderConstants.*:ShaderDefines.*:Pipeline*:PostPass*:SlangPermutations.*:SlangInterfaceRecords.*:Settings*:*Terrain*Defines*:RenderPointShadowShader.*` (146 tests) passes with the new default.
 
 **Not run after the flip:** the full `components-tests` and `openmw-tests`, the Linux gate, the Lua tests, clang-format 14, a cold first start on a real player machine (the first compile of unlisted sets happens on the Slang worker while the GLSL draws, as since task 0072 stage h), the editor with the new default.
+
+## Stage c log (terrain to constants): NOT BUILT, design only
+
+Stage c was started on slangfinal-0363 (rebased onto main 56bde39c6f) and stopped after the read-through of
+`terrain/terrain.frag.slang`, `terrain.vert.slang`, `terrain/inout.slang` and the libs it pulls in. No code, test,
+golden or frame changed; the work tree equals main. Reason: the change touches about ten shared Slang includes
+(`wetness`, `cover`, `pixellighting`, `pbrlighting`, `parallax`, `skyvis`, `ambientcube`, `view/shadow`) that the object
+shader also uses, 20 per-set interface-exception files, `Pipeline::terrain`, the settings table and the CMake sets, and
+every step needs a rebuild plus the SlangPermutations/InterfaceRecords runs. Doing it half would leave the golden data in
+a state nobody could review.
+
+Design to execute (all from the stage a/b decisions):
+- Keep as compile-time defines (K, they change the interface): TERRAIN_MAPS, GBUFFER output state, DEBUG_CHUNKS varying
+  (vertex stage declares it always under MODE_CONSTANTS), the map-class defines.
+- Constants (C, ids 2000+ via a new `Pipeline::terrainConstants`, plus 1070 DEBUG_SHADOW and 1071 DEBUG_CHUNKS in the
+  settings table): GI_SKY, WETNESS_PUDDLES, POINT_SHADOW, COVER, AMBIENT_CUBE, PARALLAX quality (POM steps/taps), cloud
+  shadow flags (reuse 1067-1069), DEBUG_SHADOW.
+- A pseudo define MODE_CONSTANTS (as SHADOW_CONSTANTS for water), added by `constantDefinesFor` for terrain/main.frag and
+  main.vert; define-mode SPIR-V stays byte-identical because every new branch sits under `#ifdef MODE_CONSTANTS`.
+- One constant per branch (no `a && b`, no OpSpecConstantOp); skyHeader declared once (SKY_HEADER_DECLARED guard).
+- Expected result: terrain fragment 43,320 reachable sets to about 20 classes, vertex 4 to 2.
+- Test-change groups needed (approved, to list when done): PipelineTerrainDefines count model, terrain `.sets`,
+  `.interface`, `.interface-exceptions` files, compileGlsl pseudo-define expansion in the two Slang tests.
+- Still to measure: frames new-Slang vs old-Slang, Morrowind checks, cost in three interleaved quiet runs.
