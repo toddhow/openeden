@@ -1254,8 +1254,8 @@ namespace MWWorld
         if (weatherImageSpace)
         {
             // Stage W-S4: the grade grade.y saturation, grade.z contrast, grade.w tint amount (ImageSpaceParams).
-            mRendering.setImageSpaceGrade(
-                mResult.mHasGrade, mResult.mGrade.y, neutralWeatherGradeContrast(mResult.mGrade.z), mResult.mGrade.w,
+            mRendering.setImageSpaceGrade(mResult.mHasGrade, mResult.mGrade.y,
+                neutralWeatherGradeContrast(mResult.mGrade.z, kContrastShareWithAveragePivot), mResult.mGrade.w,
                 mResult.mGradeTint);
         }
 

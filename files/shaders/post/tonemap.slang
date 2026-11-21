@@ -185,6 +185,28 @@ float3 sssApply(float2 uv, float3 centre)
 // Task 0127 stage W-S4: the image space grade (twin of post/tonemap.frag's gradeApply and of Render::ImageSpace::apply in
 // imagespacemath.hpp): saturation about the luma, a tint (the picture's grey colourised at the tint's own brightness, by
 // an amount), then contrast about one half; the display value in, the display value out.
+// Task 0362a: contrast pivots on the scene's average brightness (twin of tonemap.frag's gradePivot).
+float gradePivot()
+{
+    const int taps = 6;
+    float3 sum = float3(0.0);
+    for (int y = 0; y < taps; ++y)
+        for (int x = 0; x < taps; ++x)
+        {
+            float3 s = sceneColor.Sample((float2(float(x), float(y)) + float2(0.5)) / float(taps)).rgb;
+            sum += any(isnan(s)) ? float3(0.0) : s;
+        }
+    float3 c = clamp(sum / float(taps * taps) * push.params.x, float3(0.0), float3(MAX_TARGET_VALUE));
+    if (push.params.y > 1.5)
+        c = aces(c);
+    else if (push.params.y > 0.5)
+        c = reinhard(c);
+    c = clamp(c, 0.0, 1.0);
+    if (push.params.z > 0.5)
+        c = pow(c, float3(1.0 / DISPLAY_GAMMA));
+    return clamp(dot(c, float3(0.2126, 0.7152, 0.0722)), 0.02, 0.8);
+}
+
 float3 gradeApply(float3 c)
 {
     const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
@@ -196,7 +218,8 @@ float3 gradeApply(float3 c)
     float tintLuma = dot(push.gradeTint.xyz, lumaWeights);
     if (amount > 0.0 && tintLuma > 1e-4)
         c = c + (dot(c, lumaWeights) * push.gradeTint.xyz / tintLuma - c) * amount;
-    return clamp((c - float3(0.5)) * contrast + float3(0.5), float3(0.0), float3(1.0));
+    float pivot = contrast != 1.0 ? gradePivot() : 0.5;
+    return clamp((c - float3(pivot)) * contrast + float3(pivot), float3(0.0), float3(1.0));
 }
 #endif
 

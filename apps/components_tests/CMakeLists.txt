@@ -402,6 +402,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testlightfade.cpp
     render/testtonemap.cpp
     render/testimagespace.cpp
+    render/testimagespacepivot.cpp
     render/testimagespacemodifier.cpp
     render/testvelocity.cpp
     render/testtaamath.cpp

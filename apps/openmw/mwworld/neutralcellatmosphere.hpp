@@ -58,6 +58,11 @@ namespace MWWorld
     /// stayed lit. 0 = contrast not applied.
     inline constexpr float kWeatherGradeContrastShare = 0.f;
 
+    /// Task 0362a: the contrast share the game passes now. The tonemap's contrast pivots on the scene's average
+    /// brightness (gradePivot in post/tonemap.frag), as Skyrim's does (RECALLED-VERIFY), so the whole contrast applies and
+    /// dark scenes no longer crush. The two constants above stay the pure functions' defaults for a mid grey pivot.
+    inline constexpr float kContrastShareWithAveragePivot = 1.f;
+
     /// The contrast handed to the renderer for a weather grade: 1 + (contrast - 1) * share; a value that is not a number
     /// is the neutral 1.
     [[nodiscard]] inline float neutralWeatherGradeContrast(

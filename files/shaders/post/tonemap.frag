@@ -181,6 +181,30 @@ vec3 sssApply(vec2 uv, vec3 centre)
 // Task 0127 stage W-S4: the image space grade. The CPU twin is Render::ImageSpace::apply (imagespacemath.hpp): saturation
 // about the luma, a tint (the picture's grey colourised at the tint's own brightness, by an amount), then contrast about
 // one half; the display value in, the display value out.
+// Task 0362a: contrast pivots on the scene's average brightness (Skyrim's does; a mid grey pivot crushed dark scenes).
+// GRADE_PIVOT_TAPS x GRADE_PIVOT_TAPS taps of the scene colour, averaged in linear light, then the same exposure, curve and
+// encode as the picture, then the luma, held between 0.02 and 0.8. Twin: Render::ImageSpace::Grade::pivot and tonemap.slang.
+float gradePivot()
+{
+    const int taps = 6;
+    vec3 sum = vec3(0.0);
+    for (int y = 0; y < taps; ++y)
+        for (int x = 0; x < taps; ++x)
+        {
+            vec3 s = texture(sceneColor, (vec2(float(x), float(y)) + vec2(0.5)) / float(taps)).rgb;
+            sum += any(isnan(s)) ? vec3(0.0) : s;
+        }
+    vec3 c = clamp(sum / float(taps * taps) * push.params.x, vec3(0.0), vec3(MAX_TARGET_VALUE));
+    if (push.params.y > 1.5)
+        c = aces(c);
+    else if (push.params.y > 0.5)
+        c = reinhard(c);
+    c = clamp(c, 0.0, 1.0);
+    if (push.params.z > 0.5)
+        c = pow(c, vec3(1.0 / DISPLAY_GAMMA));
+    return clamp(dot(c, vec3(0.2126, 0.7152, 0.0722)), 0.02, 0.8);
+}
+
 vec3 gradeApply(vec3 c)
 {
     const vec3 lumaWeights = vec3(0.2126, 0.7152, 0.0722);
@@ -192,7 +216,8 @@ vec3 gradeApply(vec3 c)
     float tintLuma = dot(push.gradeTint.xyz, lumaWeights);
     if (amount > 0.0 && tintLuma > 1e-4)
         c = c + (dot(c, lumaWeights) * push.gradeTint.xyz / tintLuma - c) * amount;
-    return clamp((c - vec3(0.5)) * contrast + vec3(0.5), vec3(0.0), vec3(1.0));
+    float pivot = contrast != 1.0 ? gradePivot() : 0.5;
+    return clamp((c - vec3(pivot)) * contrast + vec3(pivot), vec3(0.0), vec3(1.0));
 }
 #endif
 

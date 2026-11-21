@@ -16,7 +16,7 @@
 //   saturation: c = luma + saturation * (c - luma)
 //   tint: the picture's grey colourised by the tint colour at the tint's own brightness, blended by the amount:
 //         c = mix(c, luma(c) * tint / luma(tint), amount)   (a tint with no brightness is not a colour: skipped)
-//   contrast: c = (c - 0.5) * contrast + 0.5
+//   contrast: c = (c - pivot) * contrast + pivot   (pivot 0.5 by default; the shaders use the scene's average, task 0362a)
 // and the result is clamped to 0 to 1. A value that is not a number is taken as the neutral one.
 
 namespace Render::ImageSpace
@@ -35,6 +35,9 @@ namespace Render::ImageSpace
         float contrast = 1.f;
         float tintAmount = 0.f;
         Rgb tint{ 1.f, 1.f, 1.f };
+        /// Task 0362a: what contrast pivots on (display value). 0.5 is mid grey; the shaders compute the scene's average
+        /// brightness here (gradePivot in post/tonemap.frag and .slang) because Skyrim's contrast pivots on it.
+        float pivot = kContrastPivot;
     };
 
     inline float luma(const Rgb& c)
@@ -76,8 +79,9 @@ namespace Render::ImageSpace
             }
         }
 
+        const float pivot = std::clamp(detail::finiteOr(grade.pivot, kContrastPivot), 0.f, 1.f);
         for (float& v : c)
-            v = std::clamp((v - kContrastPivot) * contrast + kContrastPivot, 0.f, 1.f);
+            v = std::clamp((v - pivot) * contrast + pivot, 0.f, 1.f);
         return c;
     }
 

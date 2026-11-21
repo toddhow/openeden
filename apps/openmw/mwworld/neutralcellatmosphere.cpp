@@ -125,7 +125,7 @@ namespace MWWorld
         const bool has = source != nullptr && source->imageSpaceForCell(neutral->id, grade);
         const auto micros
             = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - begun).count();
-        const NeutralCellGrade g = neutralCellGrade(has ? &grade : nullptr);
+        const NeutralCellGrade g = neutralCellGrade(has ? &grade : nullptr, kContrastShareWithAveragePivot);
         tellRenderer(rendering, g);
         Log(Debug::Info) << "NIMAGESPACE " << neutral->editorId << (has ? " grade" : " none") << " saturation "
                          << g.saturation << " stops " << g.stops << " contrast " << g.contrast << " tint "
