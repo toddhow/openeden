@@ -45,8 +45,6 @@
 
 namespace
 {
-#include "testpostpasses.oldstrings.inc"
-
     // Sets [Rendering] ao radius, ao slices and ao steps for one scope and puts the earlier values back however the
     // scope ends. Resource::ShaderSettings reads them when it is made.
     class AoSettingsScope
@@ -90,281 +88,6 @@ namespace
         options->setValue(vsgUtil::preferSlangKey, preferSlang);
         options->setObject(vsgUtil::settingsConstantsKey, settings->constants);
         return options;
-    }
-
-    // A string compiled as the passes compiled theirs before the move: one stage, no defines, no options.
-    std::vector<uint32_t> compiledAsBefore(VkShaderStageFlagBits stage, const std::string& source)
-    {
-        auto shaderStage = vsg::ShaderStage::create(stage, "main", source);
-        if (!vsg::ShaderCompiler::create()->compile(shaderStage))
-            return {};
-        return shaderStage->module->code;
-    }
-
-    // tonemap.cpp's fragmentSource at 655d60a6ff^.
-    std::string tonemapSourceBefore(bool bloom, bool debug, bool ao, bool sss)
-    {
-        using namespace Render;
-        std::ostringstream out;
-        out.precision(9);
-        out << "#version 450\n";
-        if (ao)
-            out << "#define AO 1\n";
-        if (sss)
-        {
-            const auto& sigma = Sss::channelSigma;
-            out << "#define SSS 1\n";
-            out << "#define SSS_CHANNEL_SIGMA vec3(" << sigma.x << ", " << sigma.y << ", " << sigma.z << ")\n";
-            out << "#define SSS_NARROW_SIGMA " << Sss::narrowSigma << "\n";
-            out << "#define SSS_REACH " << Sss::reachInWidths << "\n";
-            out << "#define SSS_TAPS " << Sss::tapCount << "\n";
-            out << "#define SSS_EPSILON " << Sss::epsilon << "\n";
-            out << "#define SSS_GAIN_MIN " << Sss::gainMin << "\n";
-            out << "#define SSS_GAIN_MAX " << Sss::gainMax << "\n";
-        }
-        if (bloom)
-            out << "#define BLOOM 1\n";
-        if (debug)
-            out << "#define DEBUG_VIEW 1\n";
-        out << "#define DISPLAY_GAMMA " << Hdr::displayGamma << "\n";
-        out << "#define REINHARD_WHITE " << Hdr::reinhardWhitePoint << "\n";
-        out << "#define MAX_TARGET_VALUE " << Hdr::maxTargetValue << "\n";
-        out << old_tonemap_sFragmentBody;
-        return out.str();
-    }
-
-    // ambientocclusion.cpp's fragmentSource at 655d60a6ff^.
-    std::string aoSourceBefore(float radius, int slices, int steps)
-    {
-        std::ostringstream out;
-        out.precision(9);
-        out << "#version 450\n";
-        out << "#define AO_RADIUS " << radius << "\n";
-        out << "#define AO_SLICES " << slices << "\n";
-        out << "#define AO_STEPS " << steps << "\n";
-        out << old_ambientocclusion_sFragmentBody;
-        return out.str();
-    }
-
-    // Stage `index` of a pass read now, as the pass reads it (vsgUtil::readPassStages); empty when it fails.
-    std::vector<uint32_t> compiledNow(const std::string& vertex, const std::string& fragment,
-        const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options, std::size_t index)
-    {
-        std::string error;
-        const auto stages = vsgUtil::readPassStages({ { vertex, {} }, { fragment, defines } }, options, &error);
-        if (stages.size() != 2)
-        {
-            ADD_FAILURE() << fragment << ": " << error;
-            return {};
-        }
-        // A GLSL stage, not a twin.
-        EXPECT_FALSE(stages[index]->module->source.empty());
-        return stages[index]->module->code;
-    }
-
-    void expectSameSpirv(const std::string& name, const std::vector<uint32_t>& before, const std::vector<uint32_t>& now)
-    {
-        EXPECT_FALSE(before.empty()) << name << ": the string did not compile";
-        if (before == now)
-            return;
-        std::size_t first = 0;
-        while (first < before.size() && first < now.size() && before[first] == now[first])
-            ++first;
-        std::ostringstream difference;
-        difference << std::hex << std::uppercase;
-        if (first < before.size() && first < now.size())
-            difference << ", first at word " << std::dec << first << std::hex << ": 0x" << before[first]
-                       << " before, 0x" << now[first] << " now";
-        ADD_FAILURE() << name << ": " << before.size() << " words before, " << now.size() << " now" << difference.str();
-    }
-
-    const std::string sSources = OPENEDEN_SHADER_SOURCE_DIR;
-
-    TEST(PostPassesSwitchOff, the_fullscreen_vertex_stage_is_the_four_strings_it_replaced)
-    {
-        // The tonemap, bloom, velocity and ambient occlusion passes had the same vertex string.
-        EXPECT_EQ(std::string(old_bloom_sVertexShader), old_tonemap_sVertexShader);
-        EXPECT_EQ(std::string(old_velocity_sVertexShader), old_tonemap_sVertexShader);
-        EXPECT_EQ(std::string(old_ambientocclusion_sVertexShader), old_tonemap_sVertexShader);
-        expectSameSpirv("post/fullscreen.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_tonemap_sVertexShader),
-            compiledNow("post/fullscreen.vert", "post/bloomdown.frag", {}, gameOptions(sSources, false), 0));
-    }
-
-    TEST(PostPassesSwitchOff, every_tonemap_variant_compiles_as_its_string_did)
-    {
-        const auto options = gameOptions(sSources, false);
-        for (int index = 0; index < 16; ++index)
-        {
-            const bool bloom = (index & 1) != 0;
-            const bool debug = (index & 2) != 0;
-            const bool ao = (index & 4) != 0;
-            const bool sss = (index & 8) != 0;
-            std::set<std::string> defines;
-            if (bloom)
-                defines.insert("BLOOM");
-            if (debug)
-                defines.insert("DEBUG_VIEW");
-            if (ao)
-                defines.insert("AO");
-            if (sss)
-                defines.insert("SSS");
-            expectSameSpirv("post/tonemap.frag " + vsgUtil::canonicalDefines(defines),
-                compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, tonemapSourceBefore(bloom, debug, ao, sss)),
-                compiledNow("post/fullscreen.vert", "post/tonemap.frag", defines, options, 1));
-        }
-    }
-
-    TEST(PostPassesSwitchOff, bloom_and_velocity_compile_as_their_strings_did)
-    {
-        const auto options = gameOptions(sSources, false);
-        expectSameSpirv("post/bloomdown.frag", compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_bloom_sDownFragment),
-            compiledNow("post/fullscreen.vert", "post/bloomdown.frag", {}, options, 1));
-        expectSameSpirv("post/bloomup.frag", compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_bloom_sUpFragment),
-            compiledNow("post/fullscreen.vert", "post/bloomup.frag", {}, options, 1));
-        expectSameSpirv("post/velocity.frag",
-            compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_velocity_sFragmentShader),
-            compiledNow("post/fullscreen.vert", "post/velocity.frag", {}, options, 1));
-    }
-
-    TEST(PostPassesSwitchOff, ambient_occlusion_compiles_as_its_string_did_with_the_same_settings)
-    {
-        struct Case
-        {
-            float mRadius;
-            int mSlices;
-            int mSteps;
-        };
-        // The defaults of files/settings-default.cfg, then others (radius not a whole number, the largest slices and
-        // steps the sanitisers allow).
-        for (const Case& c : { Case{ 100.f, 2, 6 }, Case{ 50.f, 3, 4 }, Case{ 37.25f, 8, 16 } })
-        {
-            const AoSettingsScope ao(c.mRadius, c.mSlices, c.mSteps);
-            expectSameSpirv("post/ao.frag at " + std::to_string(c.mRadius) + ", " + std::to_string(c.mSlices) + ", "
-                    + std::to_string(c.mSteps),
-                compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, aoSourceBefore(c.mRadius, c.mSlices, c.mSteps)),
-                compiledNow("post/fullscreen.vert", "post/ao.frag", {}, gameOptions(sSources, false), 1));
-        }
-    }
-
-    TEST(PostPassesSwitchOff, post_processing_stages_compile_as_their_strings_did)
-    {
-        const auto options = gameOptions(sSources, false);
-        // PostProcess reads post/omwfx.vert and compiles its source with compileGlsl (one stage, no defines).
-        const auto omwfx = vsgUtil::readShader("post/omwfx.vert", options);
-        ASSERT_TRUE(omwfx->module);
-        expectSameSpirv("post/omwfx.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sVertexShader),
-            compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, omwfx->module->source));
-        expectSameSpirv("post/present.vert",
-            compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sPresentVertexShader),
-            compiledNow("post/present.vert", "post/present.frag", {}, options, 0));
-        expectSameSpirv("post/present.frag",
-            compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_postprocess_sPresentFragmentShader),
-            compiledNow("post/present.vert", "post/present.frag", {}, options, 1));
-    }
-
-    std::string fileBytes(const std::filesystem::path& path)
-    {
-        std::ifstream in(path, std::ios::binary);
-        std::stringstream bytes;
-        bytes << in.rdbuf();
-        return bytes.str();
-    }
-
-    // The options the game reads its shaders with (Resource::createShaderOptions) over `path`, made now (they read
-    // the settings when made), with `[Rendering] slang shaders` off.
-    vsg::ref_ptr<const vsg::Options> gameOptionsOff(const std::string& path)
-    {
-        auto options = vsg::Options::create(*Resource::createShaderOptions(path));
-        options->setValue(vsgUtil::preferSlangKey, false);
-        return options;
-    }
-
-    // Review of the stage f and g rounds, finding 1 (written before the change): the comparisons above compile the
-    // source tree with a copy of the game's options, but the game reads the copies in the build's resources/shaders
-    // (copy_all_resource_files, files/shaders/CMakeLists.txt) with the options Resource::createShaderOptions makes, so
-    // a stale or missing copy passed them. The same 26 comparisons, against those copies with those options, and each
-    // copy the same bytes as its source.
-    TEST(PostPassesSwitchOff, the_files_the_game_loads_compile_as_the_strings_did)
-    {
-        const std::filesystem::path built(OPENEDEN_SHADER_BUILD_DIR);
-        const std::filesystem::path sources = std::filesystem::path(sSources) / "post";
-        // The files of post/ the passes read, as files/shaders/CMakeLists.txt copies them (SHADER_FILES). Review of the
-        // member-name and fix rounds, item 3: a list, not a count of the folder, which also holds build inputs that are
-        // not copied (the .slang sources, the .sets lists, and any <stage>.interface-exceptions).
-        const std::set<std::string> loaded = { "ao.frag", "bloomdown.frag", "bloomup.frag", "fullscreen.vert",
-            "omwfx.vert", "present.frag", "present.vert", "tonemap.frag", "tonemapconstants.glsl", "velocity.frag" };
-        for (const std::string& name : loaded)
-        {
-            const std::filesystem::path copy = built / "post" / name;
-            EXPECT_TRUE(std::filesystem::is_regular_file(copy)) << copy.generic_string() << " is missing";
-            EXPECT_TRUE(fileBytes(copy) == fileBytes(sources / name)) << copy.generic_string() << " is not its source";
-        }
-        // A GLSL stage or include added to post/ is added to the list (and to SHADER_FILES).
-        for (const auto& entry : std::filesystem::directory_iterator(sources))
-        {
-            const std::string extension = entry.path().extension().string();
-            if (extension == ".vert" || extension == ".frag" || extension == ".comp" || extension == ".glsl")
-            {
-                EXPECT_EQ(loaded.count(entry.path().filename().string()), 1u)
-                    << entry.path().filename().string() << " is not in this test's list";
-            }
-        }
-
-        const std::string path = built.generic_string();
-        const auto options = gameOptionsOff(path);
-        expectSameSpirv("post/fullscreen.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_tonemap_sVertexShader),
-            compiledNow("post/fullscreen.vert", "post/bloomdown.frag", {}, options, 0));
-        for (int index = 0; index < 16; ++index)
-        {
-            const bool bloom = (index & 1) != 0;
-            const bool debug = (index & 2) != 0;
-            const bool ao = (index & 4) != 0;
-            const bool sss = (index & 8) != 0;
-            std::set<std::string> defines;
-            if (bloom)
-                defines.insert("BLOOM");
-            if (debug)
-                defines.insert("DEBUG_VIEW");
-            if (ao)
-                defines.insert("AO");
-            if (sss)
-                defines.insert("SSS");
-            expectSameSpirv("post/tonemap.frag " + vsgUtil::canonicalDefines(defines),
-                compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, tonemapSourceBefore(bloom, debug, ao, sss)),
-                compiledNow("post/fullscreen.vert", "post/tonemap.frag", defines, options, 1));
-        }
-        expectSameSpirv("post/bloomdown.frag", compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_bloom_sDownFragment),
-            compiledNow("post/fullscreen.vert", "post/bloomdown.frag", {}, options, 1));
-        expectSameSpirv("post/bloomup.frag", compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_bloom_sUpFragment),
-            compiledNow("post/fullscreen.vert", "post/bloomup.frag", {}, options, 1));
-        expectSameSpirv("post/velocity.frag",
-            compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_velocity_sFragmentShader),
-            compiledNow("post/fullscreen.vert", "post/velocity.frag", {}, options, 1));
-        struct Case
-        {
-            float mRadius;
-            int mSlices;
-            int mSteps;
-        };
-        for (const Case& c : { Case{ 100.f, 2, 6 }, Case{ 50.f, 3, 4 }, Case{ 37.25f, 8, 16 } })
-        {
-            const AoSettingsScope aoScope(c.mRadius, c.mSlices, c.mSteps);
-            expectSameSpirv("post/ao.frag at " + std::to_string(c.mRadius) + ", " + std::to_string(c.mSlices) + ", "
-                    + std::to_string(c.mSteps),
-                compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, aoSourceBefore(c.mRadius, c.mSlices, c.mSteps)),
-                compiledNow("post/fullscreen.vert", "post/ao.frag", {}, gameOptionsOff(path), 1));
-        }
-        const auto omwfx = vsgUtil::readShader("post/omwfx.vert", options);
-        ASSERT_TRUE(omwfx);
-        ASSERT_TRUE(omwfx->module);
-        expectSameSpirv("post/omwfx.vert", compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sVertexShader),
-            compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, omwfx->module->source));
-        expectSameSpirv("post/present.vert",
-            compiledAsBefore(VK_SHADER_STAGE_VERTEX_BIT, old_postprocess_sPresentVertexShader),
-            compiledNow("post/present.vert", "post/present.frag", {}, options, 0));
-        expectSameSpirv("post/present.frag",
-            compiledAsBefore(VK_SHADER_STAGE_FRAGMENT_BIT, old_postprocess_sPresentFragmentShader),
-            compiledNow("post/present.vert", "post/present.frag", {}, options, 1));
     }
 
 #if OPENEDEN_SLANG_ENABLED
@@ -509,7 +232,7 @@ namespace
     // red run the tonemap twin of AO SSS with `ao` and `sss` swapped passed SlangPermutations. The C++ side works out
     // where the tonemap's conditional members are (Tonemap::setSource, components/render/tonemap.cpp: `ao` after the
     // parameters, `sss` after it, `debug` last), so the post twins' push constants are compared by name here.
-    TEST(PostPassesSlang, push_constant_members_are_where_the_glsl_and_the_cpp_have_them_by_name)
+    TEST(PostPassesSlang, push_constant_members_are_where_the_cpp_has_them_by_name)
     {
         struct Pass
         {
@@ -531,7 +254,6 @@ namespace
             { "post/present.frag", "post/present.vert", "post/present.frag", 1 },
         };
         const std::filesystem::path built(OPENEDEN_SHADER_BUILD_DIR);
-        const auto options = gameOptions(sSources, false);
         std::size_t compared = 0;
         for (const auto& entry : std::filesystem::directory_iterator(built / "post"))
         {
@@ -552,10 +274,7 @@ namespace
                 std::istringstream names(canonical);
                 for (std::string name; names >> name;)
                     defines.insert(name);
-                const auto glsl
-                    = pushConstantOffsets(compiledNow(pass->mVertex, pass->mFragment, defines, options, pass->mIndex));
-                EXPECT_EQ(pushConstantOffsets(readWords(built / "post" / file)), glsl)
-                    << stage << " [" << canonical << "]";
+                const auto slang = pushConstantOffsets(readWords(built / "post" / file));
                 if (stage == "post/tonemap.frag")
                 {
                     // As Tonemap::setSource computes them.
@@ -576,7 +295,7 @@ namespace
                         expected["grade"] = gradeOffset;
                         expected["gradeTint"] = gradeOffset + 16;
                     }
-                    EXPECT_EQ(glsl, expected) << "[" << canonical << "]";
+                    EXPECT_EQ(slang, expected) << "[" << canonical << "]";
                 }
                 ++compared;
             }

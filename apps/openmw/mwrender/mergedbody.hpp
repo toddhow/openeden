@@ -66,7 +66,7 @@ namespace MWRender::MergedBodies
     struct State;
 
     /// Task 0072 (review of stage f, finding 1): the requested defines each stage of `pipeline` is compiled with
-    /// (vsgUtil::glslDefinesOf: the GLSL module's, or those kept beside the Slang twin that replaced it), keyed by the
+    /// (vsgUtil::requestedDefinesOf: the GLSL module's, or those kept beside the Slang twin that replaced it), keyed by the
     /// stage's VkShaderStageFlagBits; a stage without them is left out.
     std::map<int, std::set<std::string>> pipelineDefines(const vsg::GraphicsPipeline& pipeline);
 

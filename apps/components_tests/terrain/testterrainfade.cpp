@@ -11,6 +11,7 @@
 //  - the fade can be set on a built draw's data (Builder::setBatchFade), marking it for upload.
 
 #include <components/pipeline/terrain.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/terrain/batchdata.hpp>
 #include <components/terrain/builder.hpp>
 
@@ -118,37 +119,20 @@ namespace
         EXPECT_GT(discard, lastDebug);
     }
 
-    class StubShaderFolder
+    // The game's own options over the build's shader folder: the terrain's default define sets are listed there.
+    class BuiltShaderFolder
     {
     public:
-        StubShaderFolder()
-            : mDir(std::filesystem::temp_directory_path() / "openeden-terrainfade-stub")
-        {
-            std::filesystem::create_directories(mDir / "terrain");
-            for (const char* name : { "terrain/main.vert", "terrain/main.frag" })
-            {
-                std::ofstream out(mDir / name, std::ios::binary);
-                out << "#version 450\nvoid main() {}\n";
-            }
-            mOptions = vsg::Options::create();
-            mOptions->paths = { vsg::Path(mDir.generic_string()) };
-            mOptions->readerWriters = { vsg::glsl::create(), vsg::spirv::create() };
-        }
-        ~StubShaderFolder()
-        {
-            std::error_code ec;
-            std::filesystem::remove_all(mDir, ec);
-        }
+        BuiltShaderFolder() { mOptions = Resource::createShaderOptions(OPENEDEN_SHADER_BUILD_DIR, ""); }
         vsg::ref_ptr<const vsg::Options> options() const { return mOptions; }
 
     private:
-        std::filesystem::path mDir;
-        vsg::ref_ptr<vsg::Options> mOptions;
+        vsg::ref_ptr<const vsg::Options> mOptions;
     };
 
     TEST(TerrainFadeLayout, the_batch_uniform_is_visible_to_the_fragment_stage)
     {
-        StubShaderFolder folder;
+        BuiltShaderFolder folder;
         for (const bool maps : { false, true })
         {
             auto bind = Pipeline::terrain(folder.options(), maps);

@@ -377,6 +377,12 @@ target_compile_definitions(openmw-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"
             OPENMW_PROJECT_SOURCE_DIR=u8"${PROJECT_SOURCE_DIR}")
 
+# Task 0363, stage g: the pipelines the tests build take their Slang twins from the build's shader folder.
+target_compile_definitions(openmw-tests PRIVATE OPENEDEN_SHADER_BUILD_DIR="${OPENMW_RESOURCES_ROOT}/resources/shaders")
+if (OPENEDEN_SLANG_SHADERS_BUILT)
+    add_dependencies(openmw-tests openeden_slang_shaders)
+endif()
+
 # The extension host's tests (task 0015) load real shared libraries: one source, built once per test ID, SDK only.
 # A provides the contract openeden.test.a, B requires it, C stands alone, KF requires the Morrowind pack's converter.
 include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenExtension.cmake)

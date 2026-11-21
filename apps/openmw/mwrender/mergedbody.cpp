@@ -697,7 +697,7 @@ namespace MWRender::MergedBodies
         {
             if (!stage)
                 continue;
-            if (const std::set<std::string>* defines = vsgUtil::glslDefinesOf(*stage))
+            if (const std::set<std::string>* defines = vsgUtil::requestedDefinesOf(*stage))
                 out[static_cast<int>(stage->stage)] = *defines;
         }
         return out;

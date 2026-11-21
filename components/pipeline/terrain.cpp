@@ -128,77 +128,69 @@ namespace Pipeline
                 ambientCube);
         if (!defines.empty())
         {
-            // As Pipeline::Graphics adds its modes: a copy of each stage compiled with the define.
+            // As Pipeline::Graphics adds its modes: the stages carry the requested defines (task 0363, stage g: a module
+            // of its own with no code, vsgUtil::readShader).
             auto compileSettings = vsg::ShaderCompileSettings::create();
             compileSettings->defines = std::move(defines);
             for (auto& stage : shaders)
-            {
-                stage = vsg::ShaderStage::create(*stage);
-                stage->module = vsg::ShaderModule::create(*stage->module);
                 stage->module->hints = compileSettings;
-            }
         }
-        // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses. Both branches are references,
-        // so no set is copied when the trace is off (stage b review).
         static const std::set<std::string> noDefines;
+        const std::array<const char*, 2> stageFiles = { "terrain/main.vert", "terrain/main.frag" };
         std::vector<std::set<std::string>> tracedSets;
         for (std::size_t i = 0; i < shaders.size(); ++i)
         {
             const auto& hints = shaders[i]->module->hints;
-            vsgUtil::recordShaderUse(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
-                hints ? hints->defines : noDefines, shaders[i].get(), shaderOptions);
+            // Task 0072: OPENEDEN_SHADER_TRACE lists the (stage, defines) pairs a run uses.
+            vsgUtil::recordShaderUse(stageFiles[i], hints ? hints->defines : noDefines, shaderOptions);
         }
-        if (vsgUtil::shaderTraceActive())
+        // Task 0072, stage e: the Slang permutation compiled for exactly the set this stage is drawn with (its
+        // imported defines and its settings files' defines); a twin takes the `*.settings` values as specialization
+        // constants. Task 0363, stage g: there is no GLSL to fall back on; a set with no permutation is waited for
+        // (compiled at run time), and a stage that still has none gives an error: the terrain is not drawn.
+        std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
+        for (std::size_t i = 0; i < shaders.size(); ++i)
         {
-            for (const auto& stage : shaders)
-                tracedSets.push_back(
-                    vsgUtil::stageDefines(stage->module->hints ? stage->module->hints->defines : noDefines,
-                        stage->module->source, shaderOptions.get()));
+            const auto& hints = shaders[i]->module->hints;
+            const auto& requested = hints ? hints->defines : noDefines;
+            twins[i] = vsgUtil::slangTwin(stageFiles[i], requested, shaderOptions);
+            if (vsgUtil::shaderTraceActive())
+            {
+                if (const auto set = vsgUtil::slangSelectionSet(stageFiles[i], requested, shaderOptions))
+                    tracedSets.push_back(*set);
+            }
         }
-        // Task 0072, stage e: with `slang shaders` on, the Slang permutation compiled for exactly the set this stage
-        // is drawn with (its imported defines and its settings files' defines); a set with no file keeps the GLSL. A
-        // twin takes the `*.settings` values as specialization constants.
-        // Stage f: both stages take their twins or neither does, since VSG compiles a pipeline's stages together when
-        // one is GLSL and glslang cannot link a SPIR-V stage (vsgUtil::takeSlangTwinsTogether): a fragment set with no
-        // file keeps the vertex stage's GLSL too.
-        bool slang = false;
-        if (vsgUtil::prefersSlang(shaderOptions.get()))
+        if (!vsgUtil::takeSlangTwinsTogether(shaders, twins))
         {
-            std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
-            vsg::ShaderStages copies;
             for (std::size_t i = 0; i < shaders.size(); ++i)
             {
-                const auto& hints = shaders[i]->module->hints;
-                twins[i] = vsgUtil::slangTwin(i == 0 ? "terrain/main.vert" : "terrain/main.frag",
-                    hints ? hints->defines : noDefines, shaders[i]->module->source, true, shaderOptions);
-                copies.push_back(vsg::ShaderStage::create(*shaders[i]));
-            }
-            if (vsgUtil::takeSlangTwinsTogether(copies, twins))
-            {
-                // Task 0363 (stage c): a twin that reads the terrain's defines as constants (MODE_CONSTANTS) gets their
-                // values; a twin made with defines does not declare these ids, which Vulkan ignores, so they are only
-                // given when the switch is on.
-                if (const auto* constants = shaderOptions->getObject<vsgUtil::SettingsConstants>(
-                        vsgUtil::settingsConstantsKey);
-                    constants != nullptr && constants->constantDefines)
+                if (!twins[i])
                 {
-                    const auto values = terrainConstants(maps, gbufferOutputs, giSky, wetness, pbr, cover,
-                        parallaxQuality, aoTerrain, pointShadow, ambientCube);
-                    for (auto& twin : copies)
-                    {
-                        for (const auto& [id, value] : values)
-                            twin->specializationConstants[id] = value;
-                    }
+                    const auto& hints = shaders[i]->module->hints;
+                    throw std::runtime_error(
+                        vsgUtil::missingTwinText(stageFiles[i], hints ? hints->defines : noDefines, shaderOptions));
                 }
-                for (auto& twin : copies)
-                    vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
-                shaders = copies;
-                slang = true;
             }
         }
-        // Review of stage f: the pipeline's pair of sets, and which compiler draws it, in the trace.
-        if (!tracedSets.empty())
-            vsgUtil::recordPipelineUse("terrain", tracedSets[0], tracedSets[1], slang);
+        // Task 0363 (stage c): a twin that reads the terrain's defines as constants (MODE_CONSTANTS) gets their values;
+        // a twin made with defines does not declare these ids, which Vulkan ignores, so they are only given when the
+        // switch is on.
+        if (const auto* constants = shaderOptions->getObject<vsgUtil::SettingsConstants>(vsgUtil::settingsConstantsKey);
+            constants != nullptr && constants->constantDefines)
+        {
+            const auto values = terrainConstants(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality,
+                aoTerrain, pointShadow, ambientCube);
+            for (auto& twin : shaders)
+            {
+                for (const auto& [id, value] : values)
+                    twin->specializationConstants[id] = value;
+            }
+        }
+        for (auto& twin : shaders)
+            vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
+        // Review of stage f: the pipeline's pair of sets in the trace.
+        if (tracedSets.size() == 2)
+            vsgUtil::recordPipelineUse("terrain", tracedSets[0], tracedSets[1], true);
 
         vsg::DescriptorSetLayoutBindings descriptorBindings{ { Pipeline::Descriptors::BLENDMAP_BINDING,
                                                                  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,

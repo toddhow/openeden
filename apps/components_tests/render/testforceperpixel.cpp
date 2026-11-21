@@ -9,21 +9,23 @@
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/mode.hpp>
 #include <components/pipeline/options.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include <vsg/io/Options.h>
-#include <vsg/io/glsl.h>
 #include <vsg/io/spirv.h>
 #include <vsg/state/GraphicsPipeline.h>
 #include <vsg/state/ShaderModule.h>
 #include <vsg/state/ShaderStage.h>
 
 #include <atomic>
+#include <cstdio>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <set>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -37,7 +39,9 @@ namespace
         return text.str();
     }
 
-    // The object shader's two stages, trivial but importing the names the real fragment shader imports.
+    // The object shader's two stages as stub Slang twins: one trivial SPIR-V module listed for every subset of the names
+    // the real stages import (the pipeline only needs a twin for the set it asks for; what the test looks at is the
+    // define set the pipeline asked for, kept beside the twins).
     class ForceFolder
     {
     public:
@@ -48,13 +52,16 @@ namespace
                 / ("openeden_forcepp_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())
                     + "_" + std::to_string(counter++));
             std::filesystem::create_directories(mDir / "default");
-            write("default/main.vert", "#version 450\n#pragma import_defines(VERTEX, NORMAL)\nvoid main() {}\n");
-            write("default/main.frag",
-                "#version 450\n#pragma import_defines(NORMAL, PBR, FORCE_PER_PIXEL_LIGHTING, PARTICLE)\nvoid main() "
-                "{}\n");
+            const std::vector<uint32_t> words = { 0x07230203u, 0x00010000u, 0u, 8u, 0u };
+            std::ofstream spv(mDir / "default" / "stub.spv", std::ios::binary);
+            spv.write(reinterpret_cast<const char*>(words.data()),
+                static_cast<std::streamsize>(words.size() * sizeof(uint32_t)));
+            spv.close();
+            twins("main.vert", "vertMain", "vertex", { "VERTEX", "NORMAL" });
+            twins("main.frag", "fragMain", "fragment", { "NORMAL", "PBR", "FORCE_PER_PIXEL_LIGHTING", "PARTICLE" });
             mOptions = vsg::Options::create();
             mOptions->paths = { vsg::Path(mDir.generic_string()) };
-            mOptions->readerWriters = { vsg::glsl::create(), vsg::spirv::create() };
+            mOptions->readerWriters = { vsg::spirv::create() };
         }
         ~ForceFolder()
         {
@@ -66,6 +73,32 @@ namespace
         vsg::ref_ptr<const vsg::Options> options() const { return mOptions; }
 
     private:
+        void twins(const std::string& file, const std::string& entry, const std::string& stage,
+            const std::vector<std::string>& imports)
+        {
+            std::string importText;
+            for (const std::string& name : imports)
+                importText += (importText.empty() ? "" : " ") + name;
+            write("default/" + file + ".slang-stage", "stub.slang\t" + entry + "\t" + stage + "\t" + importText + "\n");
+            std::string manifest;
+            for (std::size_t mask = 0; mask < (std::size_t{ 1 } << imports.size()); ++mask)
+            {
+                std::set<std::string> names;
+                for (std::size_t i = 0; i < imports.size(); ++i)
+                    if ((mask & (std::size_t{ 1 } << i)) != 0)
+                        names.insert(imports[i]);
+                std::string line;
+                for (const std::string& name : names)
+                    line += (line.empty() ? "" : " ") + name;
+                char number[16];
+                std::snprintf(number, sizeof(number), "%08x", static_cast<unsigned>(mask));
+                const std::string spvName = file + ".p" + number + ".spv";
+                std::filesystem::copy_file(mDir / "default" / "stub.spv", mDir / "default" / spvName,
+                    std::filesystem::copy_options::overwrite_existing);
+                manifest += spvName + "\t" + line + "\n";
+            }
+            write("default/" + file + ".permutations", manifest);
+        }
         void write(const std::string& file, const std::string& text)
         {
             std::ofstream out(mDir / file, std::ios::binary);
@@ -79,8 +112,9 @@ namespace
     {
         std::set<std::string> result;
         for (const auto& stage : bind->pipeline->stages)
-            if (stage->stage == VK_SHADER_STAGE_FRAGMENT_BIT && stage->module && stage->module->hints)
-                result.insert(stage->module->hints->defines.begin(), stage->module->hints->defines.end());
+            if (stage->stage == VK_SHADER_STAGE_FRAGMENT_BIT)
+                if (const auto* defines = vsgUtil::requestedDefinesOf(*stage))
+                    result.insert(defines->begin(), defines->end());
         return result;
     }
 

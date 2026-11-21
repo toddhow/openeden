@@ -102,11 +102,13 @@ namespace
         {
             write("post/omwfx.vert.p00000001.spv", sVertexTwin);
             writeText("post/omwfx.vert.permutations", "omwfx.vert.p00000001.spv\t\n");
+            writeText("post/omwfx.vert.slang-stage", "fullscreen.slang\tvertMain\tvertex\t-\n");
         }
         void writeOtherTwin()
         {
             write("post/other.frag.p00000002.spv", sOtherTwin);
             writeText("post/other.frag.permutations", "other.frag.p00000002.spv\t\n");
+            writeText("post/other.frag.slang-stage", "other.slang\tfragMain\tfragment\t-\n");
         }
         vsg::ref_ptr<const vsg::Options> options() const { return mOptions; }
         // As the game makes them with `[Rendering] slang shaders` on, with one settings constant.
@@ -180,6 +182,7 @@ namespace
             SCOPED_TRACE("the set is not listed");
             OmwfxFolder folder;
             folder.write("post/omwfx.vert.p00000003.spv", sVertexTwin);
+            folder.writeText("post/omwfx.vert.slang-stage", "fullscreen.slang\tvertMain\tvertex\t-\n");
             folder.writeText("post/omwfx.vert.permutations", "omwfx.vert.p00000003.spv\tSOMETHING\n");
             const auto stage = vsgUtil::readOmwfxVertexStage(folder.slangOptions());
             ASSERT_TRUE(stage);
@@ -239,7 +242,7 @@ namespace
         EXPECT_TRUE(error.empty()) << error;
     }
 
-    TEST(OmwfxVertexStage, the_exemption_does_not_reach_readPassStages)
+    TEST(OmwfxVertexStage, the_exemption_does_not_reach_readPassStages_which_has_no_glsl)
     {
         const std::vector<vsgUtil::PassStage> pass = { { "post/omwfx.vert", {} }, { "post/other.frag", {} } };
         {
@@ -247,11 +250,11 @@ namespace
             OmwfxFolder folder;
             folder.writeVertexTwin();
             std::string error;
+            // readPassStages takes twins only (task 0363, stage g): the fragment stage has none, so the pass is refused
+            // and nothing falls back to the GLSL file beside it.
             const auto stages = vsgUtil::readPassStages(pass, folder.slangOptions(), &error);
-            ASSERT_EQ(stages.size(), 2u) << error;
-            EXPECT_EQ(stages[0]->module->code, compiledAlone(VK_SHADER_STAGE_VERTEX_BIT, sVertex));
-            EXPECT_NE(stages[0]->module->code, sVertexTwin);
-            EXPECT_EQ(stages[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment));
+            EXPECT_TRUE(stages.empty());
+            EXPECT_NE(error.find("post/other.frag"), std::string::npos) << error;
         }
         {
             SCOPED_TRACE("a twin for both");

@@ -2,7 +2,7 @@
 // merged body refuses a merged pipeline whose defines differ from the stock part's pipeline. It read the defines from
 // each stage's module hints, but a Slang twin's module has none, so with `[Rendering] slang shaders` on both sides were
 // empty and the check was silently skipped (it also skipped a stage only one side had). The defines are now those of
-// the GLSL kept beside the twin (vsgUtil::glslDefinesOf), and a stage only one side has fails the check. The pipelines
+// the GLSL kept beside the twin (vsgUtil::requestedDefinesOf), and a stage only one side has fails the check. The pipelines
 // are built by hand from plain VSG objects (no device), their stages twinned the way the engine twins them. Written
 // before the implementation.
 
@@ -125,14 +125,21 @@ namespace
         EXPECT_NE(compareDefines(oneStage, emptyStage), "");
     }
 
-    const std::string sGlslSource = "#version 450\nvoid main() {}\n";
     const std::vector<uint32_t> sTwinWords{ 0x07230203u, 0x00010000u, 0u, 16u, 0u };
+
+    // A stage as vsgUtil::readShader makes one: no code, the requested defines in its hints.
+    vsg::ref_ptr<vsg::ShaderModule> makeModule(const vsg::ref_ptr<vsg::ShaderCompileSettings>& hints)
+    {
+        auto module = vsg::ShaderModule::create();
+        module->hints = hints;
+        return module;
+    }
 
     vsg::ref_ptr<vsg::ShaderStage> glslStage(VkShaderStageFlagBits flag, const Names& requested)
     {
         auto hints = vsg::ShaderCompileSettings::create();
         hints->defines = requested;
-        return vsg::ShaderStage::create(flag, "main", vsg::ShaderModule::create(sGlslSource, hints));
+        return vsg::ShaderStage::create(flag, "main", makeModule(hints));
     }
 
     // A stage twinned the way Pipeline::Graphics twins one: the choice attached to the GLSL stage, then the module
@@ -141,7 +148,9 @@ namespace
         VkShaderStageFlagBits flag, const std::string& path, const Names& requested)
     {
         auto stage = glslStage(flag, requested);
-        EXPECT_TRUE(vsgUtil::attachSlangStageChoice(*stage, path, vsg::Options::create())) << path;
+        auto options = vsg::Options::create();
+        options->paths = { OPENEDEN_SHADER_BUILD_DIR };
+        EXPECT_TRUE(vsgUtil::attachSlangStageChoice(*stage, path, options)) << path;
         stage->module = vsg::ShaderModule::create(sTwinWords);
         return stage;
     }

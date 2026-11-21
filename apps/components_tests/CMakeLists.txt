@@ -535,6 +535,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     pipeline/testcoveragemodes.cpp
     pipeline/testgbufferblend.cpp
+    pipeline/testmissingtwin.cpp
     pipeline/testgbufferstates.cpp
     pipeline/testinstancetint.cpp
     pipeline/testoverlaydepthbias.cpp

@@ -38,9 +38,14 @@ namespace vsgUtil
         std::string mSource;
         std::string mEntry;
         std::string mStage;
+        /// Task 0363 (stage g): the defines the stage may take (the `defines` line of its recorded interface, which the
+        /// build copies into the fourth field): what its GLSL used to say with `#pragma import_defines`, plus the
+        /// settings files' defines it includes and the constants pseudo defines. Empty for a stage that takes none.
+        std::set<std::string> mImports;
     };
 
-    /// "<source>\t<entry>\t<stage>" and a newline; throws std::invalid_argument on anything else.
+    /// "<source>\t<entry>\t<stage>[\t<imports>]" and a newline (the imports are names separated by one space, "-" for
+    /// none; an older file has no fourth field); throws std::invalid_argument on anything else.
     SlangStageInfo parseSlangStageInfo(const std::string& text);
 
     struct SlangRuntimeRequest
@@ -54,7 +59,7 @@ namespace vsgUtil
     /// Review of stage h (round 4), finding 2: the version of the checks a cache entry has passed. It is part of every
     /// cache key (and so of the refused-set files), so an entry made under an older, weaker check is a miss. Raise it
     /// whenever a check (checkTwinAgainstGlsl, checkSlangTwinStructure) becomes stricter.
-    inline constexpr int slangCacheCheckVersion = 2;
+    inline constexpr int slangCacheCheckVersion = 3; // 3: task 0363, stage g: no GLSL to check against, the structure only
 
     /// The compiler itself. Implementations need not be thread safe: SlangRuntime serialises the calls.
     class SlangRuntimeCompiler

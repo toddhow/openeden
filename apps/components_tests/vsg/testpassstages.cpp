@@ -1,7 +1,6 @@
-// Task 0072, stage g: the stages of the passes whose pipelines C++ builds by hand (vsgUtil::readPassStages,
-// components/vsgutil/passstages.hpp). Their GLSL was a string in each pass and is now a file, read like every other
-// built-in shader; each stage is compiled on its own, or taken as a Slang twin when every stage of the pass has one.
-// Written before the implementation.
+// Task 0072, stage g and task 0363, stage g: the stages of the passes whose pipelines C++ builds by hand
+// (vsgUtil::readPassStages, components/vsgutil/passstages.hpp). Their shaders are Slang twins listed per define set at
+// build time; there is no GLSL beside them, so a stage with no twin gives no stages and the reason.
 #include <gtest/gtest.h>
 
 #include <components/vsgutil/passstages.hpp>
@@ -9,12 +8,9 @@
 
 #include <vsg/core/Value.h>
 #include <vsg/io/Options.h>
-#include <vsg/io/glsl.h>
-#include <vsg/io/read.h>
 #include <vsg/io/spirv.h>
 #include <vsg/state/ShaderModule.h>
 #include <vsg/state/ShaderStage.h>
-#include <vsg/utils/ShaderCompiler.h>
 #include <vsg/utils/SharedObjects.h>
 
 #include <atomic>
@@ -27,15 +23,6 @@
 
 namespace
 {
-    const std::string sVertex
-        = "#version 450\nout gl_PerVertex { vec4 gl_Position; };\n"
-          "void main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }\n";
-    const std::string sFragment
-        = "#version 450\n#pragma import_defines (RED)\nlayout(location=0) out vec4 color;\n"
-          "void main()\n{\n#ifdef RED\n    color = vec4(1.0, 0.0, 0.0, 1.0);\n#else\n"
-          "    color = vec4(0.0);\n#endif\n}\n";
-    const std::string sBroken = "#version 450\nvoid main() { undeclared = 1; }\n";
-
     // A SPIR-V module that declares one float specialization constant with the given id, as
     // vsgUtil::addSettingsConstants reads it; the bound (word 3) tells two such modules apart.
     std::vector<uint32_t> twinWords(uint32_t bound, uint32_t constantId)
@@ -50,19 +37,9 @@ namespace
     }
     const std::vector<uint32_t> sVertexTwin = twinWords(100, 1004);
     const std::vector<uint32_t> sFragmentTwin = twinWords(200, 1004);
+    const std::vector<uint32_t> sPlainFragmentTwin = twinWords(300, 1004);
 
-    // The fixture's GLSL compiled as the passes compiled their strings before (one stage, no options), with the
-    // given "#define" lines after the version line.
-    std::vector<uint32_t> compiledAlone(VkShaderStageFlagBits stage, std::string source, const std::string& defines)
-    {
-        source.insert(source.find('\n') + 1, defines);
-        auto shaderStage = vsg::ShaderStage::create(stage, "main", source);
-        if (!vsg::ShaderCompiler::create()->compile(shaderStage))
-            return {};
-        return shaderStage->module->code;
-    }
-
-    // A folder of GLSL stages and Slang twins, read as the game reads the shaders (with shared objects).
+    // A folder of Slang twins, read as the game reads the shaders (with shared objects).
     class PassFolder
     {
     public:
@@ -70,13 +47,13 @@ namespace
             : mDir(std::filesystem::temp_directory_path() / uniqueName())
         {
             std::filesystem::create_directories(mDir / "post");
-            writeText("post/pass.vert", sVertex);
-            writeText("post/pass.frag", sFragment);
-            writeText("post/broken.frag", sBroken);
             mOptions = vsg::Options::create();
             mOptions->paths = { vsg::Path(mDir.generic_string()) };
-            mOptions->readerWriters = { vsg::glsl::create(), vsg::spirv::create() };
+            mOptions->readerWriters = { vsg::spirv::create() };
             mOptions->sharedObjects = vsg::SharedObjects::create();
+            auto constants = vsgUtil::SettingsConstants::create();
+            constants->constants[1004] = vsg::floatValue::create(0.25f);
+            mOptions->setObject(vsgUtil::settingsConstantsKey, constants);
         }
         ~PassFolder()
         {
@@ -94,31 +71,30 @@ namespace
             out.write(reinterpret_cast<const char*>(words.data()),
                 static_cast<std::streamsize>(words.size() * sizeof(uint32_t)));
         }
-        // Twins of both stages for the set "-" and the fragment's for "RED".
-        void writeTwins(bool vertex, bool fragment)
+        // The vertex twin for the set "-"; the fragment's for "RED" and, with `plain`, for "-" too. The fragment
+        // stage imports the name RED.
+        void writeTwins(bool vertex, bool fragment, bool plain = false)
         {
             if (vertex)
             {
                 write("post/pass.vert.p00000001.spv", sVertexTwin);
                 writeText("post/pass.vert.permutations", "pass.vert.p00000001.spv\t\n");
+                writeText("post/pass.vert.slang-stage", "pass.slang\tvertMain\tvertex\t-\n");
             }
             if (fragment)
             {
                 write("post/pass.frag.p00000002.spv", sFragmentTwin);
-                writeText("post/pass.frag.permutations", "pass.frag.p00000002.spv\tRED\n");
+                std::string manifest = "pass.frag.p00000002.spv\tRED\n";
+                if (plain)
+                {
+                    write("post/pass.frag.p00000003.spv", sPlainFragmentTwin);
+                    manifest += "pass.frag.p00000003.spv\t\n";
+                }
+                writeText("post/pass.frag.permutations", manifest);
+                writeText("post/pass.frag.slang-stage", "pass.slang\tfragMain\tfragment\tRED\n");
             }
         }
         vsg::ref_ptr<const vsg::Options> options() const { return mOptions; }
-        // As the game makes them with `[Rendering] slang shaders` on, with one settings constant.
-        vsg::ref_ptr<const vsg::Options> slangOptions() const
-        {
-            auto options = vsg::Options::create(*mOptions);
-            options->setValue(vsgUtil::preferSlangKey, true);
-            auto constants = vsgUtil::SettingsConstants::create();
-            constants->constants[1004] = vsg::floatValue::create(0.25f);
-            options->setObject(vsgUtil::settingsConstantsKey, constants);
-            return options;
-        }
 
     private:
         // Manifests are cached per process by folder, so no two fixtures share one.
@@ -135,56 +111,11 @@ namespace
 
     const std::vector<vsgUtil::PassStage> sRed = { { "post/pass.vert", {} }, { "post/pass.frag", { "RED" } } };
 
-    TEST(PassStages, each_glsl_stage_is_compiled_alone_with_its_defines)
-    {
-        PassFolder folder;
-        const auto stages = vsgUtil::readPassStages(sRed, folder.options());
-        ASSERT_EQ(stages.size(), 2u);
-        EXPECT_EQ(stages[0]->stage, VK_SHADER_STAGE_VERTEX_BIT);
-        EXPECT_EQ(stages[1]->stage, VK_SHADER_STAGE_FRAGMENT_BIT);
-        EXPECT_EQ(stages[0]->entryPointName, "main");
-        // Exactly the SPIR-V the strings gave when the passes compiled them themselves.
-        EXPECT_EQ(stages[0]->module->code, compiledAlone(VK_SHADER_STAGE_VERTEX_BIT, sVertex, ""));
-        EXPECT_EQ(stages[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, "#define RED\n"));
-        EXPECT_NE(stages[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, ""));
-        EXPECT_TRUE(stages[1]->specializationConstants.empty());
-    }
-
-    TEST(PassStages, a_name_the_stage_does_not_import_is_not_defined)
-    {
-        PassFolder folder;
-        const auto stages
-            = vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/pass.frag", { "BLUE" } } }, folder.options());
-        ASSERT_EQ(stages.size(), 2u);
-        EXPECT_EQ(stages[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, ""));
-    }
-
-    TEST(PassStages, the_stages_the_reader_shares_are_never_changed)
-    {
-        // The reader keeps one stage per file (shared objects); compiling it in place would make every variant share
-        // one module: each compile overwrites its code (vsg::ShaderCompiler::compile always regenerates it), and
-        // vsg::ShaderModule::compile makes a module's Vulkan object once per device, from the code it holds then, so
-        // the variants would draw one another's code (task 0072, review of stage g, finding 6).
-        PassFolder folder;
-        const auto shared = vsg::read_cast<vsg::ShaderStage>("post/pass.frag", folder.options());
-        ASSERT_TRUE(shared);
-        const auto red = vsgUtil::readPassStages(sRed, folder.options());
-        const auto plain
-            = vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/pass.frag", {} } }, folder.options());
-        ASSERT_EQ(red.size(), 2u);
-        ASSERT_EQ(plain.size(), 2u);
-        EXPECT_NE(red[1], shared);
-        EXPECT_NE(red[1]->module, shared->module);
-        EXPECT_TRUE(shared->module->code.empty());
-        EXPECT_NE(red[1]->module->code, plain[1]->module->code);
-        EXPECT_EQ(plain[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, ""));
-    }
-
-    TEST(PassStages, with_the_switch_on_every_stage_takes_its_twin_and_its_constants)
+    TEST(PassStages, every_stage_takes_its_twin_and_its_constants)
     {
         PassFolder folder;
         folder.writeTwins(true, true);
-        const auto stages = vsgUtil::readPassStages(sRed, folder.slangOptions());
+        const auto stages = vsgUtil::readPassStages(sRed, folder.options());
         ASSERT_EQ(stages.size(), 2u);
         EXPECT_EQ(stages[0]->module->code, sVertexTwin);
         EXPECT_EQ(stages[1]->module->code, sFragmentTwin);
@@ -192,82 +123,80 @@ namespace
         EXPECT_TRUE(stages[1]->module->source.empty());
         EXPECT_EQ(stages[0]->stage, VK_SHADER_STAGE_VERTEX_BIT);
         EXPECT_EQ(stages[1]->stage, VK_SHADER_STAGE_FRAGMENT_BIT);
+        EXPECT_EQ(stages[0]->entryPointName, "main");
         EXPECT_EQ(stages[0]->specializationConstants.count(1004), 1u);
         EXPECT_EQ(stages[1]->specializationConstants.count(1004), 1u);
     }
 
-    TEST(PassStages, a_stage_without_a_twin_keeps_the_glsl_in_every_stage)
+    TEST(PassStages, a_name_the_stage_does_not_import_is_not_part_of_the_set)
+    {
+        PassFolder folder;
+        folder.writeTwins(true, true, true);
+        const auto stages
+            = vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/pass.frag", { "BLUE" } } }, folder.options());
+        ASSERT_EQ(stages.size(), 2u);
+        EXPECT_EQ(stages[1]->module->code, sPlainFragmentTwin);
+        const auto red = vsgUtil::readPassStages(sRed, folder.options());
+        ASSERT_EQ(red.size(), 2u);
+        EXPECT_EQ(red[1]->module->code, sFragmentTwin);
+    }
+
+    TEST(PassStages, a_stage_without_a_twin_gives_no_stages_in_either_position)
     {
         for (const bool vertexTwin : { true, false })
         {
             SCOPED_TRACE(vertexTwin ? "only the vertex twin" : "only the fragment twin");
             PassFolder folder;
             folder.writeTwins(vertexTwin, !vertexTwin);
-            const auto stages = vsgUtil::readPassStages(sRed, folder.slangOptions());
-            ASSERT_EQ(stages.size(), 2u);
-            EXPECT_EQ(stages[0]->module->code, compiledAlone(VK_SHADER_STAGE_VERTEX_BIT, sVertex, ""));
-            EXPECT_EQ(stages[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, "#define RED\n"));
-            EXPECT_TRUE(stages[0]->specializationConstants.empty());
-            EXPECT_TRUE(stages[1]->specializationConstants.empty());
+            std::string error;
+            EXPECT_TRUE(vsgUtil::readPassStages(sRed, folder.options(), &error).empty());
+            EXPECT_NE(error.find(vertexTwin ? "post/pass.frag" : "post/pass.vert"), std::string::npos) << error;
         }
     }
 
-    TEST(PassStages, an_unlisted_set_or_the_switch_off_keeps_the_glsl)
+    TEST(PassStages, an_unlisted_set_gives_no_stages_and_names_the_stage)
     {
         PassFolder folder;
-        folder.writeTwins(true, true);
-        // The fragment twin is built for RED only.
-        const auto unlisted
-            = vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/pass.frag", {} } }, folder.slangOptions());
-        ASSERT_EQ(unlisted.size(), 2u);
-        EXPECT_EQ(unlisted[0]->module->code, compiledAlone(VK_SHADER_STAGE_VERTEX_BIT, sVertex, ""));
-        EXPECT_EQ(unlisted[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, ""));
-        const auto off = vsgUtil::readPassStages(sRed, folder.options());
-        ASSERT_EQ(off.size(), 2u);
-        EXPECT_EQ(off[1]->module->code, compiledAlone(VK_SHADER_STAGE_FRAGMENT_BIT, sFragment, "#define RED\n"));
-        EXPECT_FALSE(off[1]->module->source.empty());
+        folder.writeTwins(true, true); // the fragment twin is built for RED only
+        std::string error;
+        const auto stages
+            = vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/pass.frag", {} } }, folder.options(), &error);
+        EXPECT_TRUE(stages.empty());
+        EXPECT_NE(error.find("post/pass.frag"), std::string::npos) << error;
     }
 
-    TEST(PassStages, a_missing_file_or_a_compile_error_gives_no_stages)
+    TEST(PassStages, a_stage_the_build_did_not_make_is_named_in_the_error)
     {
         PassFolder folder;
-        EXPECT_TRUE(vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/missing.frag", {} } }, folder.options())
-                        .empty());
-        EXPECT_TRUE(vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/broken.frag", {} } }, folder.options())
-                        .empty());
-        EXPECT_TRUE(vsgUtil::readPassStages({ { "post/pass.vert", {} } }, nullptr).empty());
-    }
-
-    // Review of stage g, finding 5: VSG reports through vsg::Logger, whose default logger writes to stderr with
-    // fprintf, which openmw.log does not show, so the reason comes back to the caller, who logs it. Written before the
-    // implementation.
-    TEST(PassStages, a_missing_file_is_named_in_the_error)
-    {
-        PassFolder folder;
+        folder.writeTwins(true, false);
         std::string error;
         EXPECT_TRUE(
             vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/missing.frag", {} } }, folder.options(), &error)
                 .empty());
         EXPECT_NE(error.find("\"post/missing.frag\""), std::string::npos) << error;
-        EXPECT_NE(error.find("cannot be read"), std::string::npos) << error;
+        EXPECT_NE(error.find("slang-stage"), std::string::npos) << error;
+        EXPECT_TRUE(vsgUtil::readPassStages({ { "post/pass.vert", {} } }, nullptr).empty());
     }
 
-    TEST(PassStages, a_compile_error_gives_the_file_and_glslangs_message)
+    TEST(PassStages, every_call_gets_a_stage_of_its_own_and_the_twin_is_shared)
     {
         PassFolder folder;
-        std::string error;
-        EXPECT_TRUE(
-            vsgUtil::readPassStages({ { "post/pass.vert", {} }, { "post/broken.frag", {} } }, folder.options(), &error)
-                .empty());
-        EXPECT_NE(error.find("\"post/broken.frag\""), std::string::npos) << error;
-        EXPECT_NE(error.find("failed to compile"), std::string::npos) << error;
-        // glslang's own words for sBroken, which assigns to a name it never declares.
-        EXPECT_NE(error.find("undeclared identifier"), std::string::npos) << error;
+        folder.writeTwins(true, true);
+        const auto first = vsgUtil::readPassStages(sRed, folder.options());
+        const auto second = vsgUtil::readPassStages(sRed, folder.options());
+        ASSERT_EQ(first.size(), 2u);
+        ASSERT_EQ(second.size(), 2u);
+        EXPECT_NE(first[1], second[1]);
+        // The twin's SPIR-V is read once and never changed; what is per stage is its constants.
+        EXPECT_EQ(first[1]->module->code, sFragmentTwin);
+        first[1]->specializationConstants.clear();
+        EXPECT_EQ(second[1]->specializationConstants.count(1004), 1u);
     }
 
     TEST(PassStages, a_success_leaves_no_error)
     {
         PassFolder folder;
+        folder.writeTwins(true, true);
         std::string error = "an earlier error";
         EXPECT_EQ(vsgUtil::readPassStages(sRed, folder.options(), &error).size(), 2u);
         EXPECT_TRUE(error.empty()) << error;

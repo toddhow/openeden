@@ -6,6 +6,7 @@
 
 #include <components/pipeline/terrain.hpp>
 #include <components/resource/shadersettings.hpp>
+#include <components/vsgutil/readshader.hpp>
 #include <components/vsgutil/shaderpermutation.hpp>
 #include <components/vsgutil/slangruntime.hpp>
 #include <components/vsgutil/spirvinterface.hpp>
@@ -657,7 +658,7 @@ namespace
         EXPECT_EQ(info.mEntry, "fragMain");
         EXPECT_EQ(info.mStage, "fragment");
         EXPECT_NO_THROW(vsgUtil::parseSlangStageInfo("a.slang\tm\tvertex\r\n"));
-        for (const char* bad : { "", "a.slang\tmain\n", "a.slang\tmain\tvertex\textra\n", "\tmain\tvertex\n",
+        for (const char* bad : { "", "a.slang\tmain\n", "a.slang\tmain\tvertex\tA\textra\n", "\tmain\tvertex\n",
                  "../a.slang\tmain\tvertex\n", "/a.slang\tmain\tvertex\n", "C:/a.slang\tmain\tvertex\n",
                  "a\\b.slang\tmain\tvertex\n", "a.slang\tmain\tvertex\nb.slang\tmain\tvertex\n" })
         {
@@ -1712,62 +1713,33 @@ namespace
         std::filesystem::remove_all(cache);
     }
 
-    // The check the game makes on a twin made at run time, with the GLSL read as the game reads it.
-    std::string gameCheck(
-        const std::string& stage, const std::set<std::string>& names, const std::vector<uint32_t>& words)
+    // Task 0363, stage g: the check the game makes on a twin made at run time is the structure check (there is no GLSL to
+    // compare with); the build compares every listed set with the recorded interface (SlangInterfaceRecords).
+    std::string gameCheck(const std::vector<uint32_t>& words)
     {
-        std::set<std::string> settings;
-        std::set<std::string> requested;
-        const auto settingsNames = Resource::settingsDefineNames();
-        for (const std::string& name : names)
-        {
-            if (name.rfind("UVSETS_", 0) == 0)
-                continue;
-            if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
-                settings.insert(name);
-            else
-                requested.insert(name);
-        }
-        auto options = gameOptions(settings);
-        auto stageObject = vsg::read_cast<vsg::ShaderStage>(stage, options);
-        if (!stageObject || !stageObject->module)
-            return "the GLSL stage cannot be read";
-        const std::string source = stageObject->module->source;
-        const vsgUtil::SlangGlslStage glsl{ source, &requested };
-        return vsgUtil::checkTwinAgainstGlsl(stage, names, glsl, words, options);
+        return vsgUtil::checkSlangTwinStructure(words);
     }
 
-    TEST(SlangRuntimeLibrary, the_check_accepts_every_listed_permutation)
+    TEST(SlangRuntimeLibrary, the_structure_check_accepts_every_listed_permutation)
     {
-        if (!libraryPresent())
-            GTEST_SKIP() << "the Slang library is not in " << OPENEDEN_SLANG_LIBRARY_DIR;
         std::size_t checked = 0;
         for (const Listed& item : allListed())
         {
-            // Sampled: the whole list is compared to the GLSL by SlangPermutations, with its exceptions. A stage with
-            // "slang-only" exceptions (the sky's texture coordinate arrays, which the twins take as one set) is
-            // refused by this check, which allows none: such a set is compiled at run time only when the build lists
-            // it, and an unlisted one keeps the GLSL.
-            const std::string exceptions
-                = readText(std::filesystem::path(OPENEDEN_SHADER_SOURCE_DIR) / (item.mStage + ".interface-exceptions"));
-            if (++checked % 5 != 0 || exceptions.find("\nslang-only:") != std::string::npos
-                || exceptions.find("] slang-only:") != std::string::npos)
-                continue;
             SCOPED_TRACE(item.mStage + " [" + item.mSet + "]");
-            EXPECT_EQ(gameCheck(item.mStage, namesOf(item.mSet), readWords(item.mFile)), "");
+            EXPECT_EQ(gameCheck(readWords(item.mFile)), "");
+            ++checked;
         }
+        EXPECT_GT(checked, 100u);
     }
 
-    TEST(SlangRuntimeLibrary, the_check_refuses_a_twin_that_declares_what_the_glsl_does_not)
+    TEST(SlangRuntimeLibrary, the_structure_check_refuses_what_is_not_spirv_1_0_without_spec_constant_ops)
     {
-        if (!libraryPresent())
-            GTEST_SKIP() << "the Slang library is not in " << OPENEDEN_SLANG_LIBRARY_DIR;
-        // The GUI's fragment twin against another stage's GLSL: it declares a texture the sky's moon never has.
-        const auto gui = readWords(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "gui" / "gui.frag.pda39a3ee.spv");
-        ASSERT_FALSE(gui.empty());
-        EXPECT_NE(gameCheck("sky/sunglare/main.frag", {}, gui), "");
-        EXPECT_NE(gameCheck("sky/sunglare/main.vert", {}, gui), "");
-        EXPECT_NE(gameCheck("gui/gui.frag", {}, { 1u, 2u, 3u }), "");
+        EXPECT_NE(gameCheck({ 1u, 2u, 3u }), "");
+        EXPECT_NE(gameCheck({}), "");
+        auto words = readWords(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "gui" / "gui.frag.pda39a3ee.spv");
+        ASSERT_FALSE(words.empty());
+        words[1] = 0x00010300u; // SPIR-V 1.3
+        EXPECT_NE(gameCheck(words), "");
     }
 
     TEST(SlangRuntimeLibrary, sets_the_build_never_listed_compile_and_pass_the_check)
@@ -1844,7 +1816,7 @@ namespace
             const auto names = namesOf(canonical);
             const auto words = runtime->obtain(requestFor(stage, names),
                 SlangRuntimeCheck{
-                    "test", [&](const std::vector<uint32_t>& result) { return gameCheck(stage, names, result); } });
+                    "test", [&](const std::vector<uint32_t>& result) { return gameCheck(result); } });
             if (words.empty())
                 refused.push_back(stage + " [" + canonical + "]");
             else
@@ -1858,57 +1830,24 @@ namespace
 
     // ---- Review of stage h, round 4 (findings 4, 5, 9 and 12): written before the code they test. ----
 
-    // The names a stage is compiled with, split as the game does: the settings defines come from a settings file, the
-    // rest are requested of the pipeline. Owns the GLSL source the SlangGlslStage views.
-    struct OwnedGlsl
-    {
-        vsg::ref_ptr<vsg::Options> mOptions;
-        std::string mSource;
-        std::set<std::string> mRequested;
-        vsgUtil::SlangGlslStage mStage;
-    };
-
-    std::unique_ptr<OwnedGlsl> glslFor(const std::string& stage, const std::set<std::string>& names)
-    {
-        auto owned = std::make_unique<OwnedGlsl>();
-        std::set<std::string> settings;
-        const auto settingsNames = Resource::settingsDefineNames();
-        for (const std::string& name : names)
-        {
-            if (name.rfind("UVSETS_", 0) == 0)
-                continue;
-            if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
-                settings.insert(name);
-            else
-                owned->mRequested.insert(name);
-        }
-        owned->mOptions = gameOptions(settings);
-        auto stageObject = vsg::read_cast<vsg::ShaderStage>(stage, owned->mOptions);
-        if (!stageObject || !stageObject->module)
-            return nullptr;
-        owned->mSource = stageObject->module->source;
-        owned->mStage = vsgUtil::SlangGlslStage{ owned->mSource, &owned->mRequested };
-        return owned;
-    }
-
     // A set of the object shader's fragment stage that the build does not list (checked), and that compiles.
     const std::set<std::string> unlistedObjectFragment
         = { "DARK_MAP", "DETAIL_MAP", "DIFFUSE_MAP", "GLOW_MAP", "MATERIAL", "NORMAL", "TEXCOORD", "UVSETS_1" };
-    // A vertex set the check refuses (GBUFFER_MOTION comes with SKIN only), and one that is fine.
-    const std::set<std::string> refusedObjectVertex = { "GBUFFER_MOTION", "NORMAL", "TEXCOORD", "UVSETS_1", "VERTEX" };
+    // A vertex set Slang cannot compile (the texture coordinate arrays are declared without a count: lib/inout.slang
+    // stops with #error), and one that is fine.
+    const std::set<std::string> failingObjectVertex = { "NORMAL", "TEXCOORD", "VERTEX" };
     const std::set<std::string> unlistedObjectVertex = { "BILLBOARD", "NORMAL", "TEXCOORD", "UVSETS_1", "VERTEX" };
 
     // Asks the way a pipeline does and keeps asking while the answer is "pending" (queue item 3 of decision 0012: an
     // unlisted set is compiled on the worker, the first answer is null). `sawPending` says whether it was ever pending.
     vsg::ref_ptr<vsg::ShaderModule> findWaiting(const std::string& stage, const std::set<std::string>& names,
-        const vsg::ref_ptr<const vsg::Options>& options, const vsgUtil::SlangGlslStage* glsl,
-        bool* sawPending = nullptr)
+        const vsg::ref_ptr<const vsg::Options>& options, bool* sawPending = nullptr)
     {
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
         for (;;)
         {
             bool pending = false;
-            auto module = vsgUtil::findSlangPermutation(stage, names, options, glsl, &pending);
+            auto module = vsgUtil::findSlangPermutation(stage, names, options, true, &pending);
             if (module || !pending || std::chrono::steady_clock::now() > deadline)
                 return module;
             if (sawPending != nullptr)
@@ -1976,19 +1915,17 @@ namespace
         const auto manifest = vsgUtil::parsePermutationManifest(
             readText(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "default" / "main.frag.permutations"));
         ASSERT_FALSE(vsgUtil::selectPermutation(manifest, unlistedObjectFragment)) << "the test's set is listed now";
-        auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
-        ASSERT_NE(glsl, nullptr);
-        // Review round 4, finding 12: asked once with no GLSL to check against (a trace), the set stays eligible.
+        // Review round 4, finding 12: asked once by a caller that does not compile (a trace), the set stays eligible.
         EXPECT_EQ(vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions), nullptr);
         bool pending = false;
         {
             // The first answer is "pending" at once; the compile is on the worker.
             auto first = vsgUtil::findSlangPermutation(
-                "default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage, &pending);
+                "default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending);
             EXPECT_EQ(first, nullptr);
             EXPECT_TRUE(pending);
         }
-        auto module = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
+        auto module = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions);
         ASSERT_NE(module, nullptr);
         EXPECT_FALSE(module->code.empty());
         EXPECT_EQ(game.runtime()->stats().mCompiled, 1u);
@@ -1996,13 +1933,13 @@ namespace
         EXPECT_TRUE(game.mWarnings.empty()) << game.mWarnings.front();
         // The same module while something holds it.
         EXPECT_EQ(
-            vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage),
+            vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true),
             module);
         // Once nothing holds it, the next call reads the cache and does not compile.
         const auto words = module->code;
         module = nullptr;
         auto again
-            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
+            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true);
         ASSERT_NE(again, nullptr);
         EXPECT_EQ(again->code, words);
         EXPECT_EQ(game.runtime()->stats().mCompiled, 1u);
@@ -2010,35 +1947,29 @@ namespace
             << "one when the pipeline asked again after the worker finished, one for the re-read";
     }
 
-    TEST(SlangRuntimeLibrary, a_refused_set_falls_back_to_the_glsl_for_both_stages_and_is_not_asked_again)
+    TEST(SlangRuntimeLibrary, a_failed_set_gives_no_twin_for_either_stage_and_is_not_asked_again)
     {
         GameRuntime game("openeden_slangruntime_fallback");
         ASSERT_NE(game.runtime(), nullptr);
-        auto vertexGlsl = glslFor("default/main.vert", refusedObjectVertex);
-        auto fragmentGlsl = glslFor("default/main.frag", unlistedObjectFragment);
-        ASSERT_NE(vertexGlsl, nullptr);
-        ASSERT_NE(fragmentGlsl, nullptr);
-        const auto vertex = findWaiting("default/main.vert", refusedObjectVertex, game.mOptions, &vertexGlsl->mStage);
-        const auto fragment
-            = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions, &fragmentGlsl->mStage);
-        EXPECT_EQ(vertex, nullptr) << "GBUFFER_MOTION without SKIN is refused";
+        const auto vertex = findWaiting("default/main.vert", failingObjectVertex, game.mOptions);
+        const auto fragment = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions);
+        EXPECT_EQ(vertex, nullptr) << "texture coordinates without a count do not compile";
         ASSERT_NE(fragment, nullptr);
         ASSERT_EQ(game.mWarnings.size(), 1u);
         EXPECT_NE(game.mWarnings[0].find("default/main.vert"), std::string::npos) << game.mWarnings[0];
-        // The pipeline: a GLSL vertex stage and a GLSL fragment stage; the fragment has a twin and the vertex has not.
-        vsg::ShaderStages stages = { vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", vertexGlsl->mSource),
-            vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", fragmentGlsl->mSource) };
+        // The pipeline: two stages with no code; the fragment has a twin and the vertex has not, so nothing is taken
+        // (task 0363, stage g: there is no GLSL to draw with, Pipeline::Graphics gives an error).
+        vsg::ShaderStages stages = { vsgUtil::readShader("default/main.vert", nullptr),
+            vsgUtil::readShader("default/main.frag", nullptr) };
         const auto vertexModule = stages[0]->module;
         const auto fragmentModule = stages[1]->module;
         EXPECT_FALSE(vsgUtil::takeSlangTwinsTogether(stages, { vertex, fragment }));
         EXPECT_EQ(stages[0]->module, vertexModule);
-        EXPECT_EQ(stages[1]->module, fragmentModule) << "the fragment stage keeps its GLSL too";
+        EXPECT_EQ(stages[1]->module, fragmentModule) << "the fragment stage does not take its twin alone";
         EXPECT_TRUE(stages[1]->module->code.empty());
-        // Asked again, the refused set is answered at once: no second compile, no second warning.
+        // Asked again, the failed set is answered at once: no second compile, no second warning.
         const auto before = game.runtime()->stats();
-        EXPECT_EQ(
-            vsgUtil::findSlangPermutation("default/main.vert", refusedObjectVertex, game.mOptions, &vertexGlsl->mStage),
-            nullptr);
+        EXPECT_EQ(vsgUtil::findSlangPermutation("default/main.vert", failingObjectVertex, game.mOptions, true), nullptr);
         EXPECT_EQ(game.runtime()->stats().mFailed, before.mFailed);
         EXPECT_EQ(game.runtime()->stats().mCompiled, before.mCompiled);
         EXPECT_EQ(game.mWarnings.size(), 1u);
@@ -2070,9 +2001,7 @@ namespace
         {
             SCOPED_TRACE(stage + " [" + vsgUtil::canonicalDefines(names) + "]");
             ASSERT_FALSE(vsgUtil::selectPermutation(manifests(stage), names)) << "listed now: not an unlisted set";
-            auto glsl = glslFor(stage, names);
-            ASSERT_NE(glsl, nullptr);
-            const auto module = findWaiting(stage, names, game.mOptions, &glsl->mStage);
+            const auto module = findWaiting(stage, names, game.mOptions);
             if (module)
                 ++compiled;
         }
@@ -2091,11 +2020,9 @@ namespace
         const auto manifest = vsgUtil::parsePermutationManifest(
             readText(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "default" / "main.vert.permutations"));
         ASSERT_FALSE(vsgUtil::selectPermutation(manifest, names)) << "the test's set is listed now";
-        auto glsl = glslFor("default/main.vert", names);
-        ASSERT_NE(glsl, nullptr);
-        auto stage = vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", glsl->mSource);
+        auto stage = vsgUtil::readShader("default/main.vert", nullptr);
         stage->module->hints = vsg::ShaderCompileSettings::create();
-        stage->module->hints->defines = glsl->mRequested;
+        stage->module->hints->defines = names;
         const auto choice = vsgUtil::attachSlangStageChoice(*stage, "default/main.vert", game.mOptions);
         ASSERT_NE(choice, nullptr);
         ASSERT_FALSE(choice->byPipeline);
@@ -2147,10 +2074,8 @@ namespace
         for (std::size_t i = 0; i < sets.size(); ++i)
         {
             SCOPED_TRACE(i);
-            auto glsl = glslFor("default/main.frag", sets[i]);
-            ASSERT_NE(glsl, nullptr);
             const auto begin = std::chrono::steady_clock::now();
-            auto module = findWaiting("default/main.frag", sets[i], game.mOptions, &glsl->mStage);
+            auto module = findWaiting("default/main.frag", sets[i], game.mOptions);
             const double ms
                 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
             ASSERT_NE(module, nullptr) << "compiles after " << releases << " releases";
@@ -2179,18 +2104,16 @@ namespace
         GameRuntime game("openeden_slangruntime_firstcompile");
         ASSERT_NE(game.runtime(), nullptr);
         noWait(game); // the older, non-waiting path (stage f)
-        auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
-        ASSERT_NE(glsl, nullptr);
         const auto start = std::chrono::steady_clock::now();
         bool pending = false;
         EXPECT_EQ(vsgUtil::findSlangPermutation(
-                      "default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage, &pending),
+                      "default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending),
             nullptr);
         const double askMs
             = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         EXPECT_TRUE(pending);
         EXPECT_LT(askMs, 100.0) << "the asking thread does not wait for the library or the compile";
-        const auto module = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
+        const auto module = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions);
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         ASSERT_NE(module, nullptr);
         std::cout << "[ info ] first request returned after " << askMs << " ms; the Slang version was ready after "
@@ -2210,12 +2133,10 @@ namespace
         settings.mMainThread = std::chrono::seconds(60); // the first compile loads the library and runs the self-tests
         settings.mObserver = [&](bool begin) { ++(begin ? begins : ends); };
         game.runtime()->setWaitSettings(settings);
-        auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
-        ASSERT_NE(glsl, nullptr);
         bool pending = true;
         const auto start = std::chrono::steady_clock::now();
         const auto module = vsgUtil::findSlangPermutation(
-            "default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage, &pending);
+            "default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending);
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         ASSERT_NE(module, nullptr) << "a wait that ends in a module, not a null with `pending`";
         EXPECT_FALSE(pending);
@@ -2228,10 +2149,10 @@ namespace
         std::cout << "[ info ] the first request waited " << ms << " ms (library start, self-tests and the compile)\n";
     }
 
-    TEST(SlangRuntimeLibrary, a_set_the_runtime_refuses_ends_the_wait_with_no_module_and_no_pending)
+    TEST(SlangRuntimeLibrary, a_set_that_fails_ends_the_wait_with_no_module_and_no_pending)
     {
-        // The refused-set path of the older test, now through the wait: the answer is "none, for good", so the caller
-        // (until stage g deletes the GLSL) draws the GLSL, and nothing is waited for again.
+        // The failed-set path of the older test, now through the wait: the answer is "none, for good", so the caller
+        // has no twin (Pipeline::Graphics leaves the model out, task 0363 stage g), and nothing is waited for again.
         GameRuntime game("openeden_slangruntime_waitrefused");
         ASSERT_NE(game.runtime(), nullptr);
         vsgUtil::SlangWaitSettings settings;
@@ -2239,21 +2160,19 @@ namespace
         game.runtime()->setWaitSettings(settings);
         // another set than the older test's (the module entries of a process outlive a test: a refused set is
         // remembered for the process)
-        std::set<std::string> refused = refusedObjectVertex;
+        std::set<std::string> refused = failingObjectVertex;
         refused.insert("COLOR");
-        auto glsl = glslFor("default/main.vert", refused);
-        ASSERT_NE(glsl, nullptr);
         bool pending = true;
         EXPECT_EQ(vsgUtil::findSlangPermutation(
-                      "default/main.vert", refused, game.mOptions, &glsl->mStage, &pending),
+                      "default/main.vert", refused, game.mOptions, true, &pending),
             nullptr)
-            << "GBUFFER_MOTION without SKIN is refused";
-        EXPECT_FALSE(pending) << "refused is an answer, not a wait that ran out";
+            << "texture coordinates without a count do not compile";
+        EXPECT_FALSE(pending) << "a failure is an answer, not a wait that ran out";
         const auto waits = game.runtime()->stats().mWaits;
         EXPECT_EQ(waits, 1u);
         pending = true;
         EXPECT_EQ(vsgUtil::findSlangPermutation(
-                      "default/main.vert", refused, game.mOptions, &glsl->mStage, &pending),
+                      "default/main.vert", refused, game.mOptions, true, &pending),
             nullptr);
         EXPECT_FALSE(pending);
         EXPECT_EQ(game.runtime()->stats().mWaits, waits) << "and not waited for again";

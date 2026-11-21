@@ -71,7 +71,7 @@ namespace
         {
             if (bind.pipeline)
                 for (const auto& stage : bind.pipeline->stages)
-                    if (const auto* found = vsgUtil::glslDefinesOf(*stage))
+                    if (const auto* found = vsgUtil::requestedDefinesOf(*stage))
                         defines.insert(found->begin(), found->end());
             bind.traverse(*this);
         }
@@ -129,7 +129,7 @@ namespace
     struct TreeSwayBuildTest : ::testing::Test
     {
         vsg::ref_ptr<const vsg::Options> mShaderOptions = Resource::createShaderOptions(
-            (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders").string(), "");
+            std::string(OPENEDEN_SHADER_BUILD_DIR), "");
         Pipeline::Builder mBuilder{ mShaderOptions, vsg::Sampler::create() };
         vsg::ref_ptr<vsgAdapters::nif> mReader
             = vsg::ref_ptr{ new vsgAdapters::nif(mBuilder, vsg::Options::create(), 0, 0) };

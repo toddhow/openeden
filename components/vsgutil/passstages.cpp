@@ -41,62 +41,39 @@ namespace vsgUtil
     {
         if (error)
             error->clear();
-        const bool preferSlang = prefersSlang(options.get());
         vsg::ShaderStages result;
         std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins;
         for (const PassStage& pass : stages)
         {
-            vsg::ref_ptr<vsg::ShaderStage> shared;
+            // A stage of its own for every caller (nothing is shared, see readShader).
+            vsg::ref_ptr<vsg::ShaderStage> stage;
             try
             {
-                shared = readShader(pass.mPath, options);
+                stage = readShader(pass.mPath, options);
+                recordShaderUse(pass.mPath, pass.mDefines, options);
+                twins.push_back(slangTwin(pass.mPath, pass.mDefines, options));
             }
             catch (const std::exception& e)
             {
-                return fail(error, "The shader stage \"" + pass.mPath + "\" cannot be read: " + e.what());
+                return fail(error, "The shader stage \"" + pass.mPath + "\" cannot be made: " + e.what());
             }
-            if (!shared->module || shared->module->source.empty())
-                return fail(error, "The shader stage \"" + pass.mPath + "\" has no GLSL source");
-            recordShaderUse(pass.mPath, pass.mDefines, shared.get(), options);
-            // The reader may share `shared` (the shader options keep shared objects). Compiled in place, every variant
-            // would share its module: each compile overwrites the module's code (vsg::ShaderCompiler::compile always
-            // regenerates it), and vsg::ShaderModule::compile makes the module's Vulkan object once per device, from
-            // the code it holds then, so the variants would draw one another's code. So every caller gets a stage and
-            // a module of its own, made from the source alone as the passes made theirs (task 0072, review of stage g).
-            auto module = vsg::ShaderModule::create(shared->module->source);
-            auto stage = vsg::ShaderStage::create(shared->stage, shared->entryPointName, module);
-            stage->specializationConstants = shared->specializationConstants;
             result.push_back(stage);
-            twins.push_back(slangTwin(pass.mPath, pass.mDefines, shared->module->source, preferSlang, options));
         }
         if (result.empty())
             return {};
-        // A pipeline takes the twins of all its stages or none (task 0072, stage f).
-        if (takeSlangTwinsTogether(result, twins))
+        // A pipeline takes the twins of all its stages (task 0072, stage f); task 0363, stage g: there is no GLSL to
+        // compile instead, so a stage with no twin gives no stages and the reason.
+        if (!takeSlangTwinsTogether(result, twins))
         {
-            for (const auto& stage : result)
-                addSettingsConstants(*stage, options.get());
-            return result;
-        }
-        // Each stage on its own, as the passes compiled their strings: no program is linked.
-        auto compiler = vsg::ShaderCompiler::create();
-        for (std::size_t i = 0; i < result.size(); ++i)
-        {
-            const std::vector<std::string> defines(stages[i].mDefines.begin(), stages[i].mDefines.end());
-            std::string message;
-            bool compiled = false;
+            for (std::size_t i = 0; i < twins.size(); ++i)
             {
-                const CompilerMessageCapture capture(message);
-                compiled = compiler->compile(result[i], defines, options);
+                if (!twins[i])
+                    return fail(error, missingTwinText(stages[i].mPath, stages[i].mDefines, options));
             }
-            if (!compiled)
-            {
-                const std::string glslang = trimmed(message);
-                return fail(error,
-                    "The shader stage \"" + stages[i].mPath + "\" failed to compile"
-                        + (glslang.empty() ? std::string(" (glslang gave no message)") : ": " + glslang));
-            }
+            return fail(error, "The shader stages cannot be made");
         }
+        for (const auto& stage : result)
+            addSettingsConstants(*stage, options.get());
         return result;
     }
 
@@ -112,7 +89,7 @@ namespace vsgUtil
         vsg::ref_ptr<vsg::ShaderStage> shared;
         try
         {
-            shared = readShader(omwfxVertexPath, options);
+            shared = readGlslShader(omwfxVertexPath, options);
         }
         catch (const std::exception& e)
         {
@@ -120,10 +97,19 @@ namespace vsgUtil
         }
         if (!shared->module || shared->module->source.empty())
             return failed(std::string("The shader stage \"") + omwfxVertexPath + "\" has no GLSL source");
-        recordShaderUse(omwfxVertexPath, {}, shared.get(), options);
+        recordShaderUse(omwfxVertexPath, {}, options);
 
         // A stage and a module of its own for every caller (see readPassStages): the options share what they read.
-        if (auto twin = slangTwin(omwfxVertexPath, {}, shared->module->source, prefersSlang(options.get()), options))
+        // A folder with no .slang-stage file for it (the editor's tests, a mod's own copy) has no twin: the GLSL stays.
+        vsg::ref_ptr<vsg::ShaderModule> twin;
+        try
+        {
+            twin = slangTwin(omwfxVertexPath, {}, options);
+        }
+        catch (const std::exception&)
+        {
+        }
+        if (twin)
         {
             // The twin is shared too (findSlangPermutation caches it), so the stage gets a copy: SPIR-V and no GLSL
             // source, so that vsg::GraphicsPipeline::compile finds nothing to link (see the header).

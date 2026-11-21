@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -545,12 +546,31 @@ namespace vsgUtil
             throw std::invalid_argument("a .slang-stage file has one line");
         SlangStageInfo info;
         std::istringstream in(line);
+        std::string imports;
         std::string extra;
         if (!std::getline(in, info.mSource, '\t') || !std::getline(in, info.mEntry, '\t')
-            || !std::getline(in, info.mStage, '\t') || std::getline(in, extra, '\t'))
-            throw std::invalid_argument("a .slang-stage line is <source> <entry> <stage>, separated by tabs");
-        if (info.mSource.empty() || info.mEntry.empty() || info.mStage.empty())
+            || !std::getline(in, info.mStage, '\t'))
+            throw std::invalid_argument("a .slang-stage line is <source> <entry> <stage> [<imports>], separated by tabs");
+        const bool hasImports = static_cast<bool>(std::getline(in, imports, '\t'));
+        if (hasImports && std::getline(in, extra, '\t'))
+            throw std::invalid_argument("a .slang-stage line is <source> <entry> <stage> [<imports>], separated by tabs");
+        if (info.mSource.empty() || info.mEntry.empty() || info.mStage.empty() || (hasImports && imports.empty()))
             throw std::invalid_argument("a .slang-stage line has an empty field");
+        if (hasImports && imports != "-")
+        {
+            std::istringstream names(imports);
+            for (std::string name; names >> name;)
+            {
+                const bool identifier = !name.empty() && name.size() <= 64
+                    && (std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')
+                    && std::all_of(name.begin(), name.end(), [](char c) {
+                           return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+                       });
+                if (!identifier)
+                    throw std::invalid_argument("a .slang-stage import \"" + name + "\" is not a define name");
+                info.mImports.insert(name);
+            }
+        }
         if (info.mSource.find("..") != std::string::npos || info.mSource.front() == '/'
             || info.mSource.find(':') != std::string::npos || info.mSource.find('\\') != std::string::npos)
             throw std::invalid_argument("a .slang-stage source must stay inside the shader folder");
