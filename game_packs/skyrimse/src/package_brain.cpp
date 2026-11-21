@@ -1492,10 +1492,10 @@ namespace game_skyrimse
                     actor.mPackages.clear();
                 actor.mEvaluatedOnce = false;
             }
-            else if (const std::uint64_t revision = mSource.packageListRevision(); revision != actor.mListRevision)
+            else if (const std::uint64_t listRevision = mSource.packageListRevision(); listRevision != actor.mListRevision)
             {
                 // task 0274: a quest started or moved on; a list that really changed is evaluated again
-                actor.mListRevision = revision;
+                actor.mListRevision = listRevision;
                 std::vector<const PackageRecord*> now;
                 if (!mSource.packagesForReference(key, actor.mBase, now))
                     now.clear();

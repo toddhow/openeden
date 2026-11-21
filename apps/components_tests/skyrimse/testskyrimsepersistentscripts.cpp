@@ -82,7 +82,7 @@ namespace
     }
 
     // CELL top group > block > sub-block > cell record + children group.
-    Bytes interiorCellGroup(std::uint32_t cellId, const Bytes& cellRec, const Bytes& persistent, const Bytes& temporary)
+    [[maybe_unused]] Bytes interiorCellGroup(std::uint32_t cellId, const Bytes& cellRec, const Bytes& persistent, const Bytes& temporary)
     {
         Bytes sub = cellRec;
         sub.append(childrenGroup(cellId, persistent, temporary));
@@ -201,7 +201,7 @@ namespace
         persistent.append(refrWithScript(0x00000D01, stat, 0x400, 100, 100)); // grid (0, 0)
         persistent.append(refrWithScript(0x00000D02, stat, 0x400, 5000, 100)); // grid (1, 0)
         Bytes bytes = header(Content::sRecMaster);
-        bytes.append(topGroup("STAT", modelRecord("STAT", stat, "StoneWall", "architecture\wall.nif")));
+        bytes.append(topGroup("STAT", modelRecord("STAT", stat, "StoneWall", "architecture/wall.nif")));
         bytes.append(worldGroup(world, "TestWorld", pcell, persistent,
             { { g00, 0, 0, "TestWorldX0Y0", refrWithScript(0x00000D10, stat, 0, 10, 10) },
                 { g10, 1, 0, "TestWorldX1Y0", refr(0x00000D11, stat, 0, 4100, 10) } }));

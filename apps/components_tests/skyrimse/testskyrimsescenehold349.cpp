@@ -48,7 +48,7 @@ namespace
         return sub4(type, Bytes());
     }
 
-    Bytes ctda(std::uint16_t function, float value, std::uint32_t p1 = 0, std::uint32_t p2 = 0)
+    [[maybe_unused]] Bytes ctda(std::uint16_t function, float value, std::uint32_t p1 = 0, std::uint32_t p2 = 0)
     {
         Bytes b;
         b.u8(0x00).u8(0).u8(0).u8(0).f32(value);
@@ -232,13 +232,13 @@ namespace
         std::vector<std::string> mLog;
     };
 
-    SceneLine line(const std::string& text)
+    [[maybe_unused]] SceneLine line(const std::string& text)
     {
         return SceneLine{ text, { "a/" + text + ".fuz" } };
     }
 
     // dialogue in phases 0 and 1, spoken by alias 1 then alias 2
-    Parsed twoLines(std::uint32_t flags = 0, const Bytes& vmad = Bytes(), const Bytes& completion0 = Bytes())
+    [[maybe_unused]] Parsed twoLines(std::uint32_t flags = 0, const Bytes& vmad = Bytes(), const Bytes& completion0 = Bytes())
     {
         return Parsed({ scenRecord(kScene, flags, { phase(Bytes(), completion0), phase() }, { 1, 2 },
             { dialogueAction(1, 1, 0, kTopicA), dialogueAction(2, 2, 1, kTopicB) }, kQuest, Bytes(), vmad) });

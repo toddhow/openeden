@@ -308,13 +308,13 @@ TEST(SkyrimNativeCoverage, survey_of_the_natives_the_games_scripts_call)
                 const auto parsed = ScriptPapyrus::Pex::parse(bytes, name + ".pex");
                 if (!parsed.mOk)
                     continue;
-                const auto& file = parsed.mFile;
-                const auto& object = file.mObjects[0];
+                const auto& pexFile = parsed.mFile;
+                const auto& object = pexFile.mObjects[0];
                 for (const auto& state : object.mStates)
                     for (const auto& function : state.mFunctions)
                         if (function.isNative())
-                            natives.insert(ScriptPapyrus::Pex::lowered(file.str(object.mName)) + "."
-                                + ScriptPapyrus::Pex::lowered(file.str(function.mName)));
+                            natives.insert(ScriptPapyrus::Pex::lowered(pexFile.str(object.mName)) + "."
+                                + ScriptPapyrus::Pex::lowered(pexFile.str(function.mName)));
             }
             return natives;
         };

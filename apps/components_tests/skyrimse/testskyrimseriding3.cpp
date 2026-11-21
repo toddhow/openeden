@@ -111,8 +111,8 @@ namespace
         float mCarryHeading = 0.f;
         PairedStatus mMountStatus = PairedStatus::Ready;
         PairedStatus mDismountStatus = PairedStatus::Ready;
-        PairedClipInfo mMountInfo{ 1.5f, { -63.5, 0.0, 0.0, -kPi / 2 }, { 1.7, 4.1, 130.4, 0.0 } };
-        PairedClipInfo mDismountInfo{ 2.0f, { 1.7, 4.4, 130.4, 0.0 }, { -111.6, 10.1, 0.2, 0.0 } };
+        PairedClipInfo mMountInfo{ 1.5f, { -63.5, 0.0, 0.0, -kPi / 2 }, { 1.7, 4.1, 130.4, 0.0 }, {}, {} };
+        PairedClipInfo mDismountInfo{ 2.0f, { 1.7, 4.4, 130.4, 0.0 }, { -111.6, 10.1, 0.2, 0.0 }, {}, {} };
         std::vector<std::pair<WorldId, std::string>> mPlays;
     };
 

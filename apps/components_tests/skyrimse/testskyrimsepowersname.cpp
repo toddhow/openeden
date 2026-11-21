@@ -154,9 +154,9 @@ namespace
             h.mPowers = [this](const std::vector<FormId>& spells) {
                 mAsked.push_back(spells);
                 std::vector<PowerInfo> out;
-                out.push_back({ kPowerHeal, "HealPower", PowerSupport::Works });
-                out.push_back({ kPowerNight, "NightEyePower", PowerSupport::Unsupported });
-                out.push_back({ kPowerRage, "RagePower", PowerSupport::StatusOnly });
+                out.push_back({ kPowerHeal, "HealPower", PowerSupport::Works, {} });
+                out.push_back({ kPowerNight, "NightEyePower", PowerSupport::Unsupported, {} });
+                out.push_back({ kPowerRage, "RagePower", PowerSupport::StatusOnly, {} });
                 return out;
             };
             h.mCastPower = [this](FormId id) {

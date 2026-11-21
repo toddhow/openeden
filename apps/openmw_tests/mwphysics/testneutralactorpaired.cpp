@@ -159,7 +159,7 @@ namespace
         struct Nothing final : PairedWriter
         {
         } nothing;
-        PairedClipInfo info{ 9.f, {}, {} };
+        PairedClipInfo info{ 9.f, {}, {}, {}, {} };
         EXPECT_EQ(nothing.pairedClipInfo("~1/a", info), PairedStatus::Failed);
         EXPECT_EQ(info.duration, 0.f);
         EXPECT_FALSE(nothing.playPairedClip(ActorHandle{}, "~1/a"));

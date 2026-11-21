@@ -195,7 +195,7 @@ namespace
         }
     };
 
-    std::uint32_t idOf(const Turn& turn, const std::string& name)
+    [[maybe_unused]] std::uint32_t idOf(const Turn& turn, const std::string& name)
     {
         for (const auto& t : turn.topics)
             if (t.text == name)
@@ -207,7 +207,7 @@ namespace
     constexpr FormId kBranchB = kSelf | 0x501;
     constexpr FormId kTopicB = kSelf | 0x330; // the higher id
 
-    std::vector<std::string> names(const Turn& turn)
+    [[maybe_unused]] std::vector<std::string> names(const Turn& turn)
     {
         std::vector<std::string> out;
         for (const auto& t : turn.topics)

@@ -276,7 +276,9 @@ namespace
             in.mPlayerZ = 20.0;
             out = flight.step(in);
             if (i == 0)
+            {
                 EXPECT_EQ(flight.phase(), dragons::Phase::Approach) << "not engaged: the approach begins at once";
+            }
             if (out.mPlace)
             {
                 x = out.mX;
@@ -747,6 +749,8 @@ namespace
         run(30);
         for (std::size_t i = before; i < mMoves.size(); ++i)
             if (mMoves[i].mKind == Kind::GoTo)
+            {
                 EXPECT_FALSE(mMoves[i].mDirect);
+            }
     }
 }

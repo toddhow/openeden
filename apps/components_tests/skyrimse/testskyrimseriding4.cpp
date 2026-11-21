@@ -53,8 +53,8 @@ namespace
         }
         bool playPairedClip(ActorHandle, std::string_view) override { return true; }
 
-        PairedClipInfo mMount{ 1.5f, { -63.5, 0.0, 0.0, -kPi / 2 }, { 1.7, 4.1, 130.4, 0.0 } };
-        PairedClipInfo mDismount{ 2.0f, { 1.7, 4.4, 130.4, 0.0 }, { -111.6, 10.1, 0.2, 0.0 } };
+        PairedClipInfo mMount{ 1.5f, { -63.5, 0.0, 0.0, -kPi / 2 }, { 1.7, 4.1, 130.4, 0.0 }, {}, {} };
+        PairedClipInfo mDismount{ 2.0f, { 1.7, 4.4, 130.4, 0.0 }, { -111.6, 10.1, 0.2, 0.0 }, {}, {} };
     };
 
     ActorHandle horse()

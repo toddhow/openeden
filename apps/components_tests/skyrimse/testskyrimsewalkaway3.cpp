@@ -244,7 +244,7 @@ namespace
     }
 
     /// A HELO greeting whose INFO names `walk` as its walk-away topic, and the walk-away topic with one fragment INFO.
-    Plugin walkPlugin(std::uint32_t walk, bool conditionFails = false)
+    [[maybe_unused]] Plugin walkPlugin(std::uint32_t walk, bool conditionFails = false)
     {
         Plugin p;
         InfoSpec hello = info(0x20, "Hmm?");

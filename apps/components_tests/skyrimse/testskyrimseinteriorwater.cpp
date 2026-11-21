@@ -37,7 +37,7 @@ namespace
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring("Wall")));
         subs.append(sub4("OBND", Bytes().u16(0xFFF6).u16(0xFFF6).u16(0).u16(10).u16(10).u16(20)));
-        subs.append(sub4("MODL", Bytes().zstring("architecture\wall.nif")));
+        subs.append(sub4("MODL", Bytes().zstring("architecture/wall.nif")));
         return record4("STAT", 0, kStat, subs);
     }
 
@@ -46,7 +46,7 @@ namespace
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring("Door")));
         subs.append(sub4("OBND", Bytes().u16(0xFFF6).u16(0xFFF6).u16(0).u16(10).u16(10).u16(20)));
-        subs.append(sub4("MODL", Bytes().zstring("architecture\door.nif")));
+        subs.append(sub4("MODL", Bytes().zstring("architecture/door.nif")));
         return record4("DOOR", 0, kDoor, subs);
     }
 

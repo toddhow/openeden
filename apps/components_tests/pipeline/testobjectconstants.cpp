@@ -105,7 +105,9 @@ namespace
             EXPECT_TRUE(boolOf(on, entry.id)) << entry.define;
             for (const auto& other : plain)
                 if (other.id != entry.id)
+                {
                     EXPECT_FALSE(boolOf(on, other.id)) << entry.define << " set " << other.define;
+                }
         }
     }
 

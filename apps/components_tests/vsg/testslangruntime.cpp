@@ -97,7 +97,7 @@ namespace
             write("shaders/a.slang", "// a\n");
             write("shaders/lib/b.slang", "// b\n");
             mRequest.mStageFile = "default/main.frag";
-            mRequest.mInfo = { "a.slang", "fragMain", "fragment" };
+            mRequest.mInfo = { "a.slang", "fragMain", "fragment", {} };
             mRequest.mDefines = { "DIFFUSE_MAP", "MATERIAL" };
             mRequest.mShaderRoot = mRoot / "shaders";
         }

@@ -39,7 +39,7 @@ namespace
         {
             NifScene::ShaderMaterial m;
             m.mKind = kind;
-            m.mSourceTexture = "textures\effects\flame.dds";
+            m.mSourceTexture = "textures/effects/flame.dds";
             m.mBaseColor = { 1.f, 1.f, 1.f, 1.f };
             m.mBaseColorScale = 1.f;
             m.mFlags2 = ShaderFlags::sDoubleSided;

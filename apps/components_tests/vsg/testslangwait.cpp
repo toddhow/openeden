@@ -97,7 +97,7 @@ namespace
             std::filesystem::create_directories(mRoot / "shaders");
             std::ofstream(mRoot / "shaders" / "a.slang") << "// a\n";
             mRequest.mStageFile = "default/main.frag";
-            mRequest.mInfo = { "a.slang", "fragMain", "fragment" };
+            mRequest.mInfo = { "a.slang", "fragMain", "fragment", {} };
             mRequest.mDefines = { "DIFFUSE_MAP" };
             mRequest.mShaderRoot = mRoot / "shaders";
         }

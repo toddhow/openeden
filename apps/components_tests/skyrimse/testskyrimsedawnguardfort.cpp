@@ -146,8 +146,8 @@ namespace
             mIndex.add(std::move(parsed), FormIdResolver(plugin->header(), "test.esp", order()));
             mState = QuestState::initial(mIndex);
             mVmads[kQuestA] = vmadOf("DgScript");
-            mHost->setQuests(&mIndex, &mState, [this](FormId quest) -> const vmad::Vmad* {
-                const auto it = mVmads.find(quest);
+            mHost->setQuests(&mIndex, &mState, [this](FormId questId) -> const vmad::Vmad* {
+                const auto it = mVmads.find(questId);
                 return it != mVmads.end() ? &it->second : nullptr;
             });
         }

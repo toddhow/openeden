@@ -50,7 +50,7 @@ namespace
     {
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring("DA01VoiceofAzura")));
-        subs.append(sub4("MODL", Bytes().zstring("Markers\XMarker.nif")));
+        subs.append(sub4("MODL", Bytes().zstring("Markers/XMarker.nif")));
         subs.append(sub4("VNAM", Bytes().u32(kVoice)));
         ParsedPlugin plugin;
         ASSERT_TRUE(parse("TACT", subs, plugin));

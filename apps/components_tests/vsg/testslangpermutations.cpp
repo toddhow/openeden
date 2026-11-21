@@ -49,7 +49,7 @@ namespace
         std::ifstream list(built / "slang-permutation-stages.txt", std::ios::binary);
         for (std::string line; std::getline(list, line);)
         {
-            if (!line.empty() && line.back() == '')
+            if (!line.empty() && line.back() == '\r')
                 line.pop_back();
             if (!line.empty())
                 declared.insert(line);

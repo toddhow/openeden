@@ -64,7 +64,9 @@ namespace
             EXPECT_GT(pulls[i].mFraction, 0.f);
             EXPECT_LT(pulls[i].mFraction, 1.f);
             if (i > 0)
+            {
                 EXPECT_LT(pulls[i].mFraction, pulls[i - 1].mFraction);
+            }
         }
     }
 

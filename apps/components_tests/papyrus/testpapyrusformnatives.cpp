@@ -263,7 +263,9 @@ namespace
                 for (const char c : set[i])
                     EXPECT_FALSE(c >= 'A' && c <= 'Z') << set[i];
                 if (i > 0)
+                {
                     EXPECT_LT(set[i - 1], set[i]);
+                }
             }
     }
 

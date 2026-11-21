@@ -127,7 +127,9 @@ namespace
                         front = true;
                 }
                 if (front)
+                {
                     EXPECT_TRUE(mask & bit(f)) << trial << " " << f;
+                }
             }
             saved += 6 - faceCount(mask);
         }
@@ -160,7 +162,9 @@ namespace
             cache.step({ maskedLight(mask) }, {}, 1, params, draw);
             for (int f = 0; f < 6; ++f)
                 if (!((mask >> f) & 1))
+                {
                     ASSERT_EQ(draw[static_cast<std::size_t>(f)], 0) << "frame " << i << " face " << f;
+                }
         }
         // The axis turns: the new mask is drawn at once, whole.
         const std::uint8_t other = static_cast<std::uint8_t>(bit(1) | bit(2) | bit(4));

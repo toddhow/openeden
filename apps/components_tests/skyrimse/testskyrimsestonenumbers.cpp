@@ -816,7 +816,7 @@ namespace
                 for (const FormId id : spells)
                     if (id == kShadow || id == kSerpent || id == kRacePower)
                         out.push_back({ id, id == kShadow ? "Shadow" : (id == kSerpent ? "Serpent" : "Race"),
-                            character::PowerSupport::Works });
+                            character::PowerSupport::Works, {} });
                 return out;
             };
             h.mCastPower = [this](FormId id) {

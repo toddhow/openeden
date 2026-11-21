@@ -110,7 +110,9 @@ namespace
             std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), "test.esp", error);
         LocationRecords out;
         if (plugin != nullptr)
+        {
             EXPECT_TRUE(parseLocationRecords(*plugin, order(), LocationLimits(), out));
+        }
         return out;
     }
 

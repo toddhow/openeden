@@ -237,7 +237,9 @@ namespace
             mHost->setQuests(&mIndex, &mState, [this](FormId) -> const vmad::Vmad* { return &mVmad; });
             mHost->startGame();
             if (startNow)
+            {
                 EXPECT_TRUE(mHost->startQuestForTest(kQuest));
+            }
         }
         static vmad::Script scriptNamed(const char* name)
         {

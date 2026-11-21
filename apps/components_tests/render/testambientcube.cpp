@@ -88,7 +88,7 @@ namespace
     {
         Cube flat;
         flat.fill(vsg::vec3(0.25f, 0.3f, 0.35f));
-        for (const vsg::vec3 n : { vsg::vec3(1, 2, 3), vsg::vec3(-1, 0.1f, -4), vsg::vec3(0, 0, -1) })
+        for (const vsg::vec3& n : { vsg::vec3(1, 2, 3), vsg::vec3(-1, 0.1f, -4), vsg::vec3(0, 0, -1) })
             expectNear(Render::AmbientCube::sample(flat, n), vsg::vec3(0.25f, 0.3f, 0.35f), 1e-5f);
     }
 

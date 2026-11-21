@@ -311,7 +311,9 @@ namespace
                 const auto r = swimRest(floorZ, water, 128.f);
                 EXPECT_GE(r.mFeetZ, floorZ);
                 if (r.mSwims)
+                {
                     EXPECT_LE(r.mFeetZ, std::max(floorZ, water - 0.8f * 128.f) + 1e-3f);
+                }
             }
     }
 }
