@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_COMPONENTS_CONTENTSOURCE_PLUGIN_H
 #define OPENEDEN_COMPONENTS_CONTENTSOURCE_PLUGIN_H
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -192,8 +193,15 @@ namespace Content
         /// Walks every record after the header in file order. Returns the error that ended the walk, if any.
         std::optional<Error> walk(Visitor& visitor, const WalkOptions& options = WalkOptions()) const;
 
+        /// Task 0365: a walk running on a worker ends early (no error, as if the visitor had stopped it) once this flag
+        /// is set, so a reader thread can be asked to stop inside one big plugin. The flag must outlive the walks.
+        void setCancelFlag(const std::atomic<bool>* flag) { mCancel = flag; }
+
     private:
         Plugin() = default;
+
+        [[nodiscard]] bool cancelRequested() const { return mCancel != nullptr && mCancel->load(std::memory_order_acquire); }
+        const std::atomic<bool>* mCancel = nullptr;
 
         std::optional<Error> walkTes3(Visitor& visitor, const WalkOptions& options) const;
         std::optional<Error> walkTes4(Visitor& visitor, const WalkOptions& options) const;

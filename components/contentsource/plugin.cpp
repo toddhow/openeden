@@ -547,7 +547,7 @@ namespace Content
                     }
                 }
             }
-            if (!visitor.onRecord(record))
+            if (cancelRequested() || !visitor.onRecord(record))
             {
                 return std::nullopt;
             }
@@ -627,7 +627,7 @@ namespace Content
                 frame.mInfo.mDepth = static_cast<std::uint32_t>(stack.size());
                 frame.mEnd = pos + groupSize;
                 stack.push_back(frame);
-                if (!visitor.onGroupBegin(frame.mInfo))
+                if (cancelRequested() || !visitor.onGroupBegin(frame.mInfo))
                 {
                     return std::nullopt;
                 }
@@ -697,7 +697,7 @@ namespace Content
                 }
                 record.mData = std::span<const std::byte>(buffer.data(), buffer.size());
             }
-            if (!visitor.onRecord(record))
+            if (cancelRequested() || !visitor.onRecord(record))
             {
                 return std::nullopt;
             }

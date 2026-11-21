@@ -1178,7 +1178,8 @@ namespace game_skyrimse
         void startDialoguePrefetch();
         [[nodiscard]] static std::unique_ptr<DialogueData> buildDialogueData(
             const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
-            bool mapMarkers, bool loadingScreens);
+            bool mapMarkers, bool loadingScreens, const std::atomic<bool>* stop = nullptr);
+        std::atomic<bool> mStopReaders{ false }; ///< task 0365: set by the destructor; the record reader threads stop
         bool mWantLoadingScreens = false; ///< task 0207: read the LSCR records with the dialogue data
         std::map<std::uint32_t, std::unique_ptr<StringTable>> mMessageTables; ///< task 0224: by plugin and kind
         bool mHarvestPrompts = false; ///< task 0221: displayNameOf answers a plant's prompt

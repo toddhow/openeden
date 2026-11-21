@@ -271,6 +271,10 @@ namespace game_skyrimse
 
     SkyrimWorldView::~SkyrimWorldView()
     {
+        // Task 0365: the two record readers below each walk every plugin (several seconds on the five masters); tell them to
+        // stop after the plugin they are on, or the main thread waits for them while the window cannot answer (the
+        // freeze monitor ends such a run with exit code 173).
+        mStopReaders.store(true, std::memory_order_release);
         if (mCombatThread.joinable())
             mCombatThread.join();
         cancelAndJoin();
@@ -346,6 +350,8 @@ namespace game_skyrimse
                 {
                     for (const PluginData& plugin : mPlugins)
                     {
+                        if (mStopReaders.load(std::memory_order_acquire))
+                            break; // the view is being destroyed: the partial result is dropped
                         Content::Error openError;
                         const std::unique_ptr<Content::Plugin> file
                             = Content::Plugin::openFile(plugin.mPath, openError);
@@ -354,6 +360,7 @@ namespace game_skyrimse
                             errors.push_back(openError);
                             continue;
                         }
+                        file->setCancelFlag(&mStopReaders);
                         CombatRecords records;
                         (void)parseCombatRecords(*file, mOrder, ExteriorLimits(), records);
                         combat->add(records);
@@ -1155,7 +1162,7 @@ namespace game_skyrimse
 
     std::unique_ptr<SkyrimWorldView::DialogueData> SkyrimWorldView::buildDialogueData(
         const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
-        bool mapMarkers, bool loadingScreens)
+        bool mapMarkers, bool loadingScreens, const std::atomic<bool>* stop)
     {
         auto data = std::make_unique<DialogueData>();
         const DialogueLimits dialogueLimits;
@@ -1167,6 +1174,8 @@ namespace game_skyrimse
         std::chrono::steady_clock::duration placedTime{};
         for (const auto& [path, name] : plugins)
         {
+            if (stop != nullptr && stop->load(std::memory_order_acquire))
+                return data; // task 0365: the view is being destroyed; the caller drops this partial result
             Content::Error openError;
             const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(path, openError);
             if (file == nullptr)
@@ -1185,6 +1194,7 @@ namespace game_skyrimse
                 data->mScenes.add(SceneRecords(), FormIdResolver(Content::Header(), name, order));
                 continue;
             }
+            file->setCancelFlag(stop);
             DialogueRecords dialogue;
             (void)parseDialogueRecords(*file, order, dialogueLimits, dialogue);
             data->mDialogue.add(std::move(dialogue), FormIdResolver(file->header(), name, order));
@@ -1249,7 +1259,7 @@ namespace game_skyrimse
         const bool loadingScreens = mWantLoadingScreens;
         mDialogueThread
             = std::thread([this, plugins = std::move(plugins), order = mOrder, mapMarkers, loadingScreens]() {
-                  std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers, loadingScreens);
+                  std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers, loadingScreens, &mStopReaders);
                   mPrefetched = std::move(data);
                   mDialogueReady.store(true);
               });

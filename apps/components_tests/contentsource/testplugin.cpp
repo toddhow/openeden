@@ -6,6 +6,7 @@
 #include <components/esm4/reader.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include <atomic>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -982,5 +983,33 @@ namespace
         expectSameAsTypedReader(
             tes4Header(1.0f, 0, "Old", "Short header", 0, { { "Skyrimlike.esm", 0 } }, 20).str(), false);
         expectSameAsTypedReader(tes4Header(1.7f, 0, "", "", 0, {}).str(), false);
+    }
+
+    // Task 0365: a reader thread is stopped inside one big plugin by a flag, not only between plugins.
+    TEST(ContentPluginCancel, a_set_flag_ends_a_walk_before_the_next_record_without_an_error)
+    {
+        Bytes file = tes3Header(1.3f, 1, "", "", 3, {});
+        file.append(record3("STAT", 0, cellName("a"))).append(record3("STAT", 0, cellName("b")));
+        file.append(record3("STAT", 0, cellName("c")));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        std::atomic<bool> stop{ true };
+        plugin->setCancelFlag(&stop);
+        Recorder recorder;
+        EXPECT_FALSE(plugin->walk(recorder).has_value());
+        EXPECT_TRUE(recorder.mEvents.empty());
+    }
+
+    TEST(ContentPluginCancel, a_clear_flag_changes_nothing)
+    {
+        Bytes file = tes3Header(1.3f, 1, "", "", 2, {});
+        file.append(record3("STAT", 0, cellName("a"))).append(record3("STAT", 0, cellName("b")));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        std::atomic<bool> stop{ false };
+        plugin->setCancelFlag(&stop);
+        Recorder withFlag;
+        EXPECT_FALSE(plugin->walk(withFlag).has_value());
+        EXPECT_EQ(withFlag.mEvents.size(), 2u);
     }
 }
