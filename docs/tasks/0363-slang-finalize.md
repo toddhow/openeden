@@ -396,3 +396,22 @@ Branch `slangfinal-0363` on top of `db013a0195` (plan B first part), built and m
 
 **Whole-binary runs (after the last source edit):** `components-tests` without the Slang, complement and property groups 14,869 pass (14,867 of stage d + the 2 new); `openmw-tests` 3,369 pass. **Not run:** the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua tests, AMD and Intel drivers, three interleaved GPU runs of the tonemap (one pair each), a `.omwfx` pass with a real mod, a `post/present` or `post/ao.frag` frame, a rain frame, sky frames at noon, dusk and night (the sky sets were not changed; run B's sky is the Skyrim weather sky, the Morrowind runs drew their normal sky; the sets and SPIR-V of every sky stage are byte-identical to before), plan B's main part.
 
+
+## Tonemap cost, 2026-11-21 (investigation; NO code change: the +17 to +19 percent of stage e does not reproduce and is not in the shader)
+
+Branch `tonemapcost-0363` from `main` at `2274a810c3`. Measured with the stage e executable (`I:/Projects/OpenEden-work/combat3/build`, same source as main), `[Rendering] gpu timing`, `hdr = true`, `OPENEDEN_QUIET_WINDOW=1`, master volume 0, fixed frame time, three interleaved runs per mode (`slang shaders` false, true), medians (and the 25th and 75th percentile) of the `gpu_tonemap` column over the frames after warm-up. Scripts and raw frame files were under `I:/Projects/OpenEden-work/papyrus/tm` (deleted).
+
+**SPIR-V compared (set `-`, no defines; Slang file `post/tonemap.frag.pda39a3ee.spv`, GLSL by `glslangValidator -V` of the same text with the include inlined).** The two do the same work in the same order: one `OpImageSampleImplicitLod`, `OpIsNan`/`OpAny`, the exposure multiply, `FClamp`, the ACES/Reinhard branches, `FClamp`, `Pow` behind the encode branch. Differences: the NaN guard is an `OpSelect` in Slang and a branch in GLSL, Slang's Reinhard multiplies by 0.0625 where the GLSL divides by 16 (cheaper), the GLSL has `Function` variables and two calls that every driver inlines. No extra sample, no loop, no precision decoration on either side; Slang has fewer instructions (133 lines against 184). The `GRADE` set carries the 36 tap `gradePivot` loop in both (same taps; contrast 1.22 in the Bannered Mare, auto exposure off, so the loop runs).
+
+**GPU time, tonemap pass (ms):**
+
+| scene | size | GLSL (3 runs) | Slang (3 runs) |
+| --- | --- | --- | --- |
+| Morrowind Balmora, hdr | 800 x 600 | 0.0134, 0.0146, 0.0133 | 0.0132, 0.0133, 0.0132 |
+| Morrowind Balmora, hdr | 1920 x 1080 | 0.0814, 0.0829, 0.0369 | 0.0827, 0.0366, 0.0372 |
+| Skyrim Bannered Mare, hdr, GRADE with `gradePivot` | 800 x 600 | 0.0063 x 3 | 0.0063 x 3 |
+| Skyrim Bannered Mare, hdr, GRADE with `gradePivot` | 2560 x 1440 | 0.0350 (one run lost to an exit freeze, see below), 0.0350 | 0.0351, 0.0351, 0.0351 |
+
+In the Morrowind 1920 x 1080 runs the percentiles are 0.0190 (25th) and 0.085 (75th) for every run, GLSL and Slang alike: **the GPU switches between a high and a low clock state inside one run, and a median is whichever state held longer** (0.037 or 0.082 for the same executable and settings). The earlier 0.074 against 0.088 (Skyrim) and 0.060 against 0.070 (Morrowind) at 800 x 600 were medians of that kind from single runs; the `slang shaders` off/on pairs were not interleaved. With the two states separated, or with the clock state held (the Skyrim runs: identical to four digits in six runs at 800 x 600 and in five at 2560 x 1440), **Slang equals GLSL**; the main scene pass is unchanged too. The tonemap's Slang SPIR-V is in use in the Slang runs (no `Slang shader compiled: post/tonemap.frag` line; all 32 sets are prebuilt).
+
+**Conclusion.** No cost to remove: the Slang tonemap is not slower than the GLSL it will replace, so stage g may delete `tonemap.frag` as far as this stage is concerned. Not examined: the other post twins (bloom, velocity, ao, autoexposure) and the object shader were not re-measured (the same clock effect applies to any single-run comparison; use interleaved runs and percentiles). The exit of the Skyrim runs hit the freeze monitor (exit 173 after `Stopping extensions`, 5 s at shutdown, with `OPENEDEN_QUIET_WINDOW` it writes `openmw-freeze.dmp`); not caused by this task, not investigated. No `.spv`, `.interface`, test or shader file changed.
