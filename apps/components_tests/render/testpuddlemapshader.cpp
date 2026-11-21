@@ -126,7 +126,7 @@ namespace
         const std::string slang = readShader("lib/view/bindings.slang");
         ASSERT_FALSE(header.empty());
         ASSERT_FALSE(slang.empty());
-        EXPECT_NE(header.find("VIEW_PUDDLE_BINDING=20;"), std::string::npos);
+        EXPECT_NE(header.find("VIEW_PUDDLE_BINDING = 20;"), std::string::npos);
         EXPECT_NE(slang.find("#define VIEW_PUDDLE_BINDING 20"), std::string::npos);
         // The map's buffer uses it.
         EXPECT_NE(readShader("lib/material/puddlemap.slang").find("vk::binding(VIEW_PUDDLE_BINDING, VIEW_SET)"),
