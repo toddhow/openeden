@@ -82,16 +82,12 @@ set(SHADER_FILES
     water/rainripples.glsl
     comp/bindings.glsl
     comp/worldoverlay/workgroupsize.glsl
-    comp/worldoverlay/update.comp
     comp/light/workgroupsize.glsl
-    comp/light/assign.comp
     comp/particle/data.glsl
     comp/particle/workgroupsize.glsl
     comp/particle/bindings.glsl
-    comp/particle/simulate.comp
     comp/fogofwar/workgroupsize.glsl
     comp/fogofwar/constants.glsl
-    comp/fogofwar/update.comp
     post/fullscreen.vert
     post/tonemap.frag
     post/tonemapconstants.glsl
