@@ -19,7 +19,7 @@ namespace Pipeline
 {
     namespace Descriptors
     {
-#include <files/shaders/terrain/bindings.glsl>
+#include <files/shaders/terrain/bindings.hpp>
     }
 
     std::set<std::string> terrainDefines(bool maps, unsigned int gbufferOutputs, bool giSky,

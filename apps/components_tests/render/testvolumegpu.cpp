@@ -277,18 +277,6 @@ namespace
         return ::testing::AssertionSuccess();
     }
 
-    TEST(RenderVolumeGpu, glslBlockHasTheMembersInOrder)
-    {
-        const std::string glsl = readShaderFile({ "lib", "view", "volume.glsl" });
-        if (glsl.empty())
-            GTEST_SKIP() << "the shader source is not beside the test sources";
-        const std::size_t start = glsl.find("uniform VolumeParams");
-        ASSERT_NE(start, std::string::npos);
-        const std::size_t brace = glsl.find('{', start);
-        ASSERT_NE(brace, std::string::npos);
-        EXPECT_TRUE(membersInOrder(glsl, brace));
-    }
-
     TEST(RenderVolumeGpu, slangStructHasTheMembersInOrder)
     {
         const std::string slang = readShaderFile({ "comp", "volume", "volume.slang" });
@@ -303,7 +291,7 @@ namespace
 
     TEST(RenderVolumeGpu, bindingsAreDeclaredInTheViewSet)
     {
-        const std::string bindings = readShaderFile({ "lib", "view", "bindings.glsl" });
+        const std::string bindings = readShaderFile({ "lib", "view", "bindings.slang" });
         if (bindings.empty())
             GTEST_SKIP() << "the shader source is not beside the test sources";
         const std::string flat = withoutWhitespace(bindings);

@@ -32,7 +32,7 @@ namespace
 
     vsg::ref_ptr<vsg::uintArray> createLightIndices(int maxLights, int numClusters, bool setDefaults)
     {
-#include <files/shaders/lib/light/maxlights.glsl>
+#include <files/shaders/lib/light/maxlights.hpp>
         int maxPer = std::min(maxLights, maxLightsPerCluster);
         auto array = vsg::uintArray::create(numClusters * maxPer);
         if (setDefaults)

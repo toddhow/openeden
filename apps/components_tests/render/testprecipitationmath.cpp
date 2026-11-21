@@ -140,7 +140,7 @@ namespace
     {
         std::map<std::string, float> out;
         const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
-            / "files" / "shaders" / "lib" / "light" / "precipitation.glsl";
+            / "files" / "shaders" / "lib" / "light" / "precipitation.slang";
         std::ifstream in(source);
         if (!in)
             return out;

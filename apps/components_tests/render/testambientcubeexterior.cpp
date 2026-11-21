@@ -75,7 +75,7 @@ namespace
     {
         // The terrain imports GI_SKY without GI, which the cube's old condition did not know: the cube file now asks a
         // macro the declaring file sets (both languages).
-        for (const char* ext : { ".glsl", ".slang" })
+        for (const char* ext : { ".slang" })
         {
             const std::string skyvis = readSource(std::string("lib/view/skyvis") + ext);
             const std::string cube = readSource(std::string("lib/view/ambientcube") + ext);

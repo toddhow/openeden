@@ -3,7 +3,7 @@
 
 namespace Pipeline
 {
-#include <files/shaders/lib/sets.glsl>
+#include <files/shaders/lib/sets.hpp>
 }
 
 #endif

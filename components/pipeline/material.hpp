@@ -11,7 +11,7 @@ namespace Pipeline
     namespace Data
     {
         using vsg::vec4;
-#include <files/shaders/lib/material/data.glsl>
+#include <files/shaders/lib/material/data.hpp>
     }
 
     /*

@@ -17,7 +17,7 @@
 
 namespace
 {
-#include <files/shaders/lib/view/cascades.glsl>
+#include <files/shaders/lib/view/cascades.hpp>
 
     vsg::ref_ptr<vsg::RenderPass> makeDepthRenderPass(vsg::Device* device, VkFormat format)
     {

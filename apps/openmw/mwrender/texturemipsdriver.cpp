@@ -12,7 +12,7 @@
 
 namespace TerrainBindings
 {
-#include <files/shaders/terrain/bindings.glsl>
+#include <files/shaders/terrain/bindings.hpp>
 }
 
 namespace MWRender

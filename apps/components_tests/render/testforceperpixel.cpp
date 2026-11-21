@@ -174,16 +174,7 @@ namespace
         EXPECT_FALSE(fragmentDefines(graphics.create(key)).count("FORCE_PER_PIXEL_LIGHTING"));
     }
 
-    // The shader text: both languages take the define as one more reason to light per pixel, and the GLSL imports it.
-    TEST(ForcePerPixel, the_glsl_object_shader_imports_the_define_and_lights_per_pixel_with_it)
-    {
-        const std::string text = readSource("files/shaders/default/main.frag");
-        ASSERT_FALSE(text.empty());
-        const auto pragma = text.substr(0, text.find('\n'));
-        EXPECT_NE(pragma.find("FORCE_PER_PIXEL_LIGHTING"), std::string::npos);
-        EXPECT_NE(text.find("defined(FORCE_PER_PIXEL_LIGHTING)"), std::string::npos);
-    }
-
+    // The shader text: the object shader takes the define as one more reason to light per pixel.
     TEST(ForcePerPixel, the_slang_twin_lights_per_pixel_with_the_define_too)
     {
         const std::string text = readSource("files/shaders/default/default.frag.slang");

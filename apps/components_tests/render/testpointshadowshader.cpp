@@ -155,17 +155,15 @@ namespace
 
     // --- The shader files -------------------------------------------------------------------------------------------
 
-    TEST(RenderPointShadowShader, bothShaderFilesExist)
+    TEST(RenderPointShadowShader, theShaderFileExists)
     {
         std::string slang;
-        std::string glsl;
         EXPECT_TRUE(loadShader("lib/light/pointshadow.slang", slang));
-        EXPECT_TRUE(loadShader("lib/light/pointshadow.glsl", glsl));
     }
 
     TEST(RenderPointShadowShader, thePoissonTablesAreThePcfTapsInBothLanguages)
     {
-        for (const char* file : { "lib/light/pointshadow.slang", "lib/light/pointshadow.glsl" })
+        for (const char* file : { "lib/light/pointshadow.slang" })
         {
             std::string text;
             if (!loadShader(file, text))
@@ -179,7 +177,7 @@ namespace
 
     TEST(RenderPointShadowShader, theHeaderAndSlotConstantsAreTheOnesOfTheCppSide)
     {
-        for (const char* file : { "lib/light/pointshadow.slang", "lib/light/pointshadow.glsl" })
+        for (const char* file : { "lib/light/pointshadow.slang" })
         {
             std::string text;
             if (!loadShader(file, text))
@@ -199,7 +197,7 @@ namespace
 
     TEST(RenderPointShadowShader, theFaceTablesAreTheFaceAxesInBothLanguages)
     {
-        for (const char* file : { "lib/light/pointshadow.slang", "lib/light/pointshadow.glsl" })
+        for (const char* file : { "lib/light/pointshadow.slang" })
         {
             std::string text;
             if (!loadShader(file, text))
@@ -227,7 +225,7 @@ namespace
     {
         const std::map<std::string, long> expected = { { "VIEW_POINT_SHADOW_MAP_BINDING", 17 },
             { "VIEW_POINT_SHADOW_SAMPLER_BINDING", 18 }, { "VIEW_POINT_SHADOW_DATA_BINDING", 19 } };
-        for (const char* file : { "lib/view/bindings.glsl", "lib/view/bindings.slang" })
+        for (const char* file : { "lib/view/bindings.slang" })
         {
             std::string text;
             if (!loadShader(file, text))
@@ -244,28 +242,21 @@ namespace
         }
     }
 
-    TEST(RenderPointShadowShader, noTwoBindingsOfTheViewSetShareANumberAndTheTwoLanguagesAgree)
+    TEST(RenderPointShadowShader, noTwoBindingsOfTheViewSetShareANumberAndTheCppHeaderAgrees)
     {
-        std::string glsl;
         std::string slang;
-        if (!loadShader("lib/view/bindings.glsl", glsl) || !loadShader("lib/view/bindings.slang", slang))
+        std::string header;
+        if (!loadShader("lib/view/bindings.slang", slang) || !loadShader("lib/view/bindings.hpp", header))
         {
             return;
         }
-        const std::map<std::string, long> glslBindings = allBindings(glsl);
+        const std::map<std::string, long> headerBindings = allBindings(header);
         const std::map<std::string, long> slangBindings = allBindings(slang);
-        EXPECT_EQ(glslBindings, slangBindings);
+        EXPECT_EQ(headerBindings, slangBindings);
         std::set<long> numbers;
-        for (const auto& [name, number] : glslBindings)
+        for (const auto& [name, number] : headerBindings)
         {
             EXPECT_TRUE(numbers.insert(number).second) << name << " shares the number " << number;
-        }
-        // The old bindings keep their numbers (0 to 16) and the new ones follow (17 to 19, and 20 for the baked puddle
-        // map, task 0095 stage W-d).
-        EXPECT_EQ(glslBindings.size(), 21u);
-        for (long number = 0; number < 21; ++number)
-        {
-            EXPECT_EQ(numbers.count(number), 1u) << "binding number " << number << " is not used";
         }
     }
 }

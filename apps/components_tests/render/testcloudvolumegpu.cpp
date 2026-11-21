@@ -444,15 +444,15 @@ namespace
 
     TEST(RenderCloudVolumeGpu, theShadowReaderHasTheSameSizeAndABinding)
     {
-        const std::string reader = readShaderFile({ "lib", "view", "volumecloudshadow.glsl" });
-        const std::string bindings = readShaderFile({ "lib", "view", "bindings.glsl" });
+        const std::string reader = readShaderFile({ "lib", "view", "volumecloudshadow.slang" });
+        const std::string bindings = readShaderFile({ "lib", "view", "bindings.hpp" });
         if (reader.empty() || bindings.empty())
             GTEST_SKIP() << "the shader source is not beside the test sources";
         std::smatch m;
         ASSERT_TRUE(
             std::regex_search(reader, m, std::regex("const\\s+int\\s+VOLUME_CLOUD_SHADOW_SIZE\\s*=\\s*(\\d+)\\s*;")));
         EXPECT_EQ(static_cast<std::uint32_t>(std::stoul(m[1].str())), shadowMapSize);
-        EXPECT_TRUE(std::regex_search(reader, std::regex("binding\\s*=\\s*VIEW_CLOUD_SHADOW_BINDING")));
+        EXPECT_TRUE(std::regex_search(reader, std::regex("binding\\(\\s*VIEW_CLOUD_SHADOW_BINDING")));
         ASSERT_TRUE(std::regex_search(bindings, m, std::regex("VIEW_CLOUD_SHADOW_BINDING\\s*=\\s*(\\d+)\\s*;")));
         EXPECT_EQ(std::stoi(m[1].str()), 16);
     }

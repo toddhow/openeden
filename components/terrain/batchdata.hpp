@@ -6,7 +6,7 @@
 namespace Pipeline::Data
 {
     using vsg::vec2;
-#include <files/shaders/terrain/data.glsl>
+#include <files/shaders/terrain/data.hpp>
 }
 
 namespace Terrain

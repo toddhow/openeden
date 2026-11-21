@@ -122,7 +122,7 @@ TEST(TerrainChunkComplement, the_pixel_rule_keeps_what_the_incoming_chunk_drops)
 
 TEST(TerrainChunkComplement, the_dither_table_is_the_shaders)
 {
-    for (const char* file : { "lib/view/dither.glsl", "lib/view/dither.slang" })
+    for (const char* file : { "lib/view/dither.slang" })
     {
         const std::string text = readSource(file);
         std::vector<int> numbers;

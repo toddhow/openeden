@@ -6,7 +6,7 @@
 namespace Pipeline::Data
 {
     using vsg::vec4;
-#include <files/shaders/lib/object/data.glsl>
+#include <files/shaders/lib/object/data.hpp>
 }
 
 #endif

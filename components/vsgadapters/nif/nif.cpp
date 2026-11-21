@@ -84,7 +84,7 @@ namespace
 
 namespace Pipeline::Descriptors
 {
-#include <files/shaders/comp/particle/bindings.glsl>
+#include <files/shaders/comp/particle/bindings.hpp>
 }
 namespace
 {

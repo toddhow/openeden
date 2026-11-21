@@ -282,7 +282,7 @@ namespace Render::Parallax
         return std::ldexp(1.f + mantissa / 1024.f, exponent - 15);
     }
 
-    // The material's Material::align_dummy2 float (files/shaders/lib/material/data.glsl) carries two scales as two
+    // The material's Material::align_dummy2 float (files/shaders/lib/material/data.hpp) carries two scales as two
     // half floats: the roughness scale of task 0044 in the low half and, with a height file, meshDepthField in the high
     // half (nif.cpp). Zero
     // in both is the float 0.0, "neither set", as before. A displacement scale of 0 reads back as "not set", so a

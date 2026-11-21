@@ -40,23 +40,6 @@ namespace
             Pipeline::fragmentModes.end());
     }
 
-    TEST(InstanceTint, theGlslDeclaresTheInputAfterTheRotationAndBeforeTheTextureCoordinates)
-    {
-        const std::string attributes = readSource("lib/attributes.glsl");
-        EXPECT_TRUE(contains(attributes, "inInstanceTint"));
-        EXPECT_TRUE(contains(attributes, "INSTANCE_TINT_LOCATION+1"));
-        EXPECT_TRUE(contains(readSource("default/main.vert"), "INSTANCE, INSTANCE_TINT,"));
-    }
-
-    TEST(InstanceTint, theGlslVertexStageMultipliesTheColourReadsTheTiltAndScalesTheClock)
-    {
-        const std::string vert = readSource("default/main.vert");
-        EXPECT_TRUE(contains(vert, "groundcoverTiltRotation(inInstanceRotation.xy, inInstanceRotation.z)"));
-        EXPECT_TRUE(contains(vert, "vert_out.color.rgb *= inInstanceTint.rgb"));
-        EXPECT_TRUE(contains(vert, "scene.time * inInstanceTint.w"));
-        EXPECT_TRUE(contains(readSource("lib/groundcover.glsl"), "groundcoverTiltRotation"));
-    }
-
     TEST(InstanceTint, theSlangTwinDoesTheSame)
     {
         const std::string attributes = readSource("lib/attributes.slang");

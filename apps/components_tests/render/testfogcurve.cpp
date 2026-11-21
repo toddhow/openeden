@@ -103,7 +103,7 @@ namespace
     // The shader twins: their constants are read back from the text of both files.
     TEST(RenderFogCurve, theShaderTwinsHoldTheSameConstantsAndTheSameBranches)
     {
-        for (const char* name : { "fog.glsl", "fog.slang" })
+        for (const char* name : { "fog.slang" })
         {
             const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
                 / "files" / "shaders" / "lib" / "view" / name;

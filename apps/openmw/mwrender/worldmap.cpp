@@ -181,7 +181,7 @@ namespace MWRender
                 visitor.apply(*r.bds);
                 mDeletionQueue.add(r.bds);
 
-#include <files/shaders/comp/worldoverlay/workgroupsize.glsl> // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
+#include <files/shaders/comp/worldoverlay/workgroupsize.hpp> // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
                 static_assert(workGroupSize * workGroupSize <= 128);
                 compute(visitor, r.image, r.dstRect.z - r.dstRect.x, r.dstRect.w - r.dstRect.y, workGroupSize);
             }

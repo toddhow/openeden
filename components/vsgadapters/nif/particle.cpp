@@ -427,7 +427,7 @@ namespace vsgAdapters
 
     vsg::ref_ptr<vsg::Command> createParticleDispatch(uint32_t numParticles)
     {
-#include <files/shaders/comp/particle/workgroupsize.glsl>
+#include <files/shaders/comp/particle/workgroupsize.hpp>
         // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
         static_assert(workGroupSizeX <= 128);
         return vsg::Dispatch::create(std::ceil(numParticles / static_cast<float>(workGroupSizeX)), 1, 1);

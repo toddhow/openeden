@@ -168,17 +168,9 @@ namespace
         return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     }
 
-    TEST(PipelineParticleColorMode, the_glsl_does_not_know_the_mode_and_the_twin_does)
+    TEST(PipelineParticleColorMode, the_twin_knows_the_mode)
     {
         const std::string number = std::to_string(Pipeline::particleOwnColorMode);
-        for (const char* glsl : { "lib/material/terms.glsl", "default/main.frag" })
-        {
-            const std::string text = shaderText(glsl);
-            ASSERT_FALSE(text.empty()) << glsl;
-            EXPECT_EQ(text.find("colorMode == " + number), std::string::npos) << glsl;
-            EXPECT_EQ(text.find("colorMode != " + number), std::string::npos) << glsl;
-            EXPECT_EQ(text.find("case " + number + ":"), std::string::npos) << glsl;
-        }
         const std::string twin = shaderText("lib/material/terms.slang");
         ASSERT_FALSE(twin.empty());
         std::size_t cases = 0;

@@ -61,7 +61,7 @@ namespace
 
     TEST(FogStartShaders, bothLanguagesReadTheStartColourFromTheHeaderAndBlendByTheLinearShare)
     {
-        for (const char* ext : { "glsl", "slang" })
+        for (const char* ext : { "slang" })
         {
             const std::string cube = readShader(std::string("lib/view/ambientcube.") + ext);
             EXPECT_NE(cube.find("fogStartColour"), std::string::npos) << ext;
@@ -78,7 +78,7 @@ namespace
 
     TEST(FogStartShaders, theObjectAndTerrainShadersPassItToTheFog)
     {
-        for (const char* file : { "default/main.frag", "default/default.frag.slang", "terrain/terrain.frag.slang" })
+        for (const char* file : { "default/default.frag.slang", "terrain/terrain.frag.slang" })
         {
             const std::string src = readShader(file);
             EXPECT_NE(src.find("fogStartColour()"), std::string::npos) << file;

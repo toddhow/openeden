@@ -32,7 +32,7 @@
 
 namespace Pipeline::Descriptors
 {
-#include <files/shaders/terrain/bindings.glsl>
+#include <files/shaders/terrain/bindings.hpp>
 }
 
 namespace MWRender

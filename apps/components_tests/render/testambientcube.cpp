@@ -190,29 +190,18 @@ namespace
             Pipeline::vertexModes.end());
     }
 
-    TEST(AmbientCubeShaders, bothLanguagesCarryTheSameBaseAndTheSameRule)
+    TEST(AmbientCubeShaders, theShaderCarriesTheSameBaseAndTheSameRule)
     {
         const std::string base = std::to_string(Render::AmbientCube::base);
-        const std::string glsl = readSource("lib/view/ambientcube.glsl");
         const std::string slang = readSource("lib/view/ambientcube.slang");
-        EXPECT_TRUE(contains(glsl, "const int AMBIENT_CUBE_BASE = " + base + ";"));
         EXPECT_TRUE(contains(slang, "static const int AMBIENT_CUBE_BASE = " + base + ";"));
-        for (const std::string* text : { &glsl, &slang })
-        {
-            EXPECT_TRUE(contains(*text, "skyHeader[AMBIENT_CUBE_BASE]")) << "the flag entry";
-            EXPECT_TRUE(contains(*text, "AMBIENT_CUBE_BASE + 1")) << "the baseline";
-            EXPECT_TRUE(contains(*text, "AMBIENT_CUBE_BASE + (n.x >= 0.0 ? 2 : 3)")) << "the first colour";
-        }
+        EXPECT_TRUE(contains(slang, "skyHeader[AMBIENT_CUBE_BASE]")) << "the flag entry";
+        EXPECT_TRUE(contains(slang, "AMBIENT_CUBE_BASE + 1")) << "the baseline";
+        EXPECT_TRUE(contains(slang, "AMBIENT_CUBE_BASE + (n.x >= 0.0 ? 2 : 3)")) << "the first colour";
     }
 
     TEST(AmbientCubeShaders, theObjectShaderTakesTheCubeBeforeTheProbesAndLightsWithTheAmbientTerm)
     {
-        const std::string glsl = readSource("default/main.frag");
-        EXPECT_TRUE(contains(glsl, "AMBIENT_CUBE, FORCE_PER_PIXEL_LIGHTING)") || contains(glsl, "AMBIENT_CUBE)"))
-            << "the define is imported";
-        EXPECT_TRUE(contains(glsl, "#include \"lib/view/ambientcube.glsl\""));
-        EXPECT_TRUE(contains(glsl, "ambientCubeAmbient("));
-        EXPECT_TRUE(contains(glsl, "defined(GI) || defined(AMBIENT_CUBE)"));
         const std::string slang = readSource("default/default.frag.slang");
         EXPECT_TRUE(contains(slang, "lib/view/ambientcube.slang"));
         EXPECT_TRUE(contains(slang, "ambientCubeAmbient("));

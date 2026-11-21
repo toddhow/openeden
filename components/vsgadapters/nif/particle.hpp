@@ -26,7 +26,7 @@ namespace Anim
 }
 namespace Pipeline::Data
 {
-#include <files/shaders/comp/particle/data.glsl>
+#include <files/shaders/comp/particle/data.hpp>
 }
 namespace vsgAdapters
 {

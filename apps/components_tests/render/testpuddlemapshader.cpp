@@ -119,18 +119,17 @@ namespace
     }
 
     INSTANTIATE_TEST_SUITE_P(
-        Twins, RenderPuddleMapShader, testing::Values("lib/material/puddlemap.glsl", "lib/material/puddlemap.slang"));
+        Twins, RenderPuddleMapShader, testing::Values("lib/material/puddlemap.slang"));
 
     TEST(RenderPuddleMapShaderFiles, the_binding_is_20_in_both_binding_files_and_the_layout)
     {
-        const std::string glsl = readShader("lib/view/bindings.glsl");
+        const std::string header = readShader("lib/view/bindings.hpp");
         const std::string slang = readShader("lib/view/bindings.slang");
-        ASSERT_FALSE(glsl.empty());
+        ASSERT_FALSE(header.empty());
         ASSERT_FALSE(slang.empty());
-        EXPECT_NE(glsl.find("VIEW_PUDDLE_BINDING=20;"), std::string::npos);
+        EXPECT_NE(header.find("VIEW_PUDDLE_BINDING=20;"), std::string::npos);
         EXPECT_NE(slang.find("#define VIEW_PUDDLE_BINDING 20"), std::string::npos);
-        // The map's buffer uses it in both twins.
-        EXPECT_NE(readShader("lib/material/puddlemap.glsl").find("binding=VIEW_PUDDLE_BINDING"), std::string::npos);
+        // The map's buffer uses it.
         EXPECT_NE(readShader("lib/material/puddlemap.slang").find("vk::binding(VIEW_PUDDLE_BINDING, VIEW_SET)"),
             std::string::npos);
     }
@@ -140,7 +139,7 @@ namespace
     {
         // Stage W-c: the object shader reads the map too (under the height test), so a road takes the baked puddles.
         for (const char* file :
-            { "terrain/terrain.frag.slang", "default/main.frag", "default/default.frag.slang" })
+            { "terrain/terrain.frag.slang", "default/default.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;
@@ -151,7 +150,7 @@ namespace
             ASSERT_NE(guard, std::string::npos) << file;
             EXPECT_LT(include - guard, 200u) << file;
         }
-        EXPECT_EQ(readShader("lib/material/wetness.glsl").find("puddlemap"), std::string::npos);
+        EXPECT_EQ(readShader("lib/material/wetness.slang").find("puddlemap"), std::string::npos);
     }
 
     TEST(RenderPuddleMapShaderFiles, the_stand_in_buffer_is_big_enough_for_the_header_and_the_table)

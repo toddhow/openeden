@@ -42,7 +42,7 @@
 
 namespace FogConstants
 {
-#include <files/shaders/comp/fogofwar/constants.glsl>
+#include <files/shaders/comp/fogofwar/constants.hpp>
 }
 namespace
 {
@@ -214,7 +214,7 @@ namespace MWRender
                 mData->at(1) = vsg::vec4(r.center.x, r.center.y, 0, 0);
                 visitor.apply(*r.bds);
 
-#include <files/shaders/comp/fogofwar/workgroupsize.glsl>
+#include <files/shaders/comp/fogofwar/workgroupsize.hpp>
                 // Vulkan guarantees a minimum of 128 maxComputeWorkGroupInvocations.
                 static_assert(workGroupSize * workGroupSize <= 128);
                 compute(visitor, r.image, r.rect.z - r.rect.x, r.rect.w - r.rect.y, workGroupSize);

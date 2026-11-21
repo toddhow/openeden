@@ -28,7 +28,7 @@ namespace View
         auto bindViewSet
             = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::VIEW_SET, viewSet);
 
-#include <files/shaders/comp/light/workgroupsize.glsl>
+#include <files/shaders/comp/light/workgroupsize.hpp>
         // ensure there are no remainders to avoid the need for range checking the workGroupID in the compute shader
         static_assert(gridSizeX % workGroupSizeX == 0);
         static_assert(gridSizeY % workGroupSizeY == 0);

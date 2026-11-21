@@ -104,7 +104,7 @@ namespace
     }
 
     INSTANTIATE_TEST_SUITE_P(
-        Twins, PuddleMapTopsShader, testing::Values("lib/material/puddlemap.glsl", "lib/material/puddlemap.slang"));
+        Twins, PuddleMapTopsShader, testing::Values("lib/material/puddlemap.slang"));
 
     TEST(PuddleMapTopsShaderUse, terrain_asks_without_the_object_test_and_objects_ask_with_it)
     {
@@ -116,7 +116,7 @@ namespace
             EXPECT_NE(text.find("puddleShadeAt("), std::string::npos) << file;
             EXPECT_NE(text.find(".z, false)"), std::string::npos) << file;
         }
-        for (const char* file : { "default/main.frag", "default/default.frag.slang" })
+        for (const char* file : { "default/default.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;

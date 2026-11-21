@@ -17,7 +17,7 @@
 
 namespace
 {
-#include <files/shaders/lib/view/cascades.glsl>
+#include <files/shaders/lib/view/cascades.hpp>
 
     // The entry of a constant the Slang twins declare (task 0072), or none.
     const Resource::SettingsConstantInfo* findConstant(const std::string& identifier)

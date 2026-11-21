@@ -5,7 +5,7 @@ namespace Pipeline
 {
     namespace Descriptors
     {
-#include "files/shaders/comp/bindings.glsl"
+#include "files/shaders/comp/bindings.hpp"
     }
 }
 

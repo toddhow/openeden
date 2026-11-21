@@ -3,7 +3,7 @@
 
 namespace Pipeline::Descriptors
 {
-#include <files/shaders/lib/view/bindings.glsl>
+#include <files/shaders/lib/view/bindings.hpp>
 }
 
 #endif

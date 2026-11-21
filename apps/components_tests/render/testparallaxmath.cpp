@@ -213,7 +213,7 @@ namespace
     TEST(RenderParallaxTest, the_shader_twin_holds_the_same_constants)
     {
         const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
-            / "files" / "shaders" / "lib" / "material" / "parallax.glsl";
+            / "files" / "shaders" / "lib" / "material" / "parallax.slang";
         std::ifstream in(source);
         if (!in)
             GTEST_SKIP() << "the shader source is not beside the test sources";

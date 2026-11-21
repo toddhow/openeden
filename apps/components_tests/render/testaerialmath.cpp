@@ -222,7 +222,7 @@ namespace
     TEST(AerialMath, TheShaderTwinHoldsTheSameConstants)
     {
         const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
-            / "files" / "shaders" / "lib" / "view" / "fog.glsl";
+            / "files" / "shaders" / "lib" / "view" / "fog.slang";
         std::ifstream in(source);
         if (!in)
             GTEST_SKIP() << "the shader source is not beside the test sources";

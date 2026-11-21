@@ -8,8 +8,8 @@ namespace Pipeline
 {
     namespace Descriptors
     {
-#include <files/shaders/lib/material/bindings.glsl>
-#include <files/shaders/comp/particle/bindings.glsl>
+#include <files/shaders/lib/material/bindings.hpp>
+#include <files/shaders/comp/particle/bindings.hpp>
     }
 }
 // clang-format on
