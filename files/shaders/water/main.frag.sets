@@ -15,3 +15,6 @@ BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG
 BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW
 BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG VOLUME_CLOUD_SHADOW
 BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW
+# Task 0363 (stage b): with `[Rendering] shader constants` the four shadow defines are constants of ONE permutation
+# (vsgUtil::constantDefinesFor, lib/view/shadow.slang with SHADOW_CONSTANTS); the 12 above stay for the switch off.
+BUMP_MAP SHADOW_CONSTANTS

@@ -82,6 +82,14 @@ namespace
         const auto settingsNames = Resource::settingsDefineNames();
         for (std::string name; names >> name;)
         {
+            // Task 0363 (stage b): SHADOW_CONSTANTS is the one permutation that takes the shadow settings as constants;
+            // its interface is the GLSL's with the cloud shadows and the volumetric ones both on.
+            if (name == "SHADOW_CONSTANTS")
+            {
+                settingsDefines.insert("CLOUD_SHADOW");
+                settingsDefines.insert("VOLUME_CLOUD_SHADOW");
+                continue;
+            }
             // Task 0072 (water family): a name of Resource::settingsDefineNames() is a "#define <name> 1" line of a
             // settings file, not a compiler define.
             if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
@@ -266,6 +274,9 @@ namespace
                         uvSets = count;
                         continue;
                     }
+                    // Task 0363 (stage b): the water's constants permutation (vsgUtil::constantDefinesFor).
+                    if (name == "SHADOW_CONSTANTS" && stageFile == "water/main.frag")
+                        continue;
                     EXPECT_EQ(possible.count(name), 1u) << name << " is neither imported nor a settings define";
                 }
                 std::map<uint32_t, uint32_t> pinned;

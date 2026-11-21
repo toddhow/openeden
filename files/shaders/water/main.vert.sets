@@ -1,0 +1,5 @@
+# The define sets of water/main.vert with a Slang twin (task 0072, water family; WATER_CELL added by task 0363 stage b):
+# the surface drawn from the view frustum (-) and the cell-bounded surface (WATER_CELL, task 0129, set by
+# apps/openmw/mwrender/water.cpp). Lines are canonical (sorted, "-" for none).
+-
+WATER_CELL

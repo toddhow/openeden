@@ -466,6 +466,20 @@ namespace vsgUtil
         return result;
     }
 
+    std::set<std::string> constantDefinesFor(
+        const std::string& path, std::set<std::string> defines, const vsg::Options* options)
+    {
+        if (options == nullptr || path != "water/main.frag")
+            return defines;
+        const auto* settings = options->getObject<SettingsConstants>(settingsConstantsKey);
+        if (settings == nullptr || !settings->constantDefines)
+            return defines;
+        for (const char* name : { "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW" })
+            defines.erase(name);
+        defines.insert("SHADOW_CONSTANTS");
+        return defines;
+    }
+
     bool prefersSlang(const vsg::Options* options)
     {
         bool value = false;
@@ -871,7 +885,8 @@ namespace vsgUtil
         const std::set<std::string>& requested, std::string_view glslSource,
         const vsg::ref_ptr<const vsg::Options>& options, std::optional<uint32_t> numUvSets)
     {
-        std::set<std::string> defines = stageDefines(requested, glslSource, options.get());
+        std::set<std::string> defines
+            = constantDefinesFor(path, stageDefines(requested, glslSource, options.get()), options.get());
         const bool byPipeline = declaresUvSetArrays(defines) && familyCountsUvSets(path, options);
         if (!numUvSets)
             return byPipeline ? std::nullopt : std::optional(std::move(defines));
@@ -926,7 +941,8 @@ namespace vsgUtil
         choice->glslSource = stage.module->source;
         const std::set<std::string>& requested = stage.module->hints ? stage.module->hints->defines : noDefines;
         // The same set and rule as slangSelectionSet, worked out once.
-        choice->defines = stageDefines(requested, stage.module->source, options.get());
+        choice->defines
+            = constantDefinesFor(path, stageDefines(requested, stage.module->source, options.get()), options.get());
         choice->byPipeline = declaresUvSetArrays(choice->defines) && familyCountsUvSets(path, options);
         if (!choice->byPipeline)
         {

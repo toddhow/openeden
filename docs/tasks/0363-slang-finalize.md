@@ -162,7 +162,21 @@ A grep for shader file names in `apps/components_tests`, `openmw_tests` and `ope
 
 No existing test is edited until toddhow approves each group (guide rule); in each stage the old test stays green while the GLSL exists and is replaced in the stage that deletes it.
 
-## Decisions for toddhow
+## Decisions of toddhow, 2026-11-20 (recorded; stage a's questions)
+
+1. **Plan M first, then B.** Approved.
+2. **Specialization constants**, not uniform branches, for control-flow defines in the object and terrain fragment shaders. Approved.
+3. **The `OpSpecConstantOp` ban stays;** the CPU derives every derived constant. Approved.
+4. **Tonemap stays at 16 compile-time sets.** Approved.
+5. **An unprebuilt set on the main thread during play is made unreachable by plan B;** a bounded block is the fallback. Approved.
+6. **Quiet-machine re-measurement first, then flip the `slang shaders` default before any deletion.** Approved (stage b does the measurement; see its log for what could be measured).
+7. **The Slang runtime library keeps shipping.** Approved.
+8. **The `.sets` and `.interface` goldens may be rewritten as reviewed data** (never regenerated to make a failing twin pass). Approved.
+9. **Test changes are approved per stage, and each change is listed in this document** (stage b's list is in its log below).
+10. **A localised "Compiling shaders" loading string** (stage f). Approved.
+11. **Validation layers: nothing is downloaded by an agent.** The Vulkan SDK download needs a separate ask to toddhow before stage d.
+
+## Questions asked at stage a (kept for the record)
 
 1. **Plan M, then B, or M only?** M (settings-driven defines to constants) removes the combinatorial explosion (terrain 43,320 -> 20; object fragment 71,424+ -> about 20 traced classes) but leaves the *content* defines (texture units, varyings, attributes) open-ended, so a mod can still reach an unbuilt class and wait. B (a fixed texture binding set with shared dummy descriptors, fixed varyings) closes it (object fragment about 8, vertex about 2) at the cost of a larger per-material descriptor set (17 writes instead of about 3) and a change in the NIF/material builder. **Recommend M first, measure, then B.**
 2. **Mechanism: specialization constants, not uniform branches**, for all control-flow defines in the object and terrain fragment shaders (section 3); uniform branches only for debug views. Agree?
@@ -186,3 +200,40 @@ No existing test is edited until toddhow approves each group (guide rule); in ea
 - "20 distinct sets after dropping control defines" comes from the 76 *traced* sets, not from the content space; real content (mods) may add classes under plan M.
 - The test classification in section 5 is by file name plus the few files I opened.
 - Linux gate, clang-format, Lua tests: not applicable (docs only).
+
+
+## Stage b log, 2026-11-20: the water pilot (constants for the shadow settings) and the flip measurement
+
+Branch `slangfinal-0363`, built and measured in `I:/Projects/OpenEden-work/combat3/build` only. The same hand wrote tests and code; the new tests were written first and are compile-red against the old code (the API they call did not exist); no separate reviewer. Windows only.
+
+**What was built**
+- `[Rendering] shader constants` (default **false**, `files/settings-default.cfg`, `components/settings/categories/rendering.hpp`; in the living test profile with a README line). It only has an effect with `slang shaders`.
+- Three new settings constants (`Resource::settingsConstantTable`, ids 1067 to 1069): `cCloudShadow`, `cCloudShadowDebug`, `cVolumeCloudShadow`. `Resource::ShaderSettings` always fills them from the settings it already reads (`hdr`, `atmosphere`, `cloud shadows`, `cloud shadow debug`, `volumetric clouds`, `volumetric clouds shadows`). `SettingsConstants::constantDefines` carries the switch.
+- `vsgUtil::constantDefinesFor(path, defines, options)` (`components/vsgutil/shaderpermutation.*`): for `water/main.frag` with the switch on, the four shadow defines (`CLOUD_SHADOW`, `CLOUD_SHADOW_DEBUG`, `VOLUME_CLOUD_SHADOW`, `DEBUG_SHADOW`) are replaced by the pseudo define `SHADOW_CONSTANTS`. It is called in both places that work out the selection set (`slangSelectionSet`, `attachSlangStageChoice`). Everything else is unchanged.
+- `lib/view/shadow.slang`: under `SHADOW_CONSTANTS` both cloud includes are always declared (the view set holds a valid dummy for each binding, `components/view/descriptors.cpp`), the three constants are declared, and `cloudsShadow`/`shadow` branch on one constant at a time (no `OpSpecConstantOp`; the existing test passes). The define form is untouched, so the object and terrain permutations are byte for byte what they were (total sizes of `default/main.frag` 8,299,308 B, `default/main.vert` 277,084 B, `terrain/main.frag` 3,546,812 B, `terrain/main.vert` 54,320 B and `post/tonemap.frag` 167,520 B are equal before and after).
+- `water/main.frag.sets`: one new set `BUMP_MAP SHADOW_CONSTANTS` (13 listed; with the switch on only that one is chosen). The new permutation is 96,548 B (the twelve old ones sum to 764,992 B, 63,749 B each).
+- **Found and fixed (not in the plan): the cell-bounded water (task 0129, `WATER_CELL`) never had a Slang twin.** Its vertex set was not listed, so with `slang shaders` on its pipeline was GLSL (`OPENEDEN_SHADER_TRACE`: `water/pipeline WATER_CELL ... glsl`). `water/water.vert.slang` now has the `WATER_CELL` branch, `water/main.vert.sets` lists `-` and `WATER_CELL`, and `water/main.vert.interface-exceptions` has the one GLSL-only line (the unused scene uniform). The trace now says `slang` for both water pipelines.
+- **Deviation from section 2.3:** `WATER_CELL` stays a compile-time define (2 vertex sets) in this stage, because its value comes from the pipeline's modes, not from a setting. The Mode to constant table (`Pipeline::Constants`) is therefore **not built yet**: no define of this pilot needed it. It arrives with the terrain or object stage, where Mode defines become constants.
+
+**Set counts after this stage:** water fragment 12 -> 1 (switch on; 13 files are built so that the switch off keeps the old behaviour); water vertex 1 -> 2 (a gap closed, not a cut).
+
+**Tests.** New `apps/components_tests/vsg/testshaderconstants.cpp` (7 tests: the selection rule on and off, other stages and no options unchanged, the three constants and the switch coming from `ShaderSettings`, the switch default, the shadow include's branch form, the two sets files).
+**Existing test files edited (for toddhow's approval, per the per-stage rule):** `testslangpermutations.cpp` (`compileGlsl` expands `SHADOW_CONSTANTS` to `CLOUD_SHADOW` + `VOLUME_CLOUD_SHADOW` for the GLSL comparison; the "neither imported nor a settings define" check lets the pseudo define through for `water/main.frag`), `testslanginterfacerecords.cpp` (the same expansion in `compileGlsl`; `possibleDefines` adds `SHADOW_CONSTANTS` for the water fragment), and `apps/components_tests/CMakeLists.txt` (registration only).
+**Golden data rewritten for review:** `water/main.frag.interface` (+64 lines: the new set and its `defines` line), `water/main.vert.interface` (+33: the `WATER_CELL` set), `water/main.frag.interface-exceptions` (+3 lines, copied from the set with both cloud shadows on), the new `water/main.vert.interface-exceptions`, `water/main.frag.sets` and the new `water/main.vert.sets`. The other 31 records were regenerated by the writer test and are identical to the committed ones apart from line endings (restored).
+**Run:** `ShaderConstants.*`, `SlangPermutations.*`, `SlangInterfaceRecords.*`, `ShaderDefines.*`, `SlangRuntimeLibrary.*` (every listed permutation reproduced byte for byte by the run-time compiler), `PipelineTerrainDefines.*`, `PostPassesSwitchOff.*`: 67 passed, 2 skipped (the record writers), before the `WATER_CELL` addition. **After it, on the final build (8 `ShaderConstants` tests): the same filter, 68 passed, 2 skipped.**
+
+**Frames** (Seyda Neen shore, clear noon, `tools/benchmark_data/water_view.txt`, 1280x720, `OPENEDEN_FIXED_FRAME_TIME`, quiet window, volume 0; viewed: the shore with the sea at the left, tree, tower and fungus: `I:/Projects/OpenEden-work/combat3/slangb/s1/user/screenshots/screenshot000.png`). Two configurations (hdr + atmosphere + cloud shadows; the same plus volumetric clouds and their shadows), each run twice per variant (GLSL, Slang with 12 sets, Slang with the constants permutation). **Runs of one configuration are not repeatable** (the tower area and scene noise: two identical GLSL runs differ in 6,000 to 8,000 pixels), so the comparison is on the water band (y 300 to 480, 230,400 px). Constants against 12 sets: at most 432 px differ by any amount and at most 2 px by more than 4 levels (max 15); the same variant against itself differs in 192 to 378 px (max 22), so the two Slang forms are equal within run noise. GLSL against either Slang form: 2,000 to 2,800 px (up to 144 px over 4 levels, max 158), the water's known GLSL against Slang rounding (stage d). The trace shows `water/pipeline BUMP_MAP SHADOW_CONSTANTS slang` for both water pipelines with the switch on.
+
+**Morrowind unchanged against the `integ2` build** (a build of `main`): `tools/skymap_check/morrowind_check.sh` with this base config gives the two Balmora frames `1eb68236352dc472` and `c819db116f4af8a6` for both executables (the `1c5d47ad0b5dc32d` of earlier rows comes from another base config). With `hdr = true` the pair is `ac666a15ede8726c`/`7bf0ac8154fee556`, and with `hdr`, `slang shaders` and `shader constants` on `e260ad4a71086a3f`/`993fef6a37f86258`; the integ2 reference gives the same hashes in all three runs, so Balmora shows no difference. `tools/worldobjects_check`: 110 objects OK, no dumps. I did not reproduce the harness of the `b451a8a6ca771e79` hdr frame (it is not this script), so that hash was not compared.
+
+**The measurement for the flip decision is NOT conclusive and the default is NOT flipped.** Test profile `main` settings (all features on), Seyda Neen shore, 1280x720, `gpu timing`, last 400 of 700 frames, three interleaved rounds (GLSL, Slang 12 sets, Slang constants), medians per run:
+
+| variant | wall ms (3 runs) | GPU main scene ms (3 runs) | frames over 25 ms |
+| --- | --- | --- | --- |
+| GLSL (`slang shaders = false`) | 5.60, 8.33, 7.60 | 0.699, 0.743, 0.740 | 1, 3, 1 |
+| Slang, 12 water sets | 6.64, 7.68, 8.33 | 0.871, 0.780, 0.955 | 0, 0, 1 |
+| Slang, constants | 5.40, 8.07, 5.12 | 0.700, 0.904, 0.696 | 0, 1, 0 |
+
+**The machine was not quiet:** other sessions were compiling and linking during all nine runs (a 5.7 GB `link.exe`, five `cl.exe`), and identical configurations differ by up to 3 ms of wall time between rounds. The table shows only what stage j already found (the Slang object fragment costs a little GPU time in the main pass, 0.78 to 0.96 ms against 0.70 to 0.74 ms for the GLSL, while the CPU wall times overlap) and **no measurable difference between the 12 sets and the constants permutation** (0.70 to 0.90 ms against 0.78 to 0.96 ms). The acceptance rule of section 3 (GPU main pass within +2 percent or +0.03 ms) cannot be judged on this data. The re-measurement, and with it the flip of `slang shaders`, has to be repeated when nothing else runs. **Question for toddhow: tell me when the machine is free, or accept a flip on the stage j evidence.**
+
+**Not run / not done:** the Linux gate and GCC `-Werror`, clang-format 14 (not installed; long lines wrapped by hand), clang-tidy, the Lua tests, `openmw-tests`, the whole `components-tests`, a fresh review, a rain or night water frame (only the clear shore), the `cloud shadow debug` combination in a frame, a weak GPU, the Mode to constant table. The constants rely on the view set's dummies being bound for the cloud shadow bindings when the shadows are off: seen working in the frames and the 12-set comparison, not checked by a validation layer (none installed; nothing was downloaded).

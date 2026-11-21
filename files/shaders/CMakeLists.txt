@@ -402,10 +402,10 @@ openeden_add_slang_permutations(SOURCE comp/light/assign.slang STAGE_FILE comp/l
 openeden_add_slang_permutations(SOURCE comp/particle/simulate.slang STAGE_FILE comp/particle/simulate.comp
     ENTRY simulateMain STAGE compute DEFINE_SETS -)
 
-# The water (task 0072, water family). Its vertex stage has no defines; its fragment stage imports BUMP_MAP and
+# The water (task 0072, water family). Its vertex stage has the sets `-` and WATER_CELL (task 0363 stage b); its fragment stage imports BUMP_MAP and
 # includes shadow.settings, whose "#define" lines join the set (water/main.frag.sets lists every combination).
 openeden_add_slang_permutations(
-    SOURCE water/water.vert.slang STAGE_FILE water/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+    SOURCE water/water.vert.slang STAGE_FILE water/main.vert ENTRY vertMain STAGE vertex DEFINE_SETS_FILE water/main.vert.sets)
 openeden_add_slang_permutations(SOURCE water/water.frag.slang STAGE_FILE water/main.frag ENTRY fragMain
     STAGE fragment DEFINE_SETS_FILE water/main.frag.sets)
 # The terrain (task 0072, terrain family). Its sets come from Pipeline::terrainDefines and the settings files'

@@ -54,3 +54,7 @@
 [BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: in location=1 vec3f32
 [BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
 [BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG DEBUG_SHADOW VOLUME_CLOUD_SHADOW] glsl-only: descriptor set=0 binding=7 sampler
+# Task 0363 (stage b): the constants permutation declares what the GLSL does with CLOUD_SHADOW and VOLUME_CLOUD_SHADOW both on.
+[BUMP_MAP SHADOW_CONSTANTS] glsl-only: descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+[BUMP_MAP SHADOW_CONSTANTS] glsl-only: descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+[BUMP_MAP SHADOW_CONSTANTS] glsl-only: in location=1 vec3f32

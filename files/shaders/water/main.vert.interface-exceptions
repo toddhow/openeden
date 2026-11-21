@@ -1,0 +1,5 @@
+# The lines the Slang twin of water/main.vert may declare differently from the GLSL (task 0363 stage b, WATER_CELL), read by
+# SlangPermutations: "[<define set>] glsl-only: <line>". With WATER_CELL the GLSL's main reads only the push constants;
+# glslang keeps the unused declaration of the scene uniform (lib/view/scene.glsl), Slang drops it. A pipeline layout may
+# hold bindings a shader does not read, so nothing the pipeline builds changes.
+[WATER_CELL] glsl-only: descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;

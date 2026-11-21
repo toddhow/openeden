@@ -1,4 +1,4 @@
-// The water's vertex stage, in Slang (task 0072, water family): the twin of water/main.vert (no defines). It must
+// The water's vertex stage, in Slang (task 0072, water family): the twin of water/main.vert (the define set `-`, and WATER_CELL, task 0129). It must
 // declare what the GLSL declares (checked by SlangPermutations). The four vertices of the water plane are made here from
 // the view frustum's corners, as in the GLSL; the statements follow it one for one. GLSL's m[c][r] is m[r][c] here.
 import glsl;
@@ -25,6 +25,16 @@ VertexOutput vertMain(uint vertexIndexU : SV_VulkanVertexID)
 {
     int vertexIndex = int(vertexIndexU);
     VertexOutput output;
+#ifdef WATER_CELL
+    // Task 0129: a water surface bounded to one cell; the node's transform places the unit square (the GLSL's WATER_CELL
+    // main). The task 0363 stage b gave this set a twin: the cell pipeline used to draw with the GLSL.
+    float3 local = float3(float(vertexIndex & 1), float((vertexIndex >> 1) & 1), 0.0);
+    float4 cellViewPos = mul(pc.modelview, float4(local, 1.0));
+    output.io.viewPos = cellViewPos.xyz;
+    output.io.pointLightDiffuse = float3(0.0);
+    output.position = mul(pc.projection, cellViewPos);
+    return output;
+#else
     float2 edge = float2(1.0) + float2(8.0) / scene.resolution;
     float3 frustumCorners[8] = { float3(edge.x, edge.y, nearDepth), float3(-edge.x, edge.y, nearDepth),
         float3(edge.x, -edge.y, nearDepth), float3(-edge.x, -edge.y, nearDepth), float3(edge.x, edge.y, farDepth),
@@ -74,4 +84,5 @@ VertexOutput vertMain(uint vertexIndexU : SV_VulkanVertexID)
     output.io.pointLightDiffuse = float3(0.0);
     output.position = mul(pc.projection, viewPos);
     return output;
+#endif
 }

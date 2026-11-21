@@ -17,11 +17,24 @@ import lib.view.scene;
 __exported import lib.view.cascades;
 __exported import lib.view.shadowsettings;
 
+#ifdef SHADOW_CONSTANTS
+// Task 0363 (stage b): the three cloud shadow defines as specialization constants (ids of
+// Resource::settingsConstantTable; a stage takes this form when `[Rendering] shader constants` is on,
+// vsgUtil::constantDefinesFor). Both cloud includes are always declared: the view set holds a valid dummy for each of
+// their bindings (components/view/descriptors.cpp). Branches are on one constant at a time, as the rule above says.
+__exported import lib.view.cloudshadow;
+__exported import lib.view.volumecloudshadow;
+
+[vk::constant_id(1067)] const bool cCloudShadow = false;
+[vk::constant_id(1068)] const bool cCloudShadowDebug = false;
+[vk::constant_id(1069)] const bool cVolumeCloudShadow = false;
+#else
 #ifdef CLOUD_SHADOW
 __exported import lib.view.cloudshadow;
 #endif
 #ifdef VOLUME_CLOUD_SHADOW
 __exported import lib.view.volumecloudshadow;
+#endif
 #endif
 
 [[vk::binding(VIEW_SHADOW_MAP_BINDING, VIEW_SET)]] Texture2DArray<float> shadowMap;
@@ -138,6 +151,32 @@ float shadowMaps(float3 viewPos, float3 viewNormal)
     return 1;
 }
 
+#ifdef SHADOW_CONSTANTS
+// The same answers as the define form below: the clouds' share is 1 with neither shadow on, so the product with the
+// sun's shadow is the sun's shadow alone then, bit for bit.
+float cloudsShadow(float3 viewPos)
+{
+    float result = 1.0;
+    if (cVolumeCloudShadow)
+    {
+        float2 volume = volumeCloudShadow(viewPos);
+        if (cCloudShadow)
+            result = lerp(cloudShadow(viewPos), volume.x, volume.y);
+        else
+            result = lerp(1.0, volume.x, volume.y);
+    }
+    else if (cCloudShadow)
+        result = cloudShadow(viewPos);
+    return result;
+}
+
+float shadow(float3 viewPos, float3 viewNormal)
+{
+    if (cCloudShadowDebug)
+        return cloudsShadow(viewPos);
+    return shadowMaps(viewPos, viewNormal) * cloudsShadow(viewPos);
+}
+#else
 // The sun's shadow on the ground, times the clouds' (task 0038, 0042); the reasons are in the GLSL.
 #if defined(CLOUD_SHADOW) || defined(VOLUME_CLOUD_SHADOW)
 float cloudsShadow(float3 viewPos)
@@ -167,6 +206,7 @@ float shadow(float3 viewPos, float3 viewNormal)
     return shadowMaps(viewPos, viewNormal);
 #endif
 }
+#endif
 
 #ifdef DEBUG_SHADOW
 // The GLSL reads gl_FragCoord; the caller passes the fragment's window position.

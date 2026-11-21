@@ -319,6 +319,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 ## Known limits
 
 - Blended draws (rain, snow, glass, particles) are drawn after the TAA resolve, so their edges are not anti-aliased; fast-moving things may leave a faint trail. `variants/msaa.cfg` swaps it out.
+- **Shader constants (task 0363, stage b):** `shader constants = true` gives the water's shadow settings (cloud shadows, volumetric cloud shadows) to its Slang shader as specialization constants: one prebuilt permutation (`BUMP_MAP SHADOW_CONSTANTS`) instead of twelve, and the cell-bounded water now has a Slang twin too. The picture is the same within run noise; `openmw.log`/`OPENEDEN_SHADER_TRACE` show `water/pipeline ... BUMP_MAP SHADOW_CONSTANTS slang`.
 - **A cold shader cache no longer stalls the game** (`user\openeden\shadercache`, one per profile): a Slang variant the
   build did not list is compiled on a worker thread (80 to 110 ms each, 400 to 430 ms for the first, which loads the library)
   while the GLSL draws, so for the first minutes some objects, and the terrain until the next start, are drawn by the GLSL

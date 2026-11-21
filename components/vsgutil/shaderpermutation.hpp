@@ -80,6 +80,9 @@ namespace vsgUtil
         // (shadow.settings, terrain.settings) in this run. A stage that includes such a file compiles with them, so
         // they are part of the set its Slang twin is chosen by (stageDefines).
         std::set<std::string> defines;
+        // Task 0363 (stage b): `[Rendering] shader constants`: a stage in constantDefinesFor's table takes its settings
+        // defines as the constants above, so its Slang twin is the one permutation with SHADOW_CONSTANTS.
+        bool constantDefines = false;
     };
 
     inline constexpr const char* settingsConstantsKey = "openeden.settingsConstants";
@@ -94,6 +97,13 @@ namespace vsgUtil
     /// inserted, as vsg's glsl reader returns it), out of `settingsDefines` (SettingsConstants::defines).
     std::set<std::string> includedSettingsDefines(
         std::string_view source, const std::set<std::string>& settingsDefines);
+
+    /// Task 0363 (stage b): the set a Slang twin is chosen by when `options` ask for constants instead of defines
+    /// (SettingsConstants::constantDefines): for "water/main.frag" the four shadow settings' defines are replaced by
+    /// the one name SHADOW_CONSTANTS, whose permutation reads them as specialization constants (lib/view/shadow.slang). Any
+    /// other stage, and any call without the switch, returns `defines` unchanged.
+    std::set<std::string> constantDefinesFor(
+        const std::string& path, std::set<std::string> defines, const vsg::Options* options);
 
     /// The define set a stage's GLSL really compiles with and its Slang twin is chosen and traced by: the requested
     /// names the stage imports (effectiveDefines) plus the settings files' defines its source includes

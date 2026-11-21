@@ -16,6 +16,8 @@ namespace Settings
 
         SettingValue<bool> mGpuTiming{ mIndex, "Rendering", "gpu timing" };
         SettingValue<bool> mSlangShaders{ mIndex, "Rendering", "slang shaders" };
+        // Task 0363 (stage b): settings-driven defines of the Slang shaders become specialization constants.
+        SettingValue<bool> mShaderConstants{ mIndex, "Rendering", "shader constants" };
         SettingValue<bool> mDeviceReport{ mIndex, "Rendering", "device report" };
         // 2026-11-09: a persistent VkPipelineCache under <user data>/openeden/shadercache.
         SettingValue<bool> mPipelineCache{ mIndex, "Rendering", "pipeline cache" };

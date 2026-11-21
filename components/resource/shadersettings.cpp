@@ -51,6 +51,14 @@ namespace
             constants.constants[entry->mId] = vsg::floatValue::create(value);
     }
 
+    // Task 0363 (stage b): a constant the GLSL has no name for (the Slang twin of a stage that takes a settings define
+    // as a constant).
+    void setConstantOnly(const std::string& identifier, bool value, vsgUtil::SettingsConstants& constants)
+    {
+        if (const auto* entry = findConstant(identifier))
+            constants.constants[entry->mId] = vsg::Value<VkBool32>::create(value ? VK_TRUE : VK_FALSE);
+    }
+
     // Task 0072 (review of stages b and c): a settings file's define, written as the GLSL has always had it and
     // remembered so that the Slang twin of a stage that includes the file is chosen with it (vsgUtil::stageDefines).
     void addDefine(const std::string& name, std::stringstream& stream, vsgUtil::SettingsConstants& constants)
@@ -132,6 +140,12 @@ namespace Resource
             { "cShadowSamples", settingsConstantBase + 64, 'i' },
             { "cShadowMaxDist", settingsConstantBase + 65, 'f' },
             { "cShadowFadeStart", settingsConstantBase + 66, 'f' },
+            // Task 0363 (stage b): the shadow.settings "#define" lines as constants, for a stage whose Slang twin takes
+            // them that way (vsgUtil::constantDefinesFor, `[Rendering] shader constants`). The water's fragment stage
+            // so far; DEBUG_SHADOW is not one (the water never draws the shadow hud).
+            { "cCloudShadow", settingsConstantBase + 67, 'b' },
+            { "cCloudShadowDebug", settingsConstantBase + 68, 'b' },
+            { "cVolumeCloudShadow", settingsConstantBase + 69, 'b' },
             // material.settings (lib/material/terms.glsl)
             { "cClampLighting", settingsConstantBase + 80, 'b' },
             // ao.settings (post/ao.frag; task 0072, stage g): named as ambientocclusion.cpp named its defines
@@ -181,17 +195,24 @@ namespace Resource
         const bool hdr = Settings::Manager::getBool("hdr", "Rendering");
         const bool cloudShadows = Render::Cloud::useShadows(Settings::Manager::getBool("cloud shadows", "Rendering"),
             hdr, Settings::Manager::getBool("atmosphere", "Rendering"));
+        const bool cloudShadowDebug = cloudShadows && Settings::Manager::getBool("cloud shadow debug", "Rendering");
         if (cloudShadows)
         {
             addDefine("CLOUD_SHADOW", source, *constants);
-            if (Settings::Manager::getBool("cloud shadow debug", "Rendering"))
+            if (cloudShadowDebug)
                 addDefine("CLOUD_SHADOW_DEBUG", source, *constants);
         }
+        setConstantOnly("cCloudShadow", cloudShadows, *constants);
+        setConstantOnly("cCloudShadowDebug", cloudShadowDebug, *constants);
         // OpenEden (task 0042): the ray marched clouds' shadow on the ground (lib/view/volumecloudshadow.glsl).
-        if (Render::CloudVolume::useVolumetricClouds(Settings::Manager::getBool("volumetric clouds", "Rendering"), hdr,
-                Settings::Manager::getBool("atmosphere", "Rendering"))
-            && Settings::Manager::getBool("volumetric clouds shadows", "Rendering"))
+        const bool volumeCloudShadows
+            = Render::CloudVolume::useVolumetricClouds(Settings::Manager::getBool("volumetric clouds", "Rendering"),
+                  hdr, Settings::Manager::getBool("atmosphere", "Rendering"))
+            && Settings::Manager::getBool("volumetric clouds shadows", "Rendering");
+        if (volumeCloudShadows)
             addDefine("VOLUME_CLOUD_SHADOW", source, *constants);
+        setConstantOnly("cVolumeCloudShadow", volumeCloudShadows, *constants);
+        constants->constantDefines = Settings::Manager::getBool("shader constants", "Rendering");
         if (Settings::Manager::getBool("enable debug hud", "Shadows"))
             addDefine("DEBUG_SHADOW", source, *constants);
         objects["shadow.settings"] = vsg::ShaderModule::create(source.str());

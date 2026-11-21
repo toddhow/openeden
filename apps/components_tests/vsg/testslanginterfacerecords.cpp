@@ -90,6 +90,14 @@ namespace
         const auto settingsNames = Resource::settingsDefineNames();
         for (std::string name; names >> name;)
         {
+            // Task 0363 (stage b): SHADOW_CONSTANTS is the one permutation that takes the shadow settings as constants;
+            // its interface is the GLSL's with the cloud shadows and the volumetric ones both on.
+            if (name == "SHADOW_CONSTANTS")
+            {
+                settingsDefines.insert("CLOUD_SHADOW");
+                settingsDefines.insert("VOLUME_CLOUD_SHADOW");
+                continue;
+            }
             if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
                 settingsDefines.insert(name);
             else
@@ -186,6 +194,9 @@ namespace
         for (const std::string& name :
             vsgUtil::includedSettingsDefines(glslSource(stageFile, allSettingsDefines), allSettingsDefines))
             possible.insert(name);
+        // Task 0363 (stage b): the water's constants permutation (vsgUtil::constantDefinesFor).
+        if (stageFile == "water/main.frag")
+            possible.insert("SHADOW_CONSTANTS");
         return possible;
     }
 

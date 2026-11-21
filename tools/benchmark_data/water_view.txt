@@ -1,0 +1,7 @@
+ChangeWeather "Bitter Coast Region" 0
+set gamehour to 14
+set timescale to 0
+player->position -11400 -71500 -60 270
+player->setangle z 235
+player->setangle x 6
+tcl
