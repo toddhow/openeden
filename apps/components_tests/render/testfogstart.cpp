@@ -78,8 +78,7 @@ namespace
 
     TEST(FogStartShaders, theObjectAndTerrainShadersPassItToTheFog)
     {
-        for (const char* file : { "default/main.frag", "terrain/main.frag", "default/default.frag.slang",
-                 "terrain/terrain.frag.slang" })
+        for (const char* file : { "default/main.frag", "default/default.frag.slang", "terrain/terrain.frag.slang" })
         {
             const std::string src = readShader(file);
             EXPECT_NE(src.find("fogStartColour()"), std::string::npos) << file;

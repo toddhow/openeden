@@ -64,16 +64,11 @@ namespace
         EXPECT_EQ(with.size(), 1u);
     }
 
-    TEST(AmbientCubeExterior, bothTerrainShadersTakeTheCube)
+    TEST(AmbientCubeExterior, theTerrainShaderTakesTheCube)
     {
-        const std::string glsl = readSource("terrain/main.frag");
         const std::string slang = readSource("terrain/terrain.frag.slang");
-        EXPECT_TRUE(contains(glsl.substr(0, glsl.find('\n')), "AMBIENT_CUBE"));
-        for (const std::string* text : { &glsl, &slang })
-        {
-            EXPECT_TRUE(contains(*text, "ambientCubeAmbient")) << "a terrain shader does not call the cube";
-            EXPECT_TRUE(contains(*text, "ambientcube.")) << "a terrain shader does not include the cube";
-        }
+        EXPECT_TRUE(contains(slang, "ambientCubeAmbient")) << "the terrain shader does not call the cube";
+        EXPECT_TRUE(contains(slang, "ambientcube.")) << "the terrain shader does not include the cube";
     }
 
     TEST(AmbientCubeExterior, theSkyVisibilityHeaderIsDeclaredByOneFileOnly)

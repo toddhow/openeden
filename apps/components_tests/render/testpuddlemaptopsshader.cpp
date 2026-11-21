@@ -108,7 +108,7 @@ namespace
 
     TEST(PuddleMapTopsShaderUse, terrain_asks_without_the_object_test_and_objects_ask_with_it)
     {
-        for (const char* file : { "terrain/main.frag", "terrain/terrain.frag.slang" })
+        for (const char* file : { "terrain/terrain.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;

@@ -521,7 +521,7 @@ namespace
 
     TEST(PuddleTopoShaderUse, the_terrain_hands_the_fallback_its_real_normal)
     {
-        for (const char* file : { "terrain/main.frag", "terrain/terrain.frag.slang" })
+        for (const char* file : { "terrain/terrain.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;

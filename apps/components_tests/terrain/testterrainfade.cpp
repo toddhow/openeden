@@ -85,16 +85,16 @@ namespace
         EXPECT_EQ(value->value().fade, 0.f);
     }
 
-    TEST(TerrainFadeShader, both_languages_declare_the_member_and_read_it_with_the_ordered_dither)
+    TEST(TerrainFadeShader, the_shader_declares_the_member_and_reads_it_with_the_ordered_dither)
     {
-        for (const char* file : { "terrain/data.glsl", "terrain/data.slang" })
+        for (const char* file : { "terrain/data.slang" })
         {
             SCOPED_TRACE(file);
             const std::string text = readSource(file);
             ASSERT_FALSE(text.empty());
             EXPECT_TRUE(contains(text, "float fade;"));
         }
-        for (const char* file : { "terrain/main.frag", "terrain/terrain.frag.slang" })
+        for (const char* file : { "terrain/terrain.frag.slang" })
         {
             SCOPED_TRACE(file);
             const std::string text = readSource(file);
@@ -103,20 +103,6 @@ namespace
             EXPECT_TRUE(contains(text, "batch.fade"));
             EXPECT_TRUE(contains(text, "BATCH_DATA_BINDING"));
         }
-    }
-
-    TEST(TerrainFadeShader, the_discard_comes_after_the_derivative_taking_code)
-    {
-        // The pixels that the dither drops must not change the quad's derivatives for the pixels that stay: the discard
-        // is the last statement (the POM march and the texture reads come first).
-        const std::string glsl = readSource("terrain/main.frag");
-        const auto discard = glsl.rfind("discard");
-        ASSERT_NE(discard, std::string::npos);
-        const auto lastFetch = glsl.rfind("texture(");
-        ASSERT_NE(lastFetch, std::string::npos);
-        EXPECT_GT(discard, lastFetch);
-        const auto lastDebug = glsl.rfind("DEBUG_CHUNKS");
-        EXPECT_GT(discard, lastDebug);
     }
 
     // The game's own options over the build's shader folder: the terrain's default define sets are listed there.

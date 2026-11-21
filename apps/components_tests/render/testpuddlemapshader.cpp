@@ -140,7 +140,7 @@ namespace
     {
         // Stage W-c: the object shader reads the map too (under the height test), so a road takes the baked puddles.
         for (const char* file :
-            { "terrain/main.frag", "terrain/terrain.frag.slang", "default/main.frag", "default/default.frag.slang" })
+            { "terrain/terrain.frag.slang", "default/main.frag", "default/default.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;

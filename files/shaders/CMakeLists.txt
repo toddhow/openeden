@@ -71,11 +71,8 @@ set(SHADER_FILES
     lib/math/projection.glsl
     default/main.vert
     default/main.frag
-    terrain/inout.glsl
     terrain/bindings.glsl
     terrain/data.glsl
-    terrain/main.vert
-    terrain/main.frag
     water/main.vert
     water/main.frag
     water/fresnel.glsl

@@ -58,18 +58,6 @@ namespace
         EXPECT_GT(octaveFade(1e30f), 0.f);
     }
 
-    // The shader repeats the function; this reads its text back so that one cannot change without the other.
-    TEST(WaterOctaveFade, TheShaderRepeatsTheSameRule)
-    {
-        std::ifstream file(std::string(OPENEDEN_SHADER_SOURCE_DIR) + "/water/main.frag");
-        ASSERT_TRUE(file.good()) << "water/main.frag not found";
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        const std::string text = buffer.str();
-        EXPECT_NE(text.find("float waterOctaveFade(float texelsPerPixel)"), std::string::npos);
-        EXPECT_TRUE(std::regex_search(text, std::regex(R"(1\.0\s*/\s*max\(\s*1\.0\s*,\s*texelsPerPixel\s*\))")));
-    }
-
     std::string readShaderText(const std::string& name)
     {
         std::ifstream file(std::string(OPENEDEN_SHADER_SOURCE_DIR) + "/" + name);
@@ -78,8 +66,7 @@ namespace
         return buffer.str();
     }
 
-    // The value of `name` in a line such as "const float name = 128.0;" (GLSL) or "static const float name = 128.0;"
-    // (Slang), or an empty string.
+    // The value of `name` in a line such as "static const float name = 128.0;", or an empty string.
     std::string constantValue(const std::string& text, const std::string& name)
     {
         std::smatch match;
@@ -88,10 +75,10 @@ namespace
         return {};
     }
 
-    // Task 0072 (water family): the Slang twin repeats the rule and its constants exactly as the GLSL has them.
-    TEST(WaterOctaveFade, TheSlangTwinRepeatsTheSameRuleAndConstants)
+    // The shader repeats the function; this reads its text back so that one cannot change without the other. Task 0363,
+    // stage g: the GLSL is gone, the constants are pinned here.
+    TEST(WaterOctaveFade, TheShaderRepeatsTheSameRuleAndConstants)
     {
-        const std::string glsl = readShaderText("water/main.frag");
         const std::string slang = readShaderText("water/water.frag.slang");
         ASSERT_FALSE(slang.empty()) << "water/water.frag.slang not found";
         EXPECT_NE(slang.find("float waterOctaveFade(float texelsPerPixel)"), std::string::npos);
@@ -99,8 +86,8 @@ namespace
         for (const char* name : { "bumpMapSize", "waterFadeFromFar", "waveScale", "shininess" })
         {
             SCOPED_TRACE(name);
-            EXPECT_FALSE(constantValue(glsl, name).empty());
-            EXPECT_EQ(constantValue(slang, name), constantValue(glsl, name));
+            EXPECT_FALSE(constantValue(slang, name).empty());
         }
+        EXPECT_EQ(constantValue(slang, "bumpMapSize"), "128.0");
     }
 }

@@ -121,6 +121,24 @@ namespace
         return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     }
 
+    // The names a stage imports: the "defines" line of its recorded interface (<stage>.interface, written when the GLSL
+    // stages still existed), without the pseudo defines of the constants permutations.
+    Defines importedNames(const std::string& stage)
+    {
+        Defines names;
+        std::istringstream lines(readSource(stage + ".interface"));
+        for (std::string line; std::getline(lines, line);)
+        {
+            if (line.rfind("defines ", 0) != 0)
+                continue;
+            std::istringstream words(line.substr(8));
+            for (std::string name; words >> name;)
+                if (name != "MODE_CONSTANTS" && name != "SHADOW_CONSTANTS")
+                    names.insert(name);
+        }
+        return names;
+    }
+
     // The canonical sets of the vertex and fragment stage for one profile, as the game asks for them.
     std::pair<std::string, std::string> stageSets(
         const Profile& p, const Defines& vertexImports, const Defines& fragmentImports)
@@ -207,8 +225,8 @@ namespace
         static const Reachable result = [] {
             Reachable r;
             // The names each stage imports (vsgUtil::effectiveDefines keeps only these), read once.
-            const Defines vertexImports = vsgUtil::importedDefines(readSource("terrain/main.vert"));
-            const Defines fragmentImports = vsgUtil::importedDefines(readSource("terrain/main.frag"));
+            const Defines vertexImports = importedNames("terrain/main.vert");
+            const Defines fragmentImports = importedNames("terrain/main.frag");
             constexpr unsigned int flagCount = 20;
             for (unsigned int bits = 0; bits < (1u << flagCount); ++bits)
             {
@@ -272,7 +290,7 @@ namespace
 
     TEST(PipelineTerrainDefines, the_settings_reach_four_vertex_sets_and_every_one_has_a_twin)
     {
-        ASSERT_FALSE(readSource("terrain/main.vert").empty()) << "the shader sources are not beside the tests";
+        ASSERT_FALSE(readSource("terrain/main.vert.interface").empty()) << "the shader sources are not beside the tests";
         const std::set<std::string> expected = { "", "DEBUG_CHUNKS", "DEBUG_CHUNKS TERRAIN_MAPS", "TERRAIN_MAPS" };
         EXPECT_EQ(reachable().vertex, expected);
         EXPECT_EQ(listedSets("terrain/main.vert.sets"), expected);
@@ -289,7 +307,7 @@ namespace
     // are a part, and a set that is not listed draws with the GLSL or is compiled at run time.
     TEST(PipelineTerrainDefines, the_settings_reach_43320_fragment_sets_and_every_listed_one_is_among_them)
     {
-        ASSERT_FALSE(readSource("terrain/main.frag").empty()) << "the shader sources are not beside the tests";
+        ASSERT_FALSE(readSource("terrain/main.frag.interface").empty()) << "the shader sources are not beside the tests";
         EXPECT_EQ(reachable().fragment.size(), 43320u);
         const std::set<std::string> listed = listedSets("terrain/main.frag.sets");
         EXPECT_FALSE(listed.empty());

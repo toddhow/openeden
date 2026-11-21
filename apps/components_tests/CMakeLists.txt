@@ -381,7 +381,6 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testshaderconstants.cpp
     vsg/testsmallfamilies.cpp
     vsg/testshaderpermutation.cpp
-    vsg/testambientcubecompile.cpp
     vsg/testslanginterfacerecords.cpp
     vsg/testslangpermutations.cpp
     vsg/testspirvinterface.cpp

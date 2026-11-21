@@ -76,13 +76,8 @@ TEST(TerrainChunkFadeInstance, an_instance_that_has_no_room_is_left_alone)
     EXPECT_FLOAT_EQ(Terrain::decodeChunkFade(0u), 1.f);
 }
 
-TEST(TerrainChunkFadeInstance, the_vertex_stages_decode_it_and_mask_lod_and_shift)
+TEST(TerrainChunkFadeInstance, the_vertex_stage_decodes_it_and_mask_lod_and_shift)
 {
-    const std::string glsl = readSource("terrain/main.vert");
-    EXPECT_TRUE(contains(glsl, "int lod = gl_InstanceIndex & 0xf;"));
-    EXPECT_TRUE(contains(glsl, "int shiftSize = (gl_InstanceIndex >> 8) & 0xf;"));
-    EXPECT_TRUE(contains(glsl, "vert_out.chunkFade"));
-    EXPECT_TRUE(contains(glsl, "255.0"));
     const std::string slang = readSource("terrain/terrain.vert.slang");
     EXPECT_TRUE(contains(slang, "int lod = instanceIndex & 0xf;"));
     EXPECT_TRUE(contains(slang, "int shiftSize = (instanceIndex >> 8) & 0xf;"));
@@ -90,24 +85,16 @@ TEST(TerrainChunkFadeInstance, the_vertex_stages_decode_it_and_mask_lod_and_shif
     EXPECT_TRUE(contains(slang, "255.0"));
 }
 
-TEST(TerrainChunkFadeInstance, the_varying_is_flat_and_last_in_both_languages)
+TEST(TerrainChunkFadeInstance, the_varying_is_flat_and_last)
 {
-    const std::string glsl = readSource("terrain/inout.glsl");
-    const std::size_t glslFlat = glsl.find("flat float chunkFade;");
-    ASSERT_NE(glslFlat, std::string::npos);
-    EXPECT_GT(glslFlat, glsl.find("vec3 viewBinormal;"));
     const std::string slang = readSource("terrain/inout.slang");
     const std::size_t slangFlat = slang.find("nointerpolation float chunkFade : V_CHUNKFADE;");
     ASSERT_NE(slangFlat, std::string::npos);
     EXPECT_GT(slangFlat, slang.find("float3 viewBinormal"));
 }
 
-TEST(TerrainChunkFadeInstance, the_fragment_stages_multiply_the_batch_fade_by_the_chunks)
+TEST(TerrainChunkFadeInstance, the_fragment_stage_multiplies_the_batch_fade_by_the_chunks)
 {
-    const std::string glsl = readSource("terrain/main.frag");
-    EXPECT_TRUE(contains(glsl, "float code = frag_in.chunkFade < 1.0 ? frag_in.chunkFade : batch.fade;"));
-    EXPECT_TRUE(contains(
-        glsl, "else if (code < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, code) == 0.0)"));
     const std::string slang = readSource("terrain/terrain.frag.slang");
     EXPECT_TRUE(contains(slang, "float code = input.io.chunkFade < 1.0 ? input.io.chunkFade : data.batch.fade;"));
     EXPECT_TRUE(contains(slang, "dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, -1.0 - code) != 0.0"));
