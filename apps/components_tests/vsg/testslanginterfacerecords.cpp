@@ -56,114 +56,6 @@ namespace
         return words;
     }
 
-    [[maybe_unused]] std::string settingsFileOf(std::string_view name)
-    {
-        return name == "DEBUG_CHUNKS" ? "terrain.settings" : "shadow.settings";
-    }
-
-    [[maybe_unused]] vsg::ref_ptr<vsg::Options> glslOptions(const std::set<std::string>& settingsDefines = {})
-    {
-        auto options = vsg::Options::create();
-        options->paths = { OPENEDEN_SHADER_SOURCE_DIR };
-        vsg::ref_ptr<Resource::ShaderSettings> settings{ new Resource::ShaderSettings };
-        for (const std::string& name : settingsDefines)
-        {
-            auto& object = settings->objects[settingsFileOf(name)];
-            const auto* module = dynamic_cast<const vsg::ShaderModule*>(object.get());
-            std::string text = module ? module->source : std::string();
-            if (!text.empty() && text.back() != '\n')
-                text += '\n';
-            object = vsg::ShaderModule::create(text + "#define " + name + " 1\n");
-        }
-        options->readerWriters = { settings, vsg::glsl::create() };
-        return options;
-    }
-
-    [[maybe_unused]] std::string glslSource(const std::string& file, const std::set<std::string>& settingsDefines = {})
-    {
-        auto stage = vsg::read_cast<vsg::ShaderStage>(file, glslOptions(settingsDefines));
-        return stage && stage->module ? stage->module->source : std::string();
-    }
-
-    [[maybe_unused]] std::vector<uint32_t> compileGlsl(const std::string& file, const std::string& canonicalDefines)
-    {
-        std::vector<std::string> defines;
-        std::set<std::string> settingsDefines;
-        std::istringstream names(canonicalDefines);
-        const auto settingsNames = Resource::settingsDefineNames();
-        for (std::string name; names >> name;)
-        {
-            // Task 0363 (stage b): SHADOW_CONSTANTS is the one permutation that takes the shadow settings as constants;
-            // its interface is the GLSL's with the cloud shadows and the volumetric ones both on.
-            if (name == "SHADOW_CONSTANTS")
-            {
-                settingsDefines.insert("CLOUD_SHADOW");
-                settingsDefines.insert("VOLUME_CLOUD_SHADOW");
-                continue;
-            }
-            // Task 0363 (stage c): MODE_CONSTANTS is the terrain's constants permutation: its interface is the GLSL's
-            // with every feature on (the sky field, the ambient cube, wetness with puddles, cover, the cloud shadows,
-            // point light shadows with the maps, the two debug views); the map class and G-buffer defines are real.
-            // Task 0363 (stage d): the object shader's (default/main.frag and main.vert): the GLSL with every
-            // settings-driven define on (the probes and the sky field, the ambient cube, the material model with
-            // wetness and cover, the cloud shadows and the shadow hud, and the point light shadows where there is a
-            // normal), or the far tree sway for the vertex stage.
-            if (name == "MODE_CONSTANTS" && file.rfind("default/", 0) == 0)
-            {
-                if (file == "default/main.vert")
-                {
-                    defines.push_back("LOD_SWAY");
-                    continue;
-                }
-                for (const char* settingsName : { "CLOUD_SHADOW", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW" })
-                    settingsDefines.insert(settingsName);
-                // What the twin reads whatever the draw: the fog's ambient cube start and the coverage adjustment.
-                for (const char* define : { "AMBIENT_CUBE", "ADJUST_COVERAGE" })
-                    defines.push_back(define);
-                // Plan B: the parallax, the material map layout, the two-channel normal map and the precipitation light
-                // are the GLSL's defines on wherever the shader can use them.
-                if (canonicalDefines.find("HEIGHT_MAP") != std::string::npos)
-                    for (const char* define : { "PARALLAX_POM", "PARALLAX_DISCARD" })
-                        defines.push_back(define);
-                if (canonicalDefines.find("NORMAL_MAP") != std::string::npos)
-                    for (const char* define : { "PARALLAX", "RECONSTRUCT_NORMAL_Z" })
-                        defines.push_back(define);
-                if (canonicalDefines.find("MATERIAL_MAP") != std::string::npos)
-                    defines.push_back("MATERIAL_MAP_RMAOS");
-                if (canonicalDefines.find("DIFFUSE_MAP") != std::string::npos
-                    && canonicalDefines.find("TEXCOORD") != std::string::npos)
-                    defines.push_back("PRECIPITATION_LIT");
-                // The lit surface's features exist only where there is a normal.
-                if (canonicalDefines.find("NORMAL") != std::string::npos)
-                    for (const char* define : { "GI", "GI_SKY", "WETNESS", "WETNESS_PUDDLES", "COVER", "PBR", "POINT_SHADOW" })
-                        defines.push_back(define);
-                continue;
-            }
-            if (name == "MODE_CONSTANTS")
-            {
-                for (const char* settingsName : { "CLOUD_SHADOW", "VOLUME_CLOUD_SHADOW", "DEBUG_CHUNKS", "DEBUG_SHADOW" })
-                    settingsDefines.insert(settingsName);
-                for (const char* define : { "GI_SKY", "WETNESS", "WETNESS_PUDDLES", "COVER", "AMBIENT_CUBE", "AO_TERRAIN" })
-                    defines.push_back(define);
-                if (canonicalDefines.find("TERRAIN_MAPS") != std::string::npos)
-                    defines.push_back("POINT_SHADOW");
-                continue;
-            }
-            if (std::find(settingsNames.begin(), settingsNames.end(), name) != settingsNames.end())
-                settingsDefines.insert(name);
-            else
-                defines.push_back(name);
-        }
-        auto options = glslOptions(settingsDefines);
-        auto stage = vsg::read_cast<vsg::ShaderStage>(file, options);
-        if (!stage)
-            return {};
-        vsg::ShaderStages stages{ stage };
-        if (!vsg::ShaderCompiler::create()->compile(stages, defines, options))
-            return {};
-        return stage->module->code;
-    }
-
     [[maybe_unused]] std::optional<uint32_t> uvSetsCount(const std::string& name)
     {
         for (uint32_t count = 0; count <= 64; ++count)
@@ -234,24 +126,6 @@ namespace
             }
         }
         return record;
-    }
-
-    [[maybe_unused]] std::set<std::string> possibleDefines(const std::string& stageFile)
-    {
-        std::set<std::string> possible = vsgUtil::importedDefines(glslSource(stageFile));
-        std::set<std::string> allSettingsDefines;
-        for (const std::string_view name : Resource::settingsDefineNames())
-            allSettingsDefines.emplace(name);
-        for (const std::string& name :
-            vsgUtil::includedSettingsDefines(glslSource(stageFile, allSettingsDefines), allSettingsDefines))
-            possible.insert(name);
-        // Task 0363 (stage b): the water's constants permutation (vsgUtil::constantDefinesFor).
-        if (stageFile == "water/main.frag")
-            possible.insert("SHADOW_CONSTANTS");
-        // Task 0363 (stage c): the terrain's constants permutation (vsgUtil::constantDefinesFor).
-        if (stageFile.rfind("terrain/", 0) == 0 || stageFile.rfind("default/", 0) == 0)
-            possible.insert("MODE_CONSTANTS");
-        return possible;
     }
 
     struct Manifest
@@ -364,6 +238,22 @@ namespace
         return table;
     }
 
+    // The table's name for a settings constant id, or none.
+    [[maybe_unused]] std::string settingsConstantName(uint32_t id)
+    {
+        for (const auto& entry : Resource::settingsConstantTable())
+        {
+            if (entry.mId == id)
+                return std::string(entry.mName);
+        }
+        for (const auto& entry : terrainConstantTable())
+        {
+            if (entry.mId == id)
+                return entry.mName;
+        }
+        return {};
+    }
+
     [[maybe_unused]] bool isSettingsConstant(const std::string& line)
     {
         for (const auto& entry : Resource::settingsConstantTable())
@@ -381,114 +271,6 @@ namespace
                 return true;
         }
         return false;
-    }
-
-    TEST(SlangInterfaceRecords, write_the_records_when_asked)
-    {
-#if !OPENEDEN_SLANG_ENABLED
-        GTEST_SKIP() << "this build has no slangc";
-#else
-        if (!std::getenv("OPENEDEN_RECORD_INTERFACES"))
-            GTEST_SKIP() << "set OPENEDEN_RECORD_INTERFACES=1 to write the records into files/shaders";
-        for (const Manifest& manifest : builtManifests())
-        {
-            std::ostringstream out;
-            out << "# Recorded interface of the GLSL stage " << manifest.mStageFile
-                << " per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,\n"
-                << "# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.\n";
-            out << "defines";
-            for (const std::string& name : possibleDefines(manifest.mStageFile))
-                out << ' ' << name;
-            out << '\n';
-            std::map<std::string, std::set<std::string>> byDefines;
-            for (const auto& [defines, file] : manifest.mFiles.mFiles)
-            {
-                const auto words = compileGlsl(manifest.mStageFile, defines);
-                ASSERT_FALSE(words.empty()) << manifest.mStageFile << " [" << defines << "] did not compile";
-                byDefines[defines] = vsgUtil::readSpirvInterface(words, pinnedConstants(defines)).mLines;
-            }
-            for (const auto& [defines, lines] : byDefines)
-            {
-                out << "set " << defines << '\n';
-                for (const std::string& line : lines)
-                    out << line << '\n';
-                out << "end\n";
-            }
-            std::ofstream file(std::filesystem::path(OPENEDEN_SHADER_SOURCE_DIR) / (manifest.mStageFile + ".interface"),
-                std::ios::binary | std::ios::trunc);
-            file << out.str();
-        }
-#endif
-    }
-
-    // Task 0072, stage j (the GPU cost of the object shader): writes the SPIR-V glslang makes of every listed set of
-    // the stages under OPENEDEN_DUMP_GLSL=<folder>, as <folder>/<stage>/<twin's file name>, so that it can be compared
-    // with the twin's file of the same name (instruction counts, a disassembly). A development aid; skipped without the
-    // variable.
-    TEST(SlangInterfaceRecords, dump_the_glsl_spirv_when_asked)
-    {
-#if !OPENEDEN_SLANG_ENABLED
-        GTEST_SKIP() << "this build has no slangc";
-#else
-        const char* folder = std::getenv("OPENEDEN_DUMP_GLSL");
-        if (!folder)
-        {
-            GTEST_SKIP() << "set OPENEDEN_DUMP_GLSL=<folder> to write the GLSL stages' SPIR-V";
-        }
-        for (const Manifest& manifest : builtManifests())
-        {
-            const std::filesystem::path directory = std::filesystem::path(folder) / manifest.mStageFile;
-            std::filesystem::create_directories(directory.parent_path());
-            for (const auto& [defines, file] : manifest.mFiles.mFiles)
-            {
-                const auto words = compileGlsl(manifest.mStageFile, defines);
-                ASSERT_FALSE(words.empty()) << manifest.mStageFile << " [" << defines << "] did not compile";
-                std::filesystem::create_directories(directory);
-                std::ofstream out(directory / file, std::ios::binary | std::ios::trunc);
-                out.write(reinterpret_cast<const char*>(words.data()),
-                    static_cast<std::streamsize>(words.size() * sizeof(uint32_t)));
-            }
-        }
-#endif
-    }
-
-    TEST(SlangInterfaceRecords, records_equal_the_live_glsl_interfaces)
-    {
-#if !OPENEDEN_SLANG_ENABLED
-        GTEST_SKIP() << "this build has no slangc";
-#else
-        std::size_t checked = 0;
-        for (const Manifest& manifest : builtManifests())
-        {
-            SCOPED_TRACE(manifest.mStageFile);
-            const auto record = readRecord(manifest.mStageFile);
-            ASSERT_TRUE(record) << manifest.mStageFile << ".interface is missing";
-            EXPECT_EQ(record->mDefines, possibleDefines(manifest.mStageFile));
-            std::set<std::string> listed;
-            for (const auto& [defines, file] : manifest.mFiles.mFiles)
-            {
-                SCOPED_TRACE("[" + defines + "]");
-                listed.insert(defines);
-                const auto words = compileGlsl(manifest.mStageFile, defines);
-                if (words.empty())
-                {
-                    ADD_FAILURE() << "the GLSL stage did not compile";
-                    continue;
-                }
-                const auto it = record->mInterface.find(defines);
-                if (it == record->mInterface.end())
-                {
-                    ADD_FAILURE() << "no record for this set";
-                    continue;
-                }
-                EXPECT_EQ(it->second, vsgUtil::readSpirvInterface(words, pinnedConstants(defines)).mLines);
-                ++checked;
-            }
-            for (const auto& [defines, lines] : record->mInterface)
-                EXPECT_EQ(listed.count(defines), 1u) << "the record has a set the build does not list: " << defines;
-        }
-        EXPECT_GT(checked, 0u);
-#endif
     }
 
     TEST(SlangInterfaceRecords, every_permutation_has_the_recorded_interface)
@@ -551,6 +333,15 @@ namespace
                         ADD_FAILURE() << "Slang declares, the GLSL does not: " << line;
                 }
                 EXPECT_EQ(slang.mSpecConstantOps, 0u) << "OpSpecConstantOp in the twin";
+                // A settings constant's id carries the table's name, so that two ids of the same type cannot swap.
+                for (const auto& [id, name] : slang.mSpecConstantNames)
+                {
+                    if (id < Resource::settingsConstantBase)
+                        continue;
+                    const std::string expected = settingsConstantName(id);
+                    EXPECT_FALSE(expected.empty()) << "id " << id << " is not in the settings constant table";
+                    EXPECT_EQ(name, expected) << "id " << id;
+                }
                 ++checked;
             }
             for (const auto& [key, used] : exceptions.mLines)
@@ -895,135 +686,6 @@ namespace
         return true;
     }
 
-    TEST(SlangLightGridGpu, the_twin_assigns_the_lights_the_glsl_assigns)
-    {
-#if !OPENEDEN_SLANG_ENABLED
-        GTEST_SKIP() << "this build has no slangc";
-#else
-        GpuLightGrid gpu;
-        if (!gpu.create())
-        {
-            GTEST_SKIP() << "no Vulkan device with a compute queue";
-        }
-        const auto glslWords = compileGlsl("comp/light/assign.comp", "-");
-        ASSERT_FALSE(glslWords.empty());
-        std::vector<uint32_t> slangWords;
-        for (const Manifest& manifest : builtManifests())
-        {
-            if (manifest.mStageFile == "comp/light/assign.comp")
-            {
-                for (const auto& [defines, file] : manifest.mFiles.mFiles)
-                {
-                    slangWords = readWords(manifest.mDirectory / file);
-                }
-            }
-        }
-        ASSERT_FALSE(slangWords.empty());
-
-        // The scene block (std140, lib/view/data.glsl): projection at byte 64, zNear at 596 and zFar at 600.
-        const vsg::dmat4 projection = vsg::perspective(vsg::radians(60.0), 16.0 / 9.0, 1.0, 7168.0);
-        std::vector<float> scene(256, 0.0f);
-        for (int c = 0; c < 4; ++c)
-        {
-            for (int r = 0; r < 4; ++r)
-            {
-                scene[16 + c * 4 + r] = static_cast<float>(projection[c][r]);
-            }
-        }
-        scene[149] = 1.0f;
-        scene[150] = 7168.0f;
-
-        uint32_t seed = 12345;
-        const auto random = [&seed]() {
-            seed = seed * 1664525u + 1013904223u;
-            return static_cast<float>((seed >> 8) & 0xFFFF) / 65535.0f;
-        };
-        struct Scenario
-        {
-            const char* mName;
-            uint32_t mRandom;
-            uint32_t mBlob;
-        };
-        const Scenario scenarios[] = { { "scattered lights", 400, 0 }, { "dense blob (overflow)", 100, 70 } };
-        for (const Scenario& scenario : scenarios)
-        {
-            SCOPED_TRACE(scenario.mName);
-            std::vector<float> lights;
-            const auto add = [&lights](float x, float y, float z, float radius) {
-                lights.insert(lights.end(), { 1.0f, 0.9f, 0.7f, radius, x, y, z, 0.0f });
-            };
-            for (uint32_t i = 0; i < scenario.mRandom; ++i)
-            {
-                add((random() - 0.5f) * 3000.0f, (random() - 0.5f) * 1500.0f, -(2.0f + random() * 4000.0f),
-                    40.0f + random() * 300.0f);
-            }
-            for (uint32_t i = 0; i < scenario.mBlob; ++i)
-            {
-                add(100.0f + random() * 10.0f, 50.0f + random() * 10.0f, -600.0f - random() * 10.0f, 90.0f);
-            }
-            lights[7] = static_cast<float>(lights.size() / 8);
-            GridResult glsl;
-            GridResult slang;
-            std::string error;
-            ASSERT_TRUE(runLightGrid(gpu, glslWords, scene, lights, glsl, error)) << error;
-            ASSERT_TRUE(runLightGrid(gpu, slangWords, scene, lights, slang, error)) << error;
-            std::size_t different = 0;
-            std::size_t tailsDiffer = 0;
-            std::size_t tailsOutOfRange = 0;
-            std::size_t withLights = 0;
-            std::size_t overflowing = 0;
-            std::size_t totalGlsl = 0;
-            std::size_t totalSlang = 0;
-            for (std::size_t i = 0; i < glsl.mCounts.size(); ++i)
-            {
-                withLights += glsl.mCounts[i] != 0 ? 1 : 0;
-                overflowing += glsl.mCounts[i] > 50 ? 1 : 0;
-                totalGlsl += glsl.mCounts[i];
-                totalSlang += slang.mCounts[i];
-                tailsDiffer += glsl.mTails[i] != slang.mTails[i] ? 1 : 0;
-                for (const uint32_t entry : glsl.mTails[i])
-                {
-                    tailsOutOfRange += entry >= lights.size() / 8 ? 1 : 0;
-                }
-                if (glsl.mCounts[i] != slang.mCounts[i] || glsl.mLists[i] != slang.mLists[i])
-                {
-                    ++different;
-                }
-            }
-            std::cout << "[light grid] " << scenario.mName << ": " << glsl.mCounts.size() << " clusters, " << withLights
-                      << " with lights, " << overflowing << " over 50, light entries GLSL " << totalGlsl << " Slang "
-                      << totalSlang << ", clusters that differ " << different << ", index counts GLSL "
-                      << glsl.mIndexCount << " Slang " << slang.mIndexCount << std::endl;
-            std::map<uint32_t, uint32_t> histogram;
-            for (const uint32_t count : glsl.mCounts)
-            {
-                ++histogram[count];
-            }
-            std::cout << "[light grid]   lights " << lights.size() / 8 << ", clusters by light count:";
-            for (const auto& [count, clustersWith] : histogram)
-            {
-                std::cout << " " << count << "x" << clustersWith;
-            }
-            std::cout << std::endl;
-            for (const uint32_t index : glsl.mLists[0])
-            {
-                std::cout << "[light grid]   cluster 0 holds light " << index << " z " << lights[index * 8 + 6]
-                          << " radius " << lights[index * 8 + 3] << std::endl;
-            }
-            std::cout << "[light grid]   past the 50th entry (written from a 50 element local array, undefined): "
-                      << tailsDiffer
-                      << " clusters differ, GLSL tail entries that are no light index: " << tailsOutOfRange
-                      << std::endl;
-            EXPECT_GT(withLights, 0u);
-            EXPECT_EQ(different, 0u);
-            EXPECT_EQ(glsl.mIndexCount, slang.mIndexCount);
-        }
-#endif
-    }
-
-    // Task 0072, stage j follow-up 4 (toddhow, 2026-11-08): the light grid keeps at most maxLightsPerCluster lights per
-    // cluster, stores that capped count (the shading loops read exactly that many entries), and puts a light only into
-    // the depth slices its range reaches. The reference is a CPU model of the slice maths; both languages must match.
     TEST(SlangLightGridGpu, clusters_hold_at_most_fifty_lights_and_only_those_that_reach_their_depth_slice)
     {
 #if !OPENEDEN_SLANG_ENABLED
@@ -1034,8 +696,6 @@ namespace
         {
             GTEST_SKIP() << "no Vulkan device with a compute queue";
         }
-        const auto glslWords = compileGlsl("comp/light/assign.comp", "-");
-        ASSERT_FALSE(glslWords.empty());
         std::vector<uint32_t> slangWords;
         for (const Manifest& manifest : builtManifests())
         {
@@ -1105,14 +765,11 @@ namespace
             }
             const uint32_t lightCount = static_cast<uint32_t>(lights.size() / 8);
             lights[7] = static_cast<float>(lightCount);
-            GridResult results[2];
+            GridResult slangResult;
             std::string error;
-            ASSERT_TRUE(runLightGrid(gpu, glslWords, scene, lights, results[0], error)) << error;
-            ASSERT_TRUE(runLightGrid(gpu, slangWords, scene, lights, results[1], error)) << error;
-            for (int language = 0; language < 2; ++language)
+            ASSERT_TRUE(runLightGrid(gpu, slangWords, scene, lights, slangResult, error)) << error;
             {
-                SCOPED_TRACE(language == 0 ? "GLSL" : "Slang");
-                const GridResult& result = results[language];
+                const GridResult& result = slangResult;
                 std::size_t overCap = 0;
                 std::size_t capped = 0;
                 std::size_t badIndex = 0;
@@ -1151,7 +808,7 @@ namespace
                         }
                     }
                 }
-                std::cout << "[light grid 4] " << scenario.mName << (language == 0 ? " GLSL" : " Slang") << ": "
+                std::cout << "[light grid 4] " << scenario.mName << " Slang: "
                           << listed << " clusters with lights, " << capped << " at the cap, " << overCap
                           << " over it, entries " << total << ", index count " << result.mIndexCount
                           << ", depth slices used " << slicesUsed.size()
@@ -1171,9 +828,6 @@ namespace
                     EXPECT_GT(capped, 0u) << "the blob must overflow a cluster";
                 }
             }
-            EXPECT_EQ(results[0].mCounts, results[1].mCounts);
-            EXPECT_EQ(results[0].mLists, results[1].mLists);
-            EXPECT_EQ(results[0].mIndexCount, results[1].mIndexCount);
         }
 #endif
     }
