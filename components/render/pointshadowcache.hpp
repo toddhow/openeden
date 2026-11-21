@@ -48,6 +48,8 @@ namespace Render::PointShadow
         std::uint64_t id = 0;
         vsg::dvec3 position;
         float radius = 0.f;
+        /// Task 0362: bit f set = face f is drawn at all (a spot's cone, a hemisphere's half space).
+        std::uint8_t faceMask = 0x3F;
     };
 
     /// A moving caster: a sphere that has to be redrawn (where it is now, and where it was).
@@ -117,11 +119,13 @@ namespace Render::PointShadow
                     state.drawn = now;
                     ++mLastHardSlots;
                     for (std::size_t f = 0; f < facesPerLight; ++f)
-                        draw[s * facesPerLight + f] = 1;
+                        draw[s * facesPerLight + f] = ((now.faceMask >> f) & 1) ? 1 : 0;
                     continue;
                 }
                 for (std::size_t f = 0; f < facesPerLight; ++f)
                 {
+                    if (!((now.faceMask >> f) & 1))
+                        continue; // never drawn for this light
                     if (state.age[f] != std::numeric_limits<std::uint32_t>::max())
                         ++state.age[f];
                     bool pending = state.pending[f] != 0 || epochChanged || state.age[f] >= params.refreshFrames;
@@ -173,7 +177,8 @@ namespace Render::PointShadow
 
         static bool hardChange(const SlotState& state, const CacheLight& now, const CacheParams& params)
         {
-            if (!state.valid || state.drawn.id != now.id || state.drawn.radius != now.radius)
+            if (!state.valid || state.drawn.id != now.id || state.drawn.radius != now.radius
+                || state.drawn.faceMask != now.faceMask)
                 return true;
             const double x = now.position.x - state.drawn.position.x;
             const double y = now.position.y - state.drawn.position.y;

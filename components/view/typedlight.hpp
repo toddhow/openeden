@@ -31,6 +31,8 @@ namespace View
         Render::PointShadow::Rule shadowRule = Render::PointShadow::Rule::Unspecified;
         /// 0 when the light is not a spot.
         float spotCosHalf = 0.f;
+        /// Task 0362: a shadowed light that lights only the half space in front of `spotAxis` (not a spot).
+        bool shadowHemisphere = false;
         vsg::vec3 spotAxis{ 1.f, 0.f, 0.f };
     };
 }

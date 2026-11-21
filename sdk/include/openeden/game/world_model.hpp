@@ -180,6 +180,9 @@ namespace openeden::sdk::game
         double spotFov = 0.0;
         /// Whether the game's record asks for a shadow (Skyrim SE: the spot, hemisphere or omnidirectional shadow bit).
         LightShadow shadow = LightShadow::Unspecified;
+        /// A shadowed light that lights only the half space in front of its local +X axis (Skyrim SE: the hemisphere
+        /// shadow bit; task 0362). The engine draws and samples only the shadow faces that half space reaches.
+        bool shadowHemisphere = false;
 
         friend bool operator==(const LightComponent&, const LightComponent&) = default;
     };

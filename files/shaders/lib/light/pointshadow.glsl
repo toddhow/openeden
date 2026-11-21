@@ -59,9 +59,13 @@ void pointShadowTangents(vec3 n, out vec3 t1, out vec3 t2)
     pointShadowFrisvad(n, t1, t2);
 }
 
-float pointShadowTap(vec3 q, uint slot, float far, float tanHalf, float resolution, float near, float depthBias)
+float pointShadowTap(vec3 q, uint slot, uint faceMask, float far, float tanHalf, float resolution, float near,
+    float depthBias)
 {
     int face = pointShadowFaceOf(q);
+    // A face the light's cone or half space never reaches is not drawn and the light gives nothing there.
+    if (((faceMask >> uint(face)) & 1u) == 0u)
+        return 0.0;
     float dist = dot(q, pointShadowFaceForward[face]);
     if (dist >= far) // beyond the face's far plane (a light whose reach is larger than its range): lit
         return 1.0;
@@ -82,6 +86,7 @@ float pointLightShadow(uint lightIndex, vec3 viewPos)
     if (entry.x < 0.0)
         return 1.0;
     uint slot = uint(entry.x);
+    uint faceMask = entry.z < 0.5 ? 63u : uint(entry.z); // bit f = face f is drawn (task 0362); 0 means all
     uint maxLights = uint(pointShadowData.length()) - uint(POINT_SHADOW_HEADER_VEC4S) - uint(POINT_SHADOW_MAX_SLOTS);
     vec4 slotData = pointShadowData[uint(POINT_SHADOW_HEADER_VEC4S) + maxLights + slot];
     vec4 h0 = pointShadowData[0];
@@ -98,6 +103,8 @@ float pointLightShadow(uint lightIndex, vec3 viewPos)
     float d0 = dot(toReceiver, pointShadowFaceForward[face0]);
     if (!(d0 > 0.0))
         return 1.0;
+    if (((faceMask >> uint(face0)) & 1u) == 0u) // the light does not reach this face (its cone or half space)
+        return mix(1.0, 0.0, entry.y);
     float texel0 = 2.0 * d0 * tanHalf / resolution;
     vec3 p = toReceiver + normal * (h1.x * texel0);
     float radius = h1.z * texel0;
@@ -109,7 +116,7 @@ float pointLightShadow(uint lightIndex, vec3 viewPos)
     {
         vec2 o = pointShadowPoisson[i];
         vec3 q = p + t1 * (o.x * radius) + t2 * (o.y * radius);
-        sum += pointShadowTap(q, slot, far, tanHalf, resolution, near, h1.y);
+        sum += pointShadowTap(q, slot, faceMask, far, tanHalf, resolution, near, h1.y);
     }
     return mix(1.0, sum / float(taps), entry.y);
 }

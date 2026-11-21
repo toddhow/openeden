@@ -106,6 +106,7 @@ namespace MWRender
         std::vector<Render::PointShadow::Disturbance> mDisturbances;
         std::vector<Render::PointShadow::CacheLight> mCacheLights;
         std::vector<std::uint8_t> mDraw;
+        std::vector<std::uint8_t> mSlotMask; // task 0362: the faces of each slot that are drawn
         std::uint32_t mExtraEpoch = 0;
         std::uint32_t mCacheLogCounter = 0;
         int mFacesDrawn = 0;

@@ -54,6 +54,14 @@ namespace MWRender::SkyrimModel
 {
     namespace
     {
+        // Developer aid (task 0362): OPENEDEN_NEUTRAL_PERPIXEL_OFF=1 puts Skyrim surfaces back on per-vertex point
+        // lighting, to measure what the per-pixel lighting of task 0355 costs.
+        bool perPixelLightingOff()
+        {
+            static const bool off = std::getenv("OPENEDEN_NEUTRAL_PERPIXEL_OFF") != nullptr;
+            return off;
+        }
+
         // The NIF blend factor codes (NifScene::AlphaProperty) as Vulkan factors; the same table the Morrowind reader
         // uses (nif.cpp convertBlendFactor). An unknown code is the usual alpha blend factor for its side.
         VkBlendFactor blendFactor(std::uint8_t code, VkBlendFactor fallback)
@@ -414,7 +422,8 @@ namespace MWRender::SkyrimModel
                 shader.addMode(Pipeline::Mode::AMBIENT_CUBE);
             shader.addMode(Pipeline::Mode::SKIN);
             // Task 0355 follow-up: Skyrim surfaces take their point lights per pixel (round pools, not vertex smears).
-            shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
+            if (!perPixelLightingOff())
+                shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
             vsg::DataList dataList;
             auto positions = copyArray<vsg::vec3Array>(shape.mPositions);
             if (context.mMorphableFace && shape.mShaderType == kFaceTintShaderType)
@@ -516,7 +525,8 @@ namespace MWRender::SkyrimModel
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mPositions));
             shader.addMode(Pipeline::Mode::NORMAL);
             // Task 0355 follow-up: Skyrim surfaces take their point lights per pixel (round pools, not vertex smears).
-            shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
+            if (!perPixelLightingOff())
+                shader.addMode(Pipeline::Mode::FORCE_PER_PIXEL_LIGHTING);
             // Task 0355 stage e: as above.
             if (Settings::game().mNeutralAmbientCube.get())
                 shader.addMode(Pipeline::Mode::AMBIENT_CUBE);

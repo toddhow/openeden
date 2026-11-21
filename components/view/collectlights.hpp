@@ -9,6 +9,7 @@
 #include <vsg/maths/vec3.h>
 #include <vsg/state/ViewDependentState.h>
 
+#include <components/render/pointshadowfaces.hpp>
 #include <components/render/pointshadowselect.hpp>
 
 namespace View
@@ -24,6 +25,11 @@ namespace View
         float intensity = 0.f;
         /// Task 0355 stage g: the game's shadow rule of a View::TypedPointLight (Unspecified for every other light).
         Render::PointShadow::Rule shadowRule = Render::PointShadow::Rule::Unspecified;
+        /// Task 0362: what the light's shadow covers, its axis in the view's eye space (unit; zero for an omni light)
+        /// and a spot's cos of the half angle.
+        Render::PointShadow::Shape shadowShape = Render::PointShadow::Shape::Omni;
+        vsg::dvec3 shadowAxisEye;
+        float shadowConeCos = 0.f;
     };
 
     /// A point light that has a shadow map (task 0077): which slot, and how far its shadow has faded in.
@@ -32,6 +38,8 @@ namespace View
         std::uintptr_t id = 0;
         int slot = -1;
         float fade = 0.f;
+        /// Task 0362: bit f is set when face f of the slot is drawn (and may be sampled); the shader reads it.
+        std::uint8_t faceMask = Render::PointShadow::allFacesMask;
     };
 
     class CollectLights : public vsg::ViewDependentState

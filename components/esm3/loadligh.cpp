@@ -59,7 +59,8 @@ namespace ESM
         }
 
         // OpenEden (task 0355 stage b): NeutralGain is not a bit of the file format; a file must never set it.
-        mData.mFlags &= ~(NeutralGain | NeutralFlicker | NeutralSpot | NeutralShadowCasts | NeutralShadowNever);
+        mData.mFlags &= ~(NeutralGain | NeutralFlicker | NeutralSpot | NeutralShadowCasts | NeutralShadowNever
+            | NeutralShadowHemisphere);
         mNeutralSpotFov = 0.f;
         mNeutralMovement = 0.f;
 

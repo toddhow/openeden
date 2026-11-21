@@ -1,6 +1,7 @@
 #include "pointshadows.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 
 #include <components/animation/pointshadowcarrier.hpp>
 #include <components/debug/debuglog.hpp>
@@ -142,6 +143,35 @@ namespace MWRender
                 Log(Debug::Verbose) << "Point light shadow: slot " << k << " is free";
         }
         mSlots = mResult.slots;
+        // Task 0362: which faces each slot's light needs (a spot's cone, a hemisphere's half space). A holder the last
+        // traversal did not see keeps its mask.
+        mSlotMask.resize(mSlots.size(), Render::PointShadow::allFacesMask);
+        for (std::size_t k = 0; k < mSlots.size(); ++k)
+            if (!mSlots[k].used)
+                mSlotMask[k] = Render::PointShadow::allFacesMask;
+        for (std::size_t i = 0; i < count && i < mResult.slotOfCandidate.size(); ++i)
+        {
+            const int k = mResult.slotOfCandidate[i];
+            if (k < 0)
+                continue;
+            const View::LightSnapshot& light = lights[i];
+            const vsg::dvec4 worldAxis = inverseView * vsg::dvec4(light.shadowAxisEye, 0.0);
+            const std::uint8_t mask = Render::PointShadow::faceMask(
+                light.shadowShape, vsg::dvec3(worldAxis.x, worldAxis.y, worldAxis.z), light.shadowConeCos);
+            if (mask != mSlotMask[static_cast<std::size_t>(k)])
+                Log(Debug::Verbose) << "Point light shadow: slot " << k << " draws "
+                                    << Render::PointShadow::faceCount(mask) << " of 6 faces (shape "
+                                    << static_cast<int>(light.shadowShape) << ", mask 0x" << std::hex
+                                    << static_cast<int>(mask) << std::dec << ", world axis " << worldAxis.x << " "
+                                    << worldAxis.y << " " << worldAxis.z << ", cone cos " << light.shadowConeCos
+                                    << ")";
+            mSlotMask[static_cast<std::size_t>(k)] = mask;
+        }
+        // Developer aid (task 0362): OPENEDEN_POINT_SHADOW_ALL_FACES=1 draws all six faces of every slot again, to
+        // compare the face count and the cost with the cone and half space masks.
+        static const bool allFaces = std::getenv("OPENEDEN_POINT_SHADOW_ALL_FACES") != nullptr;
+        if (allFaces)
+            std::fill(mSlotMask.begin(), mSlotMask.end(), Render::PointShadow::allFacesMask);
         // Which light holds which slot, for the models that carry a light (Anim::Transform::setPointShadowCarrier).
         for (int k = 0; k < Anim::pointShadowSlotCount; ++k)
         {
@@ -162,6 +192,7 @@ namespace MWRender
                 c.id = mSlots[k].id;
                 c.position = mSlots[k].position;
                 c.radius = mSlots[k].radius;
+                c.faceMask = mSlotMask[k];
             }
             mMotion.end(mDisturbances);
             mCache.step(mCacheLights, mDisturbances, worldEpoch + mExtraEpoch, mCacheParams, mDraw);
@@ -192,7 +223,8 @@ namespace MWRender
             const vsg::dvec3 viewPosition = xyz(viewMatrix * vsg::dvec4(slot.position, 1.0));
             mSlotPositions.emplace_back(static_cast<float>(viewPosition.x), static_cast<float>(viewPosition.y),
                 static_cast<float>(viewPosition.z), static_cast<float>(far));
-            mEntries.push_back({ static_cast<std::uintptr_t>(slot.id), k, slot.fade });
+            mEntries.push_back(
+                { static_cast<std::uintptr_t>(slot.id), k, slot.fade, mSlotMask[static_cast<std::size_t>(k)] });
             if (graph)
             {
                 graph->children.clear();
@@ -203,6 +235,8 @@ namespace MWRender
                 for (int f = 0; f < Render::PointShadow::facesPerLight; ++f)
                 {
                     ++mFacesPossible;
+                    if (!((mSlotMask[static_cast<std::size_t>(k)] >> f) & 1))
+                        continue; // outside the light's cone or half space: not drawn, and the shader never reads it
                     if (mCacheEnabled && !mDraw[static_cast<std::size_t>(k * Render::PointShadow::facesPerLight + f)])
                         continue;
                     ++mFacesDrawn;

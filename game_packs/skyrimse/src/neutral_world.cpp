@@ -225,6 +225,9 @@ namespace game_skyrimse
                                       | LightFlags::OmnidirectionalShadow))
             != 0;
         c.shadow = shadowed ? sdkgame::LightShadow::Casts : sdkgame::LightShadow::Never;
+        // Task 0362: a hemisphere shadow light (and no spot cone) lights only the half space in front of its +X axis.
+        c.shadowHemisphere = (light.mFlags & LightFlags::HemisphereShadow) != 0 && c.spotFov == 0.0
+            && (light.mFlags & LightFlags::SpotShadow) == 0;
         return c;
     }
 

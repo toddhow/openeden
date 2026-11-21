@@ -119,7 +119,11 @@ namespace MWWorld
                 record.mNeutralSpotFov = static_cast<float>(light.spotFov);
             }
             if (light.shadow == openeden::sdk::game::LightShadow::Casts)
+            {
                 flags |= ESM::Light::NeutralShadowCasts;
+                if (light.shadowHemisphere)
+                    flags |= ESM::Light::NeutralShadowHemisphere;
+            }
             else if (light.shadow == openeden::sdk::game::LightShadow::Never)
                 flags |= ESM::Light::NeutralShadowNever;
         }

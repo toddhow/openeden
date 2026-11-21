@@ -107,21 +107,40 @@ namespace View
                 snapshot.color = light->color;
                 snapshot.intensity = light->intensity;
                 if (const auto* typed = dynamic_cast<const TypedPointLight*>(light))
+                {
                     snapshot.shadowRule = typed->shadowRule;
+                    const bool spot = typed->spotCosHalf > 0.f;
+                    if (spot || typed->shadowHemisphere)
+                    {
+                        const vsg::dvec4 rotated
+                            = l.first * vsg::dvec4(typed->spotAxis.x, typed->spotAxis.y, typed->spotAxis.z, 0.0);
+                        const vsg::dvec3 axis(rotated.x, rotated.y, rotated.z);
+                        const double length = vsg::length(axis);
+                        if (length > 1e-9)
+                        {
+                            snapshot.shadowShape = spot ? Render::PointShadow::Shape::Spot
+                                                        : Render::PointShadow::Shape::Hemisphere;
+                            snapshot.shadowAxisEye = axis / length;
+                            snapshot.shadowConeCos = spot ? typed->spotCosHalf : 0.f;
+                        }
+                    }
+                }
                 mSnapshots.push_back(snapshot);
                 float slot = -1.f;
                 float fade = 0.f;
+                float mask = static_cast<float>(Render::PointShadow::allFacesMask);
                 for (const ShadowEntry& entry : mShadowEntries)
                 {
                     if (entry.id == snapshot.id)
                     {
                         slot = static_cast<float>(entry.slot);
                         fade = entry.fade;
+                        mask = static_cast<float>(entry.faceMask);
                         break;
                     }
                 }
                 if (mShadowEntryOffset + i < mShadowData->size())
-                    mShadowData->at(mShadowEntryOffset + i) = vsg::vec4(slot, fade, 0.f, 0.f);
+                    mShadowData->at(mShadowEntryOffset + i) = vsg::vec4(slot, fade, mask, 0.f);
             }
             mShadowData->dirty();
         }

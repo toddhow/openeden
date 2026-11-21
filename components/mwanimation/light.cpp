@@ -178,14 +178,15 @@ namespace
     {
         // Task 0355 stage g: a game pack's light that has a spot cone or a shadow rule is a View::TypedPointLight;
         // every other light (all of Morrowind's) is the plain node it always was.
-        constexpr int typedBits
-            = ESM::Light::NeutralSpot | ESM::Light::NeutralShadowCasts | ESM::Light::NeutralShadowNever;
+        constexpr int typedBits = ESM::Light::NeutralSpot | ESM::Light::NeutralShadowCasts
+            | ESM::Light::NeutralShadowNever | ESM::Light::NeutralShadowHemisphere;
         vsg::ref_ptr<vsg::PointLight> node;
         if (light.mData.mFlags & typedBits)
         {
             auto typed = vsg::ref_ptr<View::TypedPointLight>(new View::TypedPointLight);
             if (light.mData.mFlags & ESM::Light::NeutralSpot)
                 typed->spotCosHalf = View::spotConeCos(light.mNeutralSpotFov);
+            typed->shadowHemisphere = (light.mData.mFlags & ESM::Light::NeutralShadowHemisphere) != 0;
             if (light.mData.mFlags & ESM::Light::NeutralShadowCasts)
                 typed->shadowRule = Render::PointShadow::Rule::Casts;
             else if (light.mData.mFlags & ESM::Light::NeutralShadowNever)

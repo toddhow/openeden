@@ -1,0 +1,31 @@
+# Task 0362 (section c): point light shadow faces for spot and hemisphere lights, and the cost of Skyrim lighting
+(Part of task 0362, "lighting finish". Other agents add their own sections as separate files; this one is `0362c`.)
+
+Design doc section: task 0077 (point light shadows), task 0355 stage g (light kinds).
+Goal: a spot or hemisphere light draws only the shadow faces its region reaches; measure what the Skyrim lighting settings cost.
+Same hand wrote tests and code; tests first for the face choice (run red against a stub, 5 of 8 failed), the cache test after the code; no fresh reviewer. Windows only. Branch `lightshadow-0362c` from `803799d67c`, not pushed.
+
+## 1. Faces drawn per light
+- `components/render/pointshadowfaces.hpp`: `Shape` (Omni, Hemisphere, Spot), `faceMask(shape, axis, coneCos)`. A face is the wedge of directions whose largest component is its axis (what the shader chooses by). A face is in the mask when the cone (spot: half angle + 0.12 rad margin for the filter taps) or the half space (hemisphere) reaches its wedge; exact angular distance to the wedge pyramid (`wedgeCosine`). An unusable axis or cone gives all six faces.
+- Plumbing: SDK `LightComponent::shadowHemisphere` (trailing, additive; the pack sets it for the hemisphere shadow bit without a spot cone), `ESM::Light::NeutralShadowHemisphere` (0x200000, never from a file), `View::TypedPointLight::shadowHemisphere`, `LightSnapshot` (shape, axis in eye space, cone cos), `PointShadows` works out a mask per slot (axis = the light's local +X, as for a spot), draws only those faces (cache on or off), and `FaceCache` takes `CacheLight::faceMask` (a mask change is a hard redraw of the new faces).
+- Shader (GLSL and Slang twin, no new binding, no `.interface` record changed): the z of a light's entry in the shadow data buffer holds the mask (0 = all). A pixel or filter tap whose face is not in the mask gets NO light from that light (0.0, faded in with the shadow). That is what the light's own cone or half space gives anyway, so nothing stale is ever sampled. **Decision for toddhow:** for a hemisphere light the back half now gets no light at all (before, it was lit but shadowed by the full cube); this is the hemisphere's meaning (RECALLED-VERIFY) but it is a visible change behind `neutral light types` (on by default, Skyrim only).
+- Developer aids: `OPENEDEN_POINT_SHADOW_ALL_FACES=1` (all six faces again), `OPENEDEN_NEUTRAL_PERPIXEL_OFF=1` (per-vertex point lighting, for measuring); a Verbose log line `Point light shadow: slot k draws n of 6 faces ...` when a slot's mask changes.
+- Tests: `apps/components_tests/render/testpointshadowfaces.cpp` (9: Omni all, hemisphere along each axis skips exactly the opposite face, narrow spot one face, diagonal spots, wide spot, unusable inputs, a 400-trial property test that every direction the light reaches has its face drawn, savings, cache mask). Existing point shadow, light type and Slang interface tests pass.
+
+## 2. Faces counted, frames
+Cache off, faces drawn a frame, mask against `OPENEDEN_POINT_SHADOW_ALL_FACES`: Dragonsreach hall 18 against 18 (its three shadowed lights are omni), Bannered Mare 12 against 12, Whiterun market at night 0 (no light there asks for a shadow), **Bleak Falls Barrow 22 against 24** (two spot-shadow lights, axis straight down, cone half angle 45 degrees: 5 of 6 faces, because a 45 degree cone touches the four neighbouring wedges; a narrow spot gets 1 to 3 faces: unit tested, no such light seen in game). Frames (barrow, same frame number, flicker, fire particles and actors off to remove run noise: control pair 2,610 pixels over 8 grey levels, mask against all faces 1,777 to 1,965, max 55 to 69): looks the same. Files in `I:\Projects\OpenEden-work\bow6\ls362c\keep` (`barrow_mask*.png`, `barrow_allfaces.png`, `cmp_barrow.png`). An undrawn face returning "lit" instead of "no light" also matched (730 pixels); "no light" is what a hemisphere needs. Not seen: a view with a strong spot shadow on a floor (the barrow frame is a close-up).
+
+## 3. Cost with many lights and fires in view
+RTX 4070, 1600x900, test profile, `gpu timing`, three runs each, interleaved by repetition over scenes and variants, frames from 800 after the scene starts, medians; GPU = sum of timed passes (point shadow passes are not columns of the stats file; their cost shows in the main scene pass through the lookups). Machine shared with other work (wall time spread 3.6 to 4.4 ms; GPU numbers repeat to 0.02 ms). Each cell: base minus the setting OFF (others on), in ms.
+
+| scene (base GPU ms) | per-pixel lighting | ambient cube | flicker | light types | point light shadows | fire particles |
+| --- | --- | --- | --- | --- | --- | --- |
+| Dragonsreach hall (1.652) | 0.001 | 0.015 | -0.007 | -0.302 (on saves) | 0.016 | 0.148 |
+| Bannered Mare (1.775) | -0.002 | 0.010 | -0.002 | -0.071 (on saves) | 0.226 | 0.002 |
+| Whiterun market, night (3.581) | -0.005 | 0.040 | 0.009 | -0.151 (on saves) | 0.075 | 0.029 |
+
+Nothing costs 0.3 ms or more. Largest: point light shadows 0.23 ms in the Mare (cache on, 0.5 faces a frame: the cost is the shadow lookups in the main pass, 0.85 against 0.63 ms), fire particles 0.15 ms in Dragonsreach, and `neutral light types` saves 0.07 to 0.30 ms by keeping unshadowed lights out of the four shadow slots. Per-pixel lighting costs nothing here and changes 37 pixels in Dragonsreach (most Skyrim surfaces have a normal map and were per pixel already). CPU frame time is 3.6 to 5 ms in every row and moves with the machine, not with a setting. No clear waste found, so nothing else changed. A possible later saving: skip the lookup for lights whose slot shadow is beyond its far plane (not measured).
+
+## 4. Morrowind and not run
+`tools/worldobjects_check` 110 objects OK against `integ2`'s build; `morrowind_check` Balmora frames `1eb68236352dc472` and `c819db116f4af8a6` equal for both builds (the hdr frame `b451a8a6ca771e79` was not run). No Morrowind light is a `TypedPointLight`, so its mask is all faces.
+Not run: the Linux gate, clang-format 14 (long lines wrapped by hand), clang-tidy, the Lua tests, the whole test binaries (filters: PointShadow, LightTypes, Slang interface and permutations, NeutralLight), a fresh review, a hemisphere light in a frame (none seen in the data scenes), saves.

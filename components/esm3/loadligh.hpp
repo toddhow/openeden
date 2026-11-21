@@ -49,7 +49,9 @@ namespace ESM
             // and the game's shadow rule (casts a point light shadow / never does); neither bit means "as before".
             NeutralSpot = 0x40000,
             NeutralShadowCasts = 0x80000,
-            NeutralShadowNever = 0x100000
+            NeutralShadowNever = 0x100000,
+            // Task 0362: the shadowed light lights only the half space in front of the object's local +X axis.
+            NeutralShadowHemisphere = 0x200000
         };
 
         struct LHDTstruct

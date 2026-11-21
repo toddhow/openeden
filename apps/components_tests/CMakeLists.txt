@@ -413,6 +413,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpointshadowmath.cpp
     render/testpointshadowselect.cpp
     render/testpointshadowcache.cpp
+    render/testpointshadowfaces.cpp
     render/testpointshadowgpu.cpp
     render/testvram.cpp
     render/testforceperpixel.cpp
