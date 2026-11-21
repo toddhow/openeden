@@ -35,8 +35,9 @@ namespace
         {
             static int counter = 0;
             mPath = fs::temp_directory_path()
-                / ("oe_skyrim_earlyactors_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())
-                    + "_" + std::to_string(counter++));
+                / ("oe_skyrim_earlyactors_"
+                    + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + "_"
+                    + std::to_string(counter++));
             fs::create_directories(mPath);
         }
         ~TempDir()

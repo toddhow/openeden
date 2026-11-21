@@ -22,7 +22,8 @@ namespace
     {
         const std::string backslashed = std::string("meshes") + char(92) + "magic" + char(92) + "firebolt.nif";
         EXPECT_TRUE(effectShapesWanted(backslashed, true, false));
-        EXPECT_TRUE(effectShapesWanted(std::string("MESHES") + char(92) + "LIGHTING" + char(92) + "a.nif", false, true));
+        EXPECT_TRUE(
+            effectShapesWanted(std::string("MESHES") + char(92) + "LIGHTING" + char(92) + "a.nif", false, true));
     }
 
     TEST(SkyrimFireEffects, the_spell_setting_alone_still_means_the_magic_folder_only)

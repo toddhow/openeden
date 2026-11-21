@@ -62,8 +62,8 @@ namespace
 
     struct SkyrimActorTest : ::testing::Test
     {
-        vsg::ref_ptr<const vsg::Options> mShaderOptions = Resource::createShaderOptions(
-            std::string(OPENEDEN_SHADER_BUILD_DIR), "");
+        vsg::ref_ptr<const vsg::Options> mShaderOptions
+            = Resource::createShaderOptions(std::string(OPENEDEN_SHADER_BUILD_DIR), "");
         Pipeline::Builder mBuilder{ mShaderOptions, vsg::Sampler::create() };
 
         MWRender::SkyrimModel::BuildContext context() const

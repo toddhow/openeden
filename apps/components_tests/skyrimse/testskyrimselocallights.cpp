@@ -89,8 +89,8 @@ namespace
     TEST(SkyrimLocalLights, aScaleThatIsNotFiniteOrNotAboveZeroIsTakenAsOne)
     {
         ComponentStats stats;
-        for (const double bad : { 0.0, -0.5, std::numeric_limits<double>::quiet_NaN(),
-                 std::numeric_limits<double>::infinity() })
+        for (const double bad :
+            { 0.0, -0.5, std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity() })
         {
             NeutralLimits limits;
             limits.mLightRadiusScale = bad;
@@ -109,8 +109,8 @@ namespace
     double engineShare(double recordRadius, double scale, double distanceOverRadius)
     {
         const Render::Gi::LightFalloff falloff; // the Morrowind LightAttenuation_* values the game ships
-        return Render::Gi::attenuate(falloff, static_cast<float>(recordRadius * scale),
-            static_cast<float>(recordRadius * distanceOverRadius));
+        return Render::Gi::attenuate(
+            falloff, static_cast<float>(recordRadius * scale), static_cast<float>(recordRadius * distanceOverRadius));
     }
 
     TEST(SkyrimLocalLights, theEnginesOwnFalloffStillGivesAThirdOfTheLightAtTheRecordsRadius)

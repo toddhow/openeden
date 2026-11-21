@@ -287,9 +287,9 @@ namespace MWRender
         void setAmbientCube(const std::array<std::array<std::uint8_t, 3>, 6>* colours);
         /// True when `[Game] neutral world` and `[Game] neutral ambient cube` are on: the header buffer has room.
         bool ambientCubeEnabled() const { return mAmbientCubeEnabled; }
-        /// Task 0355 stage k: the current weather's directional ambient (display colours) and the flat ambient colour it
-        /// was made for; null for none (an interior, a weather without one, the setting off). An interior cube set by
-        /// setAmbientCube wins over it. Main thread, once a frame.
+        /// Task 0355 stage k: the current weather's directional ambient (display colours) and the flat ambient colour
+        /// it was made for; null for none (an interior, a weather without one, the setting off). An interior cube set
+        /// by setAmbientCube wins over it. Main thread, once a frame.
         void setWeatherAmbientCube(const std::array<vsg::vec3, 6>* cube, const vsg::vec3& baseline);
         /// Task 0355 stage f: a game pack's interior has its own directional light: the direction toward the light
         /// (unit vector, view-independent world space) and a linear intensity multiplier of the light's colour. Call
@@ -317,13 +317,13 @@ namespace MWRender
         // Task 0036: the loaded exterior cells, from the scene (any thread; read in onFrame). The renderer reads each
         // cell's sky-visibility file when it is wanted and drops it when the cell is unloaded.
         /// `cellSize` is the cell's side in units and `world` the neutral world's key (task 0358): the sky-visibility
-        /// field is made of 8192 unit cells whatever the game's own cells measure, and each world has its own files. The
-        /// defaults are Morrowind's.
+        /// field is made of 8192 unit cells whatever the game's own cells measure, and each world has its own files.
+        /// The defaults are Morrowind's.
         void exteriorCellLoaded(int x, int y, int cellSize = 8192, const std::string& world = std::string());
         void exteriorCellUnloaded(int x, int y, int cellSize = 8192, const std::string& world = std::string());
         void configureFog(const MWWorld::Cell& cell);
-        /// `otherColour` (task 0362 item 1; null for none) is the fog's second colour, at its far end when `otherIsEnd`,
-        /// else where it starts (see FogManager::configure).
+        /// `otherColour` (task 0362 item 1; null for none) is the fog's second colour, at its far end when
+        /// `otherIsEnd`, else where it starts (see FogManager::configure).
         void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour,
             const vsg::vec3* otherColour = nullptr, bool otherIsEnd = false);
 
@@ -595,7 +595,8 @@ namespace MWRender
         vsg::vec3 mSkyEnvHorizon{ -1.f, -1.f, -1.f };
         vsg::vec3 mSkyEnvAmbient{ -1.f, -1.f, -1.f };
         bool mGiSkyEnabled = false;
-        // Task 0355 stage e: the ambient cube rides at the end of the sky-visibility header buffer (Render::AmbientCube).
+        // Task 0355 stage e: the ambient cube rides at the end of the sky-visibility header buffer
+        // (Render::AmbientCube).
         bool mAmbientCubeEnabled = false;
         std::optional<std::array<vsg::vec3, 6>> mAmbientCube; ///< in display colour, brightened
         std::optional<std::array<vsg::vec3, 6>> mWeatherAmbientCube; ///< the weather's, in display colour

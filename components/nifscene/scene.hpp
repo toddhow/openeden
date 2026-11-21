@@ -313,15 +313,16 @@ namespace NifScene
     };
 
     /// Task 0359 stage b: one NiParticleSystem (a Skyrim SE flame, smoke or spark system) as plain numbers. Only what a
-    /// static model's analytic drawing needs is kept (docs/research/0148-skyrim-fire-effects.md): the emitter, the birth
-    /// rate from the system's NiPSysEmitterCtlr, and the colour, scale, sub-texture, gravity, drag and rotation
+    /// static model's analytic drawing needs is kept (docs/research/0148-skyrim-fire-effects.md): the emitter, the
+    /// birth rate from the system's NiPSysEmitterCtlr, and the colour, scale, sub-texture, gravity, drag and rotation
     /// modifiers. BSStripParticleSystem, NiMeshParticleSystem and systems driven by a master system are not read
     /// (counted in Scene::mWarnings).
     struct ParticleSystem
     {
         enum class Emitter : std::uint8_t
         {
-            Point, // mesh emitters, and any emitter this reader does not know: every particle starts at the emitter node
+            Point, // mesh emitters, and any emitter this reader does not know: every particle starts at the emitter
+                   // node
             Box,
             Cylinder,
             Sphere,
@@ -329,7 +330,8 @@ namespace NifScene
 
         std::string mName;
         std::uint32_t mNode = sNone; // the system's own node
-        std::uint32_t mEmitterNode = sNone; // the emitter object's node (position, orientation); sNone: the system's own
+        std::uint32_t mEmitterNode
+            = sNone; // the emitter object's node (position, orientation); sNone: the system's own
         std::uint32_t mMaterial = sNone; // index into Scene::mMaterials (a BSEffectShaderProperty), or none
         std::uint32_t mAlpha = sNone; // index into Scene::mAlphaProperties, or none
         bool mWorldSpace = true;
@@ -349,8 +351,10 @@ namespace NifScene
 
         bool mHasColor = false; // BSPSysSimpleColorModifier
         float mFadeIn = 0.f, mFadeOut = 0.f; // shares of the life over which alpha rises and falls
-        Vec4 mColorStops{ 0.f, 0.5f, 0.5f, 1.f }; // ascending: colour 1 until [0], blends to colour 2 by [1], holds to [2], blends to colour 3 by [3]
-        std::array<Vec4, 3> mColors{ Vec4{ 1.f, 1.f, 1.f, 1.f }, Vec4{ 1.f, 1.f, 1.f, 1.f }, Vec4{ 1.f, 1.f, 1.f, 1.f } };
+        Vec4 mColorStops{ 0.f, 0.5f, 0.5f,
+            1.f }; // ascending: colour 1 until [0], blends to colour 2 by [1], holds to [2], blends to colour 3 by [3]
+        std::array<Vec4, 3> mColors{ Vec4{ 1.f, 1.f, 1.f, 1.f }, Vec4{ 1.f, 1.f, 1.f, 1.f },
+            Vec4{ 1.f, 1.f, 1.f, 1.f } };
 
         bool mHasSubTexture = false; // BSPSysSubTexModifier (a flipbook atlas)
         std::vector<Vec4> mSubTextures; // the data's rectangles as stored: left, width, top, height (UV)
@@ -358,7 +362,8 @@ namespace NifScene
               mSubCountFudge = 0.f;
         float mAspectRatio = 1.f; // the data's width over height
 
-        Vec3 mGravity{ 0.f, 0.f, 0.f }; // the sum of the planar gravity modifiers (axis times strength), units a second squared
+        Vec3 mGravity{ 0.f, 0.f,
+            0.f }; // the sum of the planar gravity modifiers (axis times strength), units a second squared
         bool mGravityWorldAligned = true; // false: the axis is in the system's own frame
         float mDrag = 0.f; // the sum of the drag modifiers' percentages
 

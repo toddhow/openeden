@@ -1,6 +1,6 @@
-// Task 0315 (Companions, Eorlund): an INFO's walk-away topic (TWAT). The game plays that topic's response when the player
-// ends the conversation (Eorlund's C00EorlundWalkaway INFO starts the follow-up scene through its fragment). Written
-// before the code.
+// Task 0315 (Companions, Eorlund): an INFO's walk-away topic (TWAT). The game plays that topic's response when the
+// player ends the conversation (Eorlund's C00EorlundWalkaway INFO starts the follow-up scene through its fragment).
+// Written before the code.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>

@@ -495,7 +495,8 @@ namespace OMW
         // Task 0363, stage f: a shader set that is neither prebuilt nor cached is waited for. The main thread keeps
         // the window's messages pumped (the freeze monitor ends a game that does not answer for 5 s), and the loading
         // screen says "Compiling shaders" while any thread waits.
-        if (auto* slangRuntime = mResourceSystem->shaderOptions->getObject<vsgUtil::SlangRuntime>(vsgUtil::slangRuntimeKey))
+        if (auto* slangRuntime
+            = mResourceSystem->shaderOptions->getObject<vsgUtil::SlangRuntime>(vsgUtil::slangRuntimeKey))
         {
             vsgUtil::SlangWaitSettings waiting;
             waiting.mPump = [] { SDL_PumpEvents(); };
@@ -768,94 +769,93 @@ namespace OMW
         if (const char* shots = std::getenv("OPENEDEN_SHADER_WAIT_SHOTS"))
             waitShotsLeft = std::atoi(shots);
         auto lastWaitShot = std::chrono::steady_clock::time_point{};
-        auto callback
-            = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &bodyBaker,
-                  &runningFrame, &autoScreenshotFired, &autoQuitFired, &waitShotsLeft,
-                  &lastWaitShot](double dt, bool& requiresRender, bool& quit) {
-                  auto state = mStateManager->getGameState();
-                  quit = !state;
-                  if (quit)
-                      return;
-                  requiresRender = frame(dt, state);
+        auto callback = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser,
+                            &bodyBaker, &runningFrame, &autoScreenshotFired, &autoQuitFired, &waitShotsLeft,
+                            &lastWaitShot](double dt, bool& requiresRender, bool& quit) {
+            auto state = mStateManager->getGameState();
+            quit = !state;
+            if (quit)
+                return;
+            requiresRender = frame(dt, state);
 
-                  // openeden-vsg: loading and cell changes are game states of their own here (the OSG build loaded
-                  // inside one frame), so frames under a loading screen or an operation do not count.
-                  if (MWState::countsAsAutoFrame(mStateManager->getState(), state->requiresScene, state->updateLua))
-                  {
-                      ++runningFrame;
-                      if (probeBaker && probeBaker->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      if (skyVisBaker && skyVisBaker->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      if (lodTerrainBaker && lodTerrainBaker->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      if (mPuddleBaker && mPuddleBaker->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      if (bodyAnalyser && bodyAnalyser->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      if (bodyBaker && bodyBaker->update() && !autoQuitFired)
-                      {
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                      // Test aid (task 0017): opens the debug window at running frame 20, so that a
-                      // --auto-screenshot shows its Extensions tab (OPENEDEN_DEBUG_WINDOW_TAB=extensions, see
-                      // docs/debug-environment-variables.md)
-                      if (runningFrame == 20 && std::getenv("OPENEDEN_OPEN_DEBUG_WINDOW") != nullptr)
-                          mInputManager->executeAction(MWInput::A_ToggleDebug);
-                      if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
-                      {
-                          Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
-                          mInputManager->executeAction(MWInput::A_Screenshot);
-                          autoScreenshotFired = true;
-                      }
-                      if (args.autoQuitFrame && !autoQuitFired && runningFrame >= args.autoQuitFrame)
-                      {
-                          Log(Debug::Info) << "Auto-quit at running frame " << runningFrame;
-                          mStateManager->requestQuit();
-                          autoQuitFired = true;
-                      }
-                  }
-                  if (waitShotsLeft > 0)
-                  {
-                      const auto now = std::chrono::steady_clock::now();
-                      if (MWState::shaderLabelShown() && now - lastWaitShot >= std::chrono::seconds(1))
-                      {
-                          lastWaitShot = now;
-                          --waitShotsLeft;
-                          Log(Debug::Info) << "Shader wait: the loading screen says \"Compiling shaders\"; screenshot";
-                          mInputManager->executeAction(MWInput::A_Screenshot);
-                      }
-                  }
-                  // OpenEden: a screenshot asked for during this callback (F12 in the input update, Lua's
-                  // takeScreenshot when synchronizedUpdate applies it, --auto-screenshot above) is copied from the
-                  // frame recorded next, the one this callback prepared. Until 2026-11-04 it was read at the start of
-                  // frame() and copied from the image presented last, which Vulkan forbids using until it is acquired
-                  // again.
-                  if (mInputManager->getScreenshotRequest())
-                      screenshot(*mRenderEngine, *mScreenshotWriter, mCfgMgr.getScreenshotPath(),
-                          mResourceSystem->imageOptions);
-              };
+            // openeden-vsg: loading and cell changes are game states of their own here (the OSG build loaded
+            // inside one frame), so frames under a loading screen or an operation do not count.
+            if (MWState::countsAsAutoFrame(mStateManager->getState(), state->requiresScene, state->updateLua))
+            {
+                ++runningFrame;
+                if (probeBaker && probeBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (skyVisBaker && skyVisBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (lodTerrainBaker && lodTerrainBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (mPuddleBaker && mPuddleBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (bodyAnalyser && bodyAnalyser->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                if (bodyBaker && bodyBaker->update() && !autoQuitFired)
+                {
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+                // Test aid (task 0017): opens the debug window at running frame 20, so that a
+                // --auto-screenshot shows its Extensions tab (OPENEDEN_DEBUG_WINDOW_TAB=extensions, see
+                // docs/debug-environment-variables.md)
+                if (runningFrame == 20 && std::getenv("OPENEDEN_OPEN_DEBUG_WINDOW") != nullptr)
+                    mInputManager->executeAction(MWInput::A_ToggleDebug);
+                if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
+                {
+                    Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;
+                    mInputManager->executeAction(MWInput::A_Screenshot);
+                    autoScreenshotFired = true;
+                }
+                if (args.autoQuitFrame && !autoQuitFired && runningFrame >= args.autoQuitFrame)
+                {
+                    Log(Debug::Info) << "Auto-quit at running frame " << runningFrame;
+                    mStateManager->requestQuit();
+                    autoQuitFired = true;
+                }
+            }
+            if (waitShotsLeft > 0)
+            {
+                const auto now = std::chrono::steady_clock::now();
+                if (MWState::shaderLabelShown() && now - lastWaitShot >= std::chrono::seconds(1))
+                {
+                    lastWaitShot = now;
+                    --waitShotsLeft;
+                    Log(Debug::Info) << "Shader wait: the loading screen says \"Compiling shaders\"; screenshot";
+                    mInputManager->executeAction(MWInput::A_Screenshot);
+                }
+            }
+            // OpenEden: a screenshot asked for during this callback (F12 in the input update, Lua's
+            // takeScreenshot when synchronizedUpdate applies it, --auto-screenshot above) is copied from the
+            // frame recorded next, the one this callback prepared. Until 2026-11-04 it was read at the start of
+            // frame() and copied from the image presented last, which Vulkan forbids using until it is acquired
+            // again.
+            if (mInputManager->getScreenshotRequest())
+                screenshot(
+                    *mRenderEngine, *mScreenshotWriter, mCfgMgr.getScreenshotPath(), mResourceSystem->imageOptions);
+        };
         mRenderEngine->loop(callback, Settings::video().mFramerateLimit);
         if (bodyBaker && bodyBaker->problems() > 0)
             mExitCode = 3;

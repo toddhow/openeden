@@ -1,6 +1,6 @@
 // Task 0296 (milestone M-S7): the start of the Bards College questline. The pack's side, no game data: a script's
-// ObjectReference.AddToMap marks that map marker discovered (Discovery::add, the hook, the native), which the first leg's
-// stage fragment (MS05 stage 75: Alias_MS05DeadMansRespiteMapmarker.GetRef().AddToMap(false)) needs.
+// ObjectReference.AddToMap marks that map marker discovered (Discovery::add, the hook, the native), which the first
+// leg's stage fragment (MS05 stage 75: Alias_MS05DeadMansRespiteMapmarker.GetRef().AddToMap(false)) needs.
 #include <game_skyrimse/map.hpp>
 #include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/papyrus_host.hpp>

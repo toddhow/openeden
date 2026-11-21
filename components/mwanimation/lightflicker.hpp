@@ -22,9 +22,9 @@ namespace MWAnim::NeutralFlicker
     inline constexpr float kMaxAmplitude = 0.95f;
     /// The largest movement amplitude Walk takes (units).
     inline constexpr float kMaxMovement = 64.f;
-    /// The fastest the light's offset may travel (units a second, task 0362 item 2): a leg of one period crosses at most
-    /// twice the amplitude, so the amplitude is cut to this speed times half a leg. Without it a light with a period of
-    /// 0.08 s and an amplitude of 64 would swing over 100 units twelve times a second.
+    /// The fastest the light's offset may travel (units a second, task 0362 item 2): a leg of one period crosses at
+    /// most twice the amplitude, so the amplitude is cut to this speed times half a leg. Without it a light with a
+    /// period of 0.08 s and an amplitude of 64 would swing over 100 units twelve times a second.
     inline constexpr float kMaxMovementSpeed = 40.f;
 
     struct Params
@@ -32,8 +32,9 @@ namespace MWAnim::NeutralFlicker
         float mPeriod = 0.f; ///< seconds between new targets (a flicker) or for one full cycle (a pulse)
         float mAmplitude = 0.f; ///< fraction of the brightness the light dips
         std::uint32_t mSeed = 0;
-        /// Task 0362 item 2: the light's movement amplitude in units: it wanders inside a cube of this half-size round its
-        /// place, to a new seeded point every period (a pulse: eased, as its brightness). 0 (the default) is no movement.
+        /// Task 0362 item 2: the light's movement amplitude in units: it wanders inside a cube of this half-size round
+        /// its place, to a new seeded point every period (a pulse: eased, as its brightness). 0 (the default) is no
+        /// movement.
         float mMovement = 0.f;
 
         friend bool operator==(const Params&, const Params&) = default;

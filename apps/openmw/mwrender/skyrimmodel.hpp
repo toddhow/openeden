@@ -80,8 +80,8 @@ namespace MWRender::SkyrimModel
     };
 
     /// Task 0359: whether a model's BSEffectShaderProperty shapes are drawn. The spell models under meshes/magic follow
-    /// `spellEffects` ([Game] neutral spell effects, task 0191), every other model follows `worldEffects` ([Game] neutral
-    /// fire effects). Refraction shapes are left out by the flattener whatever this says.
+    /// `spellEffects` ([Game] neutral spell effects, task 0191), every other model follows `worldEffects` ([Game]
+    /// neutral fire effects). Refraction shapes are left out by the flattener whatever this says.
     [[nodiscard]] bool effectShapesWanted(const std::string& filename, bool spellEffects, bool worldEffects);
 
     BuildResult buildNode(const NifScene::Flat::FlatModel& model, const BuildContext& context);
@@ -98,8 +98,7 @@ namespace MWRender::SkyrimModel
     /// `swayUniform` (task 0136): the uniform of SkyrimTreeSway::Driver, or null for no tree sway.
     std::shared_ptr<const vsgAdapters::nif::SceneReader> makeSceneReader(const Pipeline::Builder& builder,
         vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin,
-        vsg::ref_ptr<vsg::mat4Value> swayUniform = {},
-        std::shared_ptr<SkyrimEffectScroll::Driver> effectScroll = {});
+        vsg::ref_ptr<vsg::mat4Value> swayUniform = {}, std::shared_ptr<SkyrimEffectScroll::Driver> effectScroll = {});
 
     /// Process-wide totals for the log line of a neutral cell. Relaxed atomics: a count, not a synchronisation.
     struct Counters

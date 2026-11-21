@@ -39,8 +39,9 @@ namespace game_skyrimse
         /// Task 0274: the box's turn about Z (the reference's rotation, radians, the data's clockwise convention) and
         /// whether the tracker may test a box at all.
         double mRotationZ = 0.0;
-        /// Task 0328: the reference's turns about X and Y (radians, the data's convention). MQ105SetStage20, the trigger
-        /// that sets stage 20 when the player walks into High Hrothgar, is a box turned a quarter about X and about Y.
+        /// Task 0328: the reference's turns about X and Y (radians, the data's convention). MQ105SetStage20, the
+        /// trigger that sets stage 20 when the player walks into High Hrothgar, is a box turned a quarter about X and
+        /// about Y.
         double mRotationX = 0.0;
         double mRotationY = 0.0;
         bool mAcceptBox = false;
@@ -55,9 +56,10 @@ namespace game_skyrimse
     /// Is the point inside (on the surface counts)? False for a volume that is not supported or a point that is not
     /// finite.
     [[nodiscard]] bool volumeContains(const TriggerVolume& volume, double x, double y, double z);
-    /// Task 0346: does the body of an actor standing at (x, y, z) reach into the volume? The body is the vertical segment from
-    /// the feet to `height` above them, tested at steps of `kBodyStep` (the engine's own trigger tests the actor's collision,
-    /// not its feet: the Solitude gate's box hangs 36 units above the road). A height of 0 is the point test.
+    /// Task 0346: does the body of an actor standing at (x, y, z) reach into the volume? The body is the vertical
+    /// segment from the feet to `height` above them, tested at steps of `kBodyStep` (the engine's own trigger tests the
+    /// actor's collision, not its feet: the Solitude gate's box hangs 36 units above the road). A height of 0 is the
+    /// point test.
     [[nodiscard]] bool volumeContainsBody(const TriggerVolume& volume, double x, double y, double z, double height);
     inline constexpr double kBodyStep = 16.0;
 

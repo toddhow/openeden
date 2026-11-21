@@ -376,7 +376,6 @@ namespace
         }
     };
 
-
     using Event = SkyrimCombat::SpellEvent;
 
     // The fixture's events, in the order they arrived.
@@ -389,8 +388,8 @@ namespace
         }
         std::size_t count(Event::Kind kind) const
         {
-            return static_cast<std::size_t>(std::count_if(
-                mEvents.begin(), mEvents.end(), [&](const Event& e) { return e.mKind == kind; }));
+            return static_cast<std::size_t>(
+                std::count_if(mEvents.begin(), mEvents.end(), [&](const Event& e) { return e.mKind == kind; }));
         }
         const Event* first(Event::Kind kind) const
         {

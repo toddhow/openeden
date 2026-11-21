@@ -20,7 +20,8 @@ namespace game_skyrimse
     /// The steady clock in microseconds: the clock of the engine's load trace, so the times line up.
     inline std::int64_t steadyNowMicroseconds()
     {
-        return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        return std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch())
             .count();
     }
 

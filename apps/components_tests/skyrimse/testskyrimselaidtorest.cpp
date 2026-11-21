@@ -1,7 +1,8 @@
 // Task 0342: "Laid to Rest" (MS14, Morthal). GetIsEditorLocation (565) run on an ACTOR (the Innkeeper alias: this
 // location, JobInnkeeperFaction, Jonna by id) is answered from the actor's editor location only when the
-// `laid to rest` switch is on; JobJarlFaction is the constant the setting adds to the rank -1 members. Generated records;
-// no game data. The behaviour tests were written first and run red against the code without the switch (see the task).
+// `laid to rest` switch is on; JobJarlFaction is the constant the setting adds to the rank -1 members. Generated
+// records; no game data. The behaviour tests were written first and run red against the code without the switch (see
+// the task).
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/laidtorest.hpp>
 #include <game_skyrimse/location.hpp>

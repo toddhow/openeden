@@ -1658,7 +1658,8 @@ namespace
     }
 
     // Task 0324: an ally of the player (a faction a quest script made the player's ally: the Greybeards) takes the
-    // player's blow as an accident and does not fight back; the hook is off by default and only the player's blows count.
+    // player's blow as an accident and does not fight back; the hook is off by default and only the player's blows
+    // count.
     TEST_F(CombatAi, aVictimAlliedToThePlayerDoesNotFightBackWhenTheHookSaysSo)
     {
         mData.mProfiles[kBase].mFactions = { 0x500 };

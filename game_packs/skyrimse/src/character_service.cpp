@@ -189,9 +189,8 @@ namespace game_skyrimse::character
         if (!name.empty())
         {
             const std::vector<PowerInfo> list = powers();
-            const auto it = std::find_if(list.begin(), list.end(), [&](const PowerInfo& p) {
-                return p.mName == name && p.mSupport != PowerSupport::Unsupported;
-            });
+            const auto it = std::find_if(list.begin(), list.end(),
+                [&](const PowerInfo& p) { return p.mName == name && p.mSupport != PowerSupport::Unsupported; });
             if (it == list.end())
                 return false;
             wanted = it->mId;
@@ -634,12 +633,10 @@ namespace game_skyrimse::character
                         ? list[static_cast<std::size_t>(a[0].integer)].mSource
                         : std::string());
             });
-        add("power_cooldown", intIntParams, true, BindingType::Int32, kRead,
-            [self](std::span<const BindingValue> a) {
-                return intResult(a[0].integer >= 0
-                        ? self->powerCooldownLeft(static_cast<std::size_t>(a[0].integer), a[1].integer)
-                        : 0);
-            });
+        add("power_cooldown", intIntParams, true, BindingType::Int32, kRead, [self](std::span<const BindingValue> a) {
+            return intResult(
+                a[0].integer >= 0 ? self->powerCooldownLeft(static_cast<std::size_t>(a[0].integer), a[1].integer) : 0);
+        });
         add("power_chosen", {}, true, BindingType::Int32, kRead,
             [self](std::span<const BindingValue>) { return intResult(self->chosenPower()); });
         add("choose_power", strParam, false, BindingType::Bool, kMutate, [self](std::span<const BindingValue> a) {

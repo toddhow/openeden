@@ -75,7 +75,8 @@ namespace game_skyrimse
             const WeaponRecord* main = mWeapon != nullptr ? mWeapon : mEquip.mWeapon;
             return main != nullptr && dualWieldAllowed(CombatStyleFlag::AllowDualWielding, main, mPlayerOffHand);
         }
-        if (!mDualWield || !mRealGear || !fighter.mGear.mKnown || fighter.mGear.mOffHand == nullptr || mWeapon != nullptr)
+        if (!mDualWield || !mRealGear || !fighter.mGear.mKnown || fighter.mGear.mOffHand == nullptr
+            || mWeapon != nullptr)
             return false;
         return dualWieldAllowed(fighter.mProfile.mAi.mStyle.mFlags, fighter.mGear.mWeapon, fighter.mGear.mOffHand);
     }

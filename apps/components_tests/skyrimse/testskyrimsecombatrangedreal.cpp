@@ -123,7 +123,9 @@ namespace
                 ++bolts;
                 wrongBolt += isBolt(*ammo) ? 0 : 1;
                 if (!isBolt(*ammo))
-                    std::cout << "SKYRIMSE-RANGED named bolt, flag set: " << ammo->mCommon.mEditorId << " flags " << ammo->mFlags << ' ' << (ammo->mProjectile != 0 ? "projectile" : "no projectile") << std::endl;
+                    std::cout << "SKYRIMSE-RANGED named bolt, flag set: " << ammo->mCommon.mEditorId << " flags "
+                              << ammo->mFlags << ' ' << (ammo->mProjectile != 0 ? "projectile" : "no projectile")
+                              << std::endl;
             }
             else if (name.find("arrow") != std::string::npos)
             {
@@ -133,8 +135,9 @@ namespace
             else
                 ++other;
         }
-        std::cout << "SKYRIMSE-RANGED ammo named bolt " << bolts << " (wrong " << wrongBolt << ") named arrow " << arrows
-                  << " (wrong " << wrongArrow << ") machine ammunition " << machine << " other " << other << '\n';
+        std::cout << "SKYRIMSE-RANGED ammo named bolt " << bolts << " (wrong " << wrongBolt << ") named arrow "
+                  << arrows << " (wrong " << wrongArrow << ") machine ammunition " << machine << " other " << other
+                  << '\n';
         EXPECT_GT(bolts, 0u);
         EXPECT_GT(arrows, 0u);
         EXPECT_EQ(wrongBolt, 0u);

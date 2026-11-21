@@ -1,5 +1,6 @@
 // Task 0347 (docs/tasks/0347-skyrim-thieves-guild-4.md): TG01 "Taking Care of Business", the debts. Groups:
-//  * SkyrimTg01bScriptFight: a script's Actor.StartCombat that comes before the combat's records are read must not leave
+//  * SkyrimTg01bScriptFight: a script's Actor.StartCombat that comes before the combat's records are read must not
+//  leave
 //                            the actor without fighting numbers for good.
 // Generated fighters; no game data.
 #include <game_skyrimse/combat.hpp>
@@ -32,8 +33,8 @@ namespace
     using openeden::sdk::game::DamageReport;
     using openeden::sdk::game::SubjectState;
     using openeden::sdk::game::SweepHit;
-    using openeden::sdk::game::SweepTarget;
     using openeden::sdk::game::SweepRequest;
+    using openeden::sdk::game::SweepTarget;
     using openeden::sdk::game::WorldId;
 
     constexpr WorldId kBase = 100;
@@ -72,7 +73,10 @@ namespace
             return true;
         }
         FighterProfile playerFighter() override { return mPlayer; }
-        const WeaponRecord* weaponByEditorId(std::string_view id) override { return id == "ironsword" ? &mSword : nullptr; }
+        const WeaponRecord* weaponByEditorId(std::string_view id) override
+        {
+            return id == "ironsword" ? &mSword : nullptr;
+        }
         CombatSettings settings() override { return CombatSettings(); }
         WeaponRecord mSword;
         bool mReadyNow = false;
@@ -139,7 +143,8 @@ namespace
         // the records arrive; the same script asks again (the brawl of a later minute)
         data.mReadyNow = true;
         combat.combatUpdate(0.1f, writer);
-        EXPECT_TRUE(combat.scriptStartCombat(keerava)) << "the first refusal must not have fixed her as having no numbers";
+        EXPECT_TRUE(combat.scriptStartCombat(keerava))
+            << "the first refusal must not have fixed her as having no numbers";
         EXPECT_EQ(combat.aiEngaged(), 1u);
         EXPECT_TRUE(combat.scriptInCombat(keerava));
     }
@@ -239,7 +244,8 @@ namespace
         SkyrimCombat::FighterView view;
         ASSERT_TRUE(combat.fighterView(CombatSubject::of(bersi), view));
         ASSERT_TRUE(view.mBleedout);
-        EXPECT_EQ(combat.aiEngaged(), 0u) << "a bleeding actor does not go on fighting (the forced greeting waits for it)";
+        EXPECT_EQ(combat.aiEngaged(), 0u)
+            << "a bleeding actor does not go on fighting (the forced greeting waits for it)";
         EXPECT_FALSE(combat.scriptStartCombat(bersi)) << "nor does it start again while it is down";
         EXPECT_TRUE(combat.setFighterHealth(CombatSubject::of(bersi), 10.f));
         EXPECT_TRUE(combat.scriptStartCombat(bersi)) << "standing up again, it can fight";

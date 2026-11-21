@@ -213,9 +213,9 @@ namespace MWRender
         Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
         if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
             return nullptr;
-        const std::shared_ptr<const SkyrimSequence::Model> model
-            = SkyrimSequence::loadModel(*resources->getVFS(), mesh, Settings::game().mNeutralWorldMaterials,
-                kind == openeden::sdk::game::ObjectKind::Activator || kind == openeden::sdk::game::ObjectKind::Furniture);
+        const std::shared_ptr<const SkyrimSequence::Model> model = SkyrimSequence::loadModel(*resources->getVFS(), mesh,
+            Settings::game().mNeutralWorldMaterials,
+            kind == openeden::sdk::game::ObjectKind::Activator || kind == openeden::sdk::game::ObjectKind::Furniture);
         if (!model)
             return nullptr;
         const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,
@@ -295,8 +295,8 @@ namespace MWRender
                 const ESM::RefNum refNum = ptr.getCellRef().getRefNum();
                 neutralLight = MWWorld::makeNeutralEsmLight(*base->mLight, Settings::game().mNeutralLightFadeGain,
                     Settings::game().mNeutralLightFlicker,
-                    MWWorld::neutralLightSeed(static_cast<std::uint32_t>(refNum.mContentFile),
-                        static_cast<std::uint32_t>(refNum.mIndex)),
+                    MWWorld::neutralLightSeed(
+                        static_cast<std::uint32_t>(refNum.mContentFile), static_cast<std::uint32_t>(refNum.mIndex)),
                     Settings::game().mNeutralLightTypes, Settings::game().mNeutralLightMovement);
                 light = &*neutralLight;
                 // OPENEDEN_NEUTRAL_LIGHT_FORCE_FOV=<degrees> (developer aid, task 0355 stage g): with [Game] neutral
@@ -319,10 +319,10 @@ namespace MWRender
                     const ESM::Position& p = ptr.getRefData().getPosition();
                     const std::uint32_t c = neutralLight->mData.mColor;
                     Log(Debug::Info) << "NLIGHTOBJ " << ptr.getCellRef().getRefId().toDebugString() << " radius "
-                                     << neutralLight->mData.mRadius << " colour " << (c & 255) << "," << ((c >> 8) & 255)
-                                     << "," << ((c >> 16) & 255) << " fade " << base->mLight->fade << " flags "
-                                     << base->mLight->flags << " pos " << p.pos[0] << "," << p.pos[1] << "," << p.pos[2]
-                                     << " model " << (mesh.empty() ? "none" : mesh);
+                                     << neutralLight->mData.mRadius << " colour " << (c & 255) << ","
+                                     << ((c >> 8) & 255) << "," << ((c >> 16) & 255) << " fade " << base->mLight->fade
+                                     << " flags " << base->mLight->flags << " pos " << p.pos[0] << "," << p.pos[1]
+                                     << "," << p.pos[2] << " model " << (mesh.empty() ? "none" : mesh);
                 }
             }
         }

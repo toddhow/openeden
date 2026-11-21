@@ -1,7 +1,7 @@
-// Task 0336: a walking neutral actor passes through what the navigator leaves out (flora, plants, lights, outdoor items,
-// the stand-in boxes). Found in game: a Riverwood guard on a 6,500 unit path stopped `blocked` 127 units short of a
-// waypoint, against TreeSwordFernCluster05, a fern the navmesh does not know. Written before the change; the first run
-// was against a rule that always says no and a sweeper that ignores the set.
+// Task 0336: a walking neutral actor passes through what the navigator leaves out (flora, plants, lights, outdoor
+// items, the stand-in boxes). Found in game: a Riverwood guard on a 6,500 unit path stopped `blocked` 127 units short
+// of a waypoint, against TreeSwordFernCluster05, a fern the navmesh does not know. Written before the change; the first
+// run was against a rule that always says no and a sweeper that ignores the set.
 #include <components/resource/physicsshape.hpp>
 
 #include <Jolt/Jolt.h>

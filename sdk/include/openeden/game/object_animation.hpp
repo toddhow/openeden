@@ -27,8 +27,8 @@ namespace openeden::sdk::game
         /// StartState02)" for a placement of `source`, in the one ordered queue that moves and fades objects use. The
         /// host plays it when it applies the queue; an object without such an animation ignores it. False when the
         /// request was refused (unknown source, an empty or very long name, a full queue).
-        [[nodiscard]] virtual bool playObjectAnimation(WorldCellSource& source, WorldId cellHint, WorldId placement,
-            std::string_view event)
+        [[nodiscard]] virtual bool playObjectAnimation(
+            WorldCellSource& source, WorldId cellHint, WorldId placement, std::string_view event)
         {
             (void)source, (void)cellHint, (void)placement, (void)event;
             return false;

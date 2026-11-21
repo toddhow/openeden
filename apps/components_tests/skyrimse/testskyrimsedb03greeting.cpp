@@ -1,8 +1,8 @@
-// Task 0343 (Skyrim Dark Brotherhood): a nameless branch-start topic whose INFOs carry a PROMPT (RNAM) is a menu topic, the
-// player's own words (Astrid's DBAstridCaughtBranchTopic: "Try not to? But I do realize ..."), not the greeting of a
-// conversation. The greeting rule of task 0304 (a nameless start nothing links to, which names its speaker) took it for one and
-// Astrid answered her own advice instead of offering the next job (DBAstrid03GiveBranch, a Blocking branch). Written first and run
-// red against the old rule. Generated records; no game data.
+// Task 0343 (Skyrim Dark Brotherhood): a nameless branch-start topic whose INFOs carry a PROMPT (RNAM) is a menu topic,
+// the player's own words (Astrid's DBAstridCaughtBranchTopic: "Try not to? But I do realize ..."), not the greeting of
+// a conversation. The greeting rule of task 0304 (a nameless start nothing links to, which names its speaker) took it
+// for one and Astrid answered her own advice instead of offering the next job (DBAstrid03GiveBranch, a Blocking
+// branch). Written first and run red against the old rule. Generated records; no game data.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>

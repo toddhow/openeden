@@ -103,7 +103,8 @@ namespace MWLua
     {
         if (text.find(":w") == std::string_view::npos)
             return false;
-        NeutralWorld::NeutralWorldStore* neutral = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        NeutralWorld::NeutralWorldStore* neutral
+            = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
         if (neutral == nullptr)
             return false;
         const ESM::RefId id = MWBase::Environment::get().getWorldModel()->registerNeutralWorldspaceText(*neutral, text);

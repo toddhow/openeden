@@ -274,8 +274,7 @@ namespace
         turner.parent("ObjectReference");
         turner.function("Turn")
             .local("n", "None")
-            .callMethod("SetAngle", Id("self"), Id("n"),
-                { PexAsm::Flt(15.f), PexAsm::Flt(30.f), PexAsm::Flt(90.f) });
+            .callMethod("SetAngle", Id("self"), Id("n"), { PexAsm::Flt(15.f), PexAsm::Flt(30.f), PexAsm::Flt(90.f) });
         rig.mData.add(turner);
         vmad::Script turnerOn;
         turnerOn.mName = "Turner";
@@ -331,8 +330,7 @@ namespace
         Rig rig;
         vmad::Script s;
         s.mName = "SourceDart";
-        s.mProperties
-            = { objProp("dartWeapon", kWeapon), objProp("dartAmmo", kAmmo), objProp("source", kOtherPort) };
+        s.mProperties = { objProp("dartWeapon", kWeapon), objProp("dartAmmo", kAmmo), objProp("source", kOtherPort) };
         rig.attach(kPort, s);
         rig.mHost->onActivate(kPort, 0x14);
         rig.tick();

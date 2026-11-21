@@ -1,8 +1,8 @@
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/dialogue.hpp>
-#include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/package.hpp>
 #include <game_skyrimse/package_brain.hpp>
+#include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest_priority.hpp>
 
 #include <gtest/gtest.h>
@@ -14,8 +14,9 @@
 #include <span>
 #include <vector>
 
-// Task 0341 (side quest MS08 "In My Time of Need"): Saadia is the UNIQUE-actor alias of MS08 (priority above 40) and the
-// find-matching "Server1" of WITavern (priority 40, a forced fill); the quest with the higher priority is tried first.
+// Task 0341 (side quest MS08 "In My Time of Need"): Saadia is the UNIQUE-actor alias of MS08 (priority above 40) and
+// the find-matching "Server1" of WITavern (priority 40, a forced fill); the quest with the higher priority is tried
+// first.
 
 namespace
 {
@@ -45,7 +46,8 @@ namespace
         const PackageRecord room = package(0x70379, "MS08SaadiaSandboxRoom");
         const PackageRecord sandbox = package(0xDEE97, "WITavernServerSandbox");
         const PackageRecord own = package(0x2BE16, "WhiterunSaadiaBanneredMarePackage9x12");
-        const std::vector<const PackageRecord*> list{ &confide, &room, &own }; // packagesFor: the unique groups, then her own
+        const std::vector<const PackageRecord*> list{ &confide, &room,
+            &own }; // packagesFor: the unique groups, then her own
         std::vector<AliasPackageGroup> unique{ { 0x1CF25, 50, false, { &confide, &room } } };
         std::vector<AliasPackageGroup> other{ { 0xDEE92, 40, true, { &sandbox } } };
         EXPECT_EQ(ids(orderWithUniqueActorGroups(list, 2, unique, other)),
@@ -56,7 +58,8 @@ namespace
     {
         const PackageRecord a = package(1, "A"), b = package(2, "B"), own = package(3, "Own");
         const std::vector<const PackageRecord*> list{ &a, &own };
-        EXPECT_EQ(ids(orderWithUniqueActorGroups(list, 1, { { 0x100, 40, false, { &a } } }, { { 0x200, 70, true, { &b } } })),
+        EXPECT_EQ(
+            ids(orderWithUniqueActorGroups(list, 1, { { 0x100, 40, false, { &a } } }, { { 0x200, 70, true, { &b } } })),
             (std::vector<FormId>{ 2, 1, 3 }));
     }
 

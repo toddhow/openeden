@@ -1,14 +1,15 @@
-// Task 0338 (Azura's altar, quest "The Black Star"): the altar is a quest ALIAS holding a placed activator and the quest's
-// own script (DA01ShrineofAzuraScript) hears OnActivate; the host sent OnActivate only to scripts of the reference itself.
-// Copied rig of testskyrimsedawnguardawake.cpp (generated records, fake hooks); written first, run red.
+// Task 0338 (Azura's altar, quest "The Black Star"): the altar is a quest ALIAS holding a placed activator and the
+// quest's own script (DA01ShrineofAzuraScript) hears OnActivate; the host sent OnActivate only to scripts of the
+// reference itself. Copied rig of testskyrimsedawnguardawake.cpp (generated records, fake hooks); written first, run
+// red.
 #include <game_skyrimse/deaths.hpp>
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dragonborn.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
-#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
 
 #include <openeden/game/world_source_service.hpp>
@@ -192,7 +193,8 @@ namespace
             mIndex.add(std::move(parsed), FormIdResolver(plugin->header(), "test.esp", order()));
             mState = QuestState::initial(mIndex);
             mVmad.mAliases.push_back({ kQuest, 1, { aliasScript() } });
-            mHost->setQuests(&mIndex, &mState, [this](FormId q) -> const vmad::Vmad* { return q == kQuest ? &mVmad : nullptr; });
+            mHost->setQuests(
+                &mIndex, &mState, [this](FormId q) -> const vmad::Vmad* { return q == kQuest ? &mVmad : nullptr; });
             mHost->startGame();
         }
         void tick(int n = 3)

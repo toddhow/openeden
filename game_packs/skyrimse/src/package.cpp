@@ -312,7 +312,8 @@ namespace game_skyrimse
                                 p.mEndScript = parsed.mVmad.mInfo.mEndScript;
                                 p.mEndFunction = parsed.mVmad.mInfo.mEndFunction;
                             }
-                            // Task 0348: the OnBegin fragment (MG01Stage50TolfdirCastAtPlayer sets the quest's TimerInit)
+                            // Task 0348: the OnBegin fragment (MG01Stage50TolfdirCastAtPlayer sets the quest's
+                            // TimerInit)
                             if (parsed.mOk && parsed.mVmad.mHasInfoFragments && parsed.mVmad.mInfo.hasBegin())
                             {
                                 p.mBeginScript = parsed.mVmad.mInfo.mBeginScript;
@@ -428,8 +429,8 @@ namespace game_skyrimse
             return PackageBehavior::Sleep;
         if (eat)
             return PackageBehavior::Eat;
-        // Task 0334: the FollowPlayer template is a Follow (WaitingForPlayer 0) with a Sandbox branch (WaitingForPlayer 1);
-        // it is a Follow that stays near when told to wait, not a sandbox package
+        // Task 0334: the FollowPlayer template is a Follow (WaitingForPlayer 0) with a Sandbox branch (WaitingForPlayer
+        // 1); it is a Follow that stays near when told to wait, not a sandbox package
         if (sandbox && !(follow && !wander && !patrol))
             return PackageBehavior::Sandbox;
         if (wander)

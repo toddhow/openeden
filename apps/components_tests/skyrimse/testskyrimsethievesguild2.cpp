@@ -6,9 +6,9 @@
 #include <game_skyrimse/inventory.hpp>
 #include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/perks.hpp>
-#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/pickup.hpp>
 #include <game_skyrimse/pickup_service.hpp>
+#include <game_skyrimse/records.hpp>
 
 #include <gtest/gtest.h>
 
@@ -33,7 +33,8 @@ namespace
     constexpr FormId kGold = 0x0000000f;
     constexpr std::uint64_t kBrandShei = 0x00019ddc;
 
-    // ---- the bonus ---------------------------------------------------------------------------------------------------
+    // ---- the bonus
+    // ---------------------------------------------------------------------------------------------------
 
     TEST(SkyrimPlantBonus, aPositiveBonusAddsPercentagePointsAndStaysUnderTheMaximum)
     {
@@ -56,7 +57,8 @@ namespace
         EXPECT_FLOAT_EQ(chanceWithBonus(settings, 33.f, 0.f), 33.f);
     }
 
-    // ---- planting ----------------------------------------------------------------------------------------------------
+    // ---- planting
+    // ----------------------------------------------------------------------------------------------------
 
     struct PlantFixture : ::testing::Test
     {
@@ -253,7 +255,8 @@ namespace
         EXPECT_EQ(mService->book().attempts(), 1u);
     }
 
-    // ---- the helper perk's conditions --------------------------------------------------------------------------------
+    // ---- the helper perk's conditions
+    // --------------------------------------------------------------------------------
 
     TEST(SkyrimPerkWorldTg, aQuestStageSourceAnswersGetStageAndNoSourceAnswersZero)
     {
@@ -315,8 +318,8 @@ namespace
         e.mTabCount = 2;
         PerkTab t0;
         t0.mIndex = 0;
-        t0.mConditions = { cond(58, 3, 10.f, 0x21556), cond(58, 4, 30.f, 0x21556),
-            cond(448, 0, 0.f, 0xBE124, 2, 0x14) };
+        t0.mConditions
+            = { cond(58, 3, 10.f, 0x21556), cond(58, 4, 30.f, 0x21556), cond(448, 0, 0.f, 0xBE124, 2, 0x14) };
         PerkTab t1;
         t1.mIndex = 1;
         t1.mConditions = { cond(72, 0, 1.f, 78671) };
@@ -367,7 +370,8 @@ namespace
         EXPECT_FLOAT_EQ(helperBonus(8.f, 78671, true, false), 0.f);
     }
 
-    // ---- the data (gated) --------------------------------------------------------------------------------------------
+    // ---- the data (gated)
+    // --------------------------------------------------------------------------------------------
 
     TEST(SkyrimThievesGuild2Real, theHelperPerkOfTheQuestIsAnEntryPoint56Effect)
     {
@@ -411,8 +415,8 @@ namespace
                       << static_cast<int>(entryPointTabRole(e.mEntryPoint, tab.mIndex, known)) << " known " << known
                       << " conditions " << tab.mConditions.size();
             for (const survey::Ctda& c : tab.mConditions)
-                std::cout << " [fn " << c.mFunction << " run-on " << c.mRunOn << " cmp " << static_cast<int>(c.mCompare) << " value "
-                          << c.mComparison << " p1 " << c.mParam1 << "]";
+                std::cout << " [fn " << c.mFunction << " run-on " << c.mRunOn << " cmp " << static_cast<int>(c.mCompare)
+                          << " value " << c.mComparison << " p1 " << c.mParam1 << "]";
             std::cout << std::endl;
         }
         EXPECT_EQ(e.mEntryPoint, PerkEntry::ModPickpocketChance);

@@ -1,8 +1,10 @@
 // Task 0345: "A Night to Remember" (DA14, Sanguine).
-//  - DA14Start's InnLocation alias tests HasSameEditorLocAsRef (180) with the alias flag in its parameter: it is the same
-//    question as HasSameEditorLocAsRefAlias (181), so the quest's alias filler must evaluate it for a candidate location
-//    (before, 180 was answered false and the start never ran).
-//  - Two aliases hold placed references of ONE base (the temple's two Alto Wines): picking one up must tell only the alias
+//  - DA14Start's InnLocation alias tests HasSameEditorLocAsRef (180) with the alias flag in its parameter: it is the
+//  same
+//    question as HasSameEditorLocAsRefAlias (181), so the quest's alias filler must evaluate it for a candidate
+//    location (before, 180 was answered false and the start never ran).
+//  - Two aliases hold placed references of ONE base (the temple's two Alto Wines): picking one up must tell only the
+//  alias
 //    that holds THAT reference (DA14ItemAdd counts the pickups, four of them set stage 30; a double count ended the
 //    cleaning after three).
 // Written first; red against the table without 180 and against a host that does not know the pickup's placement.
@@ -55,7 +57,8 @@ namespace
         EXPECT_EQ(find(179), nullptr);
     }
 
-    // ---- two aliases hold placements of one base -------------------------------------------------------------------------
+    // ---- two aliases hold placements of one base
+    // -------------------------------------------------------------------------
 
     constexpr FormId kQuest = 0x01000800;
     constexpr FormId kRefA = 0x01000A01; // the wine the alias "A" holds
@@ -147,7 +150,8 @@ namespace
             mVmad.mAliases.push_back(vmad::AliasScripts{ kQuest, 1, { script } });
             mVmad.mAliases.push_back(vmad::AliasScripts{ kQuest, 2, { script } });
             mHost = std::make_unique<PapyrusHost>(mData);
-            mHost->setLog([this](bool error, const std::string& line) { mLogs.push_back((error ? "E " : "I ") + line); });
+            mHost->setLog(
+                [this](bool error, const std::string& line) { mLogs.push_back((error ? "E " : "I ") + line); });
             const Bytes bytes = questBytes();
             QuestRecords parsed;
             Content::Error error;

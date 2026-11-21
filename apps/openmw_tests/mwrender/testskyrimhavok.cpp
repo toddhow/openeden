@@ -9,8 +9,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <span>
 #include <memory>
+#include <span>
 #include <string>
 
 namespace
@@ -95,8 +95,8 @@ namespace
         for (const char* name : { "trigger01", "trigger02" })
         {
             const bool second = std::string(name) == "trigger02";
-            scene.mSequences.push_back(Havok::sequenceFromSampler(name, 1.0f, { "Pillar01" },
-                [second](float t, std::span<HavokPack::Transform> out) {
+            scene.mSequences.push_back(Havok::sequenceFromSampler(
+                name, 1.0f, { "Pillar01" }, [second](float t, std::span<HavokPack::Transform> out) {
                     // trigger01 turns 0 to 90 degrees; trigger02 turns 90 to 180
                     quarterTurn(1.0f, t, out);
                     for (HavokPack::Transform& tr : out)

@@ -64,7 +64,8 @@ namespace MWWorld
         bool hasNeutralFog() const { return mHasNeutralFog; }
         float getNeutralFogStart() const { return mNeutralFogStart; }
         float getNeutralFogEnd() const { return mNeutralFogEnd; }
-        /// Task 0355 (follow-up): the fog power and maximum (share = pow(linear, power) * max); 1 and 1 is the linear fog.
+        /// Task 0355 (follow-up): the fog power and maximum (share = pow(linear, power) * max); 1 and 1 is the linear
+        /// fog.
         float getNeutralFogPower() const { return mNeutralFogPower; }
         float getNeutralFogMax() const { return mNeutralFogMax; }
         void setNeutralFog(float start, float end, float power = 1.f, float max = 1.f)
@@ -75,8 +76,8 @@ namespace MWWorld
             mNeutralFogPower = power;
             mNeutralFogMax = max;
         }
-        /// Task 0362 item 1: the fog's FAR colour (0..1 floats) of a game pack's interior; getMood().mFogColor is the near
-        /// colour. None when the pack gave none.
+        /// Task 0362 item 1: the fog's FAR colour (0..1 floats) of a game pack's interior; getMood().mFogColor is the
+        /// near colour. None when the pack gave none.
         bool hasNeutralFogFarColor() const { return mHasNeutralFogFar; }
         const std::array<float, 3>& getNeutralFogFarColor() const { return mNeutralFogFar; }
         void setNeutralFogFarColor(const std::array<float, 3>& colour)

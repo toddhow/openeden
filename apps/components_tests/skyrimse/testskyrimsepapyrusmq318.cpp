@@ -1,6 +1,7 @@
 // Task 0318 (the main quest after Dragon Rising): the two events the game's MQ104 and MQ105 player scripts wait for,
 // OnLocationChange (the player enters Solitude, Windhelm or High Hrothgar) and OnObjectEquipped (the player equips a
-// shout). Generated scripts and a fake game; no game data. Written first and run red against host functions that did nothing.
+// shout). Generated scripts and a fake game; no game data. Written first and run red against host functions that did
+// nothing.
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/quest.hpp>

@@ -1,6 +1,6 @@
-// Task 0355, stage k: the ambient cube of an exterior. The cube maths a weather transition needs (a blend, a flat cube),
-// the terrain pipeline's define, a text check that the terrain shaders (both languages) take the cube by the same rule
-// and that the sky-visibility header buffer is declared once, and the setting.
+// Task 0355, stage k: the ambient cube of an exterior. The cube maths a weather transition needs (a blend, a flat
+// cube), the terrain pipeline's define, a text check that the terrain shaders (both languages) take the cube by the
+// same rule and that the sky-visibility header buffer is declared once, and the setting.
 #include <components/pipeline/terrain.hpp>
 #include <components/render/ambientcube.hpp>
 

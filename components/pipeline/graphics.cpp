@@ -382,8 +382,8 @@ namespace Pipeline
                 }
                 if (trace)
                 {
-                    vsgUtil::recordShaderUse(
-                        stageFile, shader->module->hints ? shader->module->hints->defines : std::set<std::string>(),
+                    vsgUtil::recordShaderUse(stageFile,
+                        shader->module->hints ? shader->module->hints->defines : std::set<std::string>(),
                         mShaderOptions, numUvSets);
                     traced[i] = choice->defines;
                     if (choice->byPipeline)
@@ -402,8 +402,8 @@ namespace Pipeline
                         continue;
                     const std::string stageFile = shaderPath + (i == 0 ? "/main.vert" : "/main.frag");
                     const auto* requested = vsgUtil::requestedDefinesOf(*shaders[i]);
-                    throw std::runtime_error(vsgUtil::missingTwinText(stageFile, requested ? *requested : noDefines,
-                                                mShaderOptions)
+                    throw std::runtime_error(
+                        vsgUtil::missingTwinText(stageFile, requested ? *requested : noDefines, mShaderOptions)
                         + (anyPending ? " (the wait for the compile ran out)" : "")
                         + "; the draw that needed it is left out");
                 }

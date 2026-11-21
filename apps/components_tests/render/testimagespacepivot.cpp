@@ -61,9 +61,8 @@ namespace
             const std::string text = readFile(file);
             ASSERT_FALSE(text.empty()) << file;
             EXPECT_NE(text.find("gradePivot()"), std::string::npos) << file;
-            EXPECT_NE(text.find("contrast + vec3(pivot)") == std::string::npos
-                    ? text.find("contrast + float3(pivot)")
-                    : text.find("contrast + vec3(pivot)"),
+            EXPECT_NE(text.find("contrast + vec3(pivot)") == std::string::npos ? text.find("contrast + float3(pivot)")
+                                                                               : text.find("contrast + vec3(pivot)"),
                 std::string::npos)
                 << file;
             EXPECT_EQ(text.find("- vec3(0.5)) * contrast"), std::string::npos) << file;

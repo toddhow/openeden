@@ -1,12 +1,11 @@
-// Task 0290: read-only surveys of the installed data for the Dwarven centurions and the DLC2 boar riekling. Prints lines
-// with the prefixes SKYRIMSE-CREATURE4-*.
-// Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0290: read-only surveys of the installed data for the Dwarven centurions and the DLC2 boar riekling. Prints
+// lines with the prefixes SKYRIMSE-CREATURE4-*. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/havokpack/animation.hpp>
 #include <components/havokpack/animationdata.hpp>
 #include <components/havokpack/export.hpp>
-#include <components/havokpack/skeleton.hpp>
 #include <components/havokpack/packfile.hpp>
+#include <components/havokpack/skeleton.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/flatten.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -66,9 +65,10 @@ namespace
             const char* mFolder;
             const char* mProject;
         };
-        const Candidate candidates[] = { { "dwarvensteamcenturion", "steamproject" },
-            { "dwarvenspherecenturion", "spherecenturion" }, { "dwarvenspidercenturion", "dwarvenspidercenturionproject" },
-            { "dlc02/boarriekling", "boarproject" }, { "dlc02/riekling", "rieklingproject" } };
+        const Candidate candidates[]
+            = { { "dwarvensteamcenturion", "steamproject" }, { "dwarvenspherecenturion", "spherecenturion" },
+                  { "dwarvenspidercenturion", "dwarvenspidercenturionproject" },
+                  { "dlc02/boarriekling", "boarproject" }, { "dlc02/riekling", "rieklingproject" } };
         for (const Candidate& c : candidates)
         {
             const std::string sidecar = read(std::string("meshes/animationdata/") + c.mProject + ".txt");
@@ -217,7 +217,6 @@ namespace
         EXPECT_FALSE(done.empty());
     }
 
-    
     // The boar riekling has no sidecar, so no root-motion stride: how far each foot bone travels along the model's y
     // axis over one cycle (peak to peak, model space) is the survey's only measure of its gait.
     TEST(SkyrimCreaturesFourthSurvey, theBoarFootExcursion)
@@ -245,8 +244,8 @@ namespace
         }
         const auto parse = [&](const std::string& name) {
             const std::string& bytes = found.at(name);
-            return HavokPack::Packfile::parse(std::span<const std::uint8_t>(
-                reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
+            return HavokPack::Packfile::parse(
+                std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
         };
         const auto skeletons
             = HavokPack::readSkeletons(parse("meshes/actors/dlc02/boarriekling/character assets/skeleton.hkx"));
@@ -324,7 +323,8 @@ namespace
             index.addLeveledLists(full.mLeveledLists);
             parsed.push_back(std::move(full));
         }
-        const std::vector<std::string> wantedFolders{ "dwarvensteamcenturion/", "dwarvenspherecenturion/", "boarriekling/", "skeletonbeast" };
+        const std::vector<std::string> wantedFolders{ "dwarvensteamcenturion/", "dwarvenspherecenturion/",
+            "boarriekling/", "skeletonbeast" };
         std::map<std::string, int> printed;
         for (const ParsedPlugin& full : parsed)
             for (const CellRecord& cell : full.mCells)

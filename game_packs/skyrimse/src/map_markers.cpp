@@ -331,7 +331,8 @@ namespace game_skyrimse::map
 
     bool Discovery::add(const MarkerIndex& index, FormId marker)
     {
-        if (marker == kNullFormId || index.find(marker) == nullptr || discovered(marker) || mFound.size() >= kMaxDiscovered)
+        if (marker == kNullFormId || index.find(marker) == nullptr || discovered(marker)
+            || mFound.size() >= kMaxDiscovered)
             return false;
         mFound.insert(std::lower_bound(mFound.begin(), mFound.end(), marker), marker);
         ++mRevision;

@@ -27,7 +27,8 @@ namespace HavokPack
             if (pos >= text.size())
                 return false;
             const std::size_t end = text.find('\n', pos);
-            std::string_view piece = text.substr(pos, end == std::string_view::npos ? std::string_view::npos : end - pos);
+            std::string_view piece
+                = text.substr(pos, end == std::string_view::npos ? std::string_view::npos : end - pos);
             pos = end == std::string_view::npos ? text.size() : end + 1;
             while (!piece.empty() && (piece.back() == '\r' || piece.back() == ' ' || piece.back() == '\t'))
                 piece.remove_suffix(1);
@@ -77,8 +78,8 @@ namespace HavokPack
         if (path.size() < 5 || path.compare(path.size() - 4, 4, ".nif") != 0)
             return {};
         const std::size_t slash = path.rfind('/');
-        const std::string stem = path.substr(slash == std::string::npos ? 0 : slash + 1,
-            path.size() - 4 - (slash == std::string::npos ? 0 : slash + 1));
+        const std::string stem = path.substr(
+            slash == std::string::npos ? 0 : slash + 1, path.size() - 4 - (slash == std::string::npos ? 0 : slash + 1));
         if (stem.empty())
             return {};
         return "meshes/animationdata/" + stem + ".txt";

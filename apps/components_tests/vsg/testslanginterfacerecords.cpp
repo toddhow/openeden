@@ -36,8 +36,8 @@
 #include <map>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <span>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -228,8 +228,7 @@ namespace
             { "cCoverLit", Pipeline::ObjectConstantId::CoverLit, 'b' },
             { "cLodFade", Pipeline::ObjectConstantId::LodFade, 'b' },
             { "cAdjustCoverage", Pipeline::ObjectConstantId::AdjustCoverage, 'b' },
-            { "cLodSway", Pipeline::ObjectConstantId::LodSway, 'b' },
-            { "cPom", Pipeline::ObjectConstantId::Pom, 'b' },
+            { "cLodSway", Pipeline::ObjectConstantId::LodSway, 'b' }, { "cPom", Pipeline::ObjectConstantId::Pom, 'b' },
             { "cParallaxDiscard", Pipeline::ObjectConstantId::ParallaxDiscard, 'b' },
             { "cParallax", Pipeline::ObjectConstantId::Parallax, 'b' },
             { "cReconstructNormalZ", Pipeline::ObjectConstantId::ReconstructNormalZ, 'b' },
@@ -808,10 +807,9 @@ namespace
                         }
                     }
                 }
-                std::cout << "[light grid 4] " << scenario.mName << " Slang: "
-                          << listed << " clusters with lights, " << capped << " at the cap, " << overCap
-                          << " over it, entries " << total << ", index count " << result.mIndexCount
-                          << ", depth slices used " << slicesUsed.size()
+                std::cout << "[light grid 4] " << scenario.mName << " Slang: " << listed << " clusters with lights, "
+                          << capped << " at the cap, " << overCap << " over it, entries " << total << ", index count "
+                          << result.mIndexCount << ", depth slices used " << slicesUsed.size()
                           << ", entries in a slice the light does not reach " << wrongSlice << std::endl;
                 EXPECT_EQ(overCap, 0u) << "a stored count above the 50 slots of the list";
                 EXPECT_EQ(badIndex, 0u) << "an entry that is no light";

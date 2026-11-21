@@ -31,7 +31,8 @@ namespace
     TEST(AmbientCubeStoredOrder, aSurfaceFacingUpTakesTheStoredSkyColour)
     {
         const Cube stored = skyrimClearDay();
-        const vsg::vec3 up = Render::AmbientCube::sample(Render::AmbientCube::fromStoredOrder(stored), vsg::vec3(0, 0, 1));
+        const vsg::vec3 up
+            = Render::AmbientCube::sample(Render::AmbientCube::fromStoredOrder(stored), vsg::vec3(0, 0, 1));
         EXPECT_EQ(up, stored[5]);
         const vsg::vec3 down
             = Render::AmbientCube::sample(Render::AmbientCube::fromStoredOrder(stored), vsg::vec3(0, 0, -1));

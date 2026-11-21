@@ -74,8 +74,8 @@ namespace
         EXPECT_EQ(steward, kNenyaRef);
     }
 
-    // The Steward alias of the plot quest is a find-matching alias whose conditions name the steward by id (GetIsID). At
-    // a conversation with her it is filled from the speaker, as the quest's dialogue (GetIsAliasRef) needs.
+    // The Steward alias of the plot quest is a find-matching alias whose conditions name the steward by id (GetIsID).
+    // At a conversation with her it is filled from the speaker, as the quest's dialogue (GetIsAliasRef) needs.
     TEST(SkyrimHearthfireReal, theStewardAliasIsFilledFromTheSpeakerAtAConversation)
     {
         const char* env = std::getenv("OPENEDEN_SKYRIMSE_DATA");
@@ -124,8 +124,8 @@ namespace
         EXPECT_EQ(state.aliasFill(kFalkreathQuest, jarlAlias).mReference, 0x00019822u);
     }
 
-    // The same when the steward alias was filled already (at the start of the quest): the speaker still brings the quest's
-    // other empty aliases (the jarl), as the offer's GetRelationshipRank run on the jarl alias needs.
+    // The same when the steward alias was filled already (at the start of the quest): the speaker still brings the
+    // quest's other empty aliases (the jarl), as the offer's GetRelationshipRank run on the jarl alias needs.
     TEST(SkyrimHearthfireReal, aStewardAliasFilledAtTheStartStillBringsTheJarl)
     {
         const char* env = std::getenv("OPENEDEN_SKYRIMSE_DATA");

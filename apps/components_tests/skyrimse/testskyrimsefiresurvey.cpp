@@ -30,7 +30,8 @@ namespace
 
     std::string lowerOf(std::string s)
     {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::transform(
+            s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return s;
     }
 
@@ -62,8 +63,9 @@ namespace
 
     struct Group
     {
-        std::uint64_t mFiles = 0, mWithEffectShader = 0, mEffectShapes = 0, mRefract = 0, mFireRefract = 0, mPalette = 0,
-                      mFalloff = 0, mSoft = 0, mLightingRefract = 0, mLightingFilesRefract = 0, mTwoSided = 0, mAdditive = 0, mVertexAlpha = 0, mAllRefract = 0;
+        std::uint64_t mFiles = 0, mWithEffectShader = 0, mEffectShapes = 0, mRefract = 0, mFireRefract = 0,
+                      mPalette = 0, mFalloff = 0, mSoft = 0, mLightingRefract = 0, mLightingFilesRefract = 0,
+                      mTwoSided = 0, mAdditive = 0, mVertexAlpha = 0, mAllRefract = 0;
         std::map<std::string, std::uint64_t> mFilesByType;
         std::map<std::string, std::uint64_t> mVariables; // effect float controller variable: blocks, managed or not
     };
@@ -116,8 +118,9 @@ TEST(SkyrimSeFireSurvey, effects)
                 try
                 {
                     NifScene::SceneOptions options;
-                    const NifScene::Scene scene = NifScene::readScene(std::make_unique<std::istringstream>(data, std::ios::binary),
-                        VFS::Path::Normalized("s.nif"), options);
+                    const NifScene::Scene scene
+                        = NifScene::readScene(std::make_unique<std::istringstream>(data, std::ios::binary),
+                            VFS::Path::Normalized("s.nif"), options);
                     for (const auto& geometry : scene.mGeometries)
                         if (geometry.mMaterial < scene.mMaterials.size())
                         {
@@ -134,7 +137,8 @@ TEST(SkyrimSeFireSurvey, effects)
                 }
                 g.mLightingFilesRefract += any;
             }
-            if (types.count("BSEffectShaderPropertyFloatController") || types.count("BSEffectShaderPropertyColorController"))
+            if (types.count("BSEffectShaderPropertyFloatController")
+                || types.count("BSEffectShaderPropertyColorController"))
             {
                 try
                 {
@@ -164,8 +168,9 @@ TEST(SkyrimSeFireSurvey, effects)
             try
             {
                 NifScene::SceneOptions options;
-                const NifScene::Scene scene = NifScene::readScene(
-                    std::make_unique<std::istringstream>(data, std::ios::binary), VFS::Path::Normalized("s.nif"), options);
+                const NifScene::Scene scene
+                    = NifScene::readScene(std::make_unique<std::istringstream>(data, std::ios::binary),
+                        VFS::Path::Normalized("s.nif"), options);
                 bool refract = false;
                 for (const auto& geometry : scene.mGeometries)
                 {
@@ -199,7 +204,8 @@ TEST(SkyrimSeFireSurvey, effects)
             + " fire-refraction " + std::to_string(g.mFireRefract) + " files with any refraction "
             + std::to_string(g.mAllRefract) + " palette " + std::to_string(g.mPalette) + " falloff "
             + std::to_string(g.mFalloff) + " soft " + std::to_string(g.mSoft) + " vertex-alpha "
-            + std::to_string(g.mVertexAlpha) + " LIGHTING-shader refraction shapes " + std::to_string(g.mLightingRefract) + " in files " + std::to_string(g.mLightingFilesRefract));
+            + std::to_string(g.mVertexAlpha) + " LIGHTING-shader refraction shapes "
+            + std::to_string(g.mLightingRefract) + " in files " + std::to_string(g.mLightingFilesRefract));
         for (const auto& [t, n] : g.mVariables)
             line(name + ": controller " + t + " blocks " + std::to_string(n));
         for (const auto& [t, n] : g.mFilesByType)
@@ -241,20 +247,23 @@ TEST(SkyrimSeFireSurvey, dump_controllers)
             line("model " + name);
             {
                 NifScene::SceneOptions options;
-                const NifScene::Scene scene = NifScene::readScene(
-                    std::make_unique<std::istringstream>(data, std::ios::binary), VFS::Path::Normalized("s.nif"), options);
+                const NifScene::Scene scene
+                    = NifScene::readScene(std::make_unique<std::istringstream>(data, std::ios::binary),
+                        VFS::Path::Normalized("s.nif"), options);
                 for (std::size_t i = 0; i < scene.mMaterials.size(); ++i)
                 {
                     const auto& a = scene.mMaterials[i].mUvAnimation;
                     std::ostringstream o;
-                    o << "  scene material " << i << " uv offset " << a.mBaseOffset[0] << "," << a.mBaseOffset[1] << " scale "
-                      << a.mBaseScale[0] << "," << a.mBaseScale[1];
+                    o << "  scene material " << i << " uv offset " << a.mBaseOffset[0] << "," << a.mBaseOffset[1]
+                      << " scale " << a.mBaseScale[0] << "," << a.mBaseScale[1];
                     const char* names[4] = { "uOffset", "vOffset", "uScale", "vScale" };
-                    const NifScene::FloatTrack* tracks[4] = { &a.mOffset[0], &a.mOffset[1], &a.mScale[0], &a.mScale[1] };
+                    const NifScene::FloatTrack* tracks[4]
+                        = { &a.mOffset[0], &a.mOffset[1], &a.mScale[0], &a.mScale[1] };
                     for (int k = 0; k < 4; ++k)
                         if (!tracks[k]->empty())
-                            o << " | " << names[k] << " keys " << tracks[k]->mKeys.size() << " interp " << tracks[k]->mInterpolation
-                              << " window " << tracks[k]->mStart << ".." << tracks[k]->mStop << " cycle " << tracks[k]->mCycle;
+                            o << " | " << names[k] << " keys " << tracks[k]->mKeys.size() << " interp "
+                              << tracks[k]->mInterpolation << " window " << tracks[k]->mStart << ".."
+                              << tracks[k]->mStop << " cycle " << tracks[k]->mCycle;
                     line(o.str());
                 }
             }

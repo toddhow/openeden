@@ -211,7 +211,8 @@ namespace
     TEST_F(MoveFixture, anInteriorDestinationIsFoundByTheIdAndLoaded)
     {
         std::string error;
-        MWWorld::CellStore* store = mModel->resolveNeutralDestination(mNeutral, "fakegame", kRoomB, { 0, 0, 0 }, nullptr, error);
+        MWWorld::CellStore* store
+            = mModel->resolveNeutralDestination(mNeutral, "fakegame", kRoomB, { 0, 0, 0 }, nullptr, error);
         ASSERT_NE(store, nullptr) << error;
         EXPECT_EQ(store->neutralCell()->id, kRoomB);
         EXPECT_EQ(store->getState(), MWWorld::CellStore::State_Loaded);
@@ -254,7 +255,8 @@ namespace
         EXPECT_EQ(store->getCell()->getGridX(), 3);
         EXPECT_EQ(store->getCell()->getGridY(), 0);
         MWWorld::CellStore* room = interior(kRoomA);
-        EXPECT_EQ(mModel->resolveNeutralDestination(mNeutral, "fakegame", kNoWorldId, { 0, 0, 0 }, room, error), nullptr);
+        EXPECT_EQ(
+            mModel->resolveNeutralDestination(mNeutral, "fakegame", kNoWorldId, { 0, 0, 0 }, room, error), nullptr);
         EXPECT_FALSE(error.empty());
         EXPECT_EQ(mModel->resolveNeutralDestination(mNeutral, "fakegame", 777, { 0, 0, 0 }, nullptr, error), nullptr);
         EXPECT_FALSE(error.empty());
@@ -345,8 +347,7 @@ namespace
     {
         Moved m = moveActorToB(*this);
         const MWWorld::Ptr home = m.mB->moveTo(m.mActor, m.mA);
-        EXPECT_TRUE(mModel->noteNeutralRelocation(
-            "fakegame", kActorA, *m.mA, *m.mA, home.getRefData().getPosition()));
+        EXPECT_TRUE(mModel->noteNeutralRelocation("fakegame", kActorA, *m.mA, *m.mA, home.getRefData().getPosition()));
         MWWorld::NeutralSaveState state;
         mModel->collectNeutralSave(state, m.mA);
         EXPECT_TRUE(state.mRelocations.empty());

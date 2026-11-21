@@ -133,8 +133,8 @@ namespace
 
     TEST(DragonSaveCodec, roundTripIsExactAndCanonical)
     {
-        const std::vector<dragons::DragonSave> in = { saveOf(3, -12345.678901234, 99999.5, 4096.25, -1.25f),
-            saveOf(8, 0.0, 0.0, 0.0, 0.f) };
+        const std::vector<dragons::DragonSave> in
+            = { saveOf(3, -12345.678901234, 99999.5, 4096.25, -1.25f), saveOf(8, 0.0, 0.0, 0.0, 0.f) };
         const std::vector<std::uint8_t> bytes = dragons::encodeDragonSaves(in);
         std::vector<dragons::DragonSave> out;
         ASSERT_TRUE(dragons::decodeDragonSaves(bytes, out));
@@ -200,8 +200,8 @@ namespace
     TEST(DragonsChunkTest, refusesAnotherVersionAndBadBytesAndSetsNothing)
     {
         bool set = false;
-        dragons::DragonsChunk chunk([] { return std::vector<dragons::DragonSave>(); },
-            [&](std::vector<dragons::DragonSave>) { set = true; });
+        dragons::DragonsChunk chunk(
+            [] { return std::vector<dragons::DragonSave>(); }, [&](std::vector<dragons::DragonSave>) { set = true; });
         MemoryWriter writer;
         chunk.write(writer);
         MemoryReader other(writer.mBytes);

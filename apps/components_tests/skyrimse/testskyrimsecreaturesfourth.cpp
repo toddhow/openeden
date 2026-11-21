@@ -44,8 +44,8 @@ namespace
             "mt_fastforward", 192.f, 1.f, 384.f, 1.f, 143.f, 46.5f, "h2h_attackslash", "h2h_attackforwardpowerchop",
             "h2h_recoil", "combat_staggerlight", "combat_staggerheavy" },
         { "Actors/DLC02/BoarRiekling/Character Assets/skeletonboar.nif", "boarproject", "mt_idle", "walkforward",
-            "runforward", 75.55f, 1.06667f, 240.4f, 0.533333f, 138.f, 40.5f, "attack1", "attackpowerstanding",
-            "recoil", "staggerbacksmall", "death" },
+            "runforward", 75.55f, 1.06667f, 240.4f, 0.533333f, 138.f, 40.5f, "attack1", "attackpowerstanding", "recoil",
+            "staggerbacksmall", "death" },
     };
 }
 

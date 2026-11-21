@@ -1,5 +1,5 @@
-// Task 0344: a script that stops a quest (Quest.Stop, the last line of C00GiantAttack's stage 200) tells the package brain's
-// copy of the quests, so the packages the quest's aliases gave stop. Generated records, no game data.
+// Task 0344: a script that stops a quest (Quest.Stop, the last line of C00GiantAttack's stage 200) tells the package
+// brain's copy of the quests, so the packages the quest's aliases gave stop. Generated records, no game data.
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/quest.hpp>

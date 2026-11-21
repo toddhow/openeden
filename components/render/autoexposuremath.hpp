@@ -20,9 +20,9 @@ namespace Render::AutoExposure
      * holds everything that needs no Vulkan.
      */
 
-    // The histogram: bin 0 holds samples too dark to count (black, negative or NaN: darkness lights, the sky box's edge,
-    // unlit corners); bins 1 to 63 split log2 luminance from minLog2 to maxLog2 into equal steps, and a sample above the
-    // range joins the last bin.
+    // The histogram: bin 0 holds samples too dark to count (black, negative or NaN: darkness lights, the sky box's
+    // edge, unlit corners); bins 1 to 63 split log2 luminance from minLog2 to maxLog2 into equal steps, and a sample
+    // above the range joins the last bin.
     constexpr int bins = 64;
     constexpr int firstBin = 1;
     constexpr int measuredBins = bins - firstBin;
@@ -33,8 +33,9 @@ namespace Render::AutoExposure
     constexpr int lumaSumIndex = bins;
     constexpr int sampleCountIndex = bins + 1;
     constexpr int histogramEntries = bins + 2;
-    // The arithmetic mean of luminance (for the colour grade's contrast pivot) clamps each sample so a sun disc does not
-    // own it, and is summed as an integer: value * meanLumaScale. 4096 per sample at most, so 2^19 samples fit 32 bits.
+    // The arithmetic mean of luminance (for the colour grade's contrast pivot) clamps each sample so a sun disc does
+    // not own it, and is summed as an integer: value * meanLumaScale. 4096 per sample at most, so 2^19 samples fit 32
+    // bits.
     constexpr float meanLumaClamp = 16.f;
     constexpr float meanLumaScale = 256.f;
     constexpr std::uint32_t maxSamples = 1u << 19;
@@ -253,9 +254,9 @@ namespace Render::AutoExposure
     }
 
     // The colour grade's contrast pivot (the tonemapped, encoded luma of the scene's mean brightness), from the mean
-    // luminance the pass measured instead of the tonemap shader's own 36 taps: the same steps as the shader's gradePivot
-    // (exposure, the curve, the clip, the encode, the clamp to 0.02 .. 0.8) over a grey of the mean. 0 means "not
-    // measured".
+    // luminance the pass measured instead of the tonemap shader's own 36 taps: the same steps as the shader's
+    // gradePivot (exposure, the curve, the clip, the encode, the clamp to 0.02 .. 0.8) over a grey of the mean. 0 means
+    // "not measured".
     inline float pivotFromMeanLuma(float meanLuma, float exposureStops, Hdr::Tonemap curve, bool encode)
     {
         if (!(meanLuma > 0.f))

@@ -6,8 +6,8 @@
 #include <cmath>
 #include <set>
 
-// Task 0361: the idle variants an actor plays now and then, and the walk to run switch speed. The numbers are worked out
-// by hand from the documented ranges.
+// Task 0361: the idle variants an actor plays now and then, and the walk to run switch speed. The numbers are worked
+// out by hand from the documented ranges.
 namespace
 {
     using namespace HavokPack;

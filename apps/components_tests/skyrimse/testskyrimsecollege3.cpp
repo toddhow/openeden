@@ -124,7 +124,8 @@ namespace
         EXPECT_TRUE(r.brain->travellerRefs().empty());
     }
 
-    // ---- the scene's "the player is within 300 of the marker" ---------------------------------------------------------
+    // ---- the scene's "the player is within 300 of the marker"
+    // ---------------------------------------------------------
     constexpr FormId kNpc = 0x01000200;
     constexpr FormId kMarkerRef = 0x01000501; // placed in the exterior (cell 0x101) at (30000, 0, 0)
     constexpr FormId kInteriorRef = 0x01000502; // placed in the Hall (cell 0x100)

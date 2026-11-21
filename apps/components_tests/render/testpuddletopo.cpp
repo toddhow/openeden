@@ -516,8 +516,7 @@ namespace
         EXPECT_NE(text.find("wetFlatness(normalZ)"), std::string::npos);
     }
 
-    INSTANTIATE_TEST_SUITE_P(
-        Twins, PuddleTopoShader, testing::Values("lib/material/puddlemap.slang"));
+    INSTANTIATE_TEST_SUITE_P(Twins, PuddleTopoShader, testing::Values("lib/material/puddlemap.slang"));
 
     TEST(PuddleTopoShaderUse, the_terrain_hands_the_fallback_its_real_normal)
     {

@@ -1,5 +1,5 @@
-// Task 0310 (docs/tasks/0310-skyrim-daedric-barbas.md): what "A Daedra's Best Friend" needed of the engine, with generated
-// plugins, no game data:
+// Task 0310 (docs/tasks/0310-skyrim-daedric-barbas.md): what "A Daedra's Best Friend" needed of the engine, with
+// generated plugins, no game data:
 //  * SkyrimDaedricContinue: in an ORDINARY conversation a response that links to a topic with no name goes on by itself
 //    (Lod's "There's one out on the road ..." goes on to "If you were willing to retrieve him ..." and only then offers
 //    "Sure, I can catch him."), as it already did in a forced one (task 0271) and, since task 0304, behind its switch.

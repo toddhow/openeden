@@ -14,11 +14,13 @@ namespace
 {
     using namespace HavokPack;
 
-    const char* const kPillar = "1\n6\nBehaviors\\Behavior00.hkx\nCharacters\\Character00.hkx\n"
-                                "CharacterAssets\\RuinsPillarSkeleton01.HKX\nAnimations\\ruinspillartrigger01.hkx\n"
-                                "Animations\\ruinspillartrigger02.hkx\nAnimations\\ruinspillartrigger03.hkx\n0\n";
-    const char* const kLever = "1\n4\nBehaviors\\LeverPushBehavior.hkx\nCharacters\\LeverAnimating_Character.hkx\n"
-                               "CharacterAssets\\Lever_Character.hkx\nAnimations\\leverpush.hkx\n0\n";
+    const char* const kPillar
+        = "1\n6\nBehaviors\\Behavior00.hkx\nCharacters\\Character00.hkx\n"
+          "CharacterAssets\\RuinsPillarSkeleton01.HKX\nAnimations\\ruinspillartrigger01.hkx\n"
+          "Animations\\ruinspillartrigger02.hkx\nAnimations\\ruinspillartrigger03.hkx\n0\n";
+    const char* const kLever
+        = "1\n4\nBehaviors\\LeverPushBehavior.hkx\nCharacters\\LeverAnimating_Character.hkx\n"
+          "CharacterAssets\\Lever_Character.hkx\nAnimations\\leverpush.hkx\n0\n";
 
     bool has(const std::vector<std::string>& names, const std::string& wanted)
     {
@@ -58,7 +60,8 @@ namespace
         EXPECT_FALSE(parseObjectProject("", project));
         EXPECT_FALSE(parseObjectProject("1\n", project));
         EXPECT_FALSE(parseObjectProject("1\nmany\n", project));
-        EXPECT_FALSE(parseObjectProject("1\n2\na.hkx\nb.hkx\n0\n", project)); // no room for behavior, character, skeleton
+        EXPECT_FALSE(
+            parseObjectProject("1\n2\na.hkx\nb.hkx\n0\n", project)); // no room for behavior, character, skeleton
         EXPECT_FALSE(parseObjectProject("1\n5\na.hkx\nb.hkx\n0\n", project)); // fewer lines than it says
         EXPECT_FALSE(parseObjectProject("1\n9999\na.hkx\n", project)); // over the cap
         EXPECT_FALSE(parseObjectProject("1\n4\na\nb\nc\n..\\..\\evil.hkx\n0\n", project)); // leaves the folder
@@ -71,7 +74,8 @@ namespace
         EXPECT_EQ(objectProjectPath("Meshes\\Furniture\\Clutter\\LeverAnimating.nif"),
             "meshes/animationdata/leveranimating.txt");
         EXPECT_EQ(objectProjectPath("meshes/readme.txt"), "");
-        EXPECT_EQ(objectFolder("Meshes\\Clutter\\Ruins\\Pillar\\RuinsPuzzlePillar01.nif"), "meshes/clutter/ruins/pillar/");
+        EXPECT_EQ(
+            objectFolder("Meshes\\Clutter\\Ruins\\Pillar\\RuinsPuzzlePillar01.nif"), "meshes/clutter/ruins/pillar/");
         EXPECT_EQ(objectFolder("a.nif"), "");
     }
 

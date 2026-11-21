@@ -23,7 +23,8 @@ TEST(SkyrimRavenRock, TheOlderFeaturesStillAcceptBoxes)
     EXPECT_TRUE(game_skyrimse::acceptsBoxTriggers(false, false, true, false));
 }
 
-// The ride script disables the ship at Raven Rock's dock; with no boat animation the ship is the deck, so only it is kept.
+// The ride script disables the ship at Raven Rock's dock; with no boat animation the ship is the deck, so only it is
+// kept.
 TEST(SkyrimRavenRock, OnlyTheShipAtTheDockStaysEnabledDuringTheRide)
 {
     EXPECT_TRUE(game_skyrimse::dragonborn::keepsEnabledDuringTheRide(0x016FE2));

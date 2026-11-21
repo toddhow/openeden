@@ -808,8 +808,9 @@ namespace game_skyrimse
                                 {
                                     lighting.mInherit = readLe<std::uint32_t>(p + 88);
                                     lighting.mFogMax = readLe<float>(p + 76);
-                                    // Task 0362 item 1: the fog FAR colour (xEdit's XCLL, RECALLED-VERIFY; 76 more bytes
-                                    // of the same record agree with it: it differs from the near colour in 222 of 928).
+                                    // Task 0362 item 1: the fog FAR colour (xEdit's XCLL, RECALLED-VERIFY; 76 more
+                                    // bytes of the same record agree with it: it differs from the near colour in 222 of
+                                    // 928).
                                     for (std::size_t i = 0; i < 3; ++i)
                                         lighting.mFogFarColor[i] = static_cast<std::uint8_t>(p[72 + i]);
                                     lighting.mHasFogFar = true;
@@ -1700,7 +1701,8 @@ namespace game_skyrimse
             return false;
         if (!(evidence.mMinObjectZ < level)) // nothing lies under the plane: it would flood nothing
             return false;
-        if (evidence.mAnyDoor && (!std::isfinite(evidence.mMinDoorZ) || evidence.mMinDoorZ < level - kEntranceWetMargin))
+        if (evidence.mAnyDoor
+            && (!std::isfinite(evidence.mMinDoorZ) || evidence.mMinDoorZ < level - kEntranceWetMargin))
             return false;
         if (evidence.mCount > 0 && level - evidence.mLowQuarterZ > kMaxQuarterSubmersion)
             return false; // task 0330: the plane lies far over a quarter of the content

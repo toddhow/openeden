@@ -435,8 +435,7 @@ namespace vsgUtil
         return names;
     }
 
-    std::set<std::string> effectiveDefines(
-        const std::set<std::string>& requested, const std::set<std::string>& imports)
+    std::set<std::string> effectiveDefines(const std::set<std::string>& requested, const std::set<std::string>& imports)
     {
         std::set<std::string> result;
         for (const std::string& name : requested)
@@ -547,8 +546,8 @@ namespace vsgUtil
         }
         if (objectVertex)
         {
-            // Task 0363 (stage d): the far tree sway is the vertex stage's only control define; a stage without it keeps
-            // its set, so the listed define sets stay what they are.
+            // Task 0363 (stage d): the far tree sway is the vertex stage's only control define; a stage without it
+            // keeps its set, so the listed define sets stay what they are.
             if (defines.erase("LOD_SWAY") != 0)
                 defines.insert("MODE_CONSTANTS");
             return defines;
@@ -566,8 +565,8 @@ namespace vsgUtil
                 defines.erase(name);
             // Plan B: control flow over units the set still decides. The precipitation light needs the diffuse map and
             // its coordinates (the shader's block), so a set without them keeps the define.
-            for (const char* name : { "MATERIAL_MAP_RMAOS", "PARALLAX", "PARALLAX_DISCARD", "PARALLAX_POM",
-                     "RECONSTRUCT_NORMAL_Z" })
+            for (const char* name :
+                { "MATERIAL_MAP_RMAOS", "PARALLAX", "PARALLAX_DISCARD", "PARALLAX_POM", "RECONSTRUCT_NORMAL_Z" })
                 defines.erase(name);
             if (defines.count("DIFFUSE_MAP") != 0 && defines.count("TEXCOORD") != 0)
                 defines.erase("PRECIPITATION_LIT");
@@ -617,8 +616,8 @@ namespace vsgUtil
         // wait ran out. Task 0363, stage g: there is no GLSL to check the result against; the structure check (SPIR-V
         // 1.0, no OpSpecConstantOp) is all a run-time compile gets, and the build compares every listed set with the
         // recorded interface (SlangInterfaceRecords).
-        RuntimeAnswer runtimeTwin(
-            const std::string& path, const std::set<std::string>& defines, const vsg::ref_ptr<const vsg::Options>& options)
+        RuntimeAnswer runtimeTwin(const std::string& path, const std::set<std::string>& defines,
+            const vsg::ref_ptr<const vsg::Options>& options)
         {
             auto* runtime = options ? options->getObject<SlangRuntime>(slangRuntimeKey) : nullptr;
             if (runtime == nullptr || runtime->disabled())
@@ -834,8 +833,7 @@ namespace vsgUtil
                     auto module = readTwin(dir + *file, options);
                     if (!module)
                     {
-                        vsg::warn(
-                            "Slang permutation \"", dir, *file, "\" is listed but cannot be read");
+                        vsg::warn("Slang permutation \"", dir, *file, "\" is listed but cannot be read");
                         return {};
                     }
                     entry.mListed = true;
@@ -916,8 +914,8 @@ namespace vsgUtil
         std::optional<uint32_t> numUvSets)
     {
         const auto entry = requiredStage(path, options);
-        std::set<std::string> defines = constantDefinesFor(
-            path, stageDefines(requested, entry->mInfo.mImports, options.get()), options.get());
+        std::set<std::string> defines
+            = constantDefinesFor(path, stageDefines(requested, entry->mInfo.mImports, options.get()), options.get());
         const bool byPipeline = declaresUvSetArrays(defines) && familyCountsUvSets(path, options);
         if (!numUvSets)
             return byPipeline ? std::nullopt : std::optional(std::move(defines));
@@ -969,8 +967,8 @@ namespace vsgUtil
         choice->hints = stage.module->hints;
         const std::set<std::string>& requested = stage.module->hints ? stage.module->hints->defines : noDefines;
         // The same set and rule as slangSelectionSet, worked out once.
-        choice->defines = constantDefinesFor(
-            path, stageDefines(requested, entry->mInfo.mImports, options.get()), options.get());
+        choice->defines
+            = constantDefinesFor(path, stageDefines(requested, entry->mInfo.mImports, options.get()), options.get());
         choice->byPipeline = declaresUvSetArrays(choice->defines) && familyCountsUvSets(path, options);
         if (!choice->byPipeline)
             choice->twin = findSlangPermutation(path, choice->defines, options, true, &choice->pending);

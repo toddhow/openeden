@@ -152,8 +152,9 @@ namespace game_skyrimse
             if (mCreated.count(form) != 0)
             {
                 const auto known = mRefClass.find(form); // task 0274: a relocated actor is an Actor
-                className = known != mRefClass.end() ? known->second
-                                                     : (mCreatedActors.count(form) != 0 ? "Actor" : "ObjectReference"); // task 0276
+                className = known != mRefClass.end()
+                    ? known->second
+                    : (mCreatedActors.count(form) != 0 ? "Actor" : "ObjectReference"); // task 0276
                 return true;
             }
             if ((form & 0xFF000000u) == kAliasTag && form != 0)
@@ -391,7 +392,8 @@ namespace game_skyrimse
                         // the class name is kept in the host's name table: the value only views it
                         const std::string& named
                             = intern(alias != nullptr && alias->mIsLocation ? "LocationAlias" : "ReferenceAlias");
-                        value = PapyrusValue::makeForm(named, aliasHandle(v.mForm, static_cast<std::uint32_t>(v.mAlias)));
+                        value
+                            = PapyrusValue::makeForm(named, aliasHandle(v.mForm, static_cast<std::uint32_t>(v.mAlias)));
                     }
                     else if (v.mForm != 0)
                     {
@@ -447,7 +449,8 @@ namespace game_skyrimse
                     {
                         ++mTraceCount;
                         const auto info = mInstances.find(instance);
-                        say(false, "Papyrus: array property " + property.mName + " of "
+                        say(false,
+                            "Papyrus: array property " + property.mName + " of "
                                 + (info != mInstances.end() ? info->second.mScript : std::string("?")) + " rejected ("
                                 + std::to_string(elements.size()) + " elements)");
                     }
@@ -469,7 +472,8 @@ namespace game_skyrimse
                 {
                     ++mTraceCount;
                     const auto info = mInstances.find(instance);
-                    say(false, "Papyrus: property " + property.mName + " of "
+                    say(false,
+                        "Papyrus: property " + property.mName + " of "
                             + (info != mInstances.end() ? info->second.mScript : std::string("?")) + " rejected");
                 }
             }
@@ -542,8 +546,8 @@ namespace game_skyrimse
                 {
                     ++mTraceCount;
                     say(false,
-                        "Papyrus event " + name + " to " + info->second.mScript + " of " + hex(info->second.mForm) + " in state '"
-                            + mRuntime->stateOf(instance) + "'");
+                        "Papyrus event " + name + " to " + info->second.mScript + " of " + hex(info->second.mForm)
+                            + " in state '" + mRuntime->stateOf(instance) + "'");
                 }
             }
             return true;
@@ -614,7 +618,8 @@ namespace game_skyrimse
                 InstanceInfo info;
                 info.mForm = form;
                 const InstanceId made = attachScript(AttachKey{ AttachKind::Form, form, 0, at }, info, script);
-                say(false, "Papyrus: the unplaced form " + hex(form) + " gets its script " + script.mName
+                say(false,
+                    "Papyrus: the unplaced form " + hex(form) + " gets its script " + script.mName
                         + (made != 0 ? "" : " (refused)"));
             }
         }
@@ -628,8 +633,8 @@ namespace game_skyrimse
             return out;
         }
 
-        /// Task 0310: the instances of the scripts on the quest aliases that hold `reference` (a trigger volume that has
-        /// no script of its own, the game's defaultSetStageAliasScript on its alias)
+        /// Task 0310: the instances of the scripts on the quest aliases that hold `reference` (a trigger volume that
+        /// has no script of its own, the game's defaultSetStageAliasScript on its alias)
         std::vector<InstanceId> aliasInstancesHolding(FormId reference) const
         {
             std::vector<InstanceId> out;
@@ -726,11 +731,13 @@ namespace game_skyrimse
                 if (alias.mFill != AliasFillKind::CreatedObject || alias.mCreateObject == 0
                     || alias.mCreateAt == kNoCreateAt || mState->aliasFill(quest, alias.mId).mReference != 0)
                     continue;
-                // Task 0318: ALCA bit 31 is "In": created in the inventory of the alias, not at its feet. The alias then
-                // holds the item (the pack has no item references): the game's own AddItem(alias.GetRef()) hands it over.
+                // Task 0318: ALCA bit 31 is "In": created in the inventory of the alias, not at its feet. The alias
+                // then holds the item (the pack has no item references): the game's own AddItem(alias.GetRef()) hands
+                // it over.
                 constexpr std::uint32_t kCreateIn = 0x80000000u;
                 const bool inside = (alias.mCreateAt & kCreateIn) != 0;
-                if (onlyInside && !inside) // task 0335: the quests that start with the game make only items in inventories
+                if (onlyInside
+                    && !inside) // task 0335: the quests that start with the game make only items in inventories
                     continue;
                 const std::uint32_t atAlias = alias.mCreateAt & ~kCreateIn;
                 if (inside)
@@ -740,7 +747,8 @@ namespace game_skyrimse
                     {
                         say(false,
                             "Papyrus: quest " + hex(quest) + " alias " + alias.mName + " is created in alias "
-                                + std::to_string(atAlias) + ", and " + hex(alias.mCreateObject) + " resolves to nothing");
+                                + std::to_string(atAlias) + ", and " + hex(alias.mCreateObject)
+                                + " resolves to nothing");
                         continue;
                     }
                     mState->setAliasFill(quest, alias.mId, AliasFill{ true, item, kNullFormId });
@@ -765,8 +773,8 @@ namespace game_skyrimse
                 // is 44 wide, and two actors in one spot would block each other's first step)
                 const double turn = static_cast<double>(madeHere) * 2.399963229728653; // the golden angle
                 const double reach = 110.0 * std::sqrt(static_cast<double>(madeHere));
-                const FormId made = placeNear(
-                    alias.mCreateObject, at, false, true, reach * std::cos(turn), reach * std::sin(turn));
+                const FormId made
+                    = placeNear(alias.mCreateObject, at, false, true, reach * std::cos(turn), reach * std::sin(turn));
                 if (made == 0)
                     continue;
                 ++madeHere;
@@ -780,8 +788,8 @@ namespace game_skyrimse
         }
 
         // PlaceAtMe's one placement: a new reference of `base` at the place of `self`; the host keeps it. 0: refused.
-        FormId placeNear(FormId base, FormId self, bool disabled, bool allowActor, double offsetX = 0.0,
-            double offsetY = 0.0)
+        FormId placeNear(
+            FormId base, FormId self, bool disabled, bool allowActor, double offsetX = 0.0, double offsetY = 0.0)
         {
             double where[3] = { 0.0, 0.0, 0.0 };
             if (self == 0 || base == 0 || mHooks == nullptr || !positionOf(self, where))
@@ -873,7 +881,8 @@ namespace game_skyrimse
             }
             if (mState->stageDone(quest, stage) && (record->mFlags & QuestFlags::AllowRepeatedStages) == 0)
             {
-                say(false, "Papyrus: SetStage " + std::to_string(stage) + " on " + hex(quest) + ": the stage is done"); // 0338
+                say(false,
+                    "Papyrus: SetStage " + std::to_string(stage) + " on " + hex(quest) + ": the stage is done"); // 0338
                 return false;
             }
             if (!mState->running(quest))
@@ -901,8 +910,8 @@ namespace game_skyrimse
             return true;
         }
 
-        // Task 0344: a quest that stops stops giving its aliases' packages too (C00GiantAttack's last stage stops it, and
-        // its HangAroundGiant package, quest priority 80, kept Farkas from C01's follow package at 70)
+        // Task 0344: a quest that stops stops giving its aliases' packages too (C00GiantAttack's last stage stops it,
+        // and its HangAroundGiant package, quest priority 80, kept Farkas from C01's follow package at 70)
         void stopQuest(FormId quest)
         {
             if (mState != nullptr)
@@ -1159,7 +1168,7 @@ namespace game_skyrimse
             mCreated[made.reference] = created;
             if (made.actor)
                 mCreatedActors.insert(made.reference); // task 0276: not saved (created actors are not)
-                mRefClass[made.reference] = "Actor"; // task 0274: a script casts the relocated actor to Actor
+            mRefClass[made.reference] = "Actor"; // task 0274: a script casts the relocated actor to Actor
             mPositions[made.reference] = { at[0], at[1], at[2] };
             mPositions[self] = { at[0], at[1], at[2] };
             if (angles != nullptr)
@@ -1220,10 +1229,11 @@ namespace game_skyrimse
                     return true;
                 if (!mData.formClass(key.formId).empty())
                     return true;
-                // Tasks 0342 and 0343 (one rule): a script on a reference a script or a quest alias CREATED (0xFF8xxxxx:
-                // PlaceAtMe, the courier letter of DB02's entrance quest) is saved with the host's created table; the data
-                // does not know it before the load has rebuilt it, so a save made after any such script was attached was
-                // refused as a whole. The table is restored before the runtime asks; 0342's switch keeps the old answer
+                // Tasks 0342 and 0343 (one rule): a script on a reference a script or a quest alias CREATED
+                // (0xFF8xxxxx: PlaceAtMe, the courier letter of DB02's entrance quest) is saved with the host's created
+                // table; the data does not know it before the load has rebuilt it, so a save made after any such script
+                // was attached was refused as a whole. The table is restored before the runtime asks; 0342's switch
+                // keeps the old answer
                 if (mCreated.count(key.formId) != 0
                     || (mQuestUpdatesReachAliases && (key.formId & 0xFF800000u) == 0xFF800000u))
                     return true;
@@ -1286,8 +1296,8 @@ namespace game_skyrimse
                 }
             if (std::find(out.begin(), out.end(), c.self.handle) == out.end())
                 out.push_back(c.self.handle);
-            // Task 0342: a quest's registration also reaches the scripts of its aliases (MS14: MS14BurnedHouseScript and
-            // MS14AlvasCoffinScript handle OnUpdate and nothing in the data registers them, so the quest's
+            // Task 0342: a quest's registration also reaches the scripts of its aliases (MS14: MS14BurnedHouseScript
+            // and MS14AlvasCoffinScript handle OnUpdate and nothing in the data registers them, so the quest's
             // RegisterForUpdate(5) is what feeds them). RECALLED-VERIFY: the engine's own rule.
             if (mQuestUpdatesReachAliases && info != mInstances.end() && !info->second.mIsAlias)
                 for (const auto& [key, ids] : mByAlias)
@@ -1428,7 +1438,8 @@ namespace game_skyrimse
         static constexpr std::int32_t kOpenStateClosed = 3;
         static constexpr double kMaxAnimationWaitSeconds = 30.0;
         static constexpr double kAnimationEventWaitSeconds = 8.0; ///< task 0312: ours (the ride's clip is not played)
-        static constexpr double kMaxGameWaitSeconds = 3.0 * 24.0 * 3600.0 / 20.0; // three game days at the default scale
+        static constexpr double kMaxGameWaitSeconds
+            = 3.0 * 24.0 * 3600.0 / 20.0; // three game days at the default scale
         static constexpr std::size_t kMaxOpenStates = 4096;
         std::map<FormId, std::int32_t> mOpenStates;
         std::map<FormId, std::uint32_t> mDartShots; // task 0289: Weapon.Fire calls per source reference
@@ -1602,7 +1613,8 @@ namespace game_skyrimse
             // Task 0294: Utility.WaitGameTime(hours) parks the script for that many game hours (the time scale is the
             // game's; the host counts script seconds). Unregistered it returned at once, and the game's
             // WIDeadBodyCleanupScript loops on it and used up the whole instruction budget.
-            reg("Utility", "WaitGameTime", true,
+            reg(
+                "Utility", "WaitGameTime", true,
                 [this](const NativeCall& c) {
                     NativeResult r;
                     const double hours = argNumber(c, 0);
@@ -1624,8 +1636,7 @@ namespace game_skyrimse
                 if (reference == 0 || event.empty())
                     return r;
                 double seconds = 0.0;
-                const bool played
-                    = mHooks != nullptr && mHooks->playObjectAnimation(reference, event, seconds);
+                const bool played = mHooks != nullptr && mHooks->playObjectAnimation(reference, event, seconds);
                 noteOpenState(reference, event);
                 if (wait && played && std::isfinite(seconds) && seconds > 0.0)
                     r.waitSeconds = std::min(seconds, kMaxAnimationWaitSeconds);
@@ -1633,7 +1644,8 @@ namespace game_skyrimse
             };
             reg("ObjectReference", "PlayAnimation", false,
                 [playObjectAnimation](const NativeCall& c) { return playObjectAnimation(c, false); });
-            reg("ObjectReference", "PlayAnimationAndWait", false,
+            reg(
+                "ObjectReference", "PlayAnimationAndWait", false,
                 [playObjectAnimation](const NativeCall& c) { return playObjectAnimation(c, true); }, true);
             reg("ObjectReference", "GetOpenState", false, [this](const NativeCall& c) {
                 const auto found = mOpenStates.find(formOf(c.self));
@@ -1722,9 +1734,9 @@ namespace game_skyrimse
                 mStringScratch = mData.nameOf(formOf(c.self));
                 return result(PapyrusValue::makeString(mStringScratch));
             });
-            // Task 0325: an update is registered for the FORM: every script on it that handles OnUpdate gets it. A quest's
-            // fragment script (QF_DarkBrotherhood) registers RegisterForUpdate(5) and its OnUpdate is in the quest's other
-            // script (DarkBrotherhood), so the timer is kept for each script of the form
+            // Task 0325: an update is registered for the FORM: every script on it that handles OnUpdate gets it. A
+            // quest's fragment script (QF_DarkBrotherhood) registers RegisterForUpdate(5) and its OnUpdate is in the
+            // quest's other script (DarkBrotherhood), so the timer is kept for each script of the form
             reg("Form", "RegisterForSingleUpdate", false, [this](const NativeCall& c) {
                 for (const InstanceId target : formUpdateTargets(c))
                     registerUpdate(target, argNumber(c, 0), false);
@@ -1888,13 +1900,15 @@ namespace game_skyrimse
                     std::array<double, 3> turned{ 0.0, 0.0, 0.0 };
                     double stored[3] = { 0.0, 0.0, 0.0 };
                     bool known = anglesOf(target, turned);
-                    if (!known && mData.referenceRotation(target, stored)) // the marker's angles as the data stores them
+                    if (!known
+                        && mData.referenceRotation(target, stored)) // the marker's angles as the data stores them
                     {
                         turned = { stored[0], stored[1], stored[2] };
                         known = true;
                     }
                     const bool done = mPlayerMove(cellOfReference(target), at, known ? turned[2] : 0.0);
-                    say(false, std::string("Papyrus: MoveTo of the player to ") + hex(target) + (done ? "" : ": refused"));
+                    say(false,
+                        std::string("Papyrus: MoveTo of the player to ") + hex(target) + (done ? "" : ": refused"));
                     return NativeResult{};
                 }
                 {
@@ -1986,12 +2000,13 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(added));
             });
             reg("ObjectReference", "GetBaseObject", false, [this](const NativeCall& c) {
-                // task 0349: the player's base is the NPC_ `Player` (0x7): defaultOnEnter's CheckTriggerRef compares it with its
-                // TriggerActor (MQ106's trigger boxes wait for Delphine AND the player)
+                // task 0349: the player's base is the NPC_ `Player` (0x7): defaultOnEnter's CheckTriggerRef compares it
+                // with its TriggerActor (MQ106's trigger boxes wait for Delphine AND the player)
                 constexpr FormId kPlayerBase = 0x7;
                 const FormId self = formOf(c.self);
                 const FormId base = self == kPlayerReference ? kPlayerBase : baseOfReference(self);
-                return result(base != 0 ? formValue(base) : PapyrusValue::makeNone()); // task 0274: the base has its own class
+                return result(
+                    base != 0 ? formValue(base) : PapyrusValue::makeNone()); // task 0274: the base has its own class
             });
             reg("ObjectReference", "Activate", false, [this](const NativeCall& c) {
                 const FormId target = formOf(c.self);
@@ -2231,9 +2246,8 @@ namespace game_skyrimse
             // Task 0326: CW01Script.checkLocRefTypeAliveCount (run after each of Fort Hraggstad's bandits dies): the
             // quest reaches its stage 100 when none of the location's CWFortMonster references is left alive
             reg("Location", "GetRefTypeAliveCount", false, [this](const NativeCall& c) {
-                const float alive = c.arguments.empty()
-                    ? 0.f
-                    : mData.refTypeAliveCount(formOf(c.self), formOf(c.arguments[0]));
+                const float alive
+                    = c.arguments.empty() ? 0.f : mData.refTypeAliveCount(formOf(c.self), formOf(c.arguments[0]));
                 return result(PapyrusValue::makeInt(static_cast<std::int32_t>(alive)));
             });
             reg("Location", "GetKeywordData", false, [this](const NativeCall& c) {
@@ -2356,8 +2370,8 @@ namespace game_skyrimse
                 }
                 return NativeResult{};
             });
-            // Task 0324: Faction.SetAlly/SetEnemy (the Greybeards become the player's allies at MQ105 stage 5): the relation
-            // goes to the follower state, which the combat AI asks through the pack's hook
+            // Task 0324: Faction.SetAlly/SetEnemy (the Greybeards become the player's allies at MQ105 stage 5): the
+            // relation goes to the follower state, which the combat AI asks through the pack's hook
             reg("Faction", "SetAlly", false, [this, factionArgument](const NativeCall& c) {
                 if (mFollowers != nullptr)
                     (void)mFollowers->setFactionRelation(formOf(c.self), factionArgument(c), 2);
@@ -2489,7 +2503,8 @@ namespace game_skyrimse
             regNoop("Actor", "StopCombatAlarm", false);
             regNoop("Actor", "EnableAI", false);
             regNoop("Game", "RequestAutoSave", true);
-            reg("ObjectReference", "WaitForAnimationEvent", false,
+            reg(
+                "ObjectReference", "WaitForAnimationEvent", false,
                 [](const NativeCall&) {
                     NativeResult r;
                     r.value = PapyrusValue::makeBool(true);
@@ -2567,8 +2582,9 @@ namespace game_skyrimse
                     mAnimEvents.push_back({ mTime + std::max(seconds, 0.0), actor, std::move(event) });
                 return result(PapyrusValue::makeBool(true));
             });
-            // Task 0337: a paired kill move a script plays (Weylin's SneakKillMove on Margret) kills its target; the clip is
-            // not played (HAND-WRITTEN: the death comes at once, not at the clip's end). Any other idle is a tolerant play.
+            // Task 0337: a paired kill move a script plays (Weylin's SneakKillMove on Margret) kills its target; the
+            // clip is not played (HAND-WRITTEN: the death comes at once, not at the clip's end). Any other idle is a
+            // tolerant play.
             reg("Actor", "PlayIdleWithTarget", false, [this](const NativeCall& c) {
                 if (!mPairedKillMoves || c.arguments.size() < 2)
                     return result(PapyrusValue::makeBool(false));
@@ -2670,7 +2686,8 @@ namespace game_skyrimse
                 if (list == nullptr || wanted == 0)
                     return result(PapyrusValue::makeInt(-1));
                 const auto at = std::find(list->begin(), list->end(), wanted);
-                return result(PapyrusValue::makeInt(at == list->end() ? -1 : static_cast<std::int32_t>(at - list->begin())));
+                return result(
+                    PapyrusValue::makeInt(at == list->end() ? -1 : static_cast<std::int32_t>(at - list->begin())));
             });
             reg("FormList", "HasForm", false, [this, listOf](const NativeCall& c) {
                 const std::vector<FormId>* list = listOf(c);
@@ -2728,15 +2745,13 @@ namespace game_skyrimse
                     return NativeResult{};
                 });
             }
-            // Task 0302 (masterAmbushScript.OnGetUp): the cell a reference stands in, and whether that cell is attached. The
-            // pack only attaches the scripts of references in cells it built, so a cell that a script asks about for a
-            // reference of its own is loaded.
-            reg("ObjectReference", "GetParentCell", false, [this](const NativeCall& c) {
-                return result(formValue(cellOfReference(formOf(c.self))));
-            });
-            reg("Cell", "IsAttached", false, [this](const NativeCall& c) {
-                return result(PapyrusValue::makeBool(formOf(c.self) != 0));
-            });
+            // Task 0302 (masterAmbushScript.OnGetUp): the cell a reference stands in, and whether that cell is
+            // attached. The pack only attaches the scripts of references in cells it built, so a cell that a script
+            // asks about for a reference of its own is loaded.
+            reg("ObjectReference", "GetParentCell", false,
+                [this](const NativeCall& c) { return result(formValue(cellOfReference(formOf(c.self)))); });
+            reg("Cell", "IsAttached", false,
+                [this](const NativeCall& c) { return result(PapyrusValue::makeBool(formOf(c.self) != 0)); });
             reg("ObjectReference", "GetLinkedRef", false, [this](const NativeCall& c) {
                 const FormId keyword = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 return result(formValue(mData.linkedRef(formOf(c.self), keyword)));
@@ -2761,7 +2776,8 @@ namespace game_skyrimse
                 if (mTraceNatives && mTraceCount < kMaxTracedNatives) // task 0313: where the two were taken to be
                 {
                     ++mTraceCount;
-                    say(false, "Papyrus GetDistance " + hex(formOf(c.self)) + " at " + std::to_string(a[0]) + " "
+                    say(false,
+                        "Papyrus GetDistance " + hex(formOf(c.self)) + " at " + std::to_string(a[0]) + " "
                             + std::to_string(a[1]) + " " + std::to_string(a[2]) + " to " + hex(other) + " at "
                             + std::to_string(b[0]) + " " + std::to_string(b[1]) + " " + std::to_string(b[2]));
                 }
@@ -2804,8 +2820,8 @@ namespace game_skyrimse
                 avMove(actor, key, argNumber(c, 1) - now);
                 return NativeResult{};
             });
-            // Task 0344: ForceActorValue (what Actor.ForceAV calls; C01QuestScript.FightStart leaves each ambusher at one
-            // point of health) sets the CURRENT value, as SetActorValue does here (no separate base value is kept)
+            // Task 0344: ForceActorValue (what Actor.ForceAV calls; C01QuestScript.FightStart leaves each ambusher at
+            // one point of health) sets the CURRENT value, as SetActorValue does here (no separate base value is kept)
             reg("Actor", "ForceActorValue", false, [this, valueName](const NativeCall& c) {
                 double now = 0.0, max = 0.0;
                 const FormId actor = formOf(c.self);
@@ -2920,9 +2936,9 @@ namespace game_skyrimse
                 {
                     ++mTraceCount;
                     say(false,
-                        "Papyrus tick ran " + std::to_string(r.stacksRun) + " stacks, " + std::to_string(r.stacksFinished)
-                            + " finished, " + std::to_string(r.stacksWaiting) + " waiting, "
-                            + std::to_string(r.errors.size()) + " errors");
+                        "Papyrus tick ran " + std::to_string(r.stacksRun) + " stacks, "
+                            + std::to_string(r.stacksFinished) + " finished, " + std::to_string(r.stacksWaiting)
+                            + " waiting, " + std::to_string(r.errors.size()) + " errors");
                 }
                 // work a native left for after it (a quest the stage change attached) queues events: run them now
                 if (!runDeferred())
@@ -2984,7 +3000,8 @@ namespace game_skyrimse
         QuestReset mQuestReset; // task 0347
         bool mCreatedInInventory = false; // task 0335
         FormId mPickupSource = 0; // task 0345: the placed reference being picked up (0: none)
-        std::vector<FormId> mPendingCreate; // task 0335: start-game quests whose in-inventory items wait for the item table
+        std::vector<FormId>
+            mPendingCreate; // task 0335: start-game quests whose in-inventory items wait for the item table
         StoryStarted mStoryStarted; ///< task 0217
         EnableChanged mEnableChanged;
         const QuestIndex* mIndex = nullptr;
@@ -4079,9 +4096,9 @@ namespace game_skyrimse
     void PapyrusHost::onSpellHit(FormId caster, FormId spell, FormId target, double x, double y, double z)
     {
         Impl& m = *mImpl;
-        const std::vector<PapyrusValue> args = { m.formValue(caster), m.formValue(spell), PapyrusValue::makeNone(),
-            PapyrusValue::makeBool(false), PapyrusValue::makeBool(false), PapyrusValue::makeBool(false),
-            PapyrusValue::makeBool(false) };
+        const std::vector<PapyrusValue> args
+            = { m.formValue(caster), m.formValue(spell), PapyrusValue::makeNone(), PapyrusValue::makeBool(false),
+                  PapyrusValue::makeBool(false), PapyrusValue::makeBool(false), PapyrusValue::makeBool(false) };
         std::vector<InstanceId> instances;
         if (target != 0)
             instances = m.instancesHolding(target);
@@ -4114,7 +4131,8 @@ namespace game_skyrimse
                 ++sent;
             }
         if (target == 0) // task 0304: where a spell ended on the world and how many scripts it reached
-            m.say(false, "Papyrus: spell " + hex(spell) + " ended at " + std::to_string(static_cast<long long>(x)) + " "
+            m.say(false,
+                "Papyrus: spell " + hex(spell) + " ended at " + std::to_string(static_cast<long long>(x)) + " "
                     + std::to_string(static_cast<long long>(y)) + " " + std::to_string(static_cast<long long>(z))
                     + ", OnHit sent to " + std::to_string(sent) + " script(s) of " + std::to_string(instances.size()));
     }
@@ -4145,13 +4163,14 @@ namespace game_skyrimse
         Impl& m = *mImpl;
         std::size_t sent = 0;
         for (const InstanceId instance : m.instancesHolding(target))
-            if (m.sendEvent(instance, "OnWardHit",
-                    { m.formValue(caster), m.formValue(spell), PapyrusValue::makeInt(status) }))
+            if (m.sendEvent(
+                    instance, "OnWardHit", { m.formValue(caster), m.formValue(spell), PapyrusValue::makeInt(status) }))
             {
                 ++m.mCounters.mCombatEvents;
                 ++sent;
             }
-        m.say(false, "Papyrus: ward of " + hex(target) + " held spell " + hex(spell) + " of " + hex(caster)
+        m.say(false,
+            "Papyrus: ward of " + hex(target) + " held spell " + hex(spell) + " of " + hex(caster)
                 + ", OnWardHit sent to " + std::to_string(sent) + " script(s)");
     }
 
@@ -4366,8 +4385,8 @@ namespace game_skyrimse
         return queued;
     }
 
-    bool PapyrusHost::runPackageEnd(FormId package, FormId actor, FormId quest, const std::string& scriptName,
-        const std::string& function)
+    bool PapyrusHost::runPackageEnd(
+        FormId package, FormId actor, FormId quest, const std::string& scriptName, const std::string& function)
     {
         Impl& m = *mImpl;
         if (package == 0 || scriptName.empty() || function.empty())
@@ -4387,8 +4406,8 @@ namespace game_skyrimse
             return false;
         const bool queued = m.sendEvent(instance, function, { m.formValue(actor) });
         if (queued)
-            m.say(false, "Papyrus: package " + hex(package) + " ended for " + hex(actor) + ": " + scriptName + "."
-                + function);
+            m.say(false,
+                "Papyrus: package " + hex(package) + " ended for " + hex(actor) + ": " + scriptName + "." + function);
         return queued;
     }
 
@@ -4452,7 +4471,8 @@ namespace game_skyrimse
             if (record == nullptr || !record->startsEnabled() || !m.mState->running(quest))
                 continue;
             m.fillAliases(quest, false); // the find-matching ones wait until a script asks (task 0187)
-            if (m.mCreatedInInventory) // task 0335: the claw of The Golden Claw is made in Arvel's inventory at the start
+            if (m.mCreatedInInventory) // task 0335: the claw of The Golden Claw is made in Arvel's inventory at the
+                                       // start
                 m.mPendingCreate.push_back(quest);
             (void)m.attachQuest(quest);
             m.runStartUpStage(quest);
@@ -4562,7 +4582,8 @@ namespace game_skyrimse
                 hearers.push_back(alias);
             // task 0346: which volume the player went into or out of, and how many scripts hear it
             m.say(false,
-                "Papyrus: trigger " + hex(edge.mReference) + (edge.mEntered ? " entered by the player (" : " left by the player (")
+                "Papyrus: trigger " + hex(edge.mReference)
+                    + (edge.mEntered ? " entered by the player (" : " left by the player (")
                     + std::to_string(hearers.size()) + " scripts)");
             for (const InstanceId instance : hearers)
                 if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
@@ -4591,14 +4612,13 @@ namespace game_skyrimse
         {
             m.say(false,
                 "Papyrus: trigger " + hex(edge.mReference) + (edge.mEntered ? " entered by " : " left by ")
-                    + hex(edge.mSubject) + " (" + std::to_string(m.instancesOf(edge.mReference).size())
-                    + " scripts)");
+                    + hex(edge.mSubject) + " (" + std::to_string(m.instancesOf(edge.mReference).size()) + " scripts)");
             std::vector<InstanceId> hearers = m.instancesOf(edge.mReference);
             for (const InstanceId alias : m.aliasInstancesHolding(edge.mReference)) // task 0310
                 hearers.push_back(alias);
             for (const InstanceId instance : hearers)
-                if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave",
-                        { m.formValue(edge.mSubject) }))
+                if (m.sendEvent(
+                        instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave", { m.formValue(edge.mSubject) }))
                     ++queued;
         }
         return queued;
@@ -4625,7 +4645,8 @@ namespace game_skyrimse
         for (const InstanceId instance : hearers)
             if (m.sendEvent(instance, "OnRead"))
                 ++heard;
-        m.say(false, "Papyrus: OnRead of " + hex(target) + " sent to " + std::to_string(heard) + " of "
+        m.say(false,
+            "Papyrus: OnRead of " + hex(target) + " sent to " + std::to_string(heard) + " of "
                 + std::to_string(hearers.size()) + " scripts");
     }
 

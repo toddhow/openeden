@@ -24,7 +24,6 @@ namespace
     using namespace ContentTests;
     using namespace game_skyrimse;
 
-
     constexpr std::uint32_t kGrupTop = 0;
     constexpr std::uint32_t kGrupTopicChildren = 7;
     constexpr FormId kSelf = 0x01000000;
@@ -323,9 +322,9 @@ namespace
         EXPECT_EQ(other.mIndex.blockingStarts(), (std::vector<FormId>{ kTopicBlock2 }));
     }
 
-    // Task 0340 (Companions, Skjor's "C01SkjorEntry"): the entry line of a blocking branch tests IsInDialogueWithPlayer == 0,
-    // because the game picks it BEFORE the actor is in dialogue. The runtime marks the conversation open at the start, so
-    // such a line never passed; the blocking starts are tried again with the conversation not yet open.
+    // Task 0340 (Companions, Skjor's "C01SkjorEntry"): the entry line of a blocking branch tests IsInDialogueWithPlayer
+    // == 0, because the game picks it BEFORE the actor is in dialogue. The runtime marks the conversation open at the
+    // start, so such a line never passed; the blocking starts are tried again with the conversation not yet open.
     Plugin dialogueStatePlugin(float wanted)
     {
         Plugin p;
@@ -380,8 +379,9 @@ namespace
         EXPECT_EQ(turn.text, "Speak with me.");
     }
 
-    // Task 0340 (Skjor: "Last week a scholar came to us"): the fragment of the line just shown sets a quest script variable
-    // (SkjorGaveLowdown) that the NEXT plain topics test; the list of topics is judged after the queued fragments ran.
+    // Task 0340 (Skjor: "Last week a scholar came to us"): the fragment of the line just shown sets a quest script
+    // variable (SkjorGaveLowdown) that the NEXT plain topics test; the list of topics is judged after the queued
+    // fragments ran.
     Plugin flagPlugin()
     {
         Plugin p;
@@ -397,9 +397,8 @@ namespace
     {
         Talk talk(flagPlugin());
         auto flag = std::make_shared<bool>(false);
-        talk.mRuntime->setLiveQuestVariable([flag](FormId, const std::string&) -> std::optional<float> {
-            return *flag ? 1.0f : 0.0f;
-        });
+        talk.mRuntime->setLiveQuestVariable(
+            [flag](FormId, const std::string&) -> std::optional<float> { return *flag ? 1.0f : 0.0f; });
         talk.mRuntime->setFragmentFlush([flag]() { *flag = true; });
         Turn turn;
         std::string error;
@@ -407,8 +406,8 @@ namespace
         EXPECT_EQ(names(turn), (std::vector<std::string>{ "Tell me more." }));
     }
 
-    // Task 0340 (Skjor's "Farkas will be your Shield-Sibling"): a line flagged Goodbye AND InvisibleContinue goes on with the
-    // linked nameless topic (the sendoff, whose end fragment sets stage 20) before the conversation ends.
+    // Task 0340 (Skjor's "Farkas will be your Shield-Sibling"): a line flagged Goodbye AND InvisibleContinue goes on
+    // with the linked nameless topic (the sendoff, whose end fragment sets stage 20) before the conversation ends.
     Plugin continuePlugin(std::uint16_t firstFlags)
     {
         Plugin p;
@@ -451,9 +450,8 @@ namespace
     {
         Talk talk(flagPlugin());
         auto flag = std::make_shared<bool>(false);
-        talk.mRuntime->setLiveQuestVariable([flag](FormId, const std::string&) -> std::optional<float> {
-            return *flag ? 1.0f : 0.0f;
-        });
+        talk.mRuntime->setLiveQuestVariable(
+            [flag](FormId, const std::string&) -> std::optional<float> { return *flag ? 1.0f : 0.0f; });
         Turn turn;
         std::string error;
         ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;
@@ -483,9 +481,8 @@ namespace
         const std::vector<std::pair<std::uint8_t, FormId>> base{ { 70, 0x300 }, { 71, 0x200 }, { 70, 0x100 } };
         std::vector<std::pair<std::uint8_t, FormId>> a = base;
         std::vector<std::pair<std::uint8_t, FormId>> b(base.rbegin(), base.rend());
-        const auto less = [](const auto& x, const auto& y) {
-            return questPriorityBefore(x.first, x.second, y.first, y.second);
-        };
+        const auto less
+            = [](const auto& x, const auto& y) { return questPriorityBefore(x.first, x.second, y.first, y.second); };
         std::sort(a.begin(), a.end(), less);
         std::sort(b.begin(), b.end(), less);
         EXPECT_EQ(a, b);
@@ -512,9 +509,7 @@ namespace
         FortLocations()
         {
             Bytes special;
-            const auto add = [&](FormId type, FormId ref) {
-                special.u32(type).u32(ref).u32(kWorldL).u16(0).u16(0);
-            };
+            const auto add = [&](FormId type, FormId ref) { special.u32(type).u32(ref).u32(kWorldL).u16(0).u16(0); };
             add(kFortRefType, kBandit1);
             add(kFortRefType, kBandit2);
             add(kOtherRefType, kBandit3);

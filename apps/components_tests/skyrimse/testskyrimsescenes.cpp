@@ -726,8 +726,8 @@ namespace
         EXPECT_EQ(runner.stats().mParkExpired, 2u);
     }
 
-    // ---- Task 0308: a phase whose start conditions fail is skipped (the Whiterun scene's phase 7 needs stage 82, which
-    // only one dialogue path sets; the scene must still reach its last phase)
+    // ---- Task 0308: a phase whose start conditions fail is skipped (the Whiterun scene's phase 7 needs stage 82,
+    // which only one dialogue path sets; the scene must still reach its last phase)
     TEST(SceneRunnerSkip, aPhaseWhoseStartConditionsFailIsSkippedWhenAsked)
     {
         const FormId kTopicC = kSelf | 0xA03;
@@ -766,9 +766,9 @@ namespace
         EXPECT_EQ(std::count(env.mLog.begin(), env.mLog.end(), "say 3073 three"), 0);
     }
 
-    // Task 0328: MQ105's EinarthTeachScene stalled in phase 4 when the aid set stage 50 first: phases 1 and 2 (their start
-    // conditions say "stage 50 not done") were skipped, so the hold package that starts in phase 1 and ends in phase 4
-    // never started and its Waiting state kept phase 4 from ending.
+    // Task 0328: MQ105's EinarthTeachScene stalled in phase 4 when the aid set stage 50 first: phases 1 and 2 (their
+    // start conditions say "stage 50 not done") were skipped, so the hold package that starts in phase 1 and ends in
+    // phase 4 never started and its Waiting state kept phase 4 from ending.
     TEST(SceneRunnerSkip328, aPackageWhoseStartPhaseWasSkippedStartsInTheFirstPhaseOfItsSpanThatRuns)
     {
         const Parsed p({ scenRecord(kScene, 0, { phase(), phase(ctda(59, 1.f, kQuest, 10)), phase() }, { 1 },

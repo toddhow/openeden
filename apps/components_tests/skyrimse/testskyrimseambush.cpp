@@ -1,8 +1,8 @@
 // Task 0302 (draugr ambushes): what lets a scripted sleeper out. Five groups, none needs game data:
 // (1) the wake rule (ambush.hpp), (2) the Papyrus host's OnGetUp and OnCombatStateChanged, the natives that
 // masterAmbushScript's OnGetUp handler calls (GetParentCell, Cell.IsAttached) and the hook that tells the pack of a
-// script's SetAV, (3) Variable01 read from the host's actor values by the condition overlay, (4) the combat AI taking an
-// Aggression a script set, and the fight's state told to the pack. The test script is a small stand-in for
+// script's SetAV, (3) Variable01 read from the host's actor values by the condition overlay, (4) the combat AI taking
+// an Aggression a script set, and the fight's state told to the pack. The test script is a small stand-in for
 // masterAmbushScript (no states: the host's own state machine is not under test here). Written before the code, run red
 // against stubs.
 #include <game_skyrimse/ambush.hpp>
@@ -94,8 +94,7 @@ namespace
         const double nan = std::numeric_limits<double>::quiet_NaN();
         EXPECT_FALSE(ambush::inRange(bed, playerAt(nan, 0.0, 0.0), rules));
         EXPECT_FALSE(ambush::inRange(sleeperAt(10, 0.0, nan, 0.0), playerAt(0.0, 0.0, 0.0), rules));
-        EXPECT_FALSE(ambush::inRange(
-            bed, playerAt(std::numeric_limits<double>::infinity(), 0.0, 0.0), rules));
+        EXPECT_FALSE(ambush::inRange(bed, playerAt(std::numeric_limits<double>::infinity(), 0.0, 0.0), rules));
     }
 
     TEST(SkyrimAmbushRule, theRulesCanBeChangedByTheCaller)
@@ -307,8 +306,8 @@ namespace
         data.add(actor);
     }
 
-    // What masterAmbushScript's waiting state does, without the states: OnGetUp checks that the actor's cell is attached
-    // and lets it out (Variable01 1, Aggression 2); OnCombatStateChanged counts.
+    // What masterAmbushScript's waiting state does, without the states: OnGetUp checks that the actor's cell is
+    // attached and lets it out (Variable01 1, Aggression 2); OnCombatStateChanged counts.
     ScriptBuilder wakerScript()
     {
         ScriptBuilder s("Waker");
@@ -373,15 +372,14 @@ namespace
             mHost = std::make_unique<PapyrusHost>(mData);
             mHost->setLog([this](bool error, const std::string& line) { (error ? mErrors : mLogs).push_back(line); });
             mHost->setWorldHooks(&mHooks);
-            ContentTests::Bytes bytes
-                = ContentTests::tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
+            ContentTests::Bytes bytes = ContentTests::tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
             ContentTests::Bytes quest;
             quest.append(ContentTests::sub4("EDID", ContentTests::Bytes().zstring("Q1")));
-            quest.append(ContentTests::sub4("DNAM",
-                ContentTests::Bytes().u16(QuestFlags::StartGameEnabled).u8(30).u8(0).u32(0).u32(6)));
+            quest.append(ContentTests::sub4(
+                "DNAM", ContentTests::Bytes().u16(QuestFlags::StartGameEnabled).u8(30).u8(0).u32(0).u32(6)));
             quest.append(ContentTests::sub4("NEXT", ContentTests::Bytes()));
-            bytes.append(ContentTests::group4(
-                Content::fourCC("QUST"), 0, ContentTests::record4("QUST", 0u, kQuest, quest)));
+            bytes.append(
+                ContentTests::group4(Content::fourCC("QUST"), 0, ContentTests::record4("QUST", 0u, kQuest, quest)));
             QuestRecords parsed;
             Content::Error error;
             EXPECT_TRUE(parseQuestRecordsBytes(bytes.str(), "test.esp", order(), QuestLimits(), parsed, error));
@@ -532,7 +530,8 @@ namespace
         EXPECT_FALSE(state.actorValue(7, kVariable01Index).has_value());
     }
 
-    // ---- (4) the combat AI --------------------------------------------------------------------------------------------
+    // ---- (4) the combat AI
+    // --------------------------------------------------------------------------------------------
 
     constexpr WorldId kCombatBase = 100;
 
@@ -644,7 +643,8 @@ namespace
             mCombat.setTestWeapon("IronSword");
             mCombat.setCombatAi(true);
             mCombat.setTrace([this](const std::string& line) { mTrace.push_back(line); });
-            mCombat.setCombatStateSink([this](ActorHandle actor, bool engaged) { mStates.emplace_back(actor, engaged); });
+            mCombat.setCombatStateSink(
+                [this](ActorHandle actor, bool engaged) { mStates.emplace_back(actor, engaged); });
             mCombat.onActorAdded(infoOf(10, kCombatBase, "Draugr"));
             mWriter.mStates[10] = { 100.0, 0.0, 5.0, 0.f, 0.f, 0.f };
             mWriter.mPlayerState = { 100.0, 600.0, 5.0, 0.f, 90.f, 100.f };

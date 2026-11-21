@@ -118,7 +118,8 @@ namespace
         DecodeFixture f;
         std::string why;
         SpellRecord s;
-        ASSERT_TRUE(decodeEnchantment(view(enchBytes(1, 1, 6, 20)), raw("ENCH", 0x01000C02), f.context(), s, why)) << why;
+        ASSERT_TRUE(decodeEnchantment(view(enchBytes(1, 1, 6, 20)), raw("ENCH", 0x01000C02), f.context(), s, why))
+            << why;
         EXPECT_FALSE(s.mHasData);
         EXPECT_GE(f.mNotes.mOddSubrecords, 1u);
     }
@@ -141,7 +142,8 @@ namespace
         EXPECT_EQ(p.mEnchantment, kNullFormId);
     }
 
-    // ---- the five masters (gated: OPENEDEN_SKYRIMSE_DATA names the Data folder; prints SKYRIMSE-WEAPONMAGIC lines) -----
+    // ---- the five masters (gated: OPENEDEN_SKYRIMSE_DATA names the Data folder; prints SKYRIMSE-WEAPONMAGIC lines)
+    // -----
 
     TEST(SkyrimWeaponMagicReal, theEnchantmentsStavesAndBoundWeaponsOfTheFiveMasters)
     {
@@ -208,11 +210,11 @@ namespace
             if (index.weapon(m->mAssociatedItem) != nullptr)
                 ++boundWeapons;
         }
-        std::cout << "SKYRIMSE-WEAPONMAGIC weapons " << weapons << " enchanted " << enchanted << " resolving to an ENCH "
-                  << resolved << " melee fire-and-forget touch " << touchMelee << " staves " << staves
-                  << " enchanted " << staffEnchanted << " resolved " << staffResolved << " aimed fire-and-forget "
-                  << staffAimed << " bound weapon effects " << bound << " naming a WEAP " << boundWeapons
-                  << " odd subrecords " << odd << "\n";
+        std::cout << "SKYRIMSE-WEAPONMAGIC weapons " << weapons << " enchanted " << enchanted
+                  << " resolving to an ENCH " << resolved << " melee fire-and-forget touch " << touchMelee << " staves "
+                  << staves << " enchanted " << staffEnchanted << " resolved " << staffResolved
+                  << " aimed fire-and-forget " << staffAimed << " bound weapon effects " << bound << " naming a WEAP "
+                  << boundWeapons << " odd subrecords " << odd << "\n";
         EXPECT_GT(touchMelee, 100u);
         EXPECT_EQ(resolved, enchanted) << "every EITM names a decoded ENCH";
         EXPECT_EQ(staffResolved, staffEnchanted);
@@ -282,8 +284,8 @@ namespace
             addSpell(kTouchEnchant, "EnchTouch", MagicCast::FireAndForget, MagicDelivery::Touch, 6, kHurt, 8.f, 0);
             addSpell(kSelfEnchant, "EnchSelf", MagicCast::FireAndForget, MagicDelivery::Self, 6, kHurt, 8.f, 0);
             addSpell(kConstantEnchant, "EnchConstant", MagicCast::Constant, MagicDelivery::Touch, 6, kHurt, 8.f, 0);
-            addSpell(kStaffEnchant, "StaffFire", MagicCast::FireAndForget, MagicDelivery::Aimed, 12, kFireEffect, 20.f,
-                0);
+            addSpell(
+                kStaffEnchant, "StaffFire", MagicCast::FireAndForget, MagicDelivery::Aimed, 12, kFireEffect, 20.f, 0);
             addSpell(kBoundSpell, "BoundSwordSpell", MagicCast::FireAndForget, MagicDelivery::Self, 0, kBoundEffect,
                 0.f, 60);
             mSpells[kBoundSpell].mCost = 10;

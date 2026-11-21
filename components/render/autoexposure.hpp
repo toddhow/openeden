@@ -21,10 +21,10 @@ namespace Render
     /*
      * The measuring half of automatic exposure (task 0364a; spec docs/tasks/0364a-auto-exposure.md): three compute
      * dispatches (files/shaders/post/autoexposure.slang) in a node that RenderManager puts after the TAA overlay and
-     * before bloom and the tonemap: clear the histogram, count a sample of the scene's luminance into it, reduce it to a
-     * trimmed mean in a slot of a small ring in host-visible memory. `read()` returns the newest slot that is old enough
-     * to have finished (Render::AutoExposure::pickSlot); nothing waits for the GPU. The adaptation over time is the
-     * caller's (Render::AutoExposure::State), so the pass has no clock.
+     * before bloom and the tonemap: clear the histogram, count a sample of the scene's luminance into it, reduce it to
+     * a trimmed mean in a slot of a small ring in host-visible memory. `read()` returns the newest slot that is old
+     * enough to have finished (Render::AutoExposure::pickSlot); nothing waits for the GPU. The adaptation over time is
+     * the caller's (Render::AutoExposure::State), so the pass has no clock.
      *
      * Owner: RenderManager, main thread only. A resize calls setSource again; the old build goes to `retire`.
      */

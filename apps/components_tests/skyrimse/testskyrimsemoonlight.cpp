@@ -1,5 +1,5 @@
-// Task 0350 (Skyrim Daedric quest "Ill Met by Moonlight", DA05): a scene that has a begin fragment starts although none of
-// its actors is loaded, with the option (the fragment moves them: SF_DA05FuneralScene), and is refused without it.
+// Task 0350 (Skyrim Daedric quest "Ill Met by Moonlight", DA05): a scene that has a begin fragment starts although none
+// of its actors is loaded, with the option (the fragment moves them: SF_DA05FuneralScene), and is refused without it.
 // Generated records and a fake environment; no game data. Written first and run red against a stub option.
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/scene.hpp>

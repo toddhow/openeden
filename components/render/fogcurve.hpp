@@ -11,9 +11,9 @@
 // where power 1 and max 1 are the plain linear fog every other view has. The shaders (lib/view/fog.glsl and its Slang
 // twin; change all three together, a test reads the constants back) apply it to the linear fog value.
 //
-// How the numbers reach the shader: the scene uniform may not grow (lib/view/data.glsl), so they ride in the fraction of
-// scene.fogColor.w, the marker of the linear view (lib/view/linear.glsl). The marker is 1 (no HDR) or 2 (HDR) and every
-// reader tests `> 1.5`, so a code below 0.5 added to it changes no other reader. The code is a 16 bit integer,
+// How the numbers reach the shader: the scene uniform may not grow (lib/view/data.glsl), so they ride in the fraction
+// of scene.fogColor.w, the marker of the linear view (lib/view/linear.glsl). The marker is 1 (no HDR) or 2 (HDR) and
+// every reader tests `> 1.5`, so a code below 0.5 added to it changes no other reader. The code is a 16 bit integer,
 // power code * 256 + max code, divided by 131072 (an exact float at both markers: 22 fraction bits at 2, 23 at 1);
 // code 0 (nothing added, bit for bit the old marker) means "no curve". Power is quantised in 1/64 (1/64 to 3.98),
 // max in 1/255; either code 0 would mean "none", so both are clamped to at least 1.

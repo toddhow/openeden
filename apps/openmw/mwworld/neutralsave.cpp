@@ -354,9 +354,10 @@ namespace MWWorld
         Writer w;
         for (char c : kMagic)
             w.u8(static_cast<std::uint8_t>(c));
-        w.u32(relocations ? kNeutralSaveVersionRelocations
-                          : poses ? kNeutralSaveVersionPoses
-                                  : version2 ? kNeutralSaveVersionCreated : kNeutralSaveVersion);
+        w.u32(relocations  ? kNeutralSaveVersionRelocations
+                : poses    ? kNeutralSaveVersionPoses
+                : version2 ? kNeutralSaveVersionCreated
+                           : kNeutralSaveVersion);
         w.key(state.mPlayerCell);
         w.count(state.mCells.size(), kNeutralSaveMaxCells, "cells");
         for (const NeutralSavedCell& cell : state.mCells)

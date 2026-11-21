@@ -53,8 +53,8 @@ namespace MWRender::SkyrimLocomotion
         /// Main thread. The actor's measured ground speed in units a second (0 when it stands or is blocked).
         /// A name for the developer trace (OPENEDEN_NEUTRAL_LOCO_TRACE): which actor a line belongs to.
         void setTraceName(std::string name) { mTraceName = std::move(name); }
-        /// Task 0361: a one-shot idle variant (HavokPack::Fidget) laid over the standing idle on the actor's own schedule.
-        /// Main thread, before the first run. A null future is a variant that does not exist: the plain idle.
+        /// Task 0361: a one-shot idle variant (HavokPack::Fidget) laid over the standing idle on the actor's own
+        /// schedule. Main thread, before the first run. A null future is a variant that does not exist: the plain idle.
         void setFidget(SkyrimIdle::ClipFuture clip, HavokPack::Fidget::Schedule schedule)
         {
             mFidget.mFuture = std::move(clip);

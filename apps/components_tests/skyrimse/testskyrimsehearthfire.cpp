@@ -1,5 +1,5 @@
-// Task 0311 (Hearthfire): the condition debug aid. A sink and a quest id: every condition of a list that names the quest
-// is reported with its value, its compared value and its answer; other lists and a cleared sink report nothing.
+// Task 0311 (Hearthfire): the condition debug aid. A sink and a quest id: every condition of a list that names the
+// quest is reported with its value, its compared value and its answer; other lists and a cleared sink report nothing.
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/houses.hpp>
 

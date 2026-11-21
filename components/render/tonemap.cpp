@@ -89,7 +89,8 @@ namespace Render
 
     vsg::vec4 Tonemap::gradeTintPushConstants(const Parameters& parameters)
     {
-        return vsg::vec4(parameters.gradeTint[0], parameters.gradeTint[1], parameters.gradeTint[2], parameters.gradePivot);
+        return vsg::vec4(
+            parameters.gradeTint[0], parameters.gradeTint[1], parameters.gradeTint[2], parameters.gradePivot);
     }
 
     Tonemap::~Tonemap() {}

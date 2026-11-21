@@ -326,7 +326,8 @@ namespace MWPhysics::NeutralMover
 
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
-        const SweepBodyFilter ownBody(mSelf, mLimits, from.z, mActors, mAlsoIgnore, mWalkThrough); // a probe starts just above the feet
+        const SweepBodyFilter ownBody(
+            mSelf, mLimits, from.z, mActors, mAlsoIgnore, mWalkThrough); // a probe starts just above the feet
         // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by
         // steep bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by
         // five rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal

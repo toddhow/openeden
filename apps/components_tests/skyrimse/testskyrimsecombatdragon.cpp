@@ -601,7 +601,8 @@ namespace
 
     TEST_F(CombatDragon, whenTheDragonsOwnScriptTakesTheSoulTheHandWrittenAbsorptionStepsAside)
     {
-        // task 0313: the game's death sequence ends in Actor.ModActorValue("dragonsouls"); two souls would be one too many
+        // task 0313: the game's death sequence ends in Actor.ModActorValue("dragonsouls"); two souls would be one too
+        // many
         std::vector<openeden::sdk::game::WorldId> asked;
         mCombat.setDragonSoulByScript([&asked](openeden::sdk::game::WorldId reference) {
             asked.push_back(reference);

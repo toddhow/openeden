@@ -36,7 +36,8 @@ namespace game_skyrimse
     {
         /// The model, or null while the inventory is off.
         std::function<inventory::InventoryModel*()> model;
-        /// Task 0318: the item a leveled item list resolves to for a quest alias that creates it in an inventory (0: none).
+        /// Task 0318: the item a leveled item list resolves to for a quest alias that creates it in an inventory (0:
+        /// none).
         std::function<FormId(FormId)> resolveItem;
         /// Task 0335: the item table is built (empty: ready).
         std::function<bool()> itemsReady;

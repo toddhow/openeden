@@ -200,7 +200,10 @@ namespace Content
     private:
         Plugin() = default;
 
-        [[nodiscard]] bool cancelRequested() const { return mCancel != nullptr && mCancel->load(std::memory_order_acquire); }
+        [[nodiscard]] bool cancelRequested() const
+        {
+            return mCancel != nullptr && mCancel->load(std::memory_order_acquire);
+        }
         const std::atomic<bool>* mCancel = nullptr;
 
         std::optional<Error> walkTes3(Visitor& visitor, const WalkOptions& options) const;

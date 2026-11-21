@@ -18,7 +18,9 @@ namespace game_skyrimse
         {
             if (mTrace) // task 0347: why a script's StartCombat did nothing
                 trace(std::string("COMBAT script start refused for ") + std::to_string(handle.reference) + ": "
-                    + (f == nullptr ? "no fighter" : f->mDead ? "dead" : "records not ready"));
+                    + (f == nullptr    ? "no fighter"
+                            : f->mDead ? "dead"
+                                       : "records not ready"));
             return false;
         }
         if (aiFind(handle) != nullptr)

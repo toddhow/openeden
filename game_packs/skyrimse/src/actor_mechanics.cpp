@@ -197,8 +197,8 @@ namespace game_skyrimse
         return sdkgame::ActorRelation::Neutral;
     }
 
-    sdkgame::ActorRelation lawlessHostileRelation(sdkgame::ActorAggression aggression, sdkgame::ActorRelation relation,
-        FormId crimeFaction, bool guard)
+    sdkgame::ActorRelation lawlessHostileRelation(
+        sdkgame::ActorAggression aggression, sdkgame::ActorRelation relation, FormId crimeFaction, bool guard)
     {
         if (aggression == sdkgame::ActorAggression::Aggressive && relation == sdkgame::ActorRelation::Neutral
             && crimeFaction == kNullFormId && !guard)

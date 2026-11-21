@@ -1,5 +1,5 @@
-// Task 0355 stage g: ESM::Light::NeutralSpot, NeutralShadowCasts and NeutralShadowNever are OpenEden flags, never bits of
-// the file format. A light loaded from a plugin or a save must not keep them, nor the cone angle beside the record.
+// Task 0355 stage g: ESM::Light::NeutralSpot, NeutralShadowCasts and NeutralShadowNever are OpenEden flags, never bits
+// of the file format. A light loaded from a plugin or a save must not keep them, nor the cone angle beside the record.
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadligh.hpp>
@@ -48,8 +48,7 @@ namespace
 
     TEST(LightNeutralTypes, theFileFormatsOwnBitsSurvive)
     {
-        const ESM::Light loaded
-            = roundTrip(ESM::Light::Dynamic | ESM::Light::Flicker | ESM::Light::NeutralSpot, 60.f);
+        const ESM::Light loaded = roundTrip(ESM::Light::Dynamic | ESM::Light::Flicker | ESM::Light::NeutralSpot, 60.f);
         EXPECT_EQ(loaded.mData.mFlags, ESM::Light::Dynamic | ESM::Light::Flicker);
     }
 }

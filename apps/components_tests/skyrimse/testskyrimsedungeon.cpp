@@ -126,15 +126,9 @@ namespace
             .local("v", "Int")
             .callMethod("GetOpenState", Id("self"), Id("v"))
             .assign(Id("openState"), Id("v"));
-        s.function("Play")
-            .local("r", "Bool")
-            .callMethod("PlayAnimation", Id("self"), Id("r"), { Str("Open") });
-        s.function("Shut")
-            .local("r", "Bool")
-            .callMethod("PlayAnimation", Id("self"), Id("r"), { Str("Close") });
-        s.function("SetItOpen")
-            .local("n", "None")
-            .callMethod("SetOpen", Id("self"), Id("n"), { Bool(true) });
+        s.function("Play").local("r", "Bool").callMethod("PlayAnimation", Id("self"), Id("r"), { Str("Open") });
+        s.function("Shut").local("r", "Bool").callMethod("PlayAnimation", Id("self"), Id("r"), { Str("Close") });
+        s.function("SetItOpen").local("n", "None").callMethod("SetOpen", Id("self"), Id("n"), { Bool(true) });
         return s;
     }
 

@@ -1,8 +1,8 @@
-// Task 0363, stage g: there is no GLSL beside the Slang twins, so a pipeline whose define set has no twin (not prebuilt,
-// and the run-time compile failed, was refused or ran out of time) cannot be made. What draws instead: nothing of that
-// model. Pipeline::Graphics::create throws a std::runtime_error that names the stage and its defines; every builder
-// that makes a model catches it, logs it (located by the model's file) and leaves the model out, as it does for a
-// model whose file cannot be read. These tests pin the throw and that it leaves the graphics usable.
+// Task 0363, stage g: there is no GLSL beside the Slang twins, so a pipeline whose define set has no twin (not
+// prebuilt, and the run-time compile failed, was refused or ran out of time) cannot be made. What draws instead:
+// nothing of that model. Pipeline::Graphics::create throws a std::runtime_error that names the stage and its defines;
+// every builder that makes a model catches it, logs it (located by the model's file) and leaves the model out, as it
+// does for a model whose file cannot be read. These tests pin the throw and that it leaves the graphics usable.
 #include <gtest/gtest.h>
 
 #include <components/pipeline/graphics.hpp>

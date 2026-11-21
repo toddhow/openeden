@@ -102,7 +102,8 @@ namespace openeden::sdk::game
 
     /// Task 0338 (optional, found by dynamic_cast on the registered source like the other optional interfaces; no
     /// version change): the source can also run a conversation with a TALKING ACTIVATOR (a placed object that is no
-    /// actor: Azura's altar). The core then talks to it when the player activates it, instead of the object's other use.
+    /// actor: Azura's altar). The core then talks to it when the player activates it, instead of the object's other
+    /// use.
     class TalkingActivatorSource
     {
     public:

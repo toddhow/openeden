@@ -72,9 +72,9 @@ namespace game_skyrimse
     /// falmer, troll, frostbite spider, chaurus, hagraven, spriggan). `creatureProfileFor` searches all of them.
     [[nodiscard]] std::span<const CreatureProfile> creatureProfilesAll();
 
-    /// Task 0290: the creatures of the fourth slice, after the 18 of `creatureProfilesAll()` (which keeps its size: older
-    /// tests pin it): the Dwarven steam and sphere centurions and the Solstheim boar riekling. `creatureProfileFor`
-    /// searches them after the others.
+    /// Task 0290: the creatures of the fourth slice, after the 18 of `creatureProfilesAll()` (which keeps its size:
+    /// older tests pin it): the Dwarven steam and sphere centurions and the Solstheim boar riekling.
+    /// `creatureProfileFor` searches them after the others.
     [[nodiscard]] std::span<const CreatureProfile> creatureProfilesFourth();
 
     /// Task 0301: the creatures of the fifth slice, after the fourth: the animals and monsters whose clips are in

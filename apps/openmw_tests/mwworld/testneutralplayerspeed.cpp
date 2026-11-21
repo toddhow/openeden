@@ -1,6 +1,6 @@
 // Task 0361e follow-up (toddhow, 2026-11-20): in a Skyrim session the player walks and runs at the speeds of the
-// Skyrim clips (82.45 and 350.87 units a second), so the walk and run cycles play at their own rate. Morrowind keeps the
-// attribute based speeds. Written first (the header did not exist: compile-red).
+// Skyrim clips (82.45 and 350.87 units a second), so the walk and run cycles play at their own rate. Morrowind keeps
+// the attribute based speeds. Written first (the header did not exist: compile-red).
 #include <apps/openmw/mwphysics/neutralpathfollower.hpp>
 #include <apps/openmw/mwworld/neutralplayerspeed.hpp>
 

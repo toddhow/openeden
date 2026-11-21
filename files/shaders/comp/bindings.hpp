@@ -1,2 +1,2 @@
-const int ARGS_BINDING=0;
-const int STORAGE_ARGS_BINDING=1;
+const int ARGS_BINDING = 0;
+const int STORAGE_ARGS_BINDING = 1;

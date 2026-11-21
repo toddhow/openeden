@@ -27,12 +27,12 @@ namespace MWRender::SkyrimEffectScroll
     class Driver
     {
     public:
-        /// Writes the animation's matrix at the current clock into the uniform now and keeps it up to date from the next
-        /// `update` on. The uniform must be DYNAMIC_DATA (made so here).
+        /// Writes the animation's matrix at the current clock into the uniform now and keeps it up to date from the
+        /// next `update` on. The uniform must be DYNAMIC_DATA (made so here).
         void add(const vsg::ref_ptr<vsg::mat4Value>& uniform, std::shared_ptr<const NifScene::UvAnimation> animation);
 
-        /// Advances the clock by `seconds` (ignored when negative or not finite), writes every live uniform whose matrix
-        /// changed and drops the dead ones.
+        /// Advances the clock by `seconds` (ignored when negative or not finite), writes every live uniform whose
+        /// matrix changed and drops the dead ones.
         void update(double seconds);
 
         double clockSeconds() const;

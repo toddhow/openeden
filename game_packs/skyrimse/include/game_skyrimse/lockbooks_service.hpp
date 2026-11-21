@@ -67,8 +67,8 @@ namespace game_skyrimse
             /// The name of a spell ("" when unknown) and the call that makes it the player's.
             std::function<std::string(FormId spell)> mSpellName;
             std::function<void(FormId spell)> mSpellLearned;
-            /// Task 0306: a book of the inventory was read (any kind): the Papyrus host sends OnRead to the scripts on the
-            /// references a quest made of it.
+            /// Task 0306: a book of the inventory was read (any kind): the Papyrus host sends OnRead to the scripts on
+            /// the references a quest made of it.
             std::function<void(FormId item)> mBookRead;
             std::function<void(const std::string&)> mLog;
         };

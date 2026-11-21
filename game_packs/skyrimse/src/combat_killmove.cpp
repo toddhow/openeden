@@ -31,8 +31,8 @@ namespace game_skyrimse
         victim->mStatus.mParalyzedUntil = -1.f;
         // The move's clip ends with the victim lying: he dies now, through the ordinary death (the ragdoll starts from
         // the pose the clip holds).
-        (void)changeVital(writer, nullptr, *victim, kHealthValue, -(victim->mProfile.mHealthMax + victim->mHealth + 1.f),
-            nullptr);
+        (void)changeVital(
+            writer, nullptr, *victim, kHealthValue, -(victim->mProfile.mHealthMax + victim->mHealth + 1.f), nullptr);
         if (mTrace)
             trace("COMBAT kill move ends: death of actor " + std::to_string(victim->mSubject.actor.reference));
     }

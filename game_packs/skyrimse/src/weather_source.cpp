@@ -288,8 +288,8 @@ namespace game_skyrimse
         d.sun = tableOf(w, SkyColourType::Sunlight);
         d.sunDiscSunset = colourOf(w, SkyColourType::Sun, WeatherConstants::Sunset);
 
-        // Task 0355 stage k: the directional ambient. Four records (sunrise, day, sunset, night) or none: a weather with
-        // fewer is described with the flat ambient only (a half table would blend a cube against nothing).
+        // Task 0355 stage k: the directional ambient. Four records (sunrise, day, sunset, night) or none: a weather
+        // with fewer is described with the flat ambient only (a half table would blend a cube against nothing).
         if (w.mDirectionalAmbient.size() == WeatherConstants::kTimesOfDay)
         {
             const auto cubeAt = [&](std::size_t time) {

@@ -1,5 +1,6 @@
-// Task 0326: a walk-away INFO of the greeting topic (flag 0x80, no TWAT): Rikke's CW01RikkeGreetTopic INFO 0D5EE9 (TIF__000D5EE9,
-// stage 160, the oath) runs when the player ends the conversation. Helpers copied from testskyrimsewalkaway.cpp.
+// Task 0326: a walk-away INFO of the greeting topic (flag 0x80, no TWAT): Rikke's CW01RikkeGreetTopic INFO 0D5EE9
+// (TIF__000D5EE9, stage 160, the oath) runs when the player ends the conversation. Helpers copied from
+// testskyrimsewalkaway.cpp.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -237,7 +238,8 @@ namespace
 
     constexpr FormId kTopicGreet = kSelf | 0x310;
 
-    /// A greeting-like topic with a said-once INFO (no TWAT) then a walk-away INFO (flag 0x80, fragment) in the same topic.
+    /// A greeting-like topic with a said-once INFO (no TWAT) then a walk-away INFO (flag 0x80, fragment) in the same
+    /// topic.
     Plugin greetPlugin(bool walkAwayFlag, bool conditionFails = false)
     {
         Plugin p;

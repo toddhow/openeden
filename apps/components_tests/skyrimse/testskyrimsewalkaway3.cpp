@@ -1,6 +1,6 @@
-// Task 0325 (Dark Brotherhood): a response that links (TCLT) to its own walk-away topic (TWAT), as every line of Astrid's
-// wake-up conversation does, does not offer that topic as a button: DB02AstridWalkAwayTopic showed as a choice named by its
-// editor id. Same builders as testskyrimsewalkaway.cpp (task 0315).
+// Task 0325 (Dark Brotherhood): a response that links (TCLT) to its own walk-away topic (TWAT), as every line of
+// Astrid's wake-up conversation does, does not offer that topic as a button: DB02AstridWalkAwayTopic showed as a choice
+// named by its editor id. Same builders as testskyrimsewalkaway.cpp (task 0315).
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>

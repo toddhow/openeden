@@ -332,7 +332,8 @@ namespace game_skyrimse
                 {
                     ++mStats.mNoPath;
                     if (actor.mEscortRef != kNullFormId)
-                        actor.mEscortDirect = true; // task 0332: no navmesh yet (an exterior): the leg is walked straight
+                        actor.mEscortDirect
+                            = true; // task 0332: no navmesh yet (an exterior): the leg is walked straight
                 }
                 else
                     ++mStats.mBlocked;
@@ -819,8 +820,8 @@ namespace game_skyrimse
         actor.mPhase = Phase::Following;
     }
 
-    bool PackageBrain::runEscort(Actor& actor, double playerX, double playerY, double actorX, double actorY,
-        sdkgame::ActorRequestWriter& writer)
+    bool PackageBrain::runEscort(
+        Actor& actor, double playerX, double playerY, double actorX, double actorY, sdkgame::ActorRequestWriter& writer)
     {
         double dx = 0, dy = 0, dz = 0;
         if (mSource.targetIsElsewhere(actor.mEscortRef) || !mSource.locate(actor.mEscortRef, dx, dy, dz))
@@ -1038,7 +1039,8 @@ namespace game_skyrimse
         }
         if (actor.mActivity == PackageActivity::UseMagic && actor.mActive != nullptr)
         {
-            // Task 0348: a UseMagic package casts its spell (its first Object ID target) once, at the player, and stands
+            // Task 0348: a UseMagic package casts its spell (its first Object ID target) once, at the player, and
+            // stands
             PackageTarget target;
             if (mUseMagicHook && mSource.targetOf(*actor.mActive, target) && target.mType == PackageTargetType::ObjectId
                 && target.mValue != kNullFormId && target.mValue != kUnresolvedFormId)
@@ -1169,7 +1171,8 @@ namespace game_skyrimse
                 && target.mValue == kPlayerFormId)
             {
                 actor.mPackageFollow = true;
-                // Task 0332: the actor goes through the doors the player uses, and an escort to a marker leads him there
+                // Task 0332: the actor goes through the doors the player uses, and an escort to a marker leads him
+                // there
                 mTravellerRefs.insert(actor.mHandle.reference);
                 actor.mEscortRef = kNullFormId;
                 if (actor.mActivity == PackageActivity::Escort && !package->mLocations.empty()
@@ -1178,8 +1181,8 @@ namespace game_skyrimse
                     && package->mLocations.front().mValue != kUnresolvedFormId)
                 {
                     actor.mEscortRef = static_cast<FormId>(package->mLocations.front().mValue);
-                    actor.mEscortRadius = std::max(
-                        kEscortMinRadius, static_cast<double>(package->mLocations.front().mRadius));
+                    actor.mEscortRadius
+                        = std::max(kEscortMinRadius, static_cast<double>(package->mLocations.front().mRadius));
                 }
             }
         }
@@ -1261,9 +1264,9 @@ namespace game_skyrimse
                     break;
             }
             if (!placed && tracksScenePackages() && actor.mForced == package // only a scene's package leads the player
-                && actor.mBehavior == PackageBehavior::Travel
-                && loc.mType == PackageLocationType::NearReference && loc.mValue != kNullFormId
-                && loc.mValue != kUnresolvedFormId && mSource.targetIsElsewhere(static_cast<FormId>(loc.mValue)))
+                && actor.mBehavior == PackageBehavior::Travel && loc.mType == PackageLocationType::NearReference
+                && loc.mValue != kNullFormId && loc.mValue != kUnresolvedFormId
+                && mSource.targetIsElsewhere(static_cast<FormId>(loc.mValue)))
                 actor.mElsewhereRef = static_cast<FormId>(loc.mValue); // task 0277: begin() waits for the target
             if (!placed)
                 ++mStats.mUnresolvedLocations;
@@ -1286,7 +1289,8 @@ namespace game_skyrimse
                 static_cast<FormId>(actor.mHandle.reference));
         if (mSource.tracesPackages()) // task 0340 (a developer aid): what each evaluation chose and from how many
             mSource.packageChosen(static_cast<FormId>(actor.mHandle.reference), actor.mBase, chosen,
-                "evaluated among " + std::to_string(actor.mPackages.size()) + (actor.mForced != nullptr ? " (forced)" : ""));
+                "evaluated among " + std::to_string(actor.mPackages.size())
+                    + (actor.mForced != nullptr ? " (forced)" : ""));
         if (chosen == nullptr)
         {
             ++mStats.mNoPackage;
@@ -1506,8 +1510,8 @@ namespace game_skyrimse
             if (actor.mTalkRequest != 0)
                 handleTalk(actor, writer);
             // Task 0196: a follower of the player does not evaluate packages; a get-up clip still plays out.
-            // Task 0340: a package a scene forces (C01AmbushScene sends Farkas, a follower, to the ambush point) wins over
-            // following; when the scene lets go the follower follows again
+            // Task 0340: a package a scene forces (C01AmbushScene sends Farkas, a follower, to the ambush point) wins
+            // over following; when the scene lets go the follower follows again
             const bool follows = actor.mFollowPlayer && actor.mForced == nullptr;
             if (follows && !actor.mFollowEntered)
             {
@@ -1583,7 +1587,8 @@ namespace game_skyrimse
 
     bool PackageBrain::forcePackage(sdkgame::WorldId reference, const PackageRecord* package)
     {
-        if (tracksScenePackages()) // task 0277: remembered by placement, so the package outlives the actor being removed
+        if (tracksScenePackages()) // task 0277: remembered by placement, so the package outlives the actor being
+                                   // removed
         {
             if (package != nullptr)
                 mForcedRefs[reference] = package;

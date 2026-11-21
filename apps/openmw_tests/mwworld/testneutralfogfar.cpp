@@ -1,5 +1,5 @@
-// Task 0362 item 1: the far fog colour of a game pack's interior reaches the cell and the fog manager: the cell's own fog
-// colour is where the fog starts, the far colour is the colour of the fog's end and of the empty background.
+// Task 0362 item 1: the far fog colour of a game pack's interior reaches the cell and the fog manager: the cell's own
+// fog colour is where the fog starts, the far colour is the colour of the fog's end and of the empty background.
 #include <gtest/gtest.h>
 
 #include <components/esm3/loadcell.hpp>
@@ -11,7 +11,7 @@
 
 namespace
 {
-    
+
     TEST(NeutralFogFar, aCellWithoutAFarColourHasNone)
     {
         ESM::Cell record;

@@ -1127,8 +1127,8 @@ namespace game_skyrimse
             return;
         }
         const ScaleGuard dualGuard(mDualScale, cast.mDual); // task 0300: the projectile and the effects see it
-        const float cost = cast.mShout ? 0.f
-                                       : dualCastCost(static_cast<float>(spell.mCost), cast.mDual, mDualCastSettings);
+        const float cost
+            = cast.mShout ? 0.f : dualCastCost(static_cast<float>(spell.mCost), cast.mDual, mDualCastSettings);
         if (f->mMagicka < cost) // task 0205: a shout is free
         {
             trace(
@@ -1684,7 +1684,8 @@ namespace game_skyrimse
     bool SkyrimCombat::castSpellAt(openeden::sdk::game::ActorHandle caster, FormId spell)
     {
         // Task 0348 (a UseMagic package): validated at once when the records are ready, else when the cast is due
-        if (mData == nullptr || find(CombatSubject::of(caster)) == nullptr || mScriptedCasts.size() >= kMaxScriptedCasts)
+        if (mData == nullptr || find(CombatSubject::of(caster)) == nullptr
+            || mScriptedCasts.size() >= kMaxScriptedCasts)
             return false;
         if (dataReady() && mData->spellById(spell) == nullptr)
             return false;
@@ -1713,7 +1714,8 @@ namespace game_skyrimse
             SubjectState player;
             SubjectState self;
             if (writer.subjectState(CombatSubject::ofPlayer(), player) && writer.subjectState(f->mSubject, self))
-                (void)writer.faceHeading(f->mSubject, static_cast<float>(std::atan2(player.x - self.x, player.y - self.y)));
+                (void)writer.faceHeading(
+                    f->mSubject, static_cast<float>(std::atan2(player.x - self.x, player.y - self.y)));
             trace("COMBAT scripted cast " + who(f->mSubject) + " " + spellName(*spell));
             (void)beginCast(writer, *f, *spell, false, 0.f);
         }

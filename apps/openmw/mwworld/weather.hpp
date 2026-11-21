@@ -162,11 +162,12 @@ namespace MWWorld
         // Sun (directional) lighting color
         TimeOfDayInterpolator<vsg::vec4> mSunColor;
 
-        // Task 0355 stage k (a game pack's weather only): the directional ambient, one interpolator per face (+X, -X, +Y,
-        // -Y, +Z, -Z). Empty for Morrowind.
+        // Task 0355 stage k (a game pack's weather only): the directional ambient, one interpolator per face (+X, -X,
+        // +Y, -Y, +Z, -Z). Empty for Morrowind.
         std::optional<AmbientCubeParams> mAmbientCube;
 
-        // Task 0362 item 1 (a game pack's weather only): the fog's colour where it starts; mFogColor is then its far end.
+        // Task 0362 item 1 (a game pack's weather only): the fog's colour where it starts; mFogColor is then its far
+        // end.
         std::optional<TimeOfDayInterpolator<vsg::vec4>> mFogNearColor;
 
         // Fog depth/density

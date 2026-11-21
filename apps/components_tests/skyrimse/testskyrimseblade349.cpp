@@ -1,8 +1,8 @@
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/dialogue.hpp>
-#include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/package.hpp>
 #include <game_skyrimse/package_brain.hpp>
+#include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest_priority.hpp>
 
 #include <gtest/gtest.h>
@@ -14,9 +14,9 @@
 #include <span>
 #include <vector>
 
-// Task 0349 (main quest MQ106 "A Blade in the Dark"): Delphine's alias package MQ106DelphineToRoom walks her to the rented room
-// behind locked doors, which the mover cannot path through; the quest's named Travel packages end with her placed at the target
-// (a stand-in for the game's own door handling, like task 0341's MUST COMPLETE rule).
+// Task 0349 (main quest MQ106 "A Blade in the Dark"): Delphine's alias package MQ106DelphineToRoom walks her to the
+// rented room behind locked doors, which the mover cannot path through; the quest's named Travel packages end with her
+// placed at the target (a stand-in for the game's own door handling, like task 0341's MUST COMPLETE rule).
 
 namespace
 {

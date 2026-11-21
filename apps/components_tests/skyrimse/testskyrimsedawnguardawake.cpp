@@ -1,15 +1,15 @@
-// Task 0330 (Dawnguard, Dimhollow Crypt): the book of the quest "Awakening" is a quest ALIAS holding a placed reference and
-// carries a script (DLC1VQ01BookScript) whose OnRead sets stage 17. A placed book read in the world sent OnRead only to the
-// scripts of the reference itself, never to the scripts of an alias that holds it. Generated records, a fake game and fake
-// hooks; no game data. Written first, run red against the old host.
+// Task 0330 (Dawnguard, Dimhollow Crypt): the book of the quest "Awakening" is a quest ALIAS holding a placed reference
+// and carries a script (DLC1VQ01BookScript) whose OnRead sets stage 17. A placed book read in the world sent OnRead
+// only to the scripts of the reference itself, never to the scripts of an alias that holds it. Generated records, a
+// fake game and fake hooks; no game data. Written first, run red against the old host.
 #include <game_skyrimse/deaths.hpp>
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dragonborn.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
-#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/vmad.hpp>
 
 #include <openeden/game/world_source_service.hpp>
@@ -191,7 +191,8 @@ namespace
             mIndex.add(std::move(parsed), FormIdResolver(plugin->header(), "test.esp", order()));
             mState = QuestState::initial(mIndex);
             mVmad.mAliases.push_back({ kQuest, 1, { aliasScript() } });
-            mHost->setQuests(&mIndex, &mState, [this](FormId q) -> const vmad::Vmad* { return q == kQuest ? &mVmad : nullptr; });
+            mHost->setQuests(
+                &mIndex, &mState, [this](FormId q) -> const vmad::Vmad* { return q == kQuest ? &mVmad : nullptr; });
             mHost->startGame();
         }
         void tick(int n = 3)
@@ -259,7 +260,8 @@ namespace
         world.setLoadedLookup([](FormId reference) { return reference == 0x0200FBF5; });
         EXPECT_TRUE(world.hasLoaded3D(vampire));
         EXPECT_FALSE(world.hasLoaded3D(0x0200FBF6));
-        EXPECT_TRUE(world.hasLoaded3D(SkyrimConditionWorld::kPlacedTag | 0x0200FBF5)) << "the subject an alias resolves to";
+        EXPECT_TRUE(world.hasLoaded3D(SkyrimConditionWorld::kPlacedTag | 0x0200FBF5))
+            << "the subject an alias resolves to";
         EXPECT_FALSE(world.hasLoaded3D(SkyrimConditionWorld::kBaseTag | 0x0200FBF5)) << "a base has no 3D";
         EXPECT_TRUE(world.hasLoaded3D(world.playerSubject()));
     }

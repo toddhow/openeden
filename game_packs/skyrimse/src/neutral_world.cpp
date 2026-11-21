@@ -220,9 +220,9 @@ namespace game_skyrimse
         const bool spot = (light.mFlags & (LightFlags::SpotLight | LightFlags::SpotShadow)) != 0;
         if (spot && std::isfinite(light.mFov) && light.mFov >= 1.0f && light.mFov <= 170.0f)
             c.spotFov = static_cast<double>(light.mFov);
-        const bool shadowed = (light.mFlags
-                                  & (LightFlags::SpotShadow | LightFlags::HemisphereShadow
-                                      | LightFlags::OmnidirectionalShadow))
+        const bool shadowed
+            = (light.mFlags
+                  & (LightFlags::SpotShadow | LightFlags::HemisphereShadow | LightFlags::OmnidirectionalShadow))
             != 0;
         c.shadow = shadowed ? sdkgame::LightShadow::Casts : sdkgame::LightShadow::Never;
         // Task 0362: a hemisphere shadow light (and no spot cone) lights only the half space in front of its +X axis.
@@ -239,7 +239,8 @@ namespace game_skyrimse
         if ((own.mInherit & LightingInherit::Ambient) != 0)
         {
             out.mAmbient = templateLighting->mAmbient;
-            // Task 0355 stage e: the ambient cube comes with the ambient (a template with no DALC leaves the cell's own).
+            // Task 0355 stage e: the ambient cube comes with the ambient (a template with no DALC leaves the cell's
+            // own).
             if (templateLighting->mHasCube)
             {
                 out.mCube = templateLighting->mCube;
@@ -251,7 +252,8 @@ namespace game_skyrimse
         if ((own.mInherit & LightingInherit::FogColor) != 0)
         {
             out.mFogColor = templateLighting->mFogColor;
-            // Task 0362 item 1: the far colour goes with the fog colour flag (xEdit has one "Fog Color" flag; RECALLED-VERIFY).
+            // Task 0362 item 1: the far colour goes with the fog colour flag (xEdit has one "Fog Color" flag;
+            // RECALLED-VERIFY).
             out.mFogFarColor = templateLighting->mFogFarColor;
             out.mHasFogFar = templateLighting->mHasFogFar;
         }
@@ -603,10 +605,10 @@ namespace game_skyrimse
             const bool howl = beastBody != mLastBeastBodyCount;
             mLastBeastBodyCount = beastBody;
             const std::uint32_t special = mBodyClips.count() + beastBody;
-            const std::string_view specialClip = howl ? std::string_view(mCombat.playerBeastBodyClip())
-                                                      : std::string_view(mBodyClips.clip());
-            auto composed = mBodyMux.compose(mCombat.playerSwingCount(),
-                werewolf::bareClip(mCombat.playerSwingClip()), special, specialClip); // task 0259: no folder
+            const std::string_view specialClip
+                = howl ? std::string_view(mCombat.playerBeastBodyClip()) : std::string_view(mBodyClips.clip());
+            auto composed = mBodyMux.compose(mCombat.playerSwingCount(), werewolf::bareClip(mCombat.playerSwingClip()),
+                special, specialClip); // task 0259: no folder
             out.swingToken = composed.token;
             out.swingClip = std::move(composed.clip);
         }
@@ -862,8 +864,7 @@ namespace game_skyrimse
         return source != nullptr && source->imageSpaceForCell(cell, out);
     }
 
-    bool SkyrimCellSource::ambientCubeForCell(
-        openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out)
+    bool SkyrimCellSource::ambientCubeForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out)
     {
         auto* source = dynamic_cast<openeden::sdk::game::AmbientCubeSource*>(&mView);
         return source != nullptr && source->ambientCubeForCell(cell, out);
@@ -883,8 +884,7 @@ namespace game_skyrimse
         return source != nullptr && source->fogCurveForCell(cell, power, max);
     }
 
-    bool SkyrimCellSource::fogFarColorForCell(
-        openeden::sdk::game::WorldId cell, std::array<std::uint8_t, 3>& colour)
+    bool SkyrimCellSource::fogFarColorForCell(openeden::sdk::game::WorldId cell, std::array<std::uint8_t, 3>& colour)
     {
         colour = {};
         auto* source = dynamic_cast<openeden::sdk::game::CellFogSource*>(&mView);
@@ -1023,9 +1023,9 @@ namespace game_skyrimse
             {
                 static int sTmp = 0;
                 if (sTmp++ < 6)
-                    std::fprintf(stderr, "TMPMOUNT pair %u->%u refs %u %u invalid\n", static_cast<unsigned>(riderOriginal),
-                        static_cast<unsigned>(horseOriginal), static_cast<unsigned>(riderRef),
-                        static_cast<unsigned>(horseRef));
+                    std::fprintf(stderr, "TMPMOUNT pair %u->%u refs %u %u invalid\n",
+                        static_cast<unsigned>(riderOriginal), static_cast<unsigned>(horseOriginal),
+                        static_cast<unsigned>(riderRef), static_cast<unsigned>(horseRef));
                 continue;
             }
             MountState& state = mMountStates[riderOriginal];

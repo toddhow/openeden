@@ -1,5 +1,6 @@
-// Task 0349 (MQ106 "A Blade in the Dark"): the intro scene's phase 6 waits for the player with Delphine in the bedroom trigger, so her
-// finished Travel package must hold her there until the scene ends (the engine leaves her where she stands, it does not send her to sandbox).
+// Task 0349 (MQ106 "A Blade in the Dark"): the intro scene's phase 6 waits for the player with Delphine in the bedroom
+// trigger, so her finished Travel package must hold her there until the scene ends (the engine leaves her where she
+// stands, it does not send her to sandbox).
 #include <game_skyrimse/scene.hpp>
 #include <game_skyrimse/scene_runner.hpp>
 #include <game_skyrimse/vmad.hpp>
@@ -169,7 +170,6 @@ namespace
     };
 
     // ---- decoding -------------------------------------------------------------------------------------------------
-
 
     // ---- the runner -----------------------------------------------------------------------------------------------
 

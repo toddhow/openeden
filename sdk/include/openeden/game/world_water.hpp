@@ -43,10 +43,10 @@ namespace openeden::sdk::game
         /// is unknown to the source; `out` is then left empty. Never throws.
         [[nodiscard]] virtual bool cellWater(WorldId world, std::int32_t x, std::int32_t y, CellWater& out) const = 0;
 
-        /// 0.2 (task 0291, additive): the water of an INTERIOR cell, by the id of the `WorldCell` (`WorldCell::id`). The
-        /// pack resolves the game's rules (Skyrim SE: the "has water" bit of the cell flags and a real XCLW height).
-        /// The core makes the whole cell a swimming volume at that height (its own water surface and physics level).
-        /// Default: no interior water.
+        /// 0.2 (task 0291, additive): the water of an INTERIOR cell, by the id of the `WorldCell` (`WorldCell::id`).
+        /// The pack resolves the game's rules (Skyrim SE: the "has water" bit of the cell flags and a real XCLW
+        /// height). The core makes the whole cell a swimming volume at that height (its own water surface and physics
+        /// level). Default: no interior water.
         [[nodiscard]] virtual bool interiorWater(WorldId /*cell*/, CellWater& out) const
         {
             out = CellWater();

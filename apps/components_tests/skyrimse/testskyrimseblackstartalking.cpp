@@ -1,9 +1,11 @@
-// Task 0338 (docs/tasks/0338-skyrim-black-star.md): Azura speaks through a TALKING ACTIVATOR (TACT DA01VoiceofAzura, the
-// altar). What a TACT needs of the pack, generated plugins, no game data. Written before the fields existed (red).
+// Task 0338 (docs/tasks/0338-skyrim-black-star.md): Azura speaks through a TALKING ACTIVATOR (TACT DA01VoiceofAzura,
+// the altar). What a TACT needs of the pack, generated plugins, no game data. Written before the fields existed (red).
 //  * SkyrimBlackStarTalking.records: the TACT's voice type (VNAM) is kept in its model record; an ACTI has none.
-//  * SkyrimBlackStarTalking.sounds: a line meant for an NPC (the INFO's speaker) is spoken by a talking activator that has
+//  * SkyrimBlackStarTalking.sounds: a line meant for an NPC (the INFO's speaker) is spoken by a talking activator that
+//  has
 //    that NPC's voice type (Azura's altar says the lines of the NPC Azura), and by no other.
-//  * SkyrimBlackStarTalking.voice: the condition world answers the voice type of a speaker that is no NPC_ from a lookup
+//  * SkyrimBlackStarTalking.voice: the condition world answers the voice type of a speaker that is no NPC_ from a
+//  lookup
 //    (the pack gives the TACT's), and nothing without it.
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/dialogue.hpp>
@@ -12,8 +14,8 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include "../contentsource/pluginbuilder.hpp"
 
@@ -106,10 +108,12 @@ namespace
         constexpr FormId kOtherNpc = 0x01000A21;
         ActorRecords records;
         Content::Error error;
-        ASSERT_TRUE(parseActorRecordsBytes(npcBytes(kAzuraNpc, kVoice).str(), "test.esp", order(), ActorLimits(), records, error))
+        ASSERT_TRUE(parseActorRecordsBytes(
+            npcBytes(kAzuraNpc, kVoice).str(), "test.esp", order(), ActorLimits(), records, error))
             << error.mMessage;
         ActorRecords others;
-        ASSERT_TRUE(parseActorRecordsBytes(npcBytes(kOtherNpc, 0x01000A22).str(), "test.esp", order(), ActorLimits(), others, error))
+        ASSERT_TRUE(parseActorRecordsBytes(
+            npcBytes(kOtherNpc, 0x01000A22).str(), "test.esp", order(), ActorLimits(), others, error))
             << error.mMessage;
         ActorIndex actors;
         actors.add(records);

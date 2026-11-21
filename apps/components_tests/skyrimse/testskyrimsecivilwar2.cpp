@@ -1,19 +1,20 @@
-// Task 0326: Fort Hraggstad's kill count. GetRefTypeAliveCount (fn 592) counted a listed special reference as alive unless
-// the placed record starts dead (task 0298); with a dead lookup (the session's kills) a killed reference stops counting.
+// Task 0326: Fort Hraggstad's kill count. GetRefTypeAliveCount (fn 592) counted a listed special reference as alive
+// unless the placed record starts dead (task 0298); with a dead lookup (the session's kills) a killed reference stops
+// counting.
+#include "../contentsource/pluginbuilder.hpp"
+#include "../papyrus/papyrustestutil.hpp"
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/summons.hpp>
 #include <gtest/gtest.h>
+#include <map>
 #include <memory>
 #include <set>
 #include <sstream>
 #include <string>
-#include <map>
 #include <vector>
-#include "../contentsource/pluginbuilder.hpp"
-#include "../papyrus/papyrustestutil.hpp"
 
 namespace
 {
@@ -133,7 +134,8 @@ namespace
     }
 }
 
-// ---- Location.GetRefTypeAliveCount (the script CW01Script.checkLocRefTypeAliveCount calls it after each bandit's death)
+// ---- Location.GetRefTypeAliveCount (the script CW01Script.checkLocRefTypeAliveCount calls it after each bandit's
+// death)
 namespace
 {
     using namespace ContentTests;

@@ -1,6 +1,6 @@
 // Task 0343 (Skyrim Dark Brotherhood, DB02 to its end): GetDeadCount(actor base) counts the placements of that base the
-// session killed (Astrid's second greeting, DBAstridSecondGreetBranch, asks GetDeadCount of each captive's base). Written
-// first and run red against the old answer (always 0). Generated records; no game data.
+// session killed (Astrid's second greeting, DBAstridSecondGreetBranch, asks GetDeadCount of each captive's base).
+// Written first and run red against the old answer (always 0). Generated records; no game data.
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/placed_refs.hpp>

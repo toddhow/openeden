@@ -1,6 +1,6 @@
 // Task 0337 (Skyrim side quest "The Forsworn Conspiracy", MS01): the paired kill move a quest script plays
-// (`Actor.PlayIdleWithTarget`, Weylin's `SneakKillMove` on Margret) kills its target; any other idle does not. Written first
-// and run red against the stub rule. Generated scripts and a fake game; no game data.
+// (`Actor.PlayIdleWithTarget`, Weylin's `SneakKillMove` on Margret) kills its target; any other idle does not. Written
+// first and run red against the stub rule. Generated scripts and a fake game; no game data.
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/forsworn.hpp>

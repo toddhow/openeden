@@ -181,8 +181,7 @@ namespace game_skyrimse::pickup
         float weight = 0.f;
         if (!mHooks.mItem || !mHooks.mHeldBy || !mHooks.mMoveFromPlayer || !mHooks.mSkill)
             return TryStatus::Refused;
-        if (count <= 0 || mHooks.mHeldBy(inventory::kPlayerOwner, item) < count
-            || !mHooks.mItem(item, value, weight))
+        if (count <= 0 || mHooks.mHeldBy(inventory::kPlayerOwner, item) < count || !mHooks.mItem(item, value, weight))
             return TryStatus::BadCount;
         const float percent = withBonus(owner, pickpocketChance(mSettings, mHooks.mSkill(), value, weight, count));
         // the same chance as a take, a draw of its own (planting and stealing the same item are not the same roll)
@@ -268,13 +267,14 @@ namespace game_skyrimse::pickup
             return ok();
         });
 
-        add("plant", s3, false, BindingType::Bool, BindingAccess::Mutate, [self, idOf](std::span<const BindingValue> a) {
-            std::uint64_t owner = 0, item = 0;
-            if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
-                return fail(BindingStatus::BadArgument, "not an id");
-            (void)self->plant(owner, static_cast<FormId>(item), a[2].integer);
-            return ok();
-        });
+        add("plant", s3, false, BindingType::Bool, BindingAccess::Mutate,
+            [self, idOf](std::span<const BindingValue> a) {
+                std::uint64_t owner = 0, item = 0;
+                if (!idOf(a[0], owner) || !idOf(a[1], item) || item > 0xFFFFFFFFull)
+                    return fail(BindingStatus::BadArgument, "not an id");
+                (void)self->plant(owner, static_cast<FormId>(item), a[2].integer);
+                return ok();
+            });
 
         openeden::sdk::NamespaceDescriptor ns;
         ns.name = "skyrimse.pickup";

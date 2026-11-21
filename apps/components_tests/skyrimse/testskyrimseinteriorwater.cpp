@@ -101,9 +101,11 @@ namespace
         cells.append(interiorCell(0x950, "DryHall", kInterior, {}));
         cells.append(interiorCell(0x960, "NanHall", kWater, { std::numeric_limits<float>::quiet_NaN() }));
         cells.append(interiorCell(0x970, "DeepHall", kWater, { -250.5f }, { -400.0f }));
-        // The follow-up cases: content far above the plane, a deeply flooded entrance, a door wet up to a Ratway's depth.
+        // The follow-up cases: content far above the plane, a deeply flooded entrance, a door wet up to a Ratway's
+        // depth.
         cells.append(interiorCell(0x980, "HighHall", kWater, { 0.0f }, { 7500.0f, 8400.0f }, { 8800.0f }));
-        cells.append(interiorCell(0x990, "FloodedDoorHall", kWater, { 0.0f }, { -900.0f, 300.0f }, { -1100.0f, 400.0f }));
+        cells.append(
+            interiorCell(0x990, "FloodedDoorHall", kWater, { 0.0f }, { -900.0f, 300.0f }, { -1100.0f, 400.0f }));
         cells.append(interiorCell(0x9A0, "RatwayHall", kWater, { 0.0f }, { -900.0f, 300.0f }, { -125.0f, 264.0f }));
         cells.append(interiorCell(0x9B0, "BareHall", kWater, { 0.0f }, {}, {}));
         bytes.append(group4(Content::fourCC("CELL"), kGrupTop, cells));

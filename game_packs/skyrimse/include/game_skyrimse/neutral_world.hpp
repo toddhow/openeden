@@ -18,22 +18,22 @@
 #include <game_skyrimse/deaths.hpp>
 #include <game_skyrimse/hud.hpp>
 #include <game_skyrimse/hud_style.hpp>
-#include <game_skyrimse/papyrus_world.hpp>
-#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/killmove.hpp>
 #include <game_skyrimse/live_places.hpp>
+#include <game_skyrimse/papyrus_world.hpp>
+#include <game_skyrimse/records.hpp>
 #include <game_skyrimse/riding.hpp>
-#include <game_skyrimse/werewolf.hpp>
 #include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/terrain_source.hpp>
+#include <game_skyrimse/werewolf.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
-#include <openeden/game/cell_fog_source.hpp>
-#include <openeden/game/ambient_cube_source.hpp>
-#include <openeden/game/cell_image_space_source.hpp>
-#include <openeden/game/cell_light_source.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/ambient_cube_source.hpp>
+#include <openeden/game/cell_fog_source.hpp>
+#include <openeden/game/cell_image_space_source.hpp>
+#include <openeden/game/cell_light_source.hpp>
 #include <openeden/game/combat_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
@@ -107,8 +107,8 @@ namespace game_skyrimse
     inline constexpr double kMaxLightRadiusDelta = 16384.0;
     inline constexpr double kMaxLightFadeDelta = 100.0;
 
-    /// The base light with a reference's overrides applied: the radius plus the delta (never below 0), the fade plus the
-    /// delta when the sum is above 0. A delta that is not finite or beyond the limits above is ignored.
+    /// The base light with a reference's overrides applied: the radius plus the delta (never below 0), the fade plus
+    /// the delta when the sum is above 0. A delta that is not finite or beyond the limits above is ignored.
     [[nodiscard]] LightData applyLightOverrides(const LightData& base, const LightOverrides& overrides);
 
     /// The neutral components of one placement (task 0099 stage N4, the record-decoding half): who owns it, how it is
@@ -285,11 +285,9 @@ namespace game_skyrimse
                 mActors.onConversation(reference, stands);
             });
             // Task 0278: a lethal sword blow of the player may become a kill move.
-            mKillMoves.setHold([this](openeden::sdk::game::WorldId reference, bool hold) {
-                mActors.onConversation(reference, hold);
-            });
-            mKillMoves.setFinish(
-                [this](openeden::sdk::game::ActorHandle victim) { mCombat.killMoveFinish(victim); });
+            mKillMoves.setHold(
+                [this](openeden::sdk::game::WorldId reference, bool hold) { mActors.onConversation(reference, hold); });
+            mKillMoves.setFinish([this](openeden::sdk::game::ActorHandle victim) { mCombat.killMoveFinish(victim); });
             mCombat.setKillMoveHook([this](const SkyrimCombat::KillMoveQuery& query) {
                 killmove::Candidate candidate;
                 candidate.mAttackerIsPlayer = true;
@@ -858,8 +856,9 @@ namespace game_skyrimse
         void noteMount(FormId reference);
         void resolveMountCandidates();
         std::set<FormId> mMountCandidates; ///< original ids of actors not yet looked up for a horse
-        /// Task 0274 (mounted NPCs): an actor placed with a horse (XHOR) rides it. The maps below are keyed by the ORIGINAL placement
-        /// ids; a script's `MoveTo` makes new references (`noteRelocated`), found again through `mCurrentOf`.
+        /// Task 0274 (mounted NPCs): an actor placed with a horse (XHOR) rides it. The maps below are keyed by the
+        /// ORIGINAL placement ids; a script's `MoveTo` makes new references (`noteRelocated`), found again through
+        /// `mCurrentOf`.
         std::map<FormId, FormId> mMountHorse; ///< rider (original id) -> horse (original id)
         std::map<FormId, FormId> mCurrentOf; ///< original id -> the reference that replaced it
         std::map<FormId, FormId> mOriginOf; ///< a replacing reference -> the original

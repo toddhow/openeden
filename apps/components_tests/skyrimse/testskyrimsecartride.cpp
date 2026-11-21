@@ -17,7 +17,8 @@ namespace
 
     constexpr double kPi = 3.14159265358979323846;
 
-    TriggerVolume box(double x, double y, double z, double bx, double by, double bz, double rotation, bool accept = true)
+    TriggerVolume box(
+        double x, double y, double z, double bx, double by, double bz, double rotation, bool accept = true)
     {
         TriggerVolume v;
         v.mType = kPrimitiveBox;

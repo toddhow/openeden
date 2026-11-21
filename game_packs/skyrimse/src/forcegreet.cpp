@@ -191,7 +191,8 @@ namespace game_skyrimse
             {
                 if (!m.mText.empty())
                     m.mText += ';';
-                m.mText += std::to_string(p.mReference) + ':' + std::to_string(p.mBase) + ':' + std::to_string(p.mSerial);
+                m.mText
+                    += std::to_string(p.mReference) + ':' + std::to_string(p.mBase) + ':' + std::to_string(p.mSerial);
             }
             BindingResult r;
             r.value.type = BindingType::String;

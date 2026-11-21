@@ -1,5 +1,6 @@
-// Task 0361d: a game pack (neutral) session starts with [GUI] rmlui on and the RmlUi debug panel off, so the pack's own HUD
-// shows with no hand settings; Morrowind and explicit user values are untouched (components/settings/neutraldefaults.hpp).
+// Task 0361d: a game pack (neutral) session starts with [GUI] rmlui on and the RmlUi debug panel off, so the pack's own
+// HUD shows with no hand settings; Morrowind and explicit user values are untouched
+// (components/settings/neutraldefaults.hpp).
 #include <gtest/gtest.h>
 
 #include <components/settings/neutraldefaults.hpp>

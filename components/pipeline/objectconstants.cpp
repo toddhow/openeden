@@ -65,7 +65,8 @@ namespace Pipeline
     vsg::ShaderStage::SpecializationConstants objectVertexConstants(const std::set<std::string>& defines)
     {
         vsg::ShaderStage::SpecializationConstants constants;
-        constants[ObjectConstantId::LodSway] = vsg::Value<VkBool32>::create(defines.count("LOD_SWAY") ? VK_TRUE : VK_FALSE);
+        constants[ObjectConstantId::LodSway]
+            = vsg::Value<VkBool32>::create(defines.count("LOD_SWAY") ? VK_TRUE : VK_FALSE);
         return constants;
     }
 }

@@ -21,11 +21,11 @@
 
 #include <components/bsa/ba2gnrlfile.hpp>
 #include <components/bsa/compressedbsafile.hpp>
+#include <components/script_obscript/derive.hpp>
+#include <components/script_obscript/functiontable.hpp>
 #include <components/script_papyrus/papyrusformnatives.hpp>
 #include <components/script_papyrus/papyrusruntime.hpp>
 #include <components/script_papyrus/pexfile.hpp>
-#include <components/script_obscript/derive.hpp>
-#include <components/script_obscript/functiontable.hpp>
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/survey.hpp>
@@ -362,7 +362,8 @@ TEST(SkyrimNativeCoverage, new_vegas_commands_against_skyrim_conditions_and_nati
     }
     // Skyrim's declared natives by function name (any class), and what the host registers.
     ScriptMap vanilla;
-    for (const char* archive : { "Skyrim - Misc.bsa", "Update.bsa", "Dawnguard.bsa", "HearthFires.bsa", "Dragonborn.bsa" })
+    for (const char* archive :
+        { "Skyrim - Misc.bsa", "Update.bsa", "Dawnguard.bsa", "HearthFires.bsa", "Dragonborn.bsa" })
         if (fs::exists(fs::path(skyrimEnv) / archive))
             takeArchive(fs::path(skyrimEnv) / archive, vanilla);
     const Survey skyrim = surveyOf(vanilla);
@@ -426,7 +427,8 @@ TEST(SkyrimNativeCoverage, new_vegas_commands_against_skyrim_conditions_and_nati
             relation = "index_reused_by_other_function";
             ++indexReused;
         }
-        const bool isEvaluated = skyrimIndex != 0xFFFF && game_skyrimse::conditions::findFunction(skyrimIndex) != nullptr;
+        const bool isEvaluated
+            = skyrimIndex != 0xFFFF && game_skyrimse::conditions::findFunction(skyrimIndex) != nullptr;
         const auto papyrus = nativeByFunction.find(entry.mName);
         bool papyrusImpl = false;
         if (papyrus != nativeByFunction.end())

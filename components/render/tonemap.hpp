@@ -140,7 +140,8 @@ namespace Render
         static vsg::vec4 sssPushConstants(float strength, float width, float focalPixels);
 
         /// The grade's two push constants (after the debug view's): x saturation, y contrast, z tint amount, w 1 when
-        /// the grade applies (else 0); and the tint colour in xyz, with the measured contrast pivot in w (0: none). Public for the unit tests.
+        /// the grade applies (else 0); and the tint colour in xyz, with the measured contrast pivot in w (0: none).
+        /// Public for the unit tests.
         static vsg::vec4 gradePushConstants(const Parameters& parameters);
         static vsg::vec4 gradeTintPushConstants(const Parameters& parameters);
 

@@ -1,6 +1,7 @@
-// Task 0309 (second part at the end: JobInnkeeperFaction): four ENCH records of Skyrim.esm store an ENIT of 32 bytes, not 36 (the real-data test
-// SkyrimPerksRealData counted them as odd subrecords once task 0295 added the ENCH decoder). Every field the decoder
-// reads lies in the first 24 bytes, so a 32 byte ENIT is as good as a 36 byte one. Generated records only.
+// Task 0309 (second part at the end: JobInnkeeperFaction): four ENCH records of Skyrim.esm store an ENIT of 32 bytes,
+// not 36 (the real-data test SkyrimPerksRealData counted them as odd subrecords once task 0295 added the ENCH decoder).
+// Every field the decoder reads lies in the first 24 bytes, so a 32 byte ENIT is as good as a 36 byte one. Generated
+// records only.
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/dialogue.hpp>

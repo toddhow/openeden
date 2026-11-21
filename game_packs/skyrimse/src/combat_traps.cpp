@@ -1,5 +1,6 @@
 // Task 0299 (dungeon traps): a trap's shot in the combat rules.
-//  - A script's Weapon.Fire (the DartTrap script of the Bleak Falls Barrow dart ports) reaches the combat as a TrapShot:
+//  - A script's Weapon.Fire (the DartTrap script of the Bleak Falls Barrow dart ports) reaches the combat as a
+//  TrapShot:
 //    a projectile that nobody fired (ProjectileRequest::ownerless) from the source reference's place along its facing.
 //    The weapon and the ammunition are looked up by form id; the shot flies at the ammunition's PROJ speed, gravity and
 //    range, and does (weapon damage + ammunition damage) x 1 when it lands, less the victim's armour: a trap has no
@@ -146,7 +147,7 @@ namespace game_skyrimse
         if (result.fate != ProjectileFate::HitActor && result.fate != ProjectileFate::HitPlayer)
             return true;
         Fighter* victim = result.fate == ProjectileFate::HitPlayer ? find(CombatSubject::ofPlayer())
-                                                                    : find(CombatSubject::of(result.actor));
+                                                                   : find(CombatSubject::of(result.actor));
         const WeaponRecord* weapon = mData != nullptr ? mData->weaponById(flight.mWeapon) : nullptr;
         const AmmoRecord* ammo = mData != nullptr ? mData->ammoById(flight.mAmmo) : nullptr;
         if (victim == nullptr || victim->mDead || !ready(*victim) || weapon == nullptr || ammo == nullptr)

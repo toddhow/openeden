@@ -5,9 +5,9 @@
 #include "game_skyrimse/survey.hpp"
 
 #include <algorithm>
-#include <set>
 #include <cstring>
 #include <memory>
+#include <set>
 #include <sstream>
 
 // Layout: see the header (task 0194). Facts read from the five masters are VERIFIED there; names are RECALLED-VERIFY.

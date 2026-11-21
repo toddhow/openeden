@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 
 #include <components/debug/debuglog.hpp>
 #include <components/havokpack/animation.hpp>
@@ -44,8 +44,8 @@ namespace MWRender::SkyrimHavok
         }
     }
 
-    NifScene::Sequence sequenceFromSampler(std::string name, float duration,
-        const std::vector<std::string>& nodeNames, const Sampler& sampler)
+    NifScene::Sequence sequenceFromSampler(
+        std::string name, float duration, const std::vector<std::string>& nodeNames, const Sampler& sampler)
     {
         NifScene::Sequence sequence;
         sequence.mName = std::move(name);
@@ -109,7 +109,8 @@ namespace MWRender::SkyrimHavok
                 return 0;
             }
             const std::string folder = HavokPack::objectFolder(modelPath);
-            const HavokPack::Packfile skeletonFile = HavokPack::Packfile::parse(readAll(vfs, folder + project.mSkeleton));
+            const HavokPack::Packfile skeletonFile
+                = HavokPack::Packfile::parse(readAll(vfs, folder + project.mSkeleton));
             const std::vector<HavokPack::Skeleton> skeletons = HavokPack::readSkeletons(skeletonFile);
             if (skeletons.empty())
                 return 0;
@@ -155,7 +156,8 @@ namespace MWRender::SkyrimHavok
                                     = NifScene::Sequences::sampleLocal(track, node.mTransform, 0.f);
                                 float rotation = 0.f;
                                 for (std::size_t i = 0; i < 9; ++i)
-                                    rotation = std::max(rotation, std::abs(at.mRotation[i] - node.mTransform.mRotation[i]));
+                                    rotation
+                                        = std::max(rotation, std::abs(at.mRotation[i] - node.mTransform.mRotation[i]));
                                 float translation = 0.f;
                                 for (std::size_t i = 0; i < 3; ++i)
                                     translation = std::max(

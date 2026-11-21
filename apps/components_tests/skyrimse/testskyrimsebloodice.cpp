@@ -1,6 +1,7 @@
-// Task 0333 (Skyrim side quest "Blood on the Ice", MS11): the pure parts. A scene with no actions begins although none of
-// its actors is loaded (only with the option), and the global GameHour takes the core's hour of day. Generated records and a
-// fake environment; no game data. Written first and run red against stubs (docs/tasks/0333-skyrim-blood-on-the-ice.md).
+// Task 0333 (Skyrim side quest "Blood on the Ice", MS11): the pure parts. A scene with no actions begins although none
+// of its actors is loaded (only with the option), and the global GameHour takes the core's hour of day. Generated
+// records and a fake environment; no game data. Written first and run red against stubs
+// (docs/tasks/0333-skyrim-blood-on-the-ice.md).
 #include <game_skyrimse/bloodice.hpp>
 #include <game_skyrimse/scene.hpp>
 #include <game_skyrimse/scene_runner.hpp>

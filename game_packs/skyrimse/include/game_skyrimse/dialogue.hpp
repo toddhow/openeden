@@ -63,8 +63,8 @@
 
 namespace game_skyrimse
 {
-    /// Task 0309: JobInnkeeperFaction (FACT 0x5091B): every innkeeper of the five masters is listed in it at rank -1 and
-    /// the Innkeeper alias of BQ01 to BQ04 tests GetInFaction == 1, so rank -1 counts as a member for it.
+    /// Task 0309: JobInnkeeperFaction (FACT 0x5091B): every innkeeper of the five masters is listed in it at rank -1
+    /// and the Innkeeper alias of BQ01 to BQ04 tests GetInFaction == 1, so rank -1 counts as a member for it.
     inline constexpr FormId kJobInnkeeperFaction = 0x0005091B;
 
     namespace TopicCategory
@@ -247,13 +247,14 @@ namespace game_skyrimse
         /// Task 0346: is the topic the starting topic of a BLOCKING branch (a forced greeting, never a menu button)?
         [[nodiscard]] bool isBlockingStart(FormId topic) const;
         /// Task 0298: the starting topics of the branches that carry the Blocking flag (DLBR DNAM bit 2), sorted by id.
-        /// A blocking branch's first line is what the speaker says instead of the Hello greeting when its conditions pass.
+        /// A blocking branch's first line is what the speaker says instead of the Hello greeting when its conditions
+        /// pass.
         [[nodiscard]] std::vector<FormId> blockingStarts() const;
         /// Task 0304: the topics a quest speaks as its own greeting: a Custom topic ("CUST") of category Topic with no
         /// name that is the starting topic of its DLBR branch, that no INFO links to and one of whose INFOs names its
-        /// speaker (GetIsID or GetIsAliasRef: a shared quest's start names none) (Faralda's "Welcome to the College"). Highest priority
-        /// first; at equal priority the higher form id first (Faralda's Initial branch before the Nirya greeting catch-all,
-        /// which has the same priority and a lower id: OURS, the data names no other rule).
+        /// speaker (GetIsID or GetIsAliasRef: a shared quest's start names none) (Faralda's "Welcome to the College").
+        /// Highest priority first; at equal priority the higher form id first (Faralda's Initial branch before the
+        /// Nirya greeting catch-all, which has the same priority and a lower id: OURS, the data names no other rule).
         /// \param skipMenuStarts task 0343: a start whose every INFO carries a prompt is a menu topic, not the greeting
         [[nodiscard]] std::vector<FormId> questGreetingTopics(bool skipMenuStarts = false) const;
 
@@ -375,8 +376,8 @@ namespace game_skyrimse
         /// count of GetItemCount and the bribe check read it (at the moment of the check; a negative or non-finite
         /// answer is 0); without one (the default) they read the stand-in's gold, as before.
         void setGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
-        /// Task 0348: what the player's ward holds now (GetActorValue of WardPower, index 63: MG01WardScene's phases wait
-        /// for it to be above 0). Read at the moment of the check; none set: 0.
+        /// Task 0348: what the player's ward holds now (GetActorValue of WardPower, index 63: MG01WardScene's phases
+        /// wait for it to be above 0). Read at the moment of the check; none set: 0.
         static constexpr std::uint32_t kWardPowerValue = 63;
         void setPlayerWardSource(std::function<float()> source) { mWardSource = std::move(source); }
         /// Task 0270: what the player wears and carries, read at the moment of the check (the inventory's equipment and
@@ -464,7 +465,8 @@ namespace game_skyrimse
         using LiveQuestVariable = std::function<std::optional<float>(FormId quest, const std::string& name)>;
         void setLiveQuestVariable(LiveQuestVariable source) { mLiveQuestVariable = std::move(source); }
         /// Task 0324: GetTalkedToPC outside a conversation (a package's condition: Lydia's greeting package waits for
-        /// "not talked to yet"): the actor of this REFERENCE has been talked to. Unset, only the open conversation counts.
+        /// "not talked to yet"): the actor of this REFERENCE has been talked to. Unset, only the open conversation
+        /// counts.
         using TalkedLookup = std::function<bool(FormId reference)>;
         void setTalkedLookup(TalkedLookup lookup) { mTalkedLookup = std::move(lookup); }
         /// Task 0217: what scripts stored on locations (Location.SetKeywordData); with it fn_606 and fn_651 read it,
@@ -477,8 +479,9 @@ namespace game_skyrimse
         /// factions, sex, race and inventory, the reference's initial disabled and dead state, GetDistance between
         /// two references of one cell, GetRelationshipRank from the RELA records. Null (the default): as before.
         void setPlacedRefs(const PlacedRefIndex* refs) { mPlacedRefs = refs; }
-        /// Task 0335: fn_45 GetDetected(player) holds for an actor that stands in the player's interior cell (off: nobody
-        /// detects him, as before). A stand-in for the engine's detection (not about sneaking, not a line of sight test).
+        /// Task 0335: fn_45 GetDetected(player) holds for an actor that stands in the player's interior cell (off:
+        /// nobody detects him, as before). A stand-in for the engine's detection (not about sneaking, not a line of
+        /// sight test).
         void setDetectsPlayerInCell(bool on) { mDetectsPlayerInCell = on; }
         /// Task 0271: the place the player stands in (an interior cell, or the worldspace of an exterior square).
         void setPlayerPlace(bool known, bool interior, FormId cell, FormId world)
@@ -586,8 +589,8 @@ namespace game_skyrimse
         /// Task 0268 (a scene's phase waits for `HasLoaded3D` of the player): the player always has his 3D; another
         /// subject is answered by the lookup of task 0330 (false when none is set).
         bool hasLoaded3D(conditions::Subject subject) const override;
-        /// Task 0330: whether the 3D of this REFERENCE is loaded (the puzzle room scene's first phase waits for Adalvald
-        /// and the vampire boss: `HasLoaded3D` run on their aliases).
+        /// Task 0330: whether the 3D of this REFERENCE is loaded (the puzzle room scene's first phase waits for
+        /// Adalvald and the vampire boss: `HasLoaded3D` run on their aliases).
         using LoadedLookup = std::function<bool(FormId reference)>;
         void setLoadedLookup(LoadedLookup lookup) { mLoadedLookup = std::move(lookup); }
         float actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
@@ -605,9 +608,11 @@ namespace game_skyrimse
         /// Task 0326: the references that died in this session (the pack's death sink). With it, GetRefTypeAliveCount
         /// (Fort Hraggstad's bandits) and GetDead on a placed reference also count a killed reference as dead.
         void setDeadLookup(std::function<bool(FormId)> lookup) { mDeadLookup = std::move(lookup); }
-        /// Task 0350 (Actor.SetRace): the race a script gave a placed reference (0 = none): GetIsRace on that reference.
+        /// Task 0350 (Actor.SetRace): the race a script gave a placed reference (0 = none): GetIsRace on that
+        /// reference.
         void setRaceLookup(std::function<FormId(FormId)> lookup) { mRaceLookup = std::move(lookup); }
-        /// Task 0349: GetOpenState of a placed reference (1 open, 3 closed; the pack gives what its scripts opened or closed).
+        /// Task 0349: GetOpenState of a placed reference (1 open, 3 closed; the pack gives what its scripts opened or
+        /// closed).
         void setOpenStateLookup(std::function<int(FormId)> lookup) { mOpenStateLookup = std::move(lookup); }
         int openState(conditions::Subject subject) const override;
         /// Task 0337: the reference the speaker's reference is linked to with a keyword (0 = the plain link): what a
@@ -642,8 +647,8 @@ namespace game_skyrimse
         float distanceToAlias(conditions::Subject subject, std::uint32_t alias) const override;
         /// Task 0276: where the player is (the pack tells once a frame; main thread). GetDistance of the player to an
         /// alias is answered from it and the placed reference the alias holds; never told: not answered.
-        /// Task 0276: the base of a reference a script created or moved (a MoveTo of an actor near the player makes a new
-        /// reference): conditions run on it as on a placed actor of that base (factions, race, ...). Null: none.
+        /// Task 0276: the base of a reference a script created or moved (a MoveTo of an actor near the player makes a
+        /// new reference): conditions run on it as on a placed actor of that base (factions, race, ...). Null: none.
         void setCreatedActorBase(std::function<FormId(FormId)> lookup) { mCreatedBase = std::move(lookup); }
         void setPlayerPosition(double x, double y, double z)
         {
@@ -692,7 +697,8 @@ namespace game_skyrimse
         [[nodiscard]] bool livePlaces(conditions::Subject subject, std::uint32_t reference, double& ax, double& ay,
             double& az, double& tx, double& ty, double& tz) const;
         [[nodiscard]] bool distanceToAliasKnown(conditions::Subject subject, std::uint32_t alias) const;
-        /// Task 0318: where a subject (the player or a placed actor) and the reference an alias holds stand, and in which cell.
+        /// Task 0318: where a subject (the player or a placed actor) and the reference an alias holds stand, and in
+        /// which cell.
         [[nodiscard]] bool aliasSubjectPlace(
             conditions::Subject subject, std::array<double, 3>& place, FormId& cell) const;
         [[nodiscard]] bool aliasPlace(std::uint32_t alias, std::array<double, 3>& place, FormId& cell) const;

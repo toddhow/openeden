@@ -246,9 +246,9 @@ namespace game_skyrimse
 
     bool DialogueRuntime::hidesWalkAway(FormId topic) const
     {
-        // Task 0325: the walk-away topic a response names (TWAT) is said as the player leaves; it is never a button even
-        // when the response also links to it (Astrid's every line links to DB02AstridWalkAwayTopic, a topic whose name is
-        // its editor id). Only with walk-away topics switched on.
+        // Task 0325: the walk-away topic a response names (TWAT) is said as the player leaves; it is never a button
+        // even when the response also links to it (Astrid's every line links to DB02AstridWalkAwayTopic, a topic whose
+        // name is its editor id). Only with walk-away topics switched on.
         return mWalkAwayTopics && mWalkAway != kNullFormId && topic == mWalkAway;
     }
 
@@ -322,7 +322,8 @@ namespace game_skyrimse
             if (s.mUncertainBefore != 0)
                 ++mStats.mUncertainTopics;
             if (mTrace) // task 0338: which INFO a menu button stands for
-                mTrace("offered " + hex8(id) + " info " + hex8(s.mInfo->mCommon.mId) + " flags " + hex8(s.mInfo->mFlags));
+                mTrace(
+                    "offered " + hex8(id) + " info " + hex8(s.mInfo->mCommon.mId) + " flags " + hex8(s.mInfo->mFlags));
             out.topics.push_back({ id, std::move(text) });
             mOffered.insert(id);
         }
@@ -352,8 +353,8 @@ namespace game_skyrimse
         Selection greeting;
         // The greeting step, in this order: tasks 0298 and 0304 each say a line of their own instead of Hello, behind
         // their own settings, then the Hello pick as before.
-        // 1. Task 0298: a Blocking branch (the Civil War's Rikke: "Are you lost?", "You survived Helgen?") says its first line
-        // that passes; the lowest topic id comes first so the choice never depends on a hash order
+        // 1. Task 0298: a Blocking branch (the Civil War's Rikke: "Are you lost?", "You survived Helgen?") says its
+        // first line that passes; the lowest topic id comes first so the choice never depends on a hash order
         if (mBlockingBranches)
             for (const FormId start : mDialogue.blockingStarts())
             {
@@ -364,10 +365,10 @@ namespace game_skyrimse
                 if (greeting.mInfo != nullptr)
                     break;
             }
-        // 1b. Task 0340: the game picks a Blocking branch's entry line BEFORE the actor is in dialogue, and such lines test
-        // IsInDialogueWithPlayer == 0 (Skjor's C01SkjorEntry). The pass above treats the conversation as open (the Hello
-        // lines and the other branches count on it), so a start no line of which passed is tried once more with the
-        // conversation not yet open. Additive: nothing that passed before is chosen differently.
+        // 1b. Task 0340: the game picks a Blocking branch's entry line BEFORE the actor is in dialogue, and such lines
+        // test IsInDialogueWithPlayer == 0 (Skjor's C01SkjorEntry). The pass above treats the conversation as open (the
+        // Hello lines and the other branches count on it), so a start no line of which passed is tried once more with
+        // the conversation not yet open. Additive: nothing that passed before is chosen differently.
         if (mBlockingBranches && greeting.mInfo == nullptr)
         {
             mWorld.setConversationOpen(false);
@@ -400,9 +401,8 @@ namespace game_skyrimse
                 conditions::conditionDebugReport("GREETING candidate " + hex8(id) + ": " + std::to_string(s.mConsidered)
                     + " considered, " + std::to_string(s.mPassing) + " passing"); // task 0324 (debug aid sinks only)
                 if (mTrace && s.mInfo != nullptr)
-                    mTrace("quest greeting topic " + hex8(id) + ": " + std::to_string(s.mConsidered)
-                        + " considered, " + std::to_string(s.mPassing) + " passing, chosen "
-                        + hex8(s.mInfo->mCommon.mId));
+                    mTrace("quest greeting topic " + hex8(id) + ": " + std::to_string(s.mConsidered) + " considered, "
+                        + std::to_string(s.mPassing) + " passing, chosen " + hex8(s.mInfo->mCommon.mId));
                 if (s.mInfo != nullptr)
                 {
                     greeting = s;
@@ -604,7 +604,8 @@ namespace game_skyrimse
     void DialogueRuntime::followNamelessLinks(openeden::sdk::game::DialogueTurn& out, const DialogInfo* from)
     {
         // Task 0304: a response that links to a topic with no name whose INFO has no prompt is not a choice for the
-        // player: the speaker goes on with it (Faralda's "Excellent." continues with the Nirya spell branch's greeting).
+        // player: the speaker goes on with it (Faralda's "Excellent." continues with the Nirya spell branch's
+        // greeting).
         if (!mQuestGreetings)
             return;
         // task 0340: a line flagged Goodbye AND InvisibleContinue (Skjor's "Farkas will be your Shield-Sibling")
@@ -803,7 +804,8 @@ namespace game_skyrimse
     {
         out.topics.clear();
         mOffered.clear();
-        if (mFragmentFlush) // task 0310: what the response just said set in the world (a quest stage) before a link is chosen
+        if (mFragmentFlush) // task 0310: what the response just said set in the world (a quest stage) before a link is
+                            // chosen
             mFragmentFlush();
         const SelectionOptions opts = options(0);
         const DialogInfo* silent = nullptr; // task 0271: the first link that is no choice (the speaker goes on)
@@ -825,8 +827,9 @@ namespace game_skyrimse
                 text = topic->mName.mLocalized ? mResolver(topic->mName, topic->mPlugin, StringTableKind::Strings)
                                                : topic->mName.mText;
             text = expandText(text, topic->mQuest != kNullFormId ? topic->mQuest : s.mInfo->mQuest);
-            if (text.empty() || (!s.mInfo->mPrompt.mPresent && mQuestGreetings
-                                    && (from.mFlags & InfoFlags::InvisibleContinue) != 0)) // task 0338
+            if (text.empty()
+                || (!s.mInfo->mPrompt.mPresent && mQuestGreetings
+                    && (from.mFlags & InfoFlags::InvisibleContinue) != 0)) // task 0338
             {
                 if (silent == nullptr && hasResponseText(*s.mInfo))
                     silent = s.mInfo;

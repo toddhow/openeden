@@ -122,7 +122,8 @@ namespace
 
     TEST(LightMovementWalk, aMovementThatIsNotUsableIsNoMovementAndALargeOneIsCut)
     {
-        for (const float bad : { -3.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
+        for (const float bad :
+            { -3.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
         {
             Walk walk(params(bad), false);
             for (int i = 0; i < 100; ++i)

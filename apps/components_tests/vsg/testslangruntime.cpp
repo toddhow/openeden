@@ -1713,8 +1713,8 @@ namespace
         std::filesystem::remove_all(cache);
     }
 
-    // Task 0363, stage g: the check the game makes on a twin made at run time is the structure check (there is no GLSL to
-    // compare with); the build compares every listed set with the recorded interface (SlangInterfaceRecords).
+    // Task 0363, stage g: the check the game makes on a twin made at run time is the structure check (there is no GLSL
+    // to compare with); the build compares every listed set with the recorded interface (SlangInterfaceRecords).
     std::string gameCheck(const std::vector<uint32_t>& words)
     {
         return vsgUtil::checkSlangTwinStructure(words);
@@ -1815,8 +1815,7 @@ namespace
         {
             const auto names = namesOf(canonical);
             const auto words = runtime->obtain(requestFor(stage, names),
-                SlangRuntimeCheck{
-                    "test", [&](const std::vector<uint32_t>& result) { return gameCheck(result); } });
+                SlangRuntimeCheck{ "test", [&](const std::vector<uint32_t>& result) { return gameCheck(result); } });
             if (words.empty())
                 refused.push_back(stage + " [" + canonical + "]");
             else
@@ -1884,9 +1883,10 @@ namespace
         SlangRuntime* runtime() const { return mOptions->getObject<SlangRuntime>(vsgUtil::slangRuntimeKey); }
     };
 
-    // Task 0363, stage f: findSlangPermutation now WAITS for a set the worker has to compile (SlangRuntime::obtainOrWait).
-    // The tests below that pin the older "pending at once, the GLSL draws meanwhile" path switch the wait off, as the
-    // game does for no thread; the waiting path has its own tests (testslangwait.cpp and the last one of this group).
+    // Task 0363, stage f: findSlangPermutation now WAITS for a set the worker has to compile
+    // (SlangRuntime::obtainOrWait). The tests below that pin the older "pending at once, the GLSL draws meanwhile" path
+    // switch the wait off, as the game does for no thread; the waiting path has its own tests (testslangwait.cpp and
+    // the last one of this group).
     void noWait(GameRuntime& game)
     {
         vsgUtil::SlangWaitSettings settings;
@@ -1933,13 +1933,11 @@ namespace
         EXPECT_TRUE(game.mWarnings.empty()) << game.mWarnings.front();
         // The same module while something holds it.
         EXPECT_EQ(
-            vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true),
-            module);
+            vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true), module);
         // Once nothing holds it, the next call reads the cache and does not compile.
         const auto words = module->code;
         module = nullptr;
-        auto again
-            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true);
+        auto again = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true);
         ASSERT_NE(again, nullptr);
         EXPECT_EQ(again->code, words);
         EXPECT_EQ(game.runtime()->stats().mCompiled, 1u);
@@ -1959,8 +1957,8 @@ namespace
         EXPECT_NE(game.mWarnings[0].find("default/main.vert"), std::string::npos) << game.mWarnings[0];
         // The pipeline: two stages with no code; the fragment has a twin and the vertex has not, so nothing is taken
         // (task 0363, stage g: there is no GLSL to draw with, Pipeline::Graphics gives an error).
-        vsg::ShaderStages stages = { vsgUtil::readShader("default/main.vert", nullptr),
-            vsgUtil::readShader("default/main.frag", nullptr) };
+        vsg::ShaderStages stages
+            = { vsgUtil::readShader("default/main.vert", nullptr), vsgUtil::readShader("default/main.frag", nullptr) };
         const auto vertexModule = stages[0]->module;
         const auto fragmentModule = stages[1]->module;
         EXPECT_FALSE(vsgUtil::takeSlangTwinsTogether(stages, { vertex, fragment }));
@@ -1969,7 +1967,8 @@ namespace
         EXPECT_TRUE(stages[1]->module->code.empty());
         // Asked again, the failed set is answered at once: no second compile, no second warning.
         const auto before = game.runtime()->stats();
-        EXPECT_EQ(vsgUtil::findSlangPermutation("default/main.vert", failingObjectVertex, game.mOptions, true), nullptr);
+        EXPECT_EQ(
+            vsgUtil::findSlangPermutation("default/main.vert", failingObjectVertex, game.mOptions, true), nullptr);
         EXPECT_EQ(game.runtime()->stats().mFailed, before.mFailed);
         EXPECT_EQ(game.runtime()->stats().mCompiled, before.mCompiled);
         EXPECT_EQ(game.mWarnings.size(), 1u);
@@ -2106,8 +2105,8 @@ namespace
         noWait(game); // the older, non-waiting path (stage f)
         const auto start = std::chrono::steady_clock::now();
         bool pending = false;
-        EXPECT_EQ(vsgUtil::findSlangPermutation(
-                      "default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending),
+        EXPECT_EQ(
+            vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending),
             nullptr);
         const double askMs
             = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
@@ -2135,8 +2134,8 @@ namespace
         game.runtime()->setWaitSettings(settings);
         bool pending = true;
         const auto start = std::chrono::steady_clock::now();
-        const auto module = vsgUtil::findSlangPermutation(
-            "default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending);
+        const auto module
+            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, true, &pending);
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         ASSERT_NE(module, nullptr) << "a wait that ends in a module, not a null with `pending`";
         EXPECT_FALSE(pending);
@@ -2163,17 +2162,13 @@ namespace
         std::set<std::string> refused = failingObjectVertex;
         refused.insert("COLOR");
         bool pending = true;
-        EXPECT_EQ(vsgUtil::findSlangPermutation(
-                      "default/main.vert", refused, game.mOptions, true, &pending),
-            nullptr)
+        EXPECT_EQ(vsgUtil::findSlangPermutation("default/main.vert", refused, game.mOptions, true, &pending), nullptr)
             << "texture coordinates without a count do not compile";
         EXPECT_FALSE(pending) << "a failure is an answer, not a wait that ran out";
         const auto waits = game.runtime()->stats().mWaits;
         EXPECT_EQ(waits, 1u);
         pending = true;
-        EXPECT_EQ(vsgUtil::findSlangPermutation(
-                      "default/main.vert", refused, game.mOptions, true, &pending),
-            nullptr);
+        EXPECT_EQ(vsgUtil::findSlangPermutation("default/main.vert", refused, game.mOptions, true, &pending), nullptr);
         EXPECT_FALSE(pending);
         EXPECT_EQ(game.runtime()->stats().mWaits, waits) << "and not waited for again";
         ASSERT_EQ(game.mWarnings.size(), 1u) << "the refusal says why, once";

@@ -1,7 +1,8 @@
-// Task 0356 (the MS08 regression of `quest rules`): a nameless branch start that a package or a scene says on its own is
-// NOT the greeting. WITavernServerPlayerTopic (a nameless CUST topic that names its speaker by GetIsAliasRef) is the topic of
-// the ForceGreet package WITavernServerGreetPlayer; the quest greeting rule of task 0304 took it for Saadia's greeting, so
-// "You want a drink?" replaced her Hello and the linked topics replaced her whole menu. Written before the code.
+// Task 0356 (the MS08 regression of `quest rules`): a nameless branch start that a package or a scene says on its own
+// is NOT the greeting. WITavernServerPlayerTopic (a nameless CUST topic that names its speaker by GetIsAliasRef) is the
+// topic of the ForceGreet package WITavernServerGreetPlayer; the quest greeting rule of task 0304 took it for Saadia's
+// greeting, so "You want a drink?" replaced her Hello and the linked topics replaced her whole menu. Written before the
+// code.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -254,7 +255,6 @@ namespace
         p.mBranches = branchRecord(kBranch, kTopicOffer, 2); // Blocking
         return p;
     }
-
 
     TEST(SkyrimQuestGreeting2, aStartThatAPackageOrSceneSaysOnItsOwnIsNotTheGreeting)
     {

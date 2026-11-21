@@ -800,8 +800,8 @@ namespace
     }
 
     // Task 0310 (A Daedra's Best Friend): the meeting trigger of Barbas is a box with no script of its own; the game's
-    // defaultSetStageAliasScript sits on the QUEST ALIAS that holds it, so the player entering the volume must reach the
-    // alias script (written first, red against the host that only told scripts on the reference itself)
+    // defaultSetStageAliasScript sits on the QUEST ALIAS that holds it, so the player entering the volume must reach
+    // the alias script (written first, red against the host that only told scripts on the reference itself)
     TEST(SkyrimPapyrusHost, a_trigger_volume_wakes_the_alias_script_of_the_reference_a_quest_alias_holds)
     {
         Rig rig;

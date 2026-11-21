@@ -1,8 +1,8 @@
 // Task 0332 (Waking Nightmare): Erandur's DA16ErandurEscortToTemple is an ESCORT package (the player is its target, the
-// destination a marker in the open country). Task 0310 turned an escort into "follow the player"; now the actor leads: it
-// is carried through the doors the player uses, walks to the destination once that can be reached, waits when the player
-// is far behind, and when it arrives the package's end fragment runs (the quest's stage 28). Fakes only. Written before
-// the change; the first run was against the brain of task 0310.
+// destination a marker in the open country). Task 0310 turned an escort into "follow the player"; now the actor leads:
+// it is carried through the doors the player uses, walks to the destination once that can be reached, waits when the
+// player is far behind, and when it arrives the package's end fragment runs (the quest's stage 28). Fakes only. Written
+// before the change; the first run was against the brain of task 0310.
 #include <game_skyrimse/package.hpp>
 #include <game_skyrimse/package_brain.hpp>
 

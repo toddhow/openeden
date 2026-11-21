@@ -172,8 +172,9 @@ namespace game_skyrimse
         /// The actor of this placement went (its cell unloaded): its entry waits to be put back again.
         void actorGone(openeden::sdk::game::WorldId reference) { mLedger.actorGone(static_cast<FormId>(reference)); }
         /// Task 0330: a placement that the data starts DEAD (the ACHR flag: the corpses lying about a crypt) is a death
-        /// of hour zero of the game: it gets a ledger entry at the clock's hour, so that it is marked dead the moment the
-        /// actor appears and does not rise to fight. False for a null or created id or one that has an entry already.
+        /// of hour zero of the game: it gets a ledger entry at the clock's hour, so that it is marked dead the moment
+        /// the actor appears and does not rise to fight. False for a null or created id or one that has an entry
+        /// already.
         bool noteStartsDead(FormId reference);
         /// A Reanimate spell hid the corpse of this placement.
         void corpseRaised(openeden::sdk::game::WorldId reference);

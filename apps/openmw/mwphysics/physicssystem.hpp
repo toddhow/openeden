@@ -6,8 +6,8 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <set>
 #include <optional>
+#include <set>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -38,10 +38,10 @@
 #include "neutralmover.hpp"
 #include "neutralpathfollower.hpp"
 #include "neutralplanelinks.hpp"
-#include "neutralremovedrefs.hpp"
 #include "neutralplayerattack.hpp"
 #include "neutralplayerplace.hpp"
 #include "neutralprocess.hpp"
+#include "neutralremovedrefs.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
 
@@ -559,7 +559,8 @@ namespace MWPhysics
         /// its body out, or the cart blocks the horse that pulls it in a bend.
         /// Task 0336: a neutral object a walking neutral actor's capsule passes through (the objects the navigator
         /// leaves out; see `MWWorld::neutralActorWalksThrough`). Main thread, with the object's insertion.
-        void noteNeutralWalkThrough(const MWWorld::Ptr& ptr, openeden::sdk::game::BaseKind kind, bool standInBox, bool interior) const;
+        void noteNeutralWalkThrough(
+            const MWWorld::Ptr& ptr, openeden::sdk::game::BaseKind kind, bool standInBox, bool interior) const;
         [[nodiscard]] std::size_t neutralWalkThroughCount() const { return mNeutralWalkThrough.size(); }
         void noteMovedByPack(const MWWorld::Ptr& ptr) { mNeutralMovable.insert(ptr.mRef); }
 
@@ -759,8 +760,10 @@ namespace MWPhysics
         std::uint64_t mNeutralCostRulesPrevNs = 0; ///< the bridge's running total at the last frame
         std::vector<NeutralActorEntry> mNeutralActors;
         std::set<const MWWorld::LiveCellRefBase*> mNeutralMovable; ///< task 0274: objects a game pack moves (carts)
-        mutable std::unordered_set<std::uint32_t> mNeutralWalkThrough; ///< task 0336: bodies (index and sequence) a walker passes
-        mutable std::unordered_map<const MWWorld::LiveCellRefBase*, std::uint32_t> mNeutralWalkThroughOf; ///< and whose they are
+        mutable std::unordered_set<std::uint32_t>
+            mNeutralWalkThrough; ///< task 0336: bodies (index and sequence) a walker passes
+        mutable std::unordered_map<const MWWorld::LiveCellRefBase*, std::uint32_t>
+            mNeutralWalkThroughOf; ///< and whose they are
         std::vector<JPH::BodyID> mNeutralSweepIgnore; ///< task 0274: scratch, the bodies a mount's sweeps ignore
         // Task 0157: doors that open for walking neutral actors.
         struct NeutralDoorEntry

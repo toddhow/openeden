@@ -87,7 +87,8 @@ namespace Pipeline
         // Worked out from the define set itself, so the two forms cannot disagree (the test compares them too).
         const std::set<std::string> defines = terrainDefines(
             maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow, ambientCube);
-        const auto flag = [&](const char* name) { return vsg::Value<VkBool32>::create(defines.count(name) ? VK_TRUE : VK_FALSE); };
+        const auto flag
+            = [&](const char* name) { return vsg::Value<VkBool32>::create(defines.count(name) ? VK_TRUE : VK_FALSE); };
         vsg::ShaderStage::SpecializationConstants constants;
         constants[TerrainConstantId::GiSky] = flag("GI_SKY");
         constants[TerrainConstantId::Wetness] = flag("WETNESS");
@@ -123,13 +124,12 @@ namespace Pipeline
     {
         vsg::ShaderStages shaders = { vsgUtil::readShader("terrain/main.vert", shaderOptions),
             vsgUtil::readShader("terrain/main.frag", shaderOptions) };
-        std::set<std::string> defines
-            = terrainDefines(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow,
-                ambientCube);
+        std::set<std::string> defines = terrainDefines(
+            maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow, ambientCube);
         if (!defines.empty())
         {
-            // As Pipeline::Graphics adds its modes: the stages carry the requested defines (task 0363, stage g: a module
-            // of its own with no code, vsgUtil::readShader).
+            // As Pipeline::Graphics adds its modes: the stages carry the requested defines (task 0363, stage g: a
+            // module of its own with no code, vsgUtil::readShader).
             auto compileSettings = vsg::ShaderCompileSettings::create();
             compileSettings->defines = std::move(defines);
             for (auto& stage : shaders)
@@ -178,8 +178,8 @@ namespace Pipeline
         if (const auto* constants = shaderOptions->getObject<vsgUtil::SettingsConstants>(vsgUtil::settingsConstantsKey);
             constants != nullptr && constants->constantDefines)
         {
-            const auto values = terrainConstants(maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality,
-                aoTerrain, pointShadow, ambientCube);
+            const auto values = terrainConstants(
+                maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow, ambientCube);
             for (auto& twin : shaders)
             {
                 for (const auto& [id, value] : values)

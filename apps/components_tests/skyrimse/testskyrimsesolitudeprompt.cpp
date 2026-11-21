@@ -11,10 +11,10 @@
 
 #include "../contentsource/pluginbuilder.hpp"
 
-// Task 0346 (The Wolf Queen Awakened, MS06Start): Falk Firebeard's request is a TOP-LEVEL branch whose starting topic has no name
-// (MS06FalkInvestigate0): the player reads the prompt (RNAM) of its INFO. Task 0270 made a nameless topic only ever a choice,
-// so it was never listed. With `setPromptStartsAreMenus(true)` a nameless top-level start with a prompt is a menu button; the start of
-// a BLOCKING branch (a forced greeting) never is.
+// Task 0346 (The Wolf Queen Awakened, MS06Start): Falk Firebeard's request is a TOP-LEVEL branch whose starting topic
+// has no name (MS06FalkInvestigate0): the player reads the prompt (RNAM) of its INFO. Task 0270 made a nameless topic
+// only ever a choice, so it was never listed. With `setPromptStartsAreMenus(true)` a nameless top-level start with a
+// prompt is a menu button; the start of a BLOCKING branch (a forced greeting) never is.
 
 namespace
 {
@@ -58,8 +58,8 @@ namespace
         return record4("INFO", 0u, id, b);
     }
 
-    Bytes topic(std::uint32_t id, const std::string& editor, const std::string& subtype, const std::vector<Bytes>& infos,
-        std::uint32_t branch)
+    Bytes topic(std::uint32_t id, const std::string& editor, const std::string& subtype,
+        const std::vector<Bytes>& infos, std::uint32_t branch)
     {
         Bytes children;
         for (const Bytes& i : infos)

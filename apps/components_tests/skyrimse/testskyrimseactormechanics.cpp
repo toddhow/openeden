@@ -719,7 +719,7 @@ namespace
             ActorRelation::Neutral); // already attacks neutrals
         EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Friend, 0, false),
             ActorRelation::Friend);
-        EXPECT_EQ(lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Ally, 0, false),
-            ActorRelation::Ally);
+        EXPECT_EQ(
+            lawlessHostileRelation(ActorAggression::Aggressive, ActorRelation::Ally, 0, false), ActorRelation::Ally);
     }
 }

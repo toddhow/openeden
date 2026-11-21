@@ -41,8 +41,8 @@ namespace MWRender
             mUnderwaterFogStart = std::min(viewDistance, 7168.f) * (1 - mUnderwaterIndoorFog);
             mUnderwaterFogEnd = std::min(viewDistance, 7168.f);
             mFogColor = color;
-            // Task 0362 item 1: the cell's fog colour stays the scene's colour (where the fog starts); the far colour is
-            // where it ends, read by the object and terrain shaders only, so every other path is as before.
+            // Task 0362 item 1: the cell's fog colour stays the scene's colour (where the fog starts); the far colour
+            // is where it ends, read by the object and terrain shaders only, so every other path is as before.
             if (cell.hasNeutralFogFarColor())
             {
                 const auto& farColour = cell.getNeutralFogFarColor();

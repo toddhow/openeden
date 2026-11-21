@@ -20,8 +20,8 @@
 
 #include <components/esm3/loadcell.hpp>
 
-#include <openeden/game/weather_source.hpp>
 #include "neutralfogcurve.hpp"
+#include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 
 namespace MWRender
@@ -59,14 +59,13 @@ namespace MWWorld
     inline constexpr float kWeatherGradeContrastShare = 0.f;
 
     /// Task 0362a: the contrast share the game passes now. The tonemap's contrast pivots on the scene's average
-    /// brightness (gradePivot in post/tonemap.frag), as Skyrim's does (RECALLED-VERIFY), so the whole contrast applies and
-    /// dark scenes no longer crush. The two constants above stay the pure functions' defaults for a mid grey pivot.
+    /// brightness (gradePivot in post/tonemap.frag), as Skyrim's does (RECALLED-VERIFY), so the whole contrast applies
+    /// and dark scenes no longer crush. The two constants above stay the pure functions' defaults for a mid grey pivot.
     inline constexpr float kContrastShareWithAveragePivot = 1.f;
 
-    /// The contrast handed to the renderer for a weather grade: 1 + (contrast - 1) * share; a value that is not a number
-    /// is the neutral 1.
-    [[nodiscard]] inline float neutralWeatherGradeContrast(
-        float contrast, float share = kWeatherGradeContrastShare)
+    /// The contrast handed to the renderer for a weather grade: 1 + (contrast - 1) * share; a value that is not a
+    /// number is the neutral 1.
+    [[nodiscard]] inline float neutralWeatherGradeContrast(float contrast, float share = kWeatherGradeContrastShare)
     {
         if (!std::isfinite(contrast) || !std::isfinite(share))
             return 1.f;
@@ -94,17 +93,17 @@ namespace MWWorld
         const openeden::sdk::game::CellLighting* lighting, bool enabled);
 
     /// Task 0355 (follow-up of stage d): the fog power and maximum of a cell, made safe. The data is mostly sane (power
-    /// 0.4 to 2.5, max 0.2 to 1) and has a few wild numbers (max 6000, 8, 13000, and 22 zeros that stand for "not set"):
-    /// a power that is not a number or outside the encodable range [1/64, 255/64] is 1, and a max that is not a number,
-    /// zero or below, or above 1 is 1. Both 1 (or `enabled` false, or no values) gives the plain linear fog: nothing.
+    /// 0.4 to 2.5, max 0.2 to 1) and has a few wild numbers (max 6000, 8, 13000, and 22 zeros that stand for "not
+    /// set"): a power that is not a number or outside the encodable range [1/64, 255/64] is 1, and a max that is not a
+    /// number, zero or below, or above 1 is 1. Both 1 (or `enabled` false, or no values) gives the plain linear fog:
+    /// nothing.
     [[nodiscard]] std::optional<NeutralFogCurve> neutralFogCurve(
         std::optional<std::pair<double, double>> powerAndMax, bool enabled);
 
     /// The engine's cell object of a neutral interior record: `Cell(record)`, plus the fog the pack's lighting asks for
     /// when [Game] neutral interior fog is on (task 0355 stage d), with its power and maximum when `curve` is set.
     [[nodiscard]] Cell makeNeutralInteriorCell(const ESM::Cell& record, const openeden::sdk::game::WorldCell& cell,
-        std::optional<NeutralFogCurve> curve = std::nullopt,
-        std::optional<std::array<float, 3>> fogFar = std::nullopt);
+        std::optional<NeutralFogCurve> curve = std::nullopt, std::optional<std::array<float, 3>> fogFar = std::nullopt);
 
     /// Task 0355 stage c: whether the tonemap carries the image space grade (the GRADE shader define). The older two
     /// settings ask for it as before; the cell setting counts only in a neutral world, because it is on by default and

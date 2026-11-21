@@ -92,9 +92,8 @@ namespace
         {
             static std::atomic<unsigned> counter{ 0 };
             mRoot = std::filesystem::temp_directory_path()
-                / ("openeden_slangwait_"
-                    + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + "_"
-                    + std::to_string(counter++));
+                / ("openeden_slangwait_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())
+                    + "_" + std::to_string(counter++));
             std::filesystem::create_directories(mRoot / "shaders");
             std::ofstream(mRoot / "shaders" / "a.slang") << "// a\n";
             mRequest.mStageFile = "default/main.frag";

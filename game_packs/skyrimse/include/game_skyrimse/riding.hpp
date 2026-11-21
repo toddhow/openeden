@@ -44,12 +44,13 @@ namespace game_skyrimse
     inline constexpr float kRidingTurnRate = 1.7f;
     /// How far to the right of the horse the player is put down when he dismounts, game units. OURS.
     inline constexpr float kDismountSide = 110.f;
-    /// Task 0278: the form id of PlayerHorseFaction (the stables' purchase script, TIF__00068CF1, sets the bought horse's
-    /// rank in it to 1: VERIFIED on the data) and the seconds over which the 7 unit step between a paired clip's end pose
-    /// and the riding loop's pose (or the dismount's start pose and the loop's) is blended away (OURS).
+    /// Task 0278: the form id of PlayerHorseFaction (the stables' purchase script, TIF__00068CF1, sets the bought
+    /// horse's rank in it to 1: VERIFIED on the data) and the seconds over which the 7 unit step between a paired
+    /// clip's end pose and the riding loop's pose (or the dismount's start pose and the loop's) is blended away (OURS).
     inline constexpr std::uint32_t kPlayerHorseFactionId = 0x00068D78;
     inline constexpr float kHandoverBlendSeconds = 0.25f;
-    /// JobHostlerFaction: every stablemaster holds it at rank -1 and the horse-purchase lines test it (VERIFIED: NPC_ SNAM).
+    /// JobHostlerFaction: every stablemaster holds it at rank -1 and the horse-purchase lines test it (VERIFIED: NPC_
+    /// SNAM).
     inline constexpr std::uint32_t kJobHostlerFactionId = 0x00051593;
     /// 1 at the hand-over, falling linearly to 0 after kHandoverBlendSeconds.
     [[nodiscard]] inline float handoverWeight(float seconds)
@@ -194,8 +195,8 @@ namespace game_skyrimse
         /// saddle, the horse's origin minus the saddle while a paired clip plays (the player himself stays on the
         /// saddle, where his camera is; the clip is in the horse's frame).
         [[nodiscard]] Point bodyOffset() const { return mMounted && mPhase != RidePhase::Ride ? mBodyOffset : Point(); }
-        /// Task 0278: what is added to bodyOffset(): the step between a paired clip's end pose and the riding loop (after a
-        /// mount) or between the loop and the dismount clip's start pose (during a dismount), faded away over
+        /// Task 0278: what is added to bodyOffset(): the step between a paired clip's end pose and the riding loop
+        /// (after a mount) or between the loop and the dismount clip's start pose (during a dismount), faded away over
         /// kHandoverBlendSeconds. Zero otherwise.
         [[nodiscard]] Point blendOffset() const
         {

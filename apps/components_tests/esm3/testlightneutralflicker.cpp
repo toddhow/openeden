@@ -1,5 +1,5 @@
-// Task 0355 stage h: ESM::Light::NeutralFlicker is an OpenEden flag, never a bit of the file format. A light loaded from
-// a plugin or a save must not keep it, or its mTime and mValue would be read as a period and a seed.
+// Task 0355 stage h: ESM::Light::NeutralFlicker is an OpenEden flag, never a bit of the file format. A light loaded
+// from a plugin or a save must not keep it, or its mTime and mValue would be read as a period and a seed.
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadligh.hpp>

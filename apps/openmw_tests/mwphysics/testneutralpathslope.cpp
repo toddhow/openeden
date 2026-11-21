@@ -40,7 +40,8 @@ namespace
         {
             Sweep s;
             s.mHit = true;
-            s.mFraction = (from.z + 6.f) / depth; // the ground is 6 units below the resting capsule: more than kBevelSlack
+            s.mFraction
+                = (from.z + 6.f) / depth; // the ground is 6 units below the resting capsule: more than kBevelSlack
             s.mNormal = vsg::vec3(0.8f, 0.f, mNormalZ);
             return s;
         }

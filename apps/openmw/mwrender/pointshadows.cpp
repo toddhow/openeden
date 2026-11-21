@@ -163,8 +163,7 @@ namespace MWRender
                                     << Render::PointShadow::faceCount(mask) << " of 6 faces (shape "
                                     << static_cast<int>(light.shadowShape) << ", mask 0x" << std::hex
                                     << static_cast<int>(mask) << std::dec << ", world axis " << worldAxis.x << " "
-                                    << worldAxis.y << " " << worldAxis.z << ", cone cos " << light.shadowConeCos
-                                    << ")";
+                                    << worldAxis.y << " " << worldAxis.z << ", cone cos " << light.shadowConeCos << ")";
             mSlotMask[static_cast<std::size_t>(k)] = mask;
         }
         // Developer aid (task 0362): OPENEDEN_POINT_SHADOW_ALL_FACES=1 draws all six faces of every slot again, to

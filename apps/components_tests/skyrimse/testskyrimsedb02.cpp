@@ -1,8 +1,8 @@
 // Task 0325 (Dark Brotherhood, the sleep abduction): what DBEntranceQuest and DarkBrotherhood need from the host.
-// (1) RegisterForSleep and the events OnSleepStart and OnSleepStop, (2) Form.RegisterForUpdate from one script of a form
-// reaches the OnUpdate of ANOTHER script on that form (QF_DarkBrotherhood registers, DarkBrotherhood handles),
-// (3) the player's own MoveTo goes to the pack's sink, (4) the travel service keeps a script's move for the global
-// script, (5) GetInSameCell (Astrid's forced greeting needs the player in her cell). Generated scripts, no game data.
+// (1) RegisterForSleep and the events OnSleepStart and OnSleepStop, (2) Form.RegisterForUpdate from one script of a
+// form reaches the OnUpdate of ANOTHER script on that form (QF_DarkBrotherhood registers, DarkBrotherhood handles), (3)
+// the player's own MoveTo goes to the pack's sink, (4) the travel service keeps a script's move for the global script,
+// (5) GetInSameCell (Astrid's forced greeting needs the player in her cell). Generated scripts, no game data.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/map.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
@@ -125,7 +125,8 @@ namespace
         return s;
     }
 
-    // Two scripts on one form: Reg registers the update (the quest's fragment script), Tick handles it (the quest's script).
+    // Two scripts on one form: Reg registers the update (the quest's fragment script), Tick handles it (the quest's
+    // script).
     ScriptBuilder regScript()
     {
         ScriptBuilder s("Reg");
@@ -154,7 +155,8 @@ namespace
             .local("p", "Actor")
             .local("n", "None")
             .callStatic("Game", "GetPlayer", Id("p"))
-            .callMethod("MoveTo", Id("p"), Id("n"), { Id("::Marker_var"), Flt(0.0f), Flt(0.0f), Flt(0.0f), Bool(true) });
+            .callMethod(
+                "MoveTo", Id("p"), Id("n"), { Id("::Marker_var"), Flt(0.0f), Flt(0.0f), Flt(0.0f), Bool(true) });
         return s;
     }
 

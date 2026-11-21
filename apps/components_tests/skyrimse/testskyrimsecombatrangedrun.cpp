@@ -1,7 +1,8 @@
 // Task 0300 (crossbows, real bows, dual wielding, dual casting) in the combat runtime: SkyrimCombat with a fake data
 // source and a recording writer, written from the spec (docs/tasks/0300-skyrim-crossbows-dual-wield.md) before the
 // code. The numbers are worked out by hand:
-//  - the crossbow "DLC1CrossBow" has damage 19, the bolt "IronBolt" damage 10: a bolt does (19 + 10) x min(1.5, 1 + skill
+//  - the crossbow "DLC1CrossBow" has damage 19, the bolt "IronBolt" damage 10: a bolt does (19 + 10) x min(1.5, 1 +
+//  skill
 //    / 200); the archer's skill 50 gives 1.25, so 36.25; the player's skill 15 gives 1.075, so 31.175;
 //  - the sword has damage 7, the dagger 4, a skill of 0 multiplies by 1: the right hand hits for 7, the left for 4;
 //  - a dual cast of a 20 magicka spell costs 20 x 2.8 = 56 and its 10 point effect heals 10 x 2.2 = 22.

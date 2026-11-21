@@ -25,13 +25,15 @@ namespace
     TEST(NeutralPathDrop, a_level_path_keeps_the_base_limit)
     {
         const std::vector<vsg::vec3> path = { { 0.f, 0.f, 0.f }, { 300.f, 0.f, 3.f } };
-        EXPECT_FLOAT_EQ(pathStepDown(0.f, path, 0, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
+        EXPECT_FLOAT_EQ(
+            pathStepDown(0.f, path, 0, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
     }
 
     TEST(NeutralPathDrop, a_drop_within_the_base_limit_keeps_it)
     {
         const std::vector<vsg::vec3> path = { { 0.f, 0.f, 20.f }, { 100.f, 0.f, 0.f } };
-        EXPECT_FLOAT_EQ(pathStepDown(20.f, path, 0, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
+        EXPECT_FLOAT_EQ(
+            pathStepDown(20.f, path, 0, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
     }
 
     TEST(NeutralPathDrop, a_cliff_is_capped)
@@ -43,8 +45,10 @@ namespace
     TEST(NeutralPathDrop, only_the_next_two_waypoints_count)
     {
         // a flight of stairs far ahead must not make every ledge on the way a safe drop
-        const std::vector<vsg::vec3> path = { { 0.f, 0.f, 40.f }, { 100.f, 0.f, 40.f }, { 200.f, 0.f, 40.f }, { 300.f, 0.f, 0.f } };
-        EXPECT_FLOAT_EQ(pathStepDown(40.f, path, 0, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
+        const std::vector<vsg::vec3> path
+            = { { 0.f, 0.f, 40.f }, { 100.f, 0.f, 40.f }, { 200.f, 0.f, 40.f }, { 300.f, 0.f, 0.f } };
+        EXPECT_FLOAT_EQ(
+            pathStepDown(40.f, path, 0, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
         EXPECT_GT(pathStepDown(40.f, path, 2, MWPhysics::NeutralMover::kStepDown), MWPhysics::NeutralMover::kStepDown);
     }
 

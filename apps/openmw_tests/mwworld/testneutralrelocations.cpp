@@ -197,8 +197,10 @@ namespace
 
     TEST(NeutralRelocationSave, theBytesDoNotDependOnTheOrderTheyWereCollectedIn)
     {
-        const NeutralSaveState a = stateWith({ entry(10, interior(1), interior(2)), entry(11, interior(1), interior(2)) });
-        const NeutralSaveState b = stateWith({ entry(11, interior(1), interior(2)), entry(10, interior(1), interior(2)) });
+        const NeutralSaveState a
+            = stateWith({ entry(10, interior(1), interior(2)), entry(11, interior(1), interior(2)) });
+        const NeutralSaveState b
+            = stateWith({ entry(11, interior(1), interior(2)), entry(10, interior(1), interior(2)) });
         EXPECT_EQ(encodeNeutralSave(a), encodeNeutralSave(b));
     }
 

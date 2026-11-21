@@ -1,7 +1,8 @@
-// Task 0318 (the main quest after Dragon Rising): MQ104's JarlWeapon alias creates the reward axe IN Balgruuf's inventory
-// (ALCA with bit 31 set: "In"), not at his feet. The pack read bit 31 as part of the alias number ("created at alias
-// 2147483653, which holds nothing"), so the alias stayed empty and the game's own AddItem(Alias_JarlWeapon.GetRef()) gave
-// the player nothing. Generated records, a fake game and fake hooks; no game data. Written first, run red against the old code.
+// Task 0318 (the main quest after Dragon Rising): MQ104's JarlWeapon alias creates the reward axe IN Balgruuf's
+// inventory (ALCA with bit 31 set: "In"), not at his feet. The pack read bit 31 as part of the alias number ("created
+// at alias 2147483653, which holds nothing"), so the alias stayed empty and the game's own
+// AddItem(Alias_JarlWeapon.GetRef()) gave the player nothing. Generated records, a fake game and fake hooks; no game
+// data. Written first, run red against the old code.
 #include <game_skyrimse/dragonborn.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/papyrus_host.hpp>

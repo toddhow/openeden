@@ -1,5 +1,5 @@
-// Tests for the pure maths of automatic exposure, Render::AutoExposure (task 0364a). Every expected number is worked out
-// by hand in a comment. Pure CPU maths: no device, window or game data.
+// Tests for the pure maths of automatic exposure, Render::AutoExposure (task 0364a). Every expected number is worked
+// out by hand in a comment. Pure CPU maths: no device, window or game data.
 
 #include <components/render/autoexposuremath.hpp>
 
@@ -8,8 +8,8 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <regex>
 #include <sstream>
@@ -99,8 +99,8 @@ namespace
 
     TEST(RenderAutoExposure, aCutInsideABinCountsThePartThatRemains)
     {
-        // 100 samples in bin 20 and 100 in bin 40, trim the lowest 25 percent: 50 of the 200 are cut from bin 20, so the
-        // kept weights are 50 and 100 over 150.
+        // 100 samples in bin 20 and 100 in bin 40, trim the lowest 25 percent: 50 of the 200 are cut from bin 20, so
+        // the kept weights are 50 and 100 over 150.
         auto h = emptyHistogram();
         h[20] = 100;
         h[40] = 100;
@@ -263,9 +263,8 @@ namespace
     TEST(RenderAutoExposure, theRingHandlesTheSerialWrappingAround)
     {
         std::array<std::uint32_t, slots> serials{};
-        // Serials count 1 .. 2^24; counter 2 just after a wrap, slot written at serial 2^24 - 1: age 3 (ring), too young;
-        // serial 2^24 - 3 is age 5.
-        // Ages: serial 2^24 - 1 is 3 (too young); 2^24 - 4 is 6.
+        // Serials count 1 .. 2^24; counter 2 just after a wrap, slot written at serial 2^24 - 1: age 3 (ring), too
+        // young; serial 2^24 - 3 is age 5. Ages: serial 2^24 - 1 is 3 (too young); 2^24 - 4 is 6.
         serials[0] = serialMask;
         serials[1] = serialMask - 4;
         const auto slot = pickSlot(serials, 2);

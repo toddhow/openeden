@@ -188,7 +188,8 @@ namespace
         EXPECT_EQ(brain.view(kHorse1)->mActive, nullptr);
     }
 
-    // A rider on a horse (task 0274): its goals are written for the horse's handle and the horse's result is the rider's
+    // A rider on a horse (task 0274): its goals are written for the horse's handle and the horse's result is the
+    // rider's
     class WanderSource final : public PackageSource
     {
     public:

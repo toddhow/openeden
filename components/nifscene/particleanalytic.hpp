@@ -13,8 +13,8 @@
 // two in step. Every placement of a model shows the same flame at the same moment.
 //
 // The buffer the shader reads is the PARTICLE storage buffer (Pipeline::Data::Particle, four vec4 an entry): kHeader
-// header entries that describe the system, then one entry a slot. A slot entry has velocityAge.w == -1, which is how the
-// shader tells it from a Morrowind particle (their age is never negative).
+// header entries that describe the system, then one entry a slot. A slot entry has velocityAge.w == -1, which is how
+// the shader tells it from a Morrowind particle (their age is never negative).
 
 #include <array>
 #include <cstdint>
@@ -47,8 +47,10 @@ namespace NifScene::ParticleAnalytic
     ///  [1] positionSize.xyz / color.xyz / velocityAge.xyz = the emitter rotation's three columns (model frame);
     ///      positionSize.w = particle radius, color.w = radius variation (system scale applied),
     ///      velocityAge.w = unused, maxAge = rotation speed, speed variation, angle, angle variation
-    ///  [2] positionSize = gravity xyz, drag rate; color = flipbook columns, rows, frame count, random rotation sign (0/1);
-    ///      velocityAge = start frame, start fudge, end frame, loop start; maxAge = frame count, count fudge, fade in, fade out
+    ///  [2] positionSize = gravity xyz, drag rate; color = flipbook columns, rows, frame count, random rotation sign
+    ///  (0/1);
+    ///      velocityAge = start frame, start fudge, end frame, loop start; maxAge = frame count, count fudge, fade in,
+    ///      fade out
     ///  [3] colours: positionSize = colour 1, color = colour 2, velocityAge = colour 3, maxAge = the four stops
     ///  [4] the size factor over a life, 16 samples: positionSize, color, velocityAge, maxAge in order
     /// Slot entry: positionSize = slot, slot count, period, phase; color.x = system seed; velocityAge.w = -1.

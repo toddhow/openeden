@@ -155,23 +155,23 @@ namespace OMW
             mHost.worldSources().setListener(mStoreListener.get());
             mHost.worldSources().setConsumerEnabled(true);
             // Task 0289: how long a placed object's animation takes (a script waits for its end). Main thread.
-            mHost.worldSources().setAnimationSeconds([](std::string_view gameId, openeden::sdk::game::WorldId cell,
-                                                         openeden::sdk::game::WorldId placement,
-                                                         std::string_view event) -> float {
-                if (!MWBase::Environment::exists())
-                    return 0.f;
-                MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
-                MWBase::World* const world = MWBase::Environment::get().getWorld();
-                if (model == nullptr || world == nullptr)
-                    return 0.f;
-                const MWWorld::Ptr ptr = model->findLoadedNeutralObject(std::string(gameId), cell, placement);
-                if (ptr.isEmpty())
-                    return 0.f;
-                MWAnim::Object* const object = world->getAnimation(ptr);
-                const MWRender::SkyrimSequence::Instance* const instance
-                    = object != nullptr ? MWRender::SkyrimSequence::findInstance(object->keepAlive) : nullptr;
-                return instance != nullptr ? instance->secondsOf(event) : 0.f;
-            });
+            mHost.worldSources().setAnimationSeconds(
+                [](std::string_view gameId, openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement,
+                    std::string_view event) -> float {
+                    if (!MWBase::Environment::exists())
+                        return 0.f;
+                    MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
+                    MWBase::World* const world = MWBase::Environment::get().getWorld();
+                    if (model == nullptr || world == nullptr)
+                        return 0.f;
+                    const MWWorld::Ptr ptr = model->findLoadedNeutralObject(std::string(gameId), cell, placement);
+                    if (ptr.isEmpty())
+                        return 0.f;
+                    MWAnim::Object* const object = world->getAnimation(ptr);
+                    const MWRender::SkyrimSequence::Instance* const instance
+                        = object != nullptr ? MWRender::SkyrimSequence::findInstance(object->keepAlive) : nullptr;
+                    return instance != nullptr ? instance->secondsOf(event) : 0.f;
+                });
         }
 
         std::vector<extension::ExtensionLoadError> errors;
@@ -395,7 +395,8 @@ namespace OMW
                 = MWRender::SkyrimSequence::findInstance(object->keepAlive);
             const bool played = instance != nullptr && instance->play(op.animation);
             Log(Debug::Info) << "NANIM " << op.placement << " '" << op.animation << "' "
-                             << (played ? "played" : (instance != nullptr ? "has no such animation" : "has no animation"));
+                             << (played ? "played"
+                                        : (instance != nullptr ? "has no such animation" : "has no animation"));
             if (!played)
                 return true;
             std::string lowered = op.animation;
@@ -506,8 +507,8 @@ namespace OMW
                 {
                     // Task 0286: a move INTO another cell (loaded or not): the placement keeps its identity
                     const openeden::sdk::game::Vec3d* from = op.move.hasFrom ? &op.move.from : nullptr;
-                    MWWorld::Ptr mover = model->findNeutralObjectForMove(
-                        *mNeutralWorldStore, op.gameId, op.cell, op.placement, from);
+                    MWWorld::Ptr mover
+                        = model->findNeutralObjectForMove(*mNeutralWorldStore, op.gameId, op.cell, op.placement, from);
                     if (mover.isEmpty())
                     {
                         Log(Debug::Warning) << "A game pack's move of the placement " << op.placement

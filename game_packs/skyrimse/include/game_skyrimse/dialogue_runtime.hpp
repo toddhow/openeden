@@ -206,9 +206,16 @@ namespace game_skyrimse
         }
         /// Task 0326: the references killed in this session (GetRefTypeAliveCount).
         void setDeadLookup(std::function<bool(FormId)> lookup) { mWorld.setDeadLookup(std::move(lookup)); }
-        void setRaceLookup(std::function<FormId(FormId)> lookup) { mWorld.setRaceLookup(std::move(lookup)); } // task 0350
-        void setOpenStateLookup(std::function<int(FormId)> lookup) { mWorld.setOpenStateLookup(std::move(lookup)); } // task 0349
-        /// task 0337: a line whose condition runs on the speaker's LINKED REFERENCE (Eltrys's entry topic: Weylin is dead)
+        void setRaceLookup(std::function<FormId(FormId)> lookup)
+        {
+            mWorld.setRaceLookup(std::move(lookup));
+        } // task 0350
+        void setOpenStateLookup(std::function<int(FormId)> lookup)
+        {
+            mWorld.setOpenStateLookup(std::move(lookup));
+        } // task 0349
+        /// task 0337: a line whose condition runs on the speaker's LINKED REFERENCE (Eltrys's entry topic: Weylin is
+        /// dead)
         void setLinkedRefLookup(SkyrimConditionWorld::LinkedRefLookup lookup)
         {
             mWorld.setLinkedRefLookup(std::move(lookup));
@@ -226,7 +233,8 @@ namespace game_skyrimse
         /// Task 0219: with this on a training, rent or gift service is named "open:<name>" (services.hpp) so the engine
         /// opens its window; off, the names are the classifier's and the engine logs "service not implemented".
         void setOpenServices(bool on) { mOpenServices = on; }
-        /// Task 0298: with this on, a blocking branch (the Civil War's Rikke) says its first line that passes instead of the Hello greeting.
+        /// Task 0298: with this on, a blocking branch (the Civil War's Rikke) says its first line that passes instead
+        /// of the Hello greeting.
         void setBlockingBranches(bool on)
         {
             mBlockingBranches = on;
@@ -235,30 +243,32 @@ namespace game_skyrimse
         /// Task 0315: with this on, ending a conversation runs the fragment of the walk-away topic (TWAT) of the last
         /// response that named one: the response itself is not shown (no line, no voice), only its script work.
         void setWalkAwayTopics(bool on) { mWalkAwayTopics = on; }
-        /// Task 0326: with this on, a response with no walk-away topic of its own still lets the conversation's last topic
-        /// run its walk-away INFO (flag 0x80, the first that passes) at the end (the Legion's CW01RikkeGreetTopic INFO
-        /// 0D5EE9, which sets CW01A stage 160). Off: only the TWAT topics of setWalkAwayTopics.
+        /// Task 0326: with this on, a response with no walk-away topic of its own still lets the conversation's last
+        /// topic run its walk-away INFO (flag 0x80, the first that passes) at the end (the Legion's CW01RikkeGreetTopic
+        /// INFO 0D5EE9, which sets CW01A stage 160). Off: only the TWAT topics of setWalkAwayTopics.
         void setWalkAwayInfos(bool on) { mWalkAwayInfos = on; }
         /// Task 0304: a nameless Custom topic that starts a quest's dialogue branch (the quest's own greeting, such as
         /// Faralda's "Welcome to the College") is spoken at the start of a conversation, before the Hello lines, when
         /// one of its INFOs passes. Off by default.
         void setQuestGreetings(bool on) { mQuestGreetings = on; }
-        /// Task 0356: the topics some package (a ForceGreet's PDTO) or scene (a dialogue action) says on its own. They are
-        /// never the quest greeting (WITavernServerPlayerTopic is the topic of a ForceGreet package, not Saadia's greeting).
+        /// Task 0356: the topics some package (a ForceGreet's PDTO) or scene (a dialogue action) says on its own. They
+        /// are never the quest greeting (WITavernServerPlayerTopic is the topic of a ForceGreet package, not Saadia's
+        /// greeting).
         void setReferencedTopics(std::vector<FormId> topics)
         {
             mReferencedTopics = std::move(topics);
             mGreetingTopicsKnown = false;
         }
         /// task 0343 (`dark brotherhood`): a quest start whose INFOs all carry prompts is a menu topic, not a greeting.
-        /// Task 0346 (`solitude`): such a start that has no name of its own and is the top of a branch that is NOT blocking
-        /// is also LISTED in the menu (Falk's MS06FalkInvestigate0 reads "I hear you're looking for some help with
-        /// Wolfskull Cave." in its prompt): one flag, both halves.
+        /// Task 0346 (`solitude`): such a start that has no name of its own and is the top of a branch that is NOT
+        /// blocking is also LISTED in the menu (Falk's MS06FalkInvestigate0 reads "I hear you're looking for some help
+        /// with Wolfskull Cave." in its prompt): one flag, both halves.
         void setPromptStartsAreMenus(bool on) { mPromptStartsAreMenus = on; }
         /// Task 0304: a line of trace for each quest greeting looked at (the topic, how many INFOs were considered and
         /// passed, the INFO chosen); unset: none.
-        /// Task 0304: runs the script work queued by the INFO fragments of the response just shown, so that the next INFO
-        /// of a chain is chosen with their effects (NiryaInit set by "Excellent." decides which spell offer follows).
+        /// Task 0304: runs the script work queued by the INFO fragments of the response just shown, so that the next
+        /// INFO of a chain is chosen with their effects (NiryaInit set by "Excellent." decides which spell offer
+        /// follows).
         void setFragmentFlush(std::function<void()> flush) { mFragmentFlush = std::move(flush); }
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
 

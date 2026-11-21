@@ -1,7 +1,7 @@
-// Task 0304 (College of Winterhold, second slice): a quest's nameless branch-start topic is the greeting. Written before
-// the code. Faralda's MG01FaraldaInitialBranchTopic (a CUST topic with no FULL, the start of a Blocking branch, whose INFO
-// has no prompt) is no HELO topic, no package's topic and no TCLT link of any INFO; the only way the game reaches it is
-// the conversation's own start.
+// Task 0304 (College of Winterhold, second slice): a quest's nameless branch-start topic is the greeting. Written
+// before the code. Faralda's MG01FaraldaInitialBranchTopic (a CUST topic with no FULL, the start of a Blocking branch,
+// whose INFO has no prompt) is no HELO topic, no package's topic and no TCLT link of any INFO; the only way the game
+// reaches it is the conversation's own start.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -348,8 +348,8 @@ namespace
 
     TEST(SkyrimQuestGreeting, aNamelessBranchStartThatAnotherInfoLinksToIsReachedByThatLinkNotByGreeting)
     {
-        // MG01FaraldaYoureInBranchTopic: the start of a branch, no name, and the TCLT target of three INFOs: it is a reply
-        // in a conversation, never the greeting.
+        // MG01FaraldaYoureInBranchTopic: the start of a branch, no name, and the TCLT target of three INFOs: it is a
+        // reply in a conversation, never the greeting.
         Plugin p;
         p.mDials.append(topic(kTopicHello, "Hello", "HELO", 7, 0, { info(0x20, "Yes?") }));
         InfoSpec linker = info(0x21, "A line that links on.");

@@ -87,8 +87,9 @@ namespace
                 sum += frame;
                 ++n;
             }
-            std::cout << "FIDGET " << variant << " duration " << clip.mClip.mDuration << " s, largest bone difference from the idle "
-                      << most << " degrees, mean of the frame maxima " << sum / n << std::endl;
+            std::cout << "FIDGET " << variant << " duration " << clip.mClip.mDuration
+                      << " s, largest bone difference from the idle " << most << " degrees, mean of the frame maxima "
+                      << sum / n << std::endl;
             EXPECT_GT(clip.mClip.mDuration, 0.5f);
         }
     }

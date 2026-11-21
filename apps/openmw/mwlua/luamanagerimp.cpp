@@ -630,8 +630,8 @@ namespace MWLua
     void LuaManager::skillUse(const MWWorld::Ptr& actor, ESM::RefId skillId, int useType, float scale)
     {
         // Task 0361d: an actor of a neutral (game pack) world has no Morrowind skills to train: the stub player ran,
-        // jumped and fought into "Your Athletics skill increased" messages in every Skyrim session. The pack has its own
-        // progression (`player progression`).
+        // jumped and fought into "Your Athletics skill increased" messages in every Skyrim session. The pack has its
+        // own progression (`player progression`).
         if (actor.isInCell() && actor.getCell()->isNeutral())
             return;
         mEngineEvents.addToQueue(EngineEvents::OnSkillUse{ getId(actor), skillId.serializeText(), useType, scale });

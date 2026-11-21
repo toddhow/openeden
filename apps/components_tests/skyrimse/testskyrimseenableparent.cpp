@@ -35,8 +35,8 @@ namespace
     }
 
     // A placement; parent 0 means none. `parentFlags` is the XESP flag byte (bit 0: the opposite of the parent).
-    Bytes refr(std::uint32_t id, std::uint32_t flags, float x, float y, std::uint32_t parent = 0,
-        std::uint8_t parentFlags = 0)
+    Bytes refr(
+        std::uint32_t id, std::uint32_t flags, float x, float y, std::uint32_t parent = 0, std::uint8_t parentFlags = 0)
     {
         Bytes subs;
         subs.append(sub4("NAME", Bytes().u32(kStat)));
@@ -74,7 +74,8 @@ namespace
     {
         Bytes sub = cellRecord(kCell, "Hall", CellFlags::Interior);
         sub.append(childrenGroup(kCell, persistent, temporary));
-        return topGroup("CELL", group4(kCell % 10, kGrupInteriorBlock, group4((kCell / 10) % 10, kGrupInteriorSub, sub)));
+        return topGroup(
+            "CELL", group4(kCell % 10, kGrupInteriorBlock, group4((kCell / 10) % 10, kGrupInteriorSub, sub)));
     }
 
     Bytes baseWith(const Bytes& cells)
@@ -101,8 +102,9 @@ namespace
         {
             static int counter = 0;
             mPath = fs::temp_directory_path()
-                / ("oe_skyrim_enableparent_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())
-                    + "_" + std::to_string(counter++));
+                / ("oe_skyrim_enableparent_"
+                    + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + "_"
+                    + std::to_string(counter++));
             fs::create_directories(mPath);
         }
         ~TempDir()

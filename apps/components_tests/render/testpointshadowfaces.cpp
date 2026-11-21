@@ -66,7 +66,8 @@ namespace
     {
         const double narrow = std::cos(10.0 * 3.14159265358979 / 180.0);
         const double wide = std::cos(80.0 * 3.14159265358979 / 180.0);
-        EXPECT_LT(faceCount(faceMask(Shape::Spot, V3(1, 0, 0), narrow)), faceCount(faceMask(Shape::Spot, V3(1, 0, 0), wide)));
+        EXPECT_LT(
+            faceCount(faceMask(Shape::Spot, V3(1, 0, 0), narrow)), faceCount(faceMask(Shape::Spot, V3(1, 0, 0), wide)));
         EXPECT_EQ(faceCount(faceMask(Shape::Spot, V3(1, 0, 0), wide)), 5);
     }
 

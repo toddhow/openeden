@@ -5,4 +5,3 @@ struct Particle
     vec4 velocityAge;
     /*float*/ vec4 maxAge;
 };
-

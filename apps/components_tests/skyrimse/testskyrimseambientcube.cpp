@@ -35,8 +35,8 @@ namespace
     using Rgb = std::array<std::uint8_t, 3>;
     using Cube = std::array<Rgb, 6>;
 
-    const Cube kOwnCube = { { { 10, 11, 12 }, { 20, 21, 22 }, { 30, 31, 32 }, { 40, 41, 42 }, { 50, 51, 52 },
-        { 60, 61, 62 } } };
+    const Cube kOwnCube
+        = { { { 10, 11, 12 }, { 20, 21, 22 }, { 30, 31, 32 }, { 40, 41, 42 }, { 50, 51, 52 }, { 60, 61, 62 } } };
     const Cube kTemplateCube = { { { 110, 111, 112 }, { 120, 121, 122 }, { 130, 131, 132 }, { 140, 141, 142 },
         { 150, 151, 152 }, { 160, 161, 162 } } };
     const Cube kNoCube = {};

@@ -89,9 +89,10 @@ namespace Pipeline
         vsg::ref_ptr<vsg::ShaderStage> create(const FragmentStageOptions& key) const;
         vsg::ref_ptr<vsg::ShaderStage> createShaderStage(const ShaderOptions& key, const std::string& suffix) const;
 
-        /// Task 0363, stage g: there is no GLSL to draw with while a Slang set is being made: a pipeline whose stage has
-        /// no twin throws std::runtime_error (vsgUtil::missingTwinText) and is not kept; the caller leaves the model
-        /// out. The next object that needs the same key tries again (a set whose wait ran out may be ready by then).
+        /// Task 0363, stage g: there is no GLSL to draw with while a Slang set is being made: a pipeline whose stage
+        /// has no twin throws std::runtime_error (vsgUtil::missingTwinText) and is not kept; the caller leaves the
+        /// model out. The next object that needs the same key tries again (a set whose wait ran out may be ready by
+        /// then).
         inline vsg::ref_ptr<vsg::BindGraphicsPipeline> getOrCreate(const Options& key) const
         {
             return mPipelineCache.getOrCreate(key, *this);

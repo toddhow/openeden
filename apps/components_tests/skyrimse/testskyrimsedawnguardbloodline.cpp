@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
-// Task 0334 (Dawnguard, after "Awakening"): Serana's follow packages come from DLC1NPCMentalModel (priority 80, an alias
-// filled with her placement) and `DLC1VQ02SeranaAbandoned` from DLC1VQ02 (priority 70, an external alias): the quest with
-// the higher priority is tried first whatever kind of alias gives the package.
+// Task 0334 (Dawnguard, after "Awakening"): Serana's follow packages come from DLC1NPCMentalModel (priority 80, an
+// alias filled with her placement) and `DLC1VQ02SeranaAbandoned` from DLC1VQ02 (priority 70, an external alias): the
+// quest with the higher priority is tried first whatever kind of alias gives the package.
 
 namespace
 {
@@ -212,7 +212,8 @@ namespace
     TEST(SkyrimFollowTemplate, theOtherMixesKeepTheirAnswers)
     {
         // a sandbox package sandboxes, a patrol with a follow and a sandbox stays no activity, sleeping wins
-        EXPECT_EQ(classifyActivity(std::vector<std::string>{ "Travel", "UnlockDoors", "Sandbox" }), PackageActivity::None);
+        EXPECT_EQ(
+            classifyActivity(std::vector<std::string>{ "Travel", "UnlockDoors", "Sandbox" }), PackageActivity::None);
         EXPECT_EQ(classifyActivity(std::vector<std::string>{ "Patrol", "Follow", "Sandbox", "Guard" }),
             PackageActivity::None);
         EXPECT_EQ(classifyActivity(std::vector<std::string>{ "Follow", "Sleep" }), PackageActivity::None);

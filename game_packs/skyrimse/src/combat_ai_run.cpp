@@ -508,7 +508,8 @@ namespace game_skyrimse
             f.mAiScanned = true;
             if (!ready(f))
                 continue;
-            const auto scripted = mAggressionSet.find(f.mSubject.actor.reference); // task 0302: a script's SetAV came first
+            const auto scripted
+                = mAggressionSet.find(f.mSubject.actor.reference); // task 0302: a script's SetAV came first
             if (scripted != mAggressionSet.end())
             {
                 applyAggression(f, scripted->second);
@@ -763,7 +764,8 @@ namespace game_skyrimse
                 aiRelease(i, "dead");
                 continue;
             }
-            if (f->mBleedout) // task 0347: an essential actor that collapsed leaves the fight (and its forced greeting runs)
+            if (f->mBleedout) // task 0347: an essential actor that collapsed leaves the fight (and its forced greeting
+                              // runs)
             {
                 aiRelease(i, "bleedout");
                 continue;

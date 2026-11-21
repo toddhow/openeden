@@ -1,6 +1,7 @@
 // Task 0306: the start of the Dragonborn questline. The cultist ambush quest creates its actors and the note at the
-// location's centre marker: a quest alias that creates a reference (ALCO, ALCA, ALCL) gets one when the quest starts, and
-// the alias holds it. Generated records, a fake game and fake hooks; no game data. Written first and run red against stubs.
+// location's centre marker: a quest alias that creates a reference (ALCO, ALCA, ALCL) gets one when the quest starts,
+// and the alias holds it. Generated records, a fake game and fake hooks; no game data. Written first and run red
+// against stubs.
 #include <game_skyrimse/dragonborn.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/papyrus_host.hpp>

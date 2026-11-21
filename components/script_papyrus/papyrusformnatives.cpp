@@ -138,10 +138,7 @@ namespace ScriptPapyrus
                 mClassScratch = fallbackClass;
             return PapyrusValue::makeForm(mClassScratch, form);
         }
-        FormId formOf(const PapyrusValue& value) const
-        {
-            return mQueries != nullptr ? mQueries->formIdOf(value) : 0;
-        }
+        FormId formOf(const PapyrusValue& value) const { return mQueries != nullptr ? mQueries->formIdOf(value) : 0; }
     };
 
     namespace
@@ -192,7 +189,8 @@ namespace ScriptPapyrus
                         const std::int32_t index = call.arguments.empty() ? -1 : call.arguments[0].integer;
                         if (index < 0 || static_cast<std::size_t>(index) >= state->mEntries.size())
                             return NativeResult{};
-                        return NativeResult{ state->formValue(state->mEntries[static_cast<std::size_t>(index)], "Form") };
+                        return NativeResult{ state->formValue(
+                            state->mEntries[static_cast<std::size_t>(index)], "Form") };
                     };
                 case Id::FormListHasForm:
                     return [state](const NativeCall& call) {
@@ -204,12 +202,14 @@ namespace ScriptPapyrus
                             return NativeResult{ PapyrusValue::makeBool(false) };
                         }
                         const bool found = wanted != 0
-                            && std::find(state->mEntries.begin(), state->mEntries.end(), wanted) != state->mEntries.end();
+                            && std::find(state->mEntries.begin(), state->mEntries.end(), wanted)
+                                != state->mEntries.end();
                         return NativeResult{ PapyrusValue::makeBool(found) };
                     };
                 case Id::RefGetAngleX:
                 case Id::RefGetAngleY:
-                case Id::RefGetAngleZ: {
+                case Id::RefGetAngleZ:
+                {
                     const std::size_t axis = static_cast<std::size_t>(id) - static_cast<std::size_t>(Id::RefGetAngleX);
                     return [state, axis](const NativeCall& call) {
                         double xyz[3] = { 0.0, 0.0, 0.0 };
@@ -284,16 +284,16 @@ namespace ScriptPapyrus
         for (const CosmeticEntry& e : kCosmetic)
         {
             if (e.returnsInt)
-                bind(e.cls, e.function, e.global, [](const NativeCall&) {
-                    return NativeResult{ PapyrusValue::makeInt(0) };
-                });
+                bind(e.cls, e.function, e.global,
+                    [](const NativeCall&) { return NativeResult{ PapyrusValue::makeInt(0) }; });
             else if (std::string_view(e.function) == "SetAlpha")
                 bind(e.cls, e.function, e.global, [state = mState](const NativeCall&) {
                     if (!state->mAlphaWarned)
                     {
                         state->mAlphaWarned = true;
                         state->mWorld.log(openeden::script::Severity::Warning,
-                            "Papyrus: Actor.SetAlpha is not drawn here (an actor a script fades or hides stays visible)");
+                            "Papyrus: Actor.SetAlpha is not drawn here (an actor a script fades or hides stays "
+                            "visible)");
                     }
                     return NativeResult{};
                 });

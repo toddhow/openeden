@@ -1,5 +1,5 @@
-// Task 0311 (Hearthfire): PapyrusRuntime::setArrayProperty, the way a game pack gives a script the array an editor stored
-// in its property (the house scripts keep their enable lists and house flags that way). Generated scripts.
+// Task 0311 (Hearthfire): PapyrusRuntime::setArrayProperty, the way a game pack gives a script the array an editor
+// stored in its property (the house scripts keep their enable lists and house flags that way). Generated scripts.
 
 #include <gtest/gtest.h>
 
@@ -58,8 +58,8 @@ namespace
         ASSERT_TRUE(vm.add(holder()));
         const InstanceId id = vm.make("Holder");
         const std::vector<PapyrusValue> flags{ PapyrusValue::makeBool(true), PapyrusValue::makeBool(false) };
-        const std::vector<PapyrusValue> things{ PapyrusValue::makeForm("ObjectReference", 0x40), PapyrusValue::makeNone(),
-            PapyrusValue::makeForm("", 0x41), PapyrusValue::makeNone() };
+        const std::vector<PapyrusValue> things{ PapyrusValue::makeForm("ObjectReference", 0x40),
+            PapyrusValue::makeNone(), PapyrusValue::makeForm("", 0x41), PapyrusValue::makeNone() };
         ASSERT_TRUE(vm.rt().setArrayProperty(id, "Flags", flags));
         ASSERT_TRUE(vm.rt().setArrayProperty(id, "Things", things));
         EXPECT_EQ(vm.runInt(id, "FlagLength"), 2);
@@ -80,11 +80,13 @@ namespace
         Vm vm(Target::SkyrimSE);
         ASSERT_TRUE(vm.add(holder()));
         const InstanceId id = vm.make("Holder");
-        const std::vector<PapyrusValue> good{ PapyrusValue::makeInt(1), PapyrusValue::makeInt(2), PapyrusValue::makeInt(3) };
+        const std::vector<PapyrusValue> good{ PapyrusValue::makeInt(1), PapyrusValue::makeInt(2),
+            PapyrusValue::makeInt(3) };
         ASSERT_TRUE(vm.rt().setArrayProperty(id, "Items", good));
         const std::vector<PapyrusValue> text{ PapyrusValue::makeString("no") };
         EXPECT_FALSE(vm.rt().setArrayProperty(id, "Items", text));
-        EXPECT_FALSE(vm.rt().setArrayProperty(id, "Items", std::vector<PapyrusValue>{ PapyrusValue::makeForm("Form", 5) }));
+        EXPECT_FALSE(
+            vm.rt().setArrayProperty(id, "Items", std::vector<PapyrusValue>{ PapyrusValue::makeForm("Form", 5) }));
         EXPECT_FALSE(vm.rt().setArrayProperty(id, "NoSuchProperty", good));
         EXPECT_FALSE(vm.rt().setArrayProperty(id, "Plain", good)) << "Plain is an Int";
         EXPECT_FALSE(vm.rt().setArrayProperty(0, "Items", good));

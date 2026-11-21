@@ -756,8 +756,8 @@ namespace game_skyrimse
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
                     && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO") && t != Content::fourCC("EXPL")
                     && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL")
-                    && t != Content::fourCC("ENCH")
-                    && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP") && t != Content::fourCC("IMAD"))
+                    && t != Content::fourCC("ENCH") && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP")
+                    && t != Content::fourCC("IMAD"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())

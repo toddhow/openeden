@@ -108,9 +108,9 @@ namespace MWPhysics::NeutralActor
     };
 
     /// Where an actor of `height` units that came to rest with its feet on `floorZ` stands in water whose surface is at
-    /// `waterLevel`: swimming when the water above the floor is deeper than kSwimDepthShare of the height, then its feet
-    /// float at waterLevel - kSwimFloatShare * height (never below the floor); wading or dry otherwise (the floor). A
-    /// non-finite number or a non-positive height means dry.
+    /// `waterLevel`: swimming when the water above the floor is deeper than kSwimDepthShare of the height, then its
+    /// feet float at waterLevel - kSwimFloatShare * height (never below the floor); wading or dry otherwise (the
+    /// floor). A non-finite number or a non-positive height means dry.
     [[nodiscard]] SwimRest swimRest(float floorZ, float waterLevel, float height);
 }
 

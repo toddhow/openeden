@@ -176,11 +176,10 @@ namespace Lod
         }
     }
 
-
     namespace
     {
-        // Task 0361: the weights and layer indices of the picture point (u, v) in [0, 1] of a splat blend map, the maths
-        // of terrain/main.frag's splat branch (Splat::lookupFor): four texel reads blended bilinearly inside one
+        // Task 0361: the weights and layer indices of the picture point (u, v) in [0, 1] of a splat blend map, the
+        // maths of terrain/main.frag's splat branch (Splat::lookupFor): four texel reads blended bilinearly inside one
         // quadrant slot, never across two slots.
         void splatTexel(const std::vector<std::uint8_t>& blend, std::uint32_t k, std::uint32_t s, double u, double v,
             double (&weights)[4], std::size_t (&ids)[4])

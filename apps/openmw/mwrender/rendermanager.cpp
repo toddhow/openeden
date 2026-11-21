@@ -469,9 +469,9 @@ namespace MWRender
             }
             if (Settings::game().mNeutralFireEffects)
                 mEffectScroll = std::make_shared<SkyrimEffectScroll::Driver>();
-            resourceSystem->nifReader->sceneReader = SkyrimModel::makeSceneReader(*resourceSystem->builder,
-                resourceSystem->textureOptions, Bin_DepthSorted, mTreeSway ? mTreeSway->uniform() : nullptr,
-                mEffectScroll);
+            resourceSystem->nifReader->sceneReader
+                = SkyrimModel::makeSceneReader(*resourceSystem->builder, resourceSystem->textureOptions,
+                    Bin_DepthSorted, mTreeSway ? mTreeSway->uniform() : nullptr, mEffectScroll);
         }
         mCamera.reset(new Camera);
 
@@ -2389,7 +2389,8 @@ namespace MWRender
                 if (mSkyFields.count(cell))
                     continue;
                 std::unique_ptr<Render::Gi::SkyVisField> field;
-                const std::string path = Render::Gi::skyVisFilePath(std::get<1>(cell), std::get<2>(cell), std::get<0>(cell));
+                const std::string path
+                    = Render::Gi::skyVisFilePath(std::get<1>(cell), std::get<2>(cell), std::get<0>(cell));
                 if (vfs.exists(path))
                 {
                     std::string text;
@@ -3194,24 +3195,24 @@ namespace MWRender
         // The marker of the linear view; 1 without HDR, as it always was (lib/view/linear.glsl).
         // Task 0355 (follow-up): a game pack's interior fog power and maximum ride in the marker's fraction (the plain
         // marker, bit for bit, for everything else: lib/view/fog.glsl).
-        sceneData.fogColor.w
-            = Render::FogCurve::encodeMarker(linear ? 2.f : 1.f, mFog->getFogCurve(isUnderwater));
+        sceneData.fogColor.w = Render::FogCurve::encodeMarker(linear ? 2.f : 1.f, mFog->getFogCurve(isUnderwater));
 
         auto ambient = mAmbientColor;
         ambient += vsg::vec4(0.7, 0.7, 0.7, 0.0) * mNightEyeFactor;
         mDisplayAmbient = ambient;
         sceneData.ambient = toView(ambient);
-        // Task 0355 stage e: the cube's six colours and the flat ambient they were made for, in the view's colour space,
-        // written into the header buffer only when they change.
+        // Task 0355 stage e: the cube's six colours and the flat ambient they were made for, in the view's colour
+        // space, written into the header buffer only when they change.
         if (mAmbientCubeEnabled && mSkyVisHeader && mSkyVisHeader->size() >= Render::AmbientCube::headerTotalVec4s)
         {
-            // An interior's cube (setAmbientCube) wins; else the exterior weather's (setWeatherAmbientCube), whose baseline
-            // is the weather's own flat ambient before any lightning flash.
+            // An interior's cube (setAmbientCube) wins; else the exterior weather's (setWeatherAmbientCube), whose
+            // baseline is the weather's own flat ambient before any lightning flash.
             const std::optional<std::array<vsg::vec3, 6>>& shown = mAmbientCube ? mAmbientCube : mWeatherAmbientCube;
             Render::AmbientCube::Cube viewCube{};
             if (shown)
             {
-                // The game stores the sky colour last (Render::AmbientCube::fromStoredOrder): up-facing surfaces take it.
+                // The game stores the sky colour last (Render::AmbientCube::fromStoredOrder): up-facing surfaces take
+                // it.
                 const Render::AmbientCube::Cube ordered = Render::AmbientCube::fromStoredOrder(*shown);
                 for (std::size_t i = 0; i < 6; ++i)
                 {
@@ -3579,8 +3580,8 @@ namespace MWRender
                                      << measurement->meanLuma << " weight " << measurement->weight << " target "
                                      << Render::AutoExposure::targetStops(
                                             measurement->meanLog2, measurement->highLog2, mAutoExposureSettings)
-                                     << " high log2 " << measurement->highLog2
-                                     << " stops " << stops << " pivot " << pivot;
+                                     << " high log2 " << measurement->highLog2 << " stops " << stops << " pivot "
+                                     << pivot;
                 }
             }
         }
@@ -4026,8 +4027,8 @@ namespace MWRender
         }
         {
             Misc::LoadTrace::Scope traceObjects("render.update.distantobjects");
-mCensusEye = vsg::dvec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-                        updateDistantObjects(cameraPosition, dt);
+            mCensusEye = vsg::dvec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+            updateDistantObjects(cameraPosition, dt);
         }
         {
             Misc::LoadTrace::Scope traceClusters("render.update.lodclusters");

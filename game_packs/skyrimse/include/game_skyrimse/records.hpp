@@ -388,9 +388,9 @@ namespace game_skyrimse
     /// plane that floods an entrance deeper than that is not believed. Ours, tuned on the 71 cells (see the task log).
     inline constexpr float kEntranceWetMargin = 128.f;
 
-    /// Task 0330: Dimhollow Crypt's two cells have the flag and an XCLW of 0.0, their entrance stands at 0 and 42 percent
-    /// of the second cell's content hangs more than 300 units under 0 (the puzzle room is at -1000): a plane there
-    /// would drown the player (3 health a second). A plane that lies more than this over the height under which a
+    /// Task 0330: Dimhollow Crypt's two cells have the flag and an XCLW of 0.0, their entrance stands at 0 and 42
+    /// percent of the second cell's content hangs more than 300 units under 0 (the puzzle room is at -1000): a plane
+    /// there would drown the player (3 health a second). A plane that lies more than this over the height under which a
     /// QUARTER of the cell's placed content lies is not believed (the Ratway's canal is shallow). Ours, tuned on these
     /// two cells and the Ratway.
     inline constexpr float kMaxQuarterSubmersion = 300.f;
@@ -548,7 +548,8 @@ namespace game_skyrimse
         bool mMessageBox = false;
         /// RNAM of an ACTI (task 0224: the activate text override, "Mine" on an ore vein); a FLOR's is in mHarvest.
         LString mActivateText;
-        /// VNAM of a TACT (task 0338: the voice type a talking activator speaks with, Azura's altar); 0 for any other type.
+        /// VNAM of a TACT (task 0338: the voice type a talking activator speaks with, Azura's altar); 0 for any other
+        /// type.
         FormId mVoiceType = 0;
     };
 

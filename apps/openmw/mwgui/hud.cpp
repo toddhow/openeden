@@ -587,10 +587,9 @@ namespace MWGui
             const MWWorld::Ptr player = MWMechanics::getPlayer();
             neutral = !player.isEmpty() && player.isInCell() && player.getCell()->isNeutral();
         }
-        // Task 0361d: these three default to true in the pack's manifest (`extension.json`); the engine does not see manifest
-        // defaults, so the same default is repeated here.
-        // Task 0244: the pack's own settings (the pack reads them from [extension.skyrimse]; the engine only needs to
-        // know which Morrowind pieces its HUD style replaces).
+        // Task 0361d: these three default to true in the pack's manifest (`extension.json`); the engine does not see
+        // manifest defaults, so the same default is repeated here. Task 0244: the pack's own settings (the pack reads
+        // them from [extension.skyrimse]; the engine only needs to know which Morrowind pieces its HUD style replaces).
         const bool hudStyle = wanted && Settings::Manager::getOrDefault<bool>("hud style", "extension.skyrimse", true);
         const bool sneakEye = hudStyle && Settings::Manager::getOrDefault<bool>("sneak", "extension.skyrimse", true);
         const bool compass = hudStyle && Settings::Manager::getOrDefault<bool>("map", "extension.skyrimse", true);

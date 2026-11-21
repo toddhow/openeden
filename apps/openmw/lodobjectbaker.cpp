@@ -731,12 +731,12 @@ namespace OMW
                 }
                 for (std::size_t r = 0; r < std::size(left); ++r)
                 {
-                    std::sort(left[r].begin(), left[r].end(),
-                        [](const auto& x, const auto& y) { return x.first > y.first; });
+                    std::sort(
+                        left[r].begin(), left[r].end(), [](const auto& x, const auto& y) { return x.first > y.first; });
                     for (std::size_t i = 0; i < left[r].size() && i < 12; ++i)
-                        Log(Debug::Info) << "LOD object bake: large model left out (reason " << r << "): "
-                                         << left[r][i].second << ", radius " << left[r][i].first << " (" << left[r].size()
-                                         << " such models)";
+                        Log(Debug::Info) << "LOD object bake: large model left out (reason " << r
+                                         << "): " << left[r][i].second << ", radius " << left[r][i].first << " ("
+                                         << left[r].size() << " such models)";
                 }
             }
             // Task 0361: models that flatten to nothing, with how many placements each has (the cluster bake counts

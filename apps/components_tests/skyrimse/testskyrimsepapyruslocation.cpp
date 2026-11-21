@@ -1,6 +1,6 @@
-// Task 0314: OnLocationChange. The game's TG01PlayerAliasScript (a script on a quest alias that holds the player) waits for
-// the player to enter the Ratway and then moves Brynjolf to the Ragged Flagon; the host had no such event. Generated
-// scripts and a fake game; no game data. Written first and run red against a stub `onLocationChange`.
+// Task 0314: OnLocationChange. The game's TG01PlayerAliasScript (a script on a quest alias that holds the player) waits
+// for the player to enter the Ratway and then moves Brynjolf to the Ragged Flagon; the host had no such event.
+// Generated scripts and a fake game; no game data. Written first and run red against a stub `onLocationChange`.
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/vmad.hpp>
 

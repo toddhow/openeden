@@ -651,8 +651,8 @@ namespace game_skyrimse::conditions
             (void)subject, (void)reference;
             return false;
         }
-        /// fn_32 with the "use aliases" flag (task 0328): is the subject in the same cell as the reference the quest alias
-        /// holds? (MQ105PushTrialScene's phase 1: GetInSameCell on the Player alias, target alias 33)
+        /// fn_32 with the "use aliases" flag (task 0328): is the subject in the same cell as the reference the quest
+        /// alias holds? (MQ105PushTrialScene's phase 1: GetInSameCell on the Player alias, target alias 33)
         virtual bool inSameCellAlias(Subject subject, std::uint32_t alias) const
         {
             (void)subject, (void)alias;

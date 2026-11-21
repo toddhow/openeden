@@ -174,8 +174,8 @@ namespace MWRender::SkyrimLocomotion
         static const bool sFidgetTrace = std::getenv("OPENEDEN_NEUTRAL_LOCO_TRACE") != nullptr;
         if (sFidgetTrace && mHaveFidget && (fidgetWeight > 0.f) != (mState.mFidgetWeight > 0.f))
             Log(Debug::Info) << "NFIDGET " << mTraceName << " t=" << time << (fidgetWeight > 0.f ? " starts" : " ends")
-                             << " clip=" << (mFidget.ready() ? "ready" : "missing") << " first=" << mFidgetSchedule.mFirst
-                             << " period=" << mFidgetSchedule.mPeriod;
+                             << " clip=" << (mFidget.ready() ? "ready" : "missing")
+                             << " first=" << mFidgetSchedule.mFirst << " period=" << mFidgetSchedule.mPeriod;
         mState.mFidgetWeight = fidgetWeight;
         add(mIdle, w.mIdle * (1.f - fidgetWeight), time + mIdleOffset);
         if (fidgetWeight > 0.f)
@@ -204,9 +204,10 @@ namespace MWRender::SkyrimLocomotion
         const float runSeconds = mRun.ready() ? mRun.mClip->mClip.mDuration : 1.f;
         const float cycleSeconds = walkSeconds + (runSeconds - walkSeconds) * mState.mRunMix;
         if (sTrace && (mState.mSmoothedSpeed > 1.f || target > 0.f) && (++mTraceCounter % 10) == 0)
-            Log(Debug::Info) << "NLOCO " << mTraceName << " t=" << time << " target=" << target << " smoothed=" << mState.mSmoothedSpeed
-                             << " idle=" << w.mIdle << " walk=" << w.mWalk << " run=" << w.mRun
-                             << " phase=" << mState.mPhase << " cps=" << w.mCyclesPerSecond << " played=" << played
-                             << " mix=" << mState.mRunMix << " rate=" << w.mCyclesPerSecond * cycleSeconds;
+            Log(Debug::Info) << "NLOCO " << mTraceName << " t=" << time << " target=" << target
+                             << " smoothed=" << mState.mSmoothedSpeed << " idle=" << w.mIdle << " walk=" << w.mWalk
+                             << " run=" << w.mRun << " phase=" << mState.mPhase << " cps=" << w.mCyclesPerSecond
+                             << " played=" << played << " mix=" << mState.mRunMix
+                             << " rate=" << w.mCyclesPerSecond * cycleSeconds;
     }
 }

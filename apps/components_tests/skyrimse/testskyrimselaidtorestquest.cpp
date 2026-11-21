@@ -1,6 +1,7 @@
 // Task 0342 (Laid to Rest): a quest script's RegisterForUpdate also reaches the scripts of the quest's ALIASES when the
 // switch is on (MS14: MS14BurnedHouseScript and MS14AlvasCoffinScript handle OnUpdate, nothing registers them but the
-// quest's own RegisterForUpdate(5)); off, an alias keeps its own registration (task 0325). Generated scripts, no game data.
+// quest's own RegisterForUpdate(5)); off, an alias keeps its own registration (task 0325). Generated scripts, no game
+// data.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/quest.hpp>

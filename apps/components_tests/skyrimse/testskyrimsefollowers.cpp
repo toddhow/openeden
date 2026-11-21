@@ -621,8 +621,8 @@ namespace
         EXPECT_EQ(rules.sideOf(2), FollowerSide::None);
     }
 
-    // Task 0340 (C01AmbushScene: Farkas walks to the ambush point while he is the player's follower): a package a scene forces
-    // wins over following; when the scene lets go he follows again.
+    // Task 0340 (C01AmbushScene: Farkas walks to the ambush point while he is the player's follower): a package a scene
+    // forces wins over following; when the scene lets go he follows again.
     TEST(SkyrimFollowerBrain, aPackageASceneForcesWinsOverFollowingAndFollowingResumesAfterwards)
     {
         Rig r;

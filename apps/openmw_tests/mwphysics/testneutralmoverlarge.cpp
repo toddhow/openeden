@@ -141,7 +141,8 @@ namespace
         const Limits mount = limitsForHeight(kDragonHeight);
         EXPECT_FLOAT_EQ(large.mStepUp, mount.mStepUp);
         EXPECT_FLOAT_EQ(large.mStepDown, mount.mStepDown);
-        EXPECT_FLOAT_EQ(large.mMinFloorNormalZ, kLargeCreatureMinFloorNormalZ) << "a rim on a ridge: the centre may be on a steep face";
+        EXPECT_FLOAT_EQ(large.mMinFloorNormalZ, kLargeCreatureMinFloorNormalZ)
+            << "a rim on a ridge: the centre may be on a steep face";
         EXPECT_LT(large.mMinFloorNormalZ, mount.mMinFloorNormalZ);
         EXPECT_GT(large.mStepUp, 70.f);
         EXPECT_NEAR(large.mStepDown, kDragonHeight / 2.f, 1e-3f);

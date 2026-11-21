@@ -76,8 +76,8 @@ namespace MWPhysics::NeutralMover
     /// above are the humanoid's; a taller animal (a horse, a bear) has longer legs and a surer foot: `limitsForHeight`
     /// scales the two distances with the capsule's height beyond kReferenceHeight (a step is about a fifth of the
     /// height, a drop about half of it: the horse's legs are about half its shoulder height) and lets it walk ground
-    /// whose normal points up at least kAnimalMinFloorNormalZ (about 63 degrees from level). ESTIMATES, found by riding the
-    /// Whiterun plains: a route up the hill had 53 degree ground. Plain data, no allocation.
+    /// whose normal points up at least kAnimalMinFloorNormalZ (about 63 degrees from level). ESTIMATES, found by riding
+    /// the Whiterun plains: a route up the hill had 53 degree ground. Plain data, no allocation.
     struct Limits
     {
         float mStepUp = kStepUp;
@@ -89,7 +89,8 @@ namespace MWPhysics::NeutralMover
         float mTrampleHeight = 0.f;
         float mTrampleWidth = 0.f;
     };
-    inline constexpr float kAnimalMinFloorNormalZ = 0.45f; // task 0274: a road bank of 61 degrees (nz 0.486) stopped the cart horses at 0.5
+    inline constexpr float kAnimalMinFloorNormalZ
+        = 0.45f; // task 0274: a road bank of 61 degrees (nz 0.486) stopped the cart horses at 0.5
     /// The limits of a capsule `height` units tall: the humanoid's up to kReferenceHeight (and for a height that is
     /// not finite or not positive), above it step-up = height * kStepUp / kReferenceHeight, step-down = height / 2 and
     /// the floor normal limit kAnimalMinFloorNormalZ.
@@ -133,7 +134,8 @@ namespace MWPhysics::NeutralMover
         bool mHit = false;
         float mFraction = 1.f;
         vsg::vec3 mNormal = vsg::vec3(0.f, 0.f, 1.f); ///< of the surface hit, pointing out of it
-        std::uint32_t mBody = 0xFFFFFFFFu; ///< task 0336: the Jolt body hit (JPH::BodyID::GetIndexAndSequenceNumber), or none
+        std::uint32_t mBody
+            = 0xFFFFFFFFu; ///< task 0336: the Jolt body hit (JPH::BodyID::GetIndexAndSequenceNumber), or none
     };
 
     /// The world as the mover sees it. `from` is the position of the capsule's feet; `delta` the whole motion.

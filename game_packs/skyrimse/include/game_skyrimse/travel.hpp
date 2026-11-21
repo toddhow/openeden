@@ -141,10 +141,10 @@ namespace game_skyrimse::travel
         bool queueRequest(FormId destination);
 
         // ---- task 0325: the player's own MoveTo (the abduction: OnSleepStart moves him to the shack) ----------------
-        /// Game.GetPlayer().MoveTo(reference) into the interior cell `cellName` (an editor id), at (x, y, z) facing `yaw`
-        /// (radians). Remembered for the global travel script, which reads `move_seq` and `move_place` ("cell;x;y;z;yaw")
-        /// and teleports (a teleport of the player is a global script's right). No time passes. A later request replaces
-        /// an earlier unread one. False for an empty name or a place that is not finite.
+        /// Game.GetPlayer().MoveTo(reference) into the interior cell `cellName` (an editor id), at (x, y, z) facing
+        /// `yaw` (radians). Remembered for the global travel script, which reads `move_seq` and `move_place`
+        /// ("cell;x;y;z;yaw") and teleports (a teleport of the player is a global script's right). No time passes. A
+        /// later request replaces an earlier unread one. False for an empty name or a place that is not finite.
         bool queueMove(std::string_view cellName, double x, double y, double z, double yaw);
         [[nodiscard]] std::uint32_t moveSequence() const { return mMoveSeq; }
         [[nodiscard]] const std::string& movePlace() const { return mMovePlace; }

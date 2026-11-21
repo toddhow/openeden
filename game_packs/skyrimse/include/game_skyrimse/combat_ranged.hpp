@@ -11,7 +11,8 @@
 //    named *Bolt* has it clear, every one named *Arrow* has it set; see the gated test).
 //  - Dual wielding: an actor whose combat style allows it (CSTY DATA bit 4) and that carries a second one-handed
 //    melee weapon swings the right one, then the left one (1HM_AttackLeft), each with its own weapon's numbers.
-//  - Dual casting: both hands cast one spell; the magnitude and the cost follow the GMSTs fMagicDualCastingEffectiveness
+//  - Dual casting: both hands cast one spell; the magnitude and the cost follow the GMSTs
+//  fMagicDualCastingEffectiveness
 //    Base (2.2), fMagicDualCastingCostMult (2.8) and fMagicDualCastingTimeMult (1.0), read from the data.
 
 #include <game_skyrimse/combat_stats.hpp>

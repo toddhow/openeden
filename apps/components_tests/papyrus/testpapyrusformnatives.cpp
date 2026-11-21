@@ -106,8 +106,14 @@ namespace
         a.function("SetAlpha").native().param("afTargetAlpha", "Float").param("abFade", "Bool");
         return a;
     }
-    ScriptBuilder raceClass() { return ScriptBuilder("Race"); }
-    ScriptBuilder formClass() { return ScriptBuilder("Form"); }
+    ScriptBuilder raceClass()
+    {
+        return ScriptBuilder("Race");
+    }
+    ScriptBuilder formClass()
+    {
+        return ScriptBuilder("Form");
+    }
     ScriptBuilder actorBaseClass()
     {
         ScriptBuilder a("ActorBase");
@@ -144,9 +150,8 @@ namespace
             , mRuntime(ScriptPapyrus::createRuntime(world, UnknownFunctionPolicy::Tolerant))
             , mNatives(world)
         {
-            for (const ScriptBuilder& c :
-                { actorClass(), raceClass(), formClass(), actorBaseClass(), formListClass(), referenceClass(),
-                    soundClass() })
+            for (const ScriptBuilder& c : { actorClass(), raceClass(), formClass(), actorBaseClass(), formListClass(),
+                     referenceClass(), soundClass() })
                 EXPECT_TRUE(load(c));
             mReport = mNatives.registerAll(*mRuntime);
         }
@@ -327,16 +332,16 @@ namespace
             EXPECT_EQ(rig.run(id, "At", { form("FormList", kList), PapyrusValue::makeInt(0) }).handle, 0x10u);
             // out of range, either side: none
             EXPECT_EQ(rig.run(id, "At", { form("FormList", kList), PapyrusValue::makeInt(3) }).kind, PapyrusKind::None);
-            EXPECT_EQ(rig.run(id, "At", { form("FormList", kList), PapyrusValue::makeInt(-1) }).kind,
-                PapyrusKind::None);
+            EXPECT_EQ(
+                rig.run(id, "At", { form("FormList", kList), PapyrusValue::makeInt(-1) }).kind, PapyrusKind::None);
             EXPECT_TRUE(rig.run(id, "Has", { form("FormList", kList), form("Form", 0x30) }).integer != 0);
             EXPECT_FALSE(rig.run(id, "Has", { form("FormList", kList), form("Form", 0x40) }).integer != 0);
             EXPECT_FALSE(rig.run(id, "Has", { form("FormList", kList), PapyrusValue::makeNone() }).integer != 0)
                 << "None is never a member";
             // a list the world does not know is empty
             EXPECT_EQ(rig.run(id, "Size", { form("FormList", 0x4242) }).integer, 0);
-            EXPECT_EQ(rig.run(id, "At", { form("FormList", 0x4242), PapyrusValue::makeInt(0) }).kind,
-                PapyrusKind::None);
+            EXPECT_EQ(
+                rig.run(id, "At", { form("FormList", 0x4242), PapyrusValue::makeInt(0) }).kind, PapyrusKind::None);
         }
     }
 
@@ -376,7 +381,8 @@ namespace
             Rig rig(world, target);
             const InstanceId id = rig.probe();
             EXPECT_EQ(rig.run(id, "Alpha", { form("Actor", kNpc) }).integer, 7);
-            const PapyrusValue played = rig.run(id, "PlaySound", { form("Sound", 0x11), form("ObjectReference", kRef) });
+            const PapyrusValue played
+                = rig.run(id, "PlaySound", { form("Sound", 0x11), form("ObjectReference", kRef) });
             EXPECT_EQ(played.kind, PapyrusKind::Int);
             EXPECT_EQ(played.integer, 0);
             EXPECT_EQ(rig.run(id, "Stop").integer, 9);

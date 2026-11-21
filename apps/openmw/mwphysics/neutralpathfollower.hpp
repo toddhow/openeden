@@ -56,16 +56,17 @@ namespace MWPhysics::NeutralPath
     /// Task 0332: a path the navigator gave leads down from a raised rim (a hearth's edge, a step the mover climbed)
     /// by at most this much; the mover is allowed to step down that far while the next waypoint is lower.
     inline constexpr float kMaxPathDrop = 64.f;
-    /// How far down the mover may step while following `path` (the waypoints of the goal, `reached` of them reached) from
-    /// `feetZ`: `baseStepDown`, or, when one of the next two waypoints is lower than that, the drop to it plus a little
-    /// (at most kMaxPathDrop). Pure.
+    /// How far down the mover may step while following `path` (the waypoints of the goal, `reached` of them reached)
+    /// from `feetZ`: `baseStepDown`, or, when one of the next two waypoints is lower than that, the drop to it plus a
+    /// little (at most kMaxPathDrop). Pure.
     [[nodiscard]] float pathStepDown(
         float feetZ, const std::vector<vsg::vec3>& path, std::size_t reached, float baseStepDown);
 
     /// Task 0336: the steepest ground (the z of its normal) a walker on a navmesh path stands on: recast's voxels pass
     /// lumpy rock faces whose analytic slope is a little steeper than the mover's 0.64 (found: a rock of normal z 0.628
     /// stopped Riverwood guards on a path the navmesh drew over the rock). While a path vouches for the
-    /// ground the limit is this or the base, whichever is lower. ESTIMATE (about 70 degrees; rock faces of normal z 0.63, 0.47 and 0.43 each stopped a walk the navmesh had drawn).
+    /// ground the limit is this or the base, whichever is lower. ESTIMATE (about 70 degrees; rock faces of normal z
+    /// 0.63, 0.47 and 0.43 each stopped a walk the navmesh had drawn).
     inline constexpr float kPathMinFloorNormalZ = 0.35f;
     [[nodiscard]] float pathMinFloorNormalZ(float baseMinNormalZ);
 
@@ -109,9 +110,9 @@ namespace MWPhysics::NeutralPath
         /// Starts a goal, replacing any earlier one without a result. A non-finite target or speed is refused (false,
         /// no goal).
         bool setGoal(const vsg::vec3& target, float speed);
-        /// Task 0336: with long paths a PARTIAL path that gets at least kLongPathProgress nearer to the goal is walked to
-        /// its end and the path is asked for again there (the goal lies beyond the navmesh built round the player: it
-        /// grows as the walk goes on); without them a partial path is no way to the goal, as before. Set before or
+        /// Task 0336: with long paths a PARTIAL path that gets at least kLongPathProgress nearer to the goal is walked
+        /// to its end and the path is asked for again there (the goal lies beyond the navmesh built round the player:
+        /// it grows as the walk goes on); without them a partial path is no way to the goal, as before. Set before or
         /// after `setGoal`; it stays until changed.
         void setLongPaths(bool on) { mLongPaths = on; }
         /// Drops the goal without a result.

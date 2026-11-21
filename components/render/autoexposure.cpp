@@ -78,8 +78,8 @@ namespace Render
     std::uint32_t AutoExposurePass::strideFor(const VkExtent2D& extent)
     {
         std::uint32_t stride = 4;
-        while (static_cast<std::uint64_t>((extent.width + stride - 1) / stride)
-                * ((extent.height + stride - 1) / stride)
+        while (
+            static_cast<std::uint64_t>((extent.width + stride - 1) / stride) * ((extent.height + stride - 1) / stride)
             > AutoExposure::maxSamples)
             ++stride;
         return stride;
@@ -130,9 +130,9 @@ namespace Render
         auto histogramDescriptor = vsg::DescriptorBuffer::create(
             vsg::BufferInfoList{ vsg::BufferInfo::create(histogram, 0, histogramBytes) }, 1, 0,
             VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-        auto resultDescriptor = vsg::DescriptorBuffer::create(
-            vsg::BufferInfoList{ vsg::BufferInfo::create(mResults, 0, ringBytes) }, 2, 0,
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        auto resultDescriptor
+            = vsg::DescriptorBuffer::create(vsg::BufferInfoList{ vsg::BufferInfo::create(mResults, 0, ringBytes) }, 2,
+                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         vsg::DescriptorSetLayoutBindings bindings{
             { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
@@ -141,7 +141,8 @@ namespace Render
         };
         auto setLayout = vsg::DescriptorSetLayout::create(bindings);
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout },
-            vsg::PushConstantRanges{ { VK_SHADER_STAGE_COMPUTE_BIT, 0, static_cast<uint32_t>(2 * sizeof(vsg::vec4)) } });
+            vsg::PushConstantRanges{
+                { VK_SHADER_STAGE_COMPUTE_BIT, 0, static_cast<uint32_t>(2 * sizeof(vsg::vec4)) } });
         auto clear = createPipeline(layout, mShaderOptions, clearPath);
         auto hist = createPipeline(layout, mShaderOptions, histPath);
         auto resolve = createPipeline(layout, mShaderOptions, resolvePath);
@@ -157,10 +158,10 @@ namespace Render
 
         // What the scene passes wrote (a barrier's first scope holds every command submitted before it) and what last
         // frame's resolve wrote to the histogram.
-        auto first = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
-            vsg::MemoryBarrier::create(
-                VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT));
+        auto first
+            = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+                vsg::MemoryBarrier::create(
+                    VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT));
         auto between = [] {
             return vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
@@ -184,8 +185,8 @@ namespace Render
         commands->addChild(hist);
         const std::uint32_t samplesX = (extent.width + mStride - 1) / mStride;
         const std::uint32_t samplesY = (extent.height + mStride - 1) / mStride;
-        commands->addChild(vsg::Dispatch::create(
-            (samplesX + groupSize - 1) / groupSize, (samplesY + groupSize - 1) / groupSize, 1));
+        commands->addChild(
+            vsg::Dispatch::create((samplesX + groupSize - 1) / groupSize, (samplesY + groupSize - 1) / groupSize, 1));
         commands->addChild(between());
         commands->addChild(resolve);
         commands->addChild(vsg::Dispatch::create(1, 1, 1));

@@ -1,5 +1,6 @@
 // Task 0355 (follow-up of stage d): the fog curve of a game pack interior and how it rides in scene.fogColor.w
-// (components/render/fogcurve.hpp, twin of lib/view/fog.glsl and fog.slang). Every expected number is worked out by hand.
+// (components/render/fogcurve.hpp, twin of lib/view/fog.glsl and fog.slang). Every expected number is worked out by
+// hand.
 #include <gtest/gtest.h>
 
 #include <cmath>

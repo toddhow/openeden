@@ -99,8 +99,8 @@ namespace Pipeline
         // OpenEden (task 0153 follow-up 2): INSTANCE draws take a third per-instance input, a colour and a sway speed,
         // and read their rotation input as (tilt x, tilt y, yaw); used only by the neutral grass.
         INSTANCE_TINT,
-        // OpenEden (task 0355 follow-up): the object shader sums the point lights per pixel in this draw, as it does with
-        // a normal or specular map. Set by the neutral model loader and by Pipeline::Graphics for the setting
+        // OpenEden (task 0355 follow-up): the object shader sums the point lights per pixel in this draw, as it does
+        // with a normal or specular map. Set by the neutral model loader and by Pipeline::Graphics for the setting
         // `[Shaders] force per pixel lighting`.
         FORCE_PER_PIXEL_LIGHTING,
         // OpenEden (task 0355 stage e): the object shader takes its ambient light from the cell's ambient cube (six

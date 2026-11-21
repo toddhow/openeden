@@ -39,12 +39,11 @@ namespace
 
     TEST(NeutralLightTypes, neverIsKeptAndUnspecifiedIsNoRule)
     {
-        const ESM::Light never = MWWorld::makeNeutralEsmLight(
-            light(0.0, LightShadow::Never), false, false, 0u, true);
+        const ESM::Light never = MWWorld::makeNeutralEsmLight(light(0.0, LightShadow::Never), false, false, 0u, true);
         EXPECT_NE(never.mData.mFlags & ESM::Light::NeutralShadowNever, 0);
         EXPECT_EQ(never.mData.mFlags & (ESM::Light::NeutralShadowCasts | ESM::Light::NeutralSpot), 0);
-        const ESM::Light none = MWWorld::makeNeutralEsmLight(
-            light(0.0, LightShadow::Unspecified), false, false, 0u, true);
+        const ESM::Light none
+            = MWWorld::makeNeutralEsmLight(light(0.0, LightShadow::Unspecified), false, false, 0u, true);
         EXPECT_EQ(none.mData.mFlags & typeBits, 0);
     }
 

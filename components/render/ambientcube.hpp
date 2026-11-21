@@ -11,10 +11,10 @@
 //   [base + 0]     = (enabled, fogOther.xyz): 0 when the cell has no cube (the shader then returns the flat ambient);
 //                    fogOther is the fog's second colour (task 0362 item 1; read only when [base + 1].w is not 0)
 //   [base + 1]     = (baseline.xyz, fogOtherMode): the flat ambient the cube was made for; what the flat ambient has
-//                    gained since (Night Eye) is added to every face, as the baked probes do (giAmbient); fogOtherMode is
-//                    +1 when fogOther is the fog's colour at its far end (the scene's fog colour is where it starts), -1
-//                    when it is the colour where it starts (the scene's is the far end), 0 when there is none; the shaders
-//                    blend the two with the fog's linear share
+//                    gained since (Night Eye) is added to every face, as the baked probes do (giAmbient); fogOtherMode
+//                    is +1 when fogOther is the fog's colour at its far end (the scene's fog colour is where it
+//                    starts), -1 when it is the colour where it starts (the scene's is the far end), 0 when there is
+//                    none; the shaders blend the two with the fog's linear share
 //   [base + 2 + i] = (colour of face i, 0), i = +X, -X, +Y, -Y, +Z, -Z
 // All colours are in the view's colour space (linear with HDR). No game types.
 
@@ -46,14 +46,14 @@ namespace Render::AmbientCube
         return out;
     }
 
-    /// OpenEden (task 0361b): the cube of a Skyrim SE record in the order this file's faces are sampled. The record's six
-    /// colours are stored +X, -X, +Y, -Y, then the vertical pair with the SKY colour LAST (the stored fifth colour is the
-    /// one a surface facing DOWN takes, the sixth the one a surface facing UP takes). Measured on the five masters:
-    /// in all 284 weather records with a directional ambient (that differ) the sixth colour is the brighter, and per
-    /// weather the six read as a sky dome only in this order (day: down 77/129/136 teal from the ground, horizontals
-    /// about 100/140/155, up 191/214/221 pale sky; night 44/58/67, 60/85/100, 65/103/126); in 559 of 560 interiors
-    /// the sixth is the brighter too. Read the other way round, every up-facing surface (the ground, roofs) took
-    /// the dark ground colour and shadowed ground drew black. The faces of `cube` are the stored order; the result
+    /// OpenEden (task 0361b): the cube of a Skyrim SE record in the order this file's faces are sampled. The record's
+    /// six colours are stored +X, -X, +Y, -Y, then the vertical pair with the SKY colour LAST (the stored fifth colour
+    /// is the one a surface facing DOWN takes, the sixth the one a surface facing UP takes). Measured on the five
+    /// masters: in all 284 weather records with a directional ambient (that differ) the sixth colour is the brighter,
+    /// and per weather the six read as a sky dome only in this order (day: down 77/129/136 teal from the ground,
+    /// horizontals about 100/140/155, up 191/214/221 pale sky; night 44/58/67, 60/85/100, 65/103/126); in 559 of 560
+    /// interiors the sixth is the brighter too. Read the other way round, every up-facing surface (the ground, roofs)
+    /// took the dark ground colour and shadowed ground drew black. The faces of `cube` are the stored order; the result
     /// is +X, -X, +Y, -Y, +Z (up), -Z (down) as `sample` and the shaders read them.
     inline Cube fromStoredOrder(const Cube& stored)
     {
@@ -62,8 +62,8 @@ namespace Render::AmbientCube
         return out;
     }
 
-    /// A cube whose six faces are one colour: lights every surface alike (a weather that has no directional ambient, in a
-    /// blend with one that has).
+    /// A cube whose six faces are one colour: lights every surface alike (a weather that has no directional ambient, in
+    /// a blend with one that has).
     inline Cube flat(const vsg::vec3& colour)
     {
         Cube out;
@@ -141,8 +141,8 @@ namespace Render::AmbientCube
 
     /// Writes the cube's entries of `header` (headerTotalVec4s long, from the start of the buffer). A null cube writes
     /// only the "off" flag.
-    inline void write(vsg::vec4* header, const Cube* cube, const vsg::vec3& baseline, const vsg::vec3* fogOther,
-        bool fogOtherIsEnd)
+    inline void write(
+        vsg::vec4* header, const Cube* cube, const vsg::vec3& baseline, const vsg::vec3* fogOther, bool fogOtherIsEnd)
     {
         vsg::vec4* at = header + base;
         const vsg::vec3 start = fogOther != nullptr ? *fogOther : vsg::vec3(0.f, 0.f, 0.f);

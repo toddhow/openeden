@@ -92,7 +92,8 @@ namespace
             withTemplate(sub4("XCLL", xcll(0.7f, 0.8f, LightingInherit::FogPower | LightingInherit::FogMax)))));
         cells.append(interiorCell(
             kPowerOnly, "InheritsPower", withTemplate(sub4("XCLL", xcll(0.7f, 0.8f, LightingInherit::FogPower)))));
-        cells.append(interiorCell(kMaxOnly, "InheritsMax", withTemplate(sub4("XCLL", xcll(0.7f, 0.8f, LightingInherit::FogMax)))));
+        cells.append(interiorCell(
+            kMaxOnly, "InheritsMax", withTemplate(sub4("XCLL", xcll(0.7f, 0.8f, LightingInherit::FogMax)))));
         cells.append(interiorCell(kShort, "ShortXcll", sub4("XCLL", xcll(0.4f, 0.0f, 0, 64))));
         cells.append(interiorCell(kNoXcll, "NoXcll", Bytes()));
         bytes.append(group4(Content::fourCC("CELL"), kGrupTop, cells));

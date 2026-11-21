@@ -87,13 +87,12 @@ namespace MWRender::SkyrimIdle
             return entry.mClip;
         }
 
-        // Task 0290: the skeleton file of a model; a model with no file of its own name (the beast races' skeletonbeast,
-        // the boar riekling's skeletonboar) takes the shared skeleton.hkx of its folder.
+        // Task 0290: the skeleton file of a model; a model with no file of its own name (the beast races'
+        // skeletonbeast, the boar riekling's skeletonboar) takes the shared skeleton.hkx of its folder.
         std::string skeletonFileFor(const VFS::Manager& vfs, std::string_view skeletonNifPath)
         {
-            return HavokPack::chooseSkeletonHkx(skeletonNifPath, [&vfs](const std::string& path) {
-                return vfs.exists(VFS::Path::toNormalized(path));
-            });
+            return HavokPack::chooseSkeletonHkx(
+                skeletonNifPath, [&vfs](const std::string& path) { return vfs.exists(VFS::Path::toNormalized(path)); });
         }
 
         std::mutex sFutureMutex;
@@ -190,8 +189,8 @@ namespace MWRender::SkyrimIdle
     {
         if (!clipName.empty() && clipName.front() == '~')
             return loadPairedAsync(vfs, clipName); // task 0267: a side of a paired clip
-        return loadClipAsync(vfs, skeletonFileFor(vfs, skeletonNifPath),
-            HavokPack::clipHkxPath(skeletonNifPath, clipName, sexFolder));
+        return loadClipAsync(
+            vfs, skeletonFileFor(vfs, skeletonNifPath), HavokPack::clipHkxPath(skeletonNifPath, clipName, sexFolder));
     }
 
     ClipFuture loadClipAsync(const VFS::Manager& vfs, const std::string& skeletonPath, const std::string& clipPath)

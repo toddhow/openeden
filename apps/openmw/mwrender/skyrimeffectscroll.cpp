@@ -29,7 +29,8 @@ namespace MWRender::SkyrimEffectScroll
         return m;
     }
 
-    void Driver::add(const vsg::ref_ptr<vsg::mat4Value>& uniform, std::shared_ptr<const NifScene::UvAnimation> animation)
+    void Driver::add(
+        const vsg::ref_ptr<vsg::mat4Value>& uniform, std::shared_ptr<const NifScene::UvAnimation> animation)
     {
         if (!uniform || !animation)
             return;

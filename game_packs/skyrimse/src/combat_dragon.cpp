@@ -322,8 +322,8 @@ namespace game_skyrimse
             {
                 // A load put this dragon in the air (task 0280): the cruise goes on from the saved place.
                 state.mResumePending = false;
-                state.mFlight.resume(state.mResume.mX, state.mResume.mY, state.mResume.mZ, state.mResume.mHeading,
-                    player.x, player.y);
+                state.mFlight.resume(
+                    state.mResume.mX, state.mResume.mY, state.mResume.mZ, state.mResume.mHeading, player.x, player.y);
                 if (mTrace)
                     trace("COMBAT dragon " + who(f->mSubject) + " resumes its flight at "
                         + num(static_cast<float>(state.mResume.mX)) + " " + num(static_cast<float>(state.mResume.mY))

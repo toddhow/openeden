@@ -134,12 +134,14 @@ namespace
         const Cube c = cube();
         const vsg::vec3 baseline(0.3f, 0.3f, 0.3f);
         // Night Eye raised the flat colour by 0.7
-        expectNear(Render::AmbientCube::ambientFor(c, vsg::vec3(0, 0, 1), baseline + vsg::vec3(0.7f, 0.7f, 0.7f), baseline),
+        expectNear(
+            Render::AmbientCube::ambientFor(c, vsg::vec3(0, 0, 1), baseline + vsg::vec3(0.7f, 0.7f, 0.7f), baseline),
             c[4] + vsg::vec3(0.7f, 0.7f, 0.7f));
         // unchanged flat colour: the cube alone
         expectNear(Render::AmbientCube::ambientFor(c, vsg::vec3(1, 0, 0), baseline, baseline), c[0]);
         // a flat colour far under its baseline cannot make light negative
-        const vsg::vec3 out = Render::AmbientCube::ambientFor(c, vsg::vec3(1, 0, 0), vsg::vec3(0, 0, 0), baseline + vsg::vec3(5, 5, 5));
+        const vsg::vec3 out
+            = Render::AmbientCube::ambientFor(c, vsg::vec3(1, 0, 0), vsg::vec3(0, 0, 0), baseline + vsg::vec3(5, 5, 5));
         EXPECT_GE(out.x, 0.f);
         EXPECT_GE(out.y, 0.f);
         EXPECT_GE(out.z, 0.f);
@@ -184,7 +186,8 @@ namespace
     TEST(AmbientCubePipeline, theModeIsADefineOfTheFragmentStageThatALoaderCanRequest)
     {
         EXPECT_EQ(Pipeline::getDefine(Pipeline::Mode::AMBIENT_CUBE), "AMBIENT_CUBE");
-        EXPECT_NE(std::find(Pipeline::fragmentModes.begin(), Pipeline::fragmentModes.end(), Pipeline::Mode::AMBIENT_CUBE),
+        EXPECT_NE(
+            std::find(Pipeline::fragmentModes.begin(), Pipeline::fragmentModes.end(), Pipeline::Mode::AMBIENT_CUBE),
             Pipeline::fragmentModes.end());
         EXPECT_EQ(std::find(Pipeline::vertexModes.begin(), Pipeline::vertexModes.end(), Pipeline::Mode::AMBIENT_CUBE),
             Pipeline::vertexModes.end());

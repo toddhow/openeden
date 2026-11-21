@@ -59,7 +59,8 @@ namespace vsgUtil
     /// Review of stage h (round 4), finding 2: the version of the checks a cache entry has passed. It is part of every
     /// cache key (and so of the refused-set files), so an entry made under an older, weaker check is a miss. Raise it
     /// whenever a check (checkTwinAgainstGlsl, checkSlangTwinStructure) becomes stricter.
-    inline constexpr int slangCacheCheckVersion = 3; // 3: task 0363, stage g: no GLSL to check against, the structure only
+    inline constexpr int slangCacheCheckVersion
+        = 3; // 3: task 0363, stage g: no GLSL to check against, the structure only
 
     /// The compiler itself. Implementations need not be thread safe: SlangRuntime serialises the calls.
     class SlangRuntimeCompiler

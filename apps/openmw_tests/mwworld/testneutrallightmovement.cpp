@@ -1,5 +1,6 @@
-// Task 0362 item 2: a Skyrim light's movement amplitude reaches the engine's light record (ESM::Light::mNeutralMovement),
-// cut to a quarter of the radius and 64 units, only for a light with its own flicker and only when asked.
+// Task 0362 item 2: a Skyrim light's movement amplitude reaches the engine's light record
+// (ESM::Light::mNeutralMovement), cut to a quarter of the radius and 64 units, only for a light with its own flicker
+// and only when asked.
 #include <gtest/gtest.h>
 
 #include <limits>

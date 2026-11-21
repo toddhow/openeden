@@ -172,8 +172,8 @@ namespace game_skyrimse
         if (mPhase == RidePhase::Dismounting)
         {
             // The clip starts 7 units from where the loop holds the body: blend that step away at the start.
-            const Point start = horseFramePoint(x, y, z, mHeading, mPairedInfo.start.x, mPairedInfo.start.y,
-                mPairedInfo.start.z);
+            const Point start
+                = horseFramePoint(x, y, z, mHeading, mPairedInfo.start.x, mPairedInfo.start.y, mPairedInfo.start.z);
             mStepDelta = { saddle.mX - start.mX, saddle.mY - start.mY, saddle.mZ - start.mZ };
         }
         mPhaseTime += seconds;
@@ -185,7 +185,8 @@ namespace game_skyrimse
         if (mPhase == RidePhase::Mounting)
         {
             // Task 0278: the loop holds the body at the saddle, the clip ended a few units away: blend from there.
-            const Point end = horseFramePoint(x, y, z, mHeading, mPairedInfo.end.x, mPairedInfo.end.y, mPairedInfo.end.z);
+            const Point end
+                = horseFramePoint(x, y, z, mHeading, mPairedInfo.end.x, mPairedInfo.end.y, mPairedInfo.end.z);
             mStepDelta = { end.mX - saddle.mX, end.mY - saddle.mY, end.mZ - saddle.mZ };
             mStepTime = 0.f;
             mStepActive = true;
@@ -264,7 +265,8 @@ namespace game_skyrimse
         if (mMounted)
             return handle == mHorse; // the horse he sits on: activating it gets him off
         const Row* row = rowOf(handle);
-        // Task 0278: owned by the test setting, or bought (the game's own purchase script put it in PlayerHorseFaction).
+        // Task 0278: owned by the test setting, or bought (the game's own purchase script put it in
+        // PlayerHorseFaction).
         const bool owned = row != nullptr && (row->mOwned || (mOwnedLookup && mOwnedLookup(handle.reference)));
         return row != nullptr && row->mHorse == 1 && owned && row->mInfo.mWalkSpeed > 0.f;
     }

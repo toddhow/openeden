@@ -83,8 +83,8 @@ namespace game_skyrimse
             std::string refs;
             for (const SceneActor& a : record->mActors)
                 refs += " " + hex(mEnv.aliasReference(record->mQuest, a.mAlias));
-            mEnv.log("SCENE " + hex(scene) + " not started: none of its actors is loaded (alias references" + refs
-                + ")");
+            mEnv.log(
+                "SCENE " + hex(scene) + " not started: none of its actors is loaded (alias references" + refs + ")");
         }
         return false;
     }
@@ -115,7 +115,8 @@ namespace game_skyrimse
         // task 0333: a scene with no actions only runs its fragments, so it needs nobody to be loaded
         const bool beginFragment = record->mVmad && record->mVmad->mHasSceneFragments
             && (record->mVmad->mScene.mFlags & 1) != 0 && !record->mVmad->mScene.mBeginFunction.empty();
-        // task 0350: a begin fragment may move the actors (the Falkreath funeral), so with the option such a scene needs nobody
+        // task 0350: a begin fragment may move the actors (the Falkreath funeral), so with the option such a scene
+        // needs nobody
         const bool needsLoaded = !(mOptions.mActionlessStartsUnloaded && record->mActions.empty())
             && !(mOptions.mBeginFragmentStartsUnloaded && beginFragment);
         if (resume == nullptr && needsLoaded
@@ -518,9 +519,9 @@ namespace game_skyrimse
                         {
                             // task 0328: the phase the action starts in was skipped (its start conditions failed), so
                             // the action never started and would hold the phase it ends in for ever (MQ105's
-                            // EinarthTeachScene, a hold package from phase 1 to 4 with phases 1 and 2 skipped). A package
-                            // is a state for the span: it starts in the first phase of the span that runs. A line or
-                            // timer is part of the skipped phase: it is left out.
+                            // EinarthTeachScene, a hold package from phase 1 to 4 with phases 1 and 2 skipped). A
+                            // package is a state for the span: it starts in the first phase of the span that runs. A
+                            // line or timer is part of the skipped phase: it is left out.
                             if (a.mType == SceneActionType::Package)
                                 in.mActions[i].mStage = ActionStage::Running;
                             else

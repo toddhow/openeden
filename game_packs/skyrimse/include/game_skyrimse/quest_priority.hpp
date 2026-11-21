@@ -1,4 +1,5 @@
-// Task 0298: the order of quests when their alias packages are tried (Civil War: CW00A's forced greeting before CW's sandbox).
+// Task 0298: the order of quests when their alias packages are tried (Civil War: CW00A's forced greeting before CW's
+// sandbox).
 #ifndef OPENEDEN_GAME_SKYRIMSE_QUEST_PRIORITY_HPP
 #define OPENEDEN_GAME_SKYRIMSE_QUEST_PRIORITY_HPP
 
@@ -24,7 +25,8 @@ namespace game_skyrimse
     }
 
     /// Task 0334: the packages ONE quest's aliases give one placement, as the world view finds them: `mForced` for an
-    /// alias a script (or an external alias) filled (the dynamic lists), else an alias filled with the placement itself.
+    /// alias a script (or an external alias) filled (the dynamic lists), else an alias filled with the placement
+    /// itself.
     struct AliasPackageGroup
     {
         std::uint32_t mQuest = 0;
@@ -38,7 +40,8 @@ namespace game_skyrimse
     /// priority 80, and must be tried before DLC1VQ02's `SeranaAbandoned`, priority 70, which an external alias gives);
     /// at the same priority a forced alias first (the order before this task), then by quest id. The order inside a
     /// group is kept.
-    [[nodiscard]] inline std::vector<const PackageRecord*> orderAliasPackageGroups(std::vector<AliasPackageGroup> groups)
+    [[nodiscard]] inline std::vector<const PackageRecord*> orderAliasPackageGroups(
+        std::vector<AliasPackageGroup> groups)
     {
         std::stable_sort(groups.begin(), groups.end(), [](const AliasPackageGroup& a, const AliasPackageGroup& b) {
             if (a.mPriority != b.mPriority)
@@ -52,11 +55,12 @@ namespace game_skyrimse
             out.insert(out.end(), group.mPackages.begin(), group.mPackages.end());
         return out;
     }
-    /// Task 0341 (`side quests`): the packages of the groups that an actor's UNIQUE-actor aliases give (`uniqueGroups`: they
-    /// stand in front of `list`, `frontCount` packages) take part in the one priority order with the groups of the other
-    /// aliases, then the rest of `list` (the actor's own packages) follows. Before, the unique-actor packages always
-    /// stood BEHIND a forced or specific-reference alias's: a world interaction quest (WITavern, priority 40) that took
-    /// the barmaid Saadia as its server kept her in its sandbox while her own quest MS08 wanted her elsewhere.
+    /// Task 0341 (`side quests`): the packages of the groups that an actor's UNIQUE-actor aliases give (`uniqueGroups`:
+    /// they stand in front of `list`, `frontCount` packages) take part in the one priority order with the groups of the
+    /// other aliases, then the rest of `list` (the actor's own packages) follows. Before, the unique-actor packages
+    /// always stood BEHIND a forced or specific-reference alias's: a world interaction quest (WITavern, priority 40)
+    /// that took the barmaid Saadia as its server kept her in its sandbox while her own quest MS08 wanted her
+    /// elsewhere.
     [[nodiscard]] inline std::vector<const PackageRecord*> orderWithUniqueActorGroups(
         const std::vector<const PackageRecord*>& list, std::size_t frontCount,
         std::vector<AliasPackageGroup> uniqueGroups, std::vector<AliasPackageGroup> otherGroups)

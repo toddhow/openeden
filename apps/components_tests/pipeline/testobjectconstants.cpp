@@ -93,8 +93,8 @@ namespace
             const char* define;
             uint32_t id;
         } plain[] = { { "GI", Id::Gi }, { "GI_SKY", TId::GiSky }, { "WETNESS", TId::Wetness },
-            { "WETNESS_PUDDLES", TId::WetnessPuddles }, { "WETNESS_DEBUG", TId::WetnessDebug },
-            { "COVER", TId::Cover }, { "COVER_DEBUG", TId::CoverDebug }, { "AMBIENT_CUBE", TId::AmbientCube },
+            { "WETNESS_PUDDLES", TId::WetnessPuddles }, { "WETNESS_DEBUG", TId::WetnessDebug }, { "COVER", TId::Cover },
+            { "COVER_DEBUG", TId::CoverDebug }, { "AMBIENT_CUBE", TId::AmbientCube },
             { "POINT_SHADOW", TId::PointShadow }, { "PBR_PHYSICAL", Id::PbrPhysical }, { "LOD_FADE", Id::LodFade },
             { "ADJUST_COVERAGE", Id::AdjustCoverage }, { "PARALLAX_DISCARD", Id::ParallaxDiscard },
             { "RECONSTRUCT_NORMAL_Z", Id::ReconstructNormalZ }, { "MATERIAL_MAP_RMAOS", Id::Rmaos },
@@ -119,7 +119,8 @@ namespace
             EXPECT_FALSE(boolOf(Pipeline::objectFragmentConstants({ reason }), Id::PerPixelLighting)) << reason;
         }
         EXPECT_FALSE(boolOf(Pipeline::objectFragmentConstants({ "NORMAL" }), Id::PerPixelLighting));
-        EXPECT_FALSE(boolOf(Pipeline::objectFragmentConstants({ "NORMAL", "TEXCOORD", "COLOR" }), Id::PerPixelLighting));
+        EXPECT_FALSE(
+            boolOf(Pipeline::objectFragmentConstants({ "NORMAL", "TEXCOORD", "COLOR" }), Id::PerPixelLighting));
     }
 
     TEST(ObjectConstants, the_material_model_wetness_and_cover_are_lit_only_with_a_normal_and_pbr)
@@ -236,8 +237,8 @@ namespace
     // Only a vertex stage that had the sway needs the permutation that reads it as a constant.
     TEST(ObjectConstants, the_vertex_takes_the_pseudo_define_only_for_the_sway)
     {
-        EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.vert", { "COLOR", "LOD_SWAY", "NORMAL", "TEXCOORD", "VERTEX" },
-                      optionsWith(true).get()),
+        EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.vert",
+                      { "COLOR", "LOD_SWAY", "NORMAL", "TEXCOORD", "VERTEX" }, optionsWith(true).get()),
             (Defines{ "COLOR", "MODE_CONSTANTS", "NORMAL", "TEXCOORD", "VERTEX" }));
         const Defines plain{ "COLOR", "NORMAL", "SKIN", "TEXCOORD", "VERTEX" };
         EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.vert", plain, optionsWith(true).get()), plain);
@@ -315,7 +316,8 @@ namespace
             const Defines mapped = vsgUtil::constantDefinesFor(stage, names, options.get());
             if (mapped == names)
                 continue; // the vertex stage's sets without the sway are the same sets
-            EXPECT_EQ(listed.count(joinSet(mapped)), 1u) << "not listed: " << joinSet(mapped) << " (from " << joinSet(names) << ")";
+            EXPECT_EQ(listed.count(joinSet(mapped)), 1u)
+                << "not listed: " << joinSet(mapped) << " (from " << joinSet(names) << ")";
         }
     }
 
@@ -336,8 +338,8 @@ namespace
         EXPECT_NE(text.find("MODE_CONSTANTS"), std::string::npos);
         for (const char* name : { "cGi", "cGiSky", "cWetnessPuddles", "cWetnessDebug", "cCoverDebug", "cAmbientCube",
                  "cPointShadow", "cDebugShadow", "cPerPixel", "cPbrLit", "cPbrPhysical", "cWetLit", "cCoverLit",
-                 "cLodFade", "cAdjustCoverage", "cPom", "cParallaxDiscard", "cParallax", "cReconstructNormalZ", "cRmaos",
-                 "cPrecipLit" })
+                 "cLodFade", "cAdjustCoverage", "cPom", "cParallaxDiscard", "cParallax", "cReconstructNormalZ",
+                 "cRmaos", "cPrecipLit" })
         {
             EXPECT_NE(text.find(name), std::string::npos) << name;
             EXPECT_EQ(text.find(std::string(name) + " &&"), std::string::npos) << name;

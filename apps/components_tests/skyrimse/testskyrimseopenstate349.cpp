@@ -6,8 +6,9 @@
 #include <cstring>
 #include <vector>
 
-// Task 0349: MQ106IntroScene's phase 6 waits for GetOpenState(RiverwoodInnDelphineRoomDoor) == 3 (the door is closed) AND the
-// bedroom trigger's variable. GetOpenState is function 157: 1 open, 3 closed (task 0289's values), run on a reference.
+// Task 0349: MQ106IntroScene's phase 6 waits for GetOpenState(RiverwoodInnDelphineRoomDoor) == 3 (the door is closed)
+// AND the bedroom trigger's variable. GetOpenState is function 157: 1 open, 3 closed (task 0289's values), run on a
+// reference.
 
 namespace
 {

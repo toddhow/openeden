@@ -19,8 +19,8 @@ namespace Pipeline
     /// (lib/material/terms.slang) treats it as 2, keeping the particle's own colour and its alpha over its life.
     inline constexpr uint32_t particleOwnColorMode = 4;
 
-    /// Task 0359 stage b: the colour mode of an analytic Skyrim particle (files/shaders/lib/particle/analytic.glsl): unlit,
-    /// the particle's own colour and alpha times the texture, fogged. Every other mode keeps its meaning.
+    /// Task 0359 stage b: the colour mode of an analytic Skyrim particle (files/shaders/lib/particle/analytic.glsl):
+    /// unlit, the particle's own colour and alpha times the texture, fogged. Every other mode keeps its meaning.
     inline constexpr uint32_t analyticParticleColorMode = 5;
 
     /// The colour mode a particle system gets: its NiVertexColorProperty's, or particleOwnColorMode without one.

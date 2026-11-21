@@ -5,29 +5,26 @@
 #include "game_skyrimse/ambush.hpp"
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/barter_service.hpp"
+#include "game_skyrimse/bloodice.hpp"
 #include "game_skyrimse/character_service.hpp"
 #include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/diseases.hpp"
-#include "game_skyrimse/bloodice.hpp"
-#include "game_skyrimse/forsworn.hpp"
-#include "game_skyrimse/laidtorest.hpp"
-#include "game_skyrimse/quest_rules.hpp"
-#include "game_skyrimse/solitude.hpp"
 #include "game_skyrimse/dragonborn.hpp"
 #include "game_skyrimse/forcegreet.hpp"
+#include "game_skyrimse/forsworn.hpp"
 #include "game_skyrimse/frame_split.hpp"
 #include "game_skyrimse/harvest_service.hpp"
 #include "game_skyrimse/houses.hpp"
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/journal.hpp"
+#include "game_skyrimse/laidtorest.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/lockbooks_service.hpp"
 #include "game_skyrimse/map.hpp"
 #include "game_skyrimse/marriage.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/mining_service.hpp"
-#include <openeden/game/object_animation.hpp>
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -37,10 +34,12 @@
 #include "game_skyrimse/player_body.hpp"
 #include "game_skyrimse/presentation.hpp"
 #include "game_skyrimse/progression_service.hpp"
+#include "game_skyrimse/quest_rules.hpp"
 #include "game_skyrimse/rest.hpp"
 #include "game_skyrimse/services.hpp"
 #include "game_skyrimse/shouts_service.hpp"
 #include "game_skyrimse/sneak.hpp"
+#include "game_skyrimse/solitude.hpp"
 #include "game_skyrimse/stones.hpp"
 #include "game_skyrimse/story_events.hpp"
 #include "game_skyrimse/travel.hpp"
@@ -50,6 +49,7 @@
 #include "game_skyrimse/world_view.hpp"
 #include "game_skyrimse/worldbooks.hpp"
 #include <game_skyrimse/main_quest.hpp>
+#include <openeden/game/object_animation.hpp>
 
 #include <functional>
 #include <openeden/extension.hpp>
@@ -200,7 +200,8 @@ namespace game_skyrimse
                 return mView.cellLocation(cell, location, interior) && interior;
             }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
-            // Task 0321: the common natives' questions. An actor is a placed reference (its base is asked for) or a base.
+            // Task 0321: the common natives' questions. An actor is a placed reference (its base is asked for) or a
+            // base.
             FormId actorBaseOf(FormId actor) const
             {
                 const FormId base = baseOf(actor);
@@ -503,7 +504,8 @@ namespace game_skyrimse
             {
                 if (!mStarted && !tryStart())
                     return;
-                // Task 0323: with OPENEDEN_PACK_FRAME_TRACE the steps of this frame are timed; a slow frame logs a line.
+                // Task 0323: with OPENEDEN_PACK_FRAME_TRACE the steps of this frame are timed; a slow frame logs a
+                // line.
                 const auto at = [this](const char* step) {
                     if (mMarksOn)
                         mMarks.mark(step, steadyNowMicroseconds());
@@ -564,9 +566,9 @@ namespace game_skyrimse
                 mHavePlayerState = true;
             }
 
-            // Task 0302 (draugr ambushes): a sleeper whose script handles OnGetUp (masterAmbushScript) is woken when the
-            // player comes near (ambush::Watch: our distance, the data has none): the engine's OnGetUp goes to the script,
-            // which lets the actor out through the game's own SetAV, and the combat AI does the rest.
+            // Task 0302 (draugr ambushes): a sleeper whose script handles OnGetUp (masterAmbushScript) is woken when
+            // the player comes near (ambush::Watch: our distance, the data has none): the engine's OnGetUp goes to the
+            // script, which lets the actor out through the game's own SetAV, and the combat AI does the rest.
             void enableAmbush() { mAmbushOn = true; }
             void applyAmbush()
             {
@@ -596,7 +598,8 @@ namespace game_skyrimse
                     FormId furniture = 0;
                     (void)mView.linkedRef(static_cast<FormId>(reference), 0, furniture);
                     say(openeden::sdk::LogLevel::Info,
-                        "AMBUSH wake " + hexId(reference) + " (the player is near; furniture " + hexId(furniture) + ")");
+                        "AMBUSH wake " + hexId(reference) + " (the player is near; furniture " + hexId(furniture)
+                            + ")");
                     mHost.onGetUp(static_cast<FormId>(reference), furniture);
                 }
             }
@@ -710,16 +713,17 @@ namespace game_skyrimse
             void setMarriageFinStage(std::int32_t stage) { mMarriageFinStage = stage; } // task 0276
             void enableForceGreet() { mForceOn = true; }
             void enableHelloGreetings() { mHelloOn = true; } // task 0308
-            // Task 0348: a phase whose start conditions fail is skipped, not waited for (MG01WardScene's phase 4 "you were
-            // hit" is for the player who was hit; one whose ward held goes to phase 5), as task 0308 made it for HELO
+            // Task 0348: a phase whose start conditions fail is skipped, not waited for (MG01WardScene's phase 4 "you
+            // were hit" is for the player who was hit; one whose ward held goes to phase 5), as task 0308 made it for
+            // HELO
             void enableSkipFailedPhases() { mSkipPhasesOn = true; }
             void enableDragonbornScenes() { mDragonbornScenes = true; } // task 0329
             void enableActionlessScenes() { mActionlessScenes = true; } // task 0333
             void enableBeginFragmentScenes() { mBeginFragmentScenes = true; } // task 0350
             void enableHeldScenePackages() { mHoldScenePackages = true; } // task 0349
             void enableCreatedInInventory() { mHost.setCreatedInInventory(true); } // task 0335
-            /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival) and
-            /// OnObjectEquipped (a shout equipped from the menu).
+            /// Task 0318: the player's alias scripts get OnLocationChange (MQ104's Greybeards' call, MQ105's arrival)
+            /// and OnObjectEquipped (a shout equipped from the menu).
             void enablePlayerEvents() { mPlayerEvents = true; }
             void playerEquipped(FormId baseObject)
             {
@@ -761,7 +765,10 @@ namespace game_skyrimse
                         + (mHost.startQuestForTest(mainquest::kUnboundQuest, stage) ? "set" : "refused"));
             }
 
-            void flushFragments() { mHost.tick(0.f); } // task 0304: a dialogue chain wants the effects of the line just shown
+            void flushFragments()
+            {
+                mHost.tick(0.f);
+            } // task 0304: a dialogue chain wants the effects of the line just shown
 
             void enableCollege() // task 0292: quests move actors near the player, box triggers fire
             {
@@ -778,13 +785,14 @@ namespace game_skyrimse
             {
                 mData.mPlayerLevel = std::move(source);
             }
-            void enableSideQuests() // task 0341: Kematu is a child of the marker MS08's fragments enable; box triggers fire
+            void
+            enableSideQuests() // task 0341: Kematu is a child of the marker MS08's fragments enable; box triggers fire
             {
                 mSideQuests = true;
                 mView.setPrimitiveTriggers(true);
             }
-            // Task 0341: the actors that follow the player by a quest's package (Saadia, led to the Whiterun stables) are
-            // subjects of the box triggers like the cart horses: MS08AmbushTriggerScript hears Saadia enter the box
+            // Task 0341: the actors that follow the player by a quest's package (Saadia, led to the Whiterun stables)
+            // are subjects of the box triggers like the cart horses: MS08AmbushTriggerScript hears Saadia enter the box
             void applyFollowerTriggers()
             {
                 SkyrimCellSource* cells = dynamic_cast<SkyrimCellSource*>(&mCells);
@@ -906,8 +914,7 @@ namespace game_skyrimse
                 {
                     const std::size_t sent = mHost.updateSubjectTriggers(subjects);
                     if (sent != 0)
-                        say(openeden::sdk::LogLevel::Info,
-                            "PAPYRUS CART trigger events sent: " + std::to_string(sent));
+                        say(openeden::sdk::LogLevel::Info, "PAPYRUS CART trigger events sent: " + std::to_string(sent));
                 }
             }
             void applyMainQuest()
@@ -926,21 +933,22 @@ namespace game_skyrimse
             // Task 0306 (a developer aid): MQ105 stage 160 is marked done once, as soon as the host runs, so the story
             // manager's cultist ambush node can pass (its condition GetStage(MQ105) >= 160)
             void enableDragonbornPrerequisite() { mDragonbornPrerequisite = true; }
-            // task 0306: a stage's fragments run only when their log entry's conditions hold (DLC2MQ01's stage 10 has three,
-            // by where the player is), as with `houses`
+            // task 0306: a stage's fragments run only when their log entry's conditions hold (DLC2MQ01's stage 10 has
+            // three, by where the player is), as with `houses`
             void enableDragonborn()
             {
                 mDragonborn = true;
                 // task 0320: the ship moored at Raven Rock stays as the deck the player is set down on
                 mHost.setKeepEnabled([this](FormId reference) {
                     return reference != 0
-                        && reference == mData.formFromFile(dragonborn::kDragonbornFile, dragonborn::kRavenRockShipLocal);
+                        && reference
+                        == mData.formFromFile(dragonborn::kDragonbornFile, dragonborn::kRavenRockShipLocal);
                 });
             }
             void itemRead(FormId base) { mHost.onItemRead(base); } // task 0306
-            // Task 0312 (a developer aid): `dragonborn test stage = <stage>[,<script seconds>]` starts DLC2MQ01 and sets that
-            // stage (the quest the cultists' orders would start and advance, to be able to board the ship in a run that
-            // did not play the ambush)
+            // Task 0312 (a developer aid): `dragonborn test stage = <stage>[,<script seconds>]` starts DLC2MQ01 and
+            // sets that stage (the quest the cultists' orders would start and advance, to be able to board the ship in
+            // a run that did not play the ambush)
             void setDragonbornTestStage(const std::string& text)
             {
                 const dragonborn::TestStages parsed = dragonborn::parseTestStages(text); // task 0329: 5+7+10,40
@@ -969,7 +977,8 @@ namespace game_skyrimse
                 const FormId quest = mData.formFromFile(need.mFile, need.mLocal);
                 say(openeden::sdk::LogLevel::Info,
                     "DRAGONBORN test prerequisites: quest " + hexId(quest) + " stage " + std::to_string(need.mStage)
-                        + (quest != 0 && mHost.markStageDoneForTest(quest, need.mStage) ? " marked done" : " was refused"));
+                        + (quest != 0 && mHost.markStageDoneForTest(quest, need.mStage) ? " marked done"
+                                                                                        : " was refused"));
             }
 
             void replayMainQuestCellLoad()
@@ -1083,7 +1092,8 @@ namespace game_skyrimse
                         mScenes->runner().setBeginFragmentStartsUnloaded(true);
                     if (mActionlessScenes) // task 0333: MS11's opening scene only runs a fragment
                         mScenes->runner().setActionlessStartsUnloaded(true);
-                    if (mHoldScenePackages) // task 0349: a finished walk keeps the actor where it ended until the scene does
+                    if (mHoldScenePackages) // task 0349: a finished walk keeps the actor where it ended until the scene
+                                            // does
                         mScenes->runner().setHoldFinishedPackages(true);
                 }
                 if (mForceOn) // tasks 0264 and 0271: the conversation a ForceGreet package asks for
@@ -1389,7 +1399,8 @@ namespace game_skyrimse
                         {
                             ++given;
                             if (base == 0x00013659) // task 0311: Nenya's placement, for the trace
-                                say(openeden::sdk::LogLevel::Info, "HOUSES test permission: Nenya " + hexId((*it)->mId));
+                                say(openeden::sdk::LogLevel::Info,
+                                    "HOUSES test permission: Nenya " + hexId((*it)->mId));
                         }
                 }
                 say(openeden::sdk::LogLevel::Info,
@@ -1542,8 +1553,8 @@ namespace game_skyrimse
                     return false;
                 // Task 0274: a reference's enable children (XESP) follow it (Skyrim's rule: the second cart, its horse
                 // and the riders' markers are enabled by the first horse). Only with the main quest or Dawnguard (a
-                // reference's children are looked for in the whole table; task 0330: Dimhollow's vampires are the children
-                // of the marker the quest's first fragment enables).
+                // reference's children are looked for in the whole table; task 0330: Dimhollow's vampires are the
+                // children of the marker the quest's first fragment enables).
                 if ((mMainQuest || mDawnguard || mSideQuests) && !mEnablingChildren)
                 {
                     mEnablingChildren = true;
@@ -1609,8 +1620,8 @@ namespace game_skyrimse
                 return queued;
             }
 
-            // Task 0286: a script (or a scene's travel) moved a reference INTO another cell. The world moves it, loaded or
-            // not, and it keeps its identity: its reference id, so its inventory, packages and quest aliases follow.
+            // Task 0286: a script (or a scene's travel) moved a reference INTO another cell. The world moves it, loaded
+            // or not, and it keeps its identity: its reference id, so its inventory, packages and quest aliases follow.
             // `destinationCell` is the pack's id of the cell the target stands in (0: the exterior square that holds
             // the position). `request.from` says where the reference stands now, for a persistent reference whose cell
             // id does not say.
@@ -1747,8 +1758,8 @@ namespace game_skyrimse
                     mView.noteCreatedActor(static_cast<FormId>(id), request.base); // speaks as its base does
                 ObjectPlaceResult made{ static_cast<FormId>(id), cell };
                 made.actor = actorBase;
-                // task 0306: the scripts of the base (the cultists' orders have one) attach when the next frame runs, as
-                // a native cannot load a script
+                // task 0306: the scripts of the base (the cultists' orders have one) attach when the next frame runs,
+                // as a native cannot load a script
                 mPendingCreatedAttach.push_back({ static_cast<FormId>(id), request.base, actorBase });
                 return made;
             }
@@ -1927,7 +1938,8 @@ namespace game_skyrimse
                 FormId mBase = 0;
                 bool mActor = false;
             };
-            std::vector<CreatedAttach> mPendingCreatedAttach; ///< task 0306: created references waiting for their scripts
+            std::vector<CreatedAttach>
+                mPendingCreatedAttach; ///< task 0306: created references waiting for their scripts
             bool mDragonbornPrerequisite = false; ///< task 0306
             bool mDragonborn = false; ///< task 0306
             bool mDragonbornApplied = false;
@@ -1940,7 +1952,8 @@ namespace game_skyrimse
             bool mDaedric = false; ///< task 0310
             bool mDawnguard = false; ///< task 0319
             bool mSideQuests = false; ///< task 0341
-            std::set<FormId> mTriggerSubjects; ///< task 0349: actors whose place the box triggers hear (`blade in the dark`)
+            std::set<FormId>
+                mTriggerSubjects; ///< task 0349: actors whose place the box triggers hear (`blade in the dark`)
             bool mThieves = false; ///< task 0314
             bool mWhiterunBoxes = false; ///< task 0328
             bool mMainQuestApplied = false;
@@ -2307,8 +2320,9 @@ namespace game_skyrimse
                 });
             }
 
-            // Task 0333 (`blood on the ice`): the global GameHour (GLOB 0x38) is the hour of day the core's clock gives; the
-            // record's value (12) is what every script read before. The kicker of MS11 starts the quest only at night.
+            // Task 0333 (`blood on the ice`): the global GameHour (GLOB 0x38) is the hour of day the core's clock
+            // gives; the record's value (12) is what every script read before. The kicker of MS11 starts the quest only
+            // at night.
             void feedGameHour()
             {
                 if (!mBloodIceOn || mPapyrus == nullptr)
@@ -2449,8 +2463,8 @@ namespace game_skyrimse
                             mPapyrus->setSceneParkSeconds(SceneRunner::parkSecondsFor( // tasks 0287, 0316
                                 settings->getFloat(kPackId, "scene park seconds", 0.f),
                                 settings->getBool(kPackId, kQuestAliasPackagesKey, false) || mPapyrus->questRulesOn()));
-                            // Task 0317: a Hearthfire house part is a MISC no cell places; its script is attached when a
-                            // form list hands it out or it is first added to an inventory
+                            // Task 0317: a Hearthfire house part is a MISC no cell places; its script is attached when
+                            // a form list hands it out or it is first added to an inventory
                             if (settings->getBool(kPackId, "house building", false))
                                 mPapyrus->host().setFormScripts(true);
                             if (settings->getBool(kPackId, kActorCellMovesKey, false)) // task 0286
@@ -2465,12 +2479,14 @@ namespace game_skyrimse
                                     logger->log(openeden::sdk::LogLevel::Info,
                                         "ACTORMOVES actors and objects move between cells through the world");
                             }
-                            if (settings->getBool(kPackId, std::string(dragonborn::kTestPrerequisitesKey), false)) // task 0306
+                            if (settings->getBool(
+                                    kPackId, std::string(dragonborn::kTestPrerequisitesKey), false)) // task 0306
                                 mPapyrus->enableDragonbornPrerequisite();
                             if (settings->getBool(kPackId, std::string(dragonborn::kKey), false))
                             {
                                 mPapyrus->enableDragonborn();
-                                mPapyrus->setDragonbornTestStage(settings->getString(kPackId, "dragonborn test stage", ""));
+                                mPapyrus->setDragonbornTestStage(
+                                    settings->getString(kPackId, "dragonborn test stage", ""));
                             }
                             if (settings->getBool(kPackId, mainquest::kMainQuestStartKey, false)) // task 0268
                             {
@@ -2530,17 +2546,20 @@ namespace game_skyrimse
                                     logger->log(openeden::sdk::LogLevel::Info, "HOUSES bought houses are on");
                             }
                             {
-                                // Task 0278: a stablemaster's lines test JobHostlerFaction, which every hostler holds at rank -1
-                                // (as the stewards hold JobStewardFaction: task 0261): rank -1 counts as a member for those.
-                                // task 0309: the bounty quests' Innkeeper alias tests JobInnkeeperFaction
+                                // Task 0278: a stablemaster's lines test JobHostlerFaction, which every hostler holds
+                                // at rank -1 (as the stewards hold JobStewardFaction: task 0261): rank -1 counts as a
+                                // member for those. task 0309: the bounty quests' Innkeeper alias tests
+                                // JobInnkeeperFaction
                                 std::set<FormId> minusOne{ kJobInnkeeperFaction };
                                 if (mHousesOn)
                                     minusOne.insert(houses::kJobStewardFaction);
                                 if (settings->getBool(kPackId, kRidingKey, false))
                                     minusOne.insert(static_cast<FormId>(kJobHostlerFactionId));
-                                if (settings->getBool(kPackId, std::string(laidtorest::kKey), false) || mPapyrus->questRulesOn())
+                                if (settings->getBool(kPackId, std::string(laidtorest::kKey), false)
+                                    || mPapyrus->questRulesOn())
                                 {
-                                    // task 0342: the Jarl lines of MS14 test JobJarlFaction == 1 (every jarl holds it at rank -1)
+                                    // task 0342: the Jarl lines of MS14 test JobJarlFaction == 1 (every jarl holds it
+                                    // at rank -1)
                                     minusOne.insert(static_cast<FormId>(laidtorest::kJobJarlFaction));
                                     mWorldView.setActorEditorLocation(true);
                                 }
@@ -2559,8 +2578,8 @@ namespace game_skyrimse
                             const bool companions = settings->getBool(kPackId, "companions", false)
                                 || mPapyrus->questRulesOn(); // task 0264, 0356
                             // task 0329: the actors a script moves outdoors need their live place
-                            const bool dragonbornLive
-                                = settings->getBool(kPackId, std::string(dragonborn::kKey), false) || mPapyrus->questRulesOn();
+                            const bool dragonbornLive = settings->getBool(kPackId, std::string(dragonborn::kKey), false)
+                                || mPapyrus->questRulesOn();
                             if (dragonbornLive)
                                 mWorldView.setMovedActorsOutdoors(true);
                             if (companions || dragonbornLive)
@@ -2669,8 +2688,8 @@ namespace game_skyrimse
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
                             driver->setTestQuests(settings->getString(kPackId, "story test quest", ""),
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
-                            // Task 0324 (a developer aid): `dialogue debug topic = <hex id>`: every INFO of that topic says why it
-                            // passes or fails (to the same sink)
+                            // Task 0324 (a developer aid): `dialogue debug topic = <hex id>`: every INFO of that topic
+                            // says why it passes or fails (to the same sink)
                             if (const std::string debugTopic = settings->getString(kPackId, "dialogue debug topic", "");
                                 !debugTopic.empty())
                             {
@@ -2680,9 +2699,10 @@ namespace game_skyrimse
                                         logger->log(openeden::sdk::LogLevel::Info, "CONDDEBUG " + line);
                                 });
                             }
-                            // Task 0311 (a developer aid): `conditions debug quest = <hex quest id>` reports every condition of
-                            // the lists that name that quest (value, compared value, answer)
-                            if (const std::string debugQuest = settings->getString(kPackId, "conditions debug quest", "");
+                            // Task 0311 (a developer aid): `conditions debug quest = <hex quest id>` reports every
+                            // condition of the lists that name that quest (value, compared value, answer)
+                            if (const std::string debugQuest
+                                = settings->getString(kPackId, "conditions debug quest", "");
                                 !debugQuest.empty())
                                 conditions::setConditionDebug(
                                     static_cast<std::uint32_t>(std::strtoul(debugQuest.c_str(), nullptr, 16)),
@@ -2861,8 +2881,8 @@ namespace game_skyrimse
                     env.model = [this]() -> inventory::InventoryModel* {
                         return mInventory != nullptr ? &mInventory->model() : nullptr;
                     };
-                    // task 0318: a leveled item list (MQ104's JarlWeapon) resolves to one item, by a pick seeded from the
-                    // list's id at the player's level (the inventory's rule for container contents)
+                    // task 0318: a leveled item list (MQ104's JarlWeapon) resolves to one item, by a pick seeded from
+                    // the list's id at the player's level (the inventory's rule for container contents)
                     env.itemsReady = [this] { return mInventory != nullptr && mInventory->ready(); }; // task 0335
                     env.resolveItem = [this](FormId base) -> FormId {
                         if (mInventory == nullptr)
@@ -2884,8 +2904,8 @@ namespace game_skyrimse
                         if (entry == nullptr && mPapyrus != nullptr) // task 0306: a reference a script or quest created
                             for (const PapyrusHost::CreatedObject& created : mPapyrus->host().createdObjects())
                                 if (created.mReference == reference && created.mBase != 0)
-                                    return mInventory->open(owner, created.mBase,
-                                        mPapyrus->isActor(reference) ? "actor" : "container");
+                                    return mInventory->open(
+                                        owner, created.mBase, mPapyrus->isActor(reference) ? "actor" : "container");
                         if (entry == nullptr || entry->mBase == 0)
                             return false;
                         return mInventory->open(
@@ -2969,18 +2989,18 @@ namespace game_skyrimse
                 };
                 env.queueKill = [this](FormId actor) { return mCellSource.scriptBridge().queueKill(actor); };
                 // Task 0299: a trap's Weapon.Fire goes to the combat rules at the next update
-                mCellSource.scriptBridge().setShotSink(
-                    [this](const ScriptCombatBridge::QueuedShot& shot, openeden::sdk::game::CombatRequestWriter& writer) {
-                        SkyrimCombat::TrapShot trap;
-                        trap.mWeapon = shot.mWeapon;
-                        trap.mAmmo = shot.mAmmo;
-                        trap.x = shot.x;
-                        trap.y = shot.y;
-                        trap.z = shot.z;
-                        trap.heading = shot.heading;
-                        trap.pitch = shot.pitch;
-                        (void)mCellSource.combat().fireTrapShot(writer, trap);
-                    });
+                mCellSource.scriptBridge().setShotSink([this](const ScriptCombatBridge::QueuedShot& shot,
+                                                           openeden::sdk::game::CombatRequestWriter& writer) {
+                    SkyrimCombat::TrapShot trap;
+                    trap.mWeapon = shot.mWeapon;
+                    trap.mAmmo = shot.mAmmo;
+                    trap.x = shot.x;
+                    trap.y = shot.y;
+                    trap.z = shot.z;
+                    trap.heading = shot.heading;
+                    trap.pitch = shot.pitch;
+                    (void)mCellSource.combat().fireTrapShot(writer, trap);
+                });
                 env.fireWeapon = [this](const PapyrusWorldHooks::WeaponFireRequest& request) {
                     const TrapAim aim = trapAimOf(request.mAngles[0], request.mAngles[1], request.mAngles[2]);
                     ScriptCombatBridge::QueuedShot shot;
@@ -3021,7 +3041,8 @@ namespace game_skyrimse
                         : openeden::sdk::game::CombatSubject::of(handleOfActor(actor));
                     return mCellSource.combat().scriptInCombatOf(subject);
                 };
-                // Task 0302: a script's SetAV("Aggression", n) reaches the combat AI (the other actor values stay the host's)
+                // Task 0302: a script's SetAV("Aggression", n) reaches the combat AI (the other actor values stay the
+                // host's)
                 env.livePosition = [this, logger, noted = std::set<FormId>()](
                                        FormId reference, double& x, double& y, double& z) mutable { // task 0313
                     if (!mWhiterunQuest
@@ -3034,7 +3055,8 @@ namespace game_skyrimse
                     return true;
                 };
                 env.actorValueSet = [this, handleOfActor, logger](FormId actor, std::string_view name, double value) {
-                    if (name == "dragonsouls") // task 0313: the game's own absorption (MQKillDragonScript.DeathSequence)
+                    if (name
+                        == "dragonsouls") // task 0313: the game's own absorption (MQKillDragonScript.DeathSequence)
                     {
                         const double have = mShouts != nullptr ? static_cast<double>(mShouts->state().souls()) : 0.0;
                         if (mWhiterunQuest && actor == kPapyrusPlayerReference && mShouts != nullptr && value > have)
@@ -3083,9 +3105,10 @@ namespace game_skyrimse
                 };
                 env.playObjectAnimation = [this](FormId reference, const std::string& event, double& seconds) {
                     seconds = 0.0;
-                    return mDungeonMechanics && mPapyrus != nullptr && mPapyrus->pushAnimation(reference, event, seconds);
+                    return mDungeonMechanics && mPapyrus != nullptr
+                        && mPapyrus->pushAnimation(reference, event, seconds);
                 };
-                env.tetherCart = [this, logger](FormId cart, FormId horse, const double (&at)[3], double heading) {
+                env.tetherCart = [this, logger](FormId cart, FormId horse, const double(&at)[3], double heading) {
                     if (mPapyrus == nullptr || !mPapyrus->mainQuestOn())
                         return false;
                     CartPose pose;
@@ -3102,8 +3125,8 @@ namespace game_skyrimse
                 env.setVehicle = [this, logger](FormId rider, FormId vehicle) {
                     if (mPapyrus == nullptr || !mPapyrus->mainQuestOn())
                         return false;
-                    const bool done = vehicle != 0 ? mCellSource.addCartRider(rider, vehicle)
-                                                   : mCellSource.removeCartRider(rider);
+                    const bool done
+                        = vehicle != 0 ? mCellSource.addCartRider(rider, vehicle) : mCellSource.removeCartRider(rider);
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info,
                             "CART rider " + hexOf(rider) + (vehicle != 0 ? " on " + hexOf(vehicle) : " gets off")
@@ -3151,13 +3174,14 @@ namespace game_skyrimse
                 };
                 env.teachWord = [this](FormId word) { return mShouts != nullptr && mShouts->teachWord(word); };
                 env.addToMap = [this](FormId reference) { return mMap != nullptr && mMap->addMarker(reference); };
-                env.setActorRace = [this, logger](FormId reference, FormId race) { // task 0350: GetIsRace on that reference
-                    mActorRaces[reference] = race;
-                    if (logger != nullptr)
-                        logger->log(openeden::sdk::LogLevel::Info,
-                            "ACTORRACE " + hexOf(reference) + " is now race " + hexOf(race));
-                    return true;
-                };
+                env.setActorRace
+                    = [this, logger](FormId reference, FormId race) { // task 0350: GetIsRace on that reference
+                          mActorRaces[reference] = race;
+                          if (logger != nullptr)
+                              logger->log(openeden::sdk::LogLevel::Info,
+                                  "ACTORRACE " + hexOf(reference) + " is now race " + hexOf(race));
+                          return true;
+                      };
                 env.unlockWord = [this](FormId word) { return mShouts != nullptr && mShouts->unlockWord(word); };
                 env.isWordUnlocked
                     = [this](FormId word) { return mShouts != nullptr && mShouts->isWordUnlocked(word); };
@@ -3218,8 +3242,8 @@ namespace game_skyrimse
                 {
                     // task 0298: Rikke's blocking branch speaks instead of Hello (the Civil War's join chain)
                     mWorldView.setBlockingBranches(true);
-                    // task 0326: Rikke's greeting at CW01A stage 100 names a walk-away INFO (TIF__000D5EE9: stage 160, the
-                    // oath): the same mechanism the Companions' Eorlund uses (task 0315)
+                    // task 0326: Rikke's greeting at CW01A stage 100 names a walk-away INFO (TIF__000D5EE9: stage 160,
+                    // the oath): the same mechanism the Companions' Eorlund uses (task 0315)
                     mWorldView.setWalkAwayTopics(true);
                     mWorldView.setWalkAwayInfos(true);
                     // task 0326: Fort Hraggstad's bandits count as dead once they are killed in this session
@@ -3232,8 +3256,8 @@ namespace game_skyrimse
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "main quest whiterun", false)))
                 {
-                    // task 0308: Irileth's and Balgruuf's Blocking branches speak instead of Hello, and Irileth's ForceGreet
-                    // package (topic subtype HELO) makes her say hers
+                    // task 0308: Irileth's and Balgruuf's Blocking branches speak instead of Hello, and Irileth's
+                    // ForceGreet package (topic subtype HELO) makes her say hers
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
@@ -3251,8 +3275,9 @@ namespace game_skyrimse
                     mWhiterunQuest = true;
                     mCellSource.setLivePlaces(true);
                     // task 0328: a scene's Travel package that cannot be walked (High Hrothgar's stairs are not on the
-                    // navmesh: Einarth's walk to his teaching marker) ends with the actor at its destination, and a phase's
-                    // GetDistance reads where the actor stands (phase 23: Einarth within 800 units of the player)
+                    // navmesh: Einarth's walk to his teaching marker) ends with the actor at its destination, and a
+                    // phase's GetDistance reads where the actor stands (phase 23: Einarth within 800 units of the
+                    // player)
                     enableSceneWalks();
                     // task 0324: the Greybeards (a faction MQ105 stage 5 makes the player's ally) do not answer his
                     // push with a fight
@@ -3271,7 +3296,8 @@ namespace game_skyrimse
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "thieves guild", false)))
                 {
-                    mPapyrus->enableThieves(); // task 0314: TG01SceneTrig's box (the Flagon's intro) fires for the player
+                    mPapyrus
+                        ->enableThieves(); // task 0314: TG01SceneTrig's box (the Flagon's intro) fires for the player
                     // the fragments of a response (`pTG01QS.pTG01Dia01 = 1`) run before the linked topics are judged
                     // (they test that variable), as task 0304 does for the College
                     mWorldView.setFragmentFlush([this]() {
@@ -3306,13 +3332,13 @@ namespace game_skyrimse
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "side quests", false)))
                 {
-                    // task 0341: Saadia (MS08's unique actor alias, priority above the tavern quest's) is told to go to the
-                    // private room before WITavern's sandbox is tried; ONE order by quest priority for every alias
+                    // task 0341: Saadia (MS08's unique actor alias, priority above the tavern quest's) is told to go to
+                    // the private room before WITavern's sandbox is tried; ONE order by quest priority for every alias
                     mWorldView.setAliasPriorityOrder(true);
                     mPapyrus->enableSideQuests();
                     mCellSource.actorTable().setFollowPlayerPackages(true); // Saadia follows by MS08SaadiaFollowPlayer
-                    // Saadia's "I dealt with Kematu" line (stage 160) asks GetDead of Kematu, who died in the Den's cell:
-                    // a kill of this session counts (task 0326's lookup, the one the Civil War uses)
+                    // Saadia's "I dealt with Kematu" line (stage 160) asks GetDead of Kematu, who died in the Den's
+                    // cell: a kill of this session counts (task 0326's lookup, the one the Civil War uses)
                     auto killed = [this](FormId reference) {
                         return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
                     };
@@ -3326,18 +3352,20 @@ namespace game_skyrimse
                 }
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "side quests", false))
                 {
-                    // HAND-WRITTEN stand-in (task 0341, kept under its own setting by task 0356): a MUST COMPLETE Travel
-                    // the mover cannot walk ends with the actor placed at its target
+                    // HAND-WRITTEN stand-in (task 0341, kept under its own setting by task 0356): a MUST COMPLETE
+                    // Travel the mover cannot walk ends with the actor placed at its target
                     mCellSource.actorTable().setSnapMustComplete(true);
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "blade in the dark", false)))
                 {
-                    // task 0349: MQ106 "A Blade in the Dark". Delphine's alias packages walk her to the rented room behind
-                    // locked doors (no navmesh path: the walk the mover cannot do ends at the marker, MUST COMPLETE), her
-                    // packages are tried in ONE order by quest priority, and the box triggers of the quest fire
+                    // task 0349: MQ106 "A Blade in the Dark". Delphine's alias packages walk her to the rented room
+                    // behind locked doors (no navmesh path: the walk the mover cannot do ends at the marker, MUST
+                    // COMPLETE), her packages are tried in ONE order by quest priority, and the box triggers of the
+                    // quest fire
                     mWorldView.setAliasPriorityOrder(true);
                     mCellSource.setLivePlaces(true);
-                    enableSceneWalks(); // the scene's walks (ToSecretDoor, ...) that cannot be done end at their targets
+                    enableSceneWalks(); // the scene's walks (ToSecretDoor, ...) that cannot be done end at their
+                                        // targets
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setQuestGreetings(true);
                     mWorldView.setFragmentFlush([this]() {
@@ -3355,8 +3383,9 @@ namespace game_skyrimse
                 if (spellSettings != nullptr && spellSettings->getBool(kPackId, "blade in the dark", false))
                 {
                     // HAND-WRITTEN stand-ins (task 0349, kept under their own setting by task 0356): MQ106's Travel
-                    // packages of Delphine (ToRoom, ToGearUp, ToGearUp2, ToRiverwoodEx, ToOrgnar) end with her placed at
-                    // the target when the walk fails, and her placement is a trigger subject (MQ106InnRoomTriggerScript)
+                    // packages of Delphine (ToRoom, ToGearUp, ToGearUp2, ToRiverwoodEx, ToOrgnar) end with her placed
+                    // at the target when the walk fails, and her placement is a trigger subject
+                    // (MQ106InnRoomTriggerScript)
                     mCellSource.actorTable().setSnapPackages({ 0x3292A, 0xC65B4, 0xC65B5, 0xC65B7, 0x21404 });
                     mPapyrus->addTriggerSubject(0x13485);
                 }
@@ -3365,40 +3394,47 @@ namespace game_skyrimse
                     mWorldView.setDetectsPlayer(true); // task 0335: Lucan sees the player, the argument scene goes on
                     mPapyrus->enableCreatedInInventory(); // task 0335: the claw is made in Arvel's inventory
                 }
-                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false)))
+                if (qr
+                    || (spellSettings != nullptr
+                        && spellSettings->getBool(kPackId, std::string(dragonborn::kKey), false)))
                 {
                     // task 0320: Adril's arrival ForceGreet package (topic subtype HELO) makes him say his greeting
                     mWorldView.setHelloGreetings(true);
                     mPapyrus->enableHelloGreetings();
                     mPapyrus->enableDragonbornScenes(); // task 0329
                 }
-                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(bloodice::kKey), false)))
+                if (qr
+                    || (spellSettings != nullptr
+                        && spellSettings->getBool(kPackId, std::string(bloodice::kKey), false)))
                 {
                     mBloodIceOn = true; // task 0333
                     mPapyrus->enableActionlessScenes();
                 }
-                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(solitude::kKey), false)))
+                if (qr
+                    || (spellSettings != nullptr
+                        && spellSettings->getBool(kPackId, std::string(solitude::kKey), false)))
                 {
                     // task 0346: the gate's box trigger starts the execution scene; the player enters it with his body
                     mPapyrus->enableDaedric();
                     mPapyrus->host().setPlayerBodyTriggers(solitude::kPlayerBodyHeight);
-                    // the execution scene (ExectionScene) waits in phase 13 until GetDead of its Prisoner alias holds: a death
-                    // of this session counts (the kill lookup of tasks 0326 and 0341, ONE mechanism)
+                    // the execution scene (ExectionScene) waits in phase 13 until GetDead of its Prisoner alias holds:
+                    // a death of this session counts (the kill lookup of tasks 0326 and 0341, ONE mechanism)
                     auto killed = [this](FormId reference) {
                         return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
                     };
                     mWorldView.setDeadLookup(killed);
                     if (mPapyrus != nullptr)
                         mPapyrus->setDeadLookup(killed);
-                    // after the scene SolitudeOpeningScript steps the quest to its end by RegisterForUpdateGameTime(0.1):
-                    // task 0276's game-time updates and clock (ONE mechanism, as the wedding's), fed from the rest clock
+                    // after the scene SolitudeOpeningScript steps the quest to its end by
+                    // RegisterForUpdateGameTime(0.1): task 0276's game-time updates and clock (ONE mechanism, as the
+                    // wedding's), fed from the rest clock
                     mPapyrus->host().enableGameTimers(true);
                     mPapyrus->host().ignoreGameTimersOf(vampirism::kQuest);
                     mGameClockOn = true;
-                    // MS06Start: Falk's request is a top-level topic that has a prompt and no name, and the fragments of a
-                    // response run before the next menu is judged (the quest's blocking greetings follow on that)
-                    // Task 0356: NOT a general rule (it adds buttons to other quests' talks: Aventus's DB01 conversation
-                    // offers three more at its end), so only the quest's own setting turns it on
+                    // MS06Start: Falk's request is a top-level topic that has a prompt and no name, and the fragments
+                    // of a response run before the next menu is judged (the quest's blocking greetings follow on that)
+                    // Task 0356: NOT a general rule (it adds buttons to other quests' talks: Aventus's DB01
+                    // conversation offers three more at its end), so only the quest's own setting turns it on
                     if (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(solitude::kKey), false))
                         mWorldView.setPromptStartsAreMenus(true);
                     mWorldView.setQuestGreetings(true);
@@ -3408,7 +3444,9 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(laidtorest::kKey), false)))
+                if (qr
+                    || (spellSettings != nullptr
+                        && spellSettings->getBool(kPackId, std::string(laidtorest::kKey), false)))
                 {
                     mPapyrus->host().setQuestUpdatesReachAliases(true); // task 0342
                     mPapyrus->setLaidToRest(true);
@@ -3417,15 +3455,18 @@ namespace game_skyrimse
                     mBloodIceOn = true;
                     mPapyrus->enableActionlessScenes();
                 }
-                if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false)))
+                if (qr
+                    || (spellSettings != nullptr
+                        && spellSettings->getBool(kPackId, std::string(forsworn::kKey), false)))
                 {
-                    // task 0337: MarkarthWorldIntroSceneTrigger (a box) starts MS01IntroWorldScene, the quest's scene moves
-                    // its actors near the player (the Daedric quests' world) and Weylin's paired kill move kills Margret
+                    // task 0337: MarkarthWorldIntroSceneTrigger (a box) starts MS01IntroWorldScene, the quest's scene
+                    // moves its actors near the player (the Daedric quests' world) and Weylin's paired kill move kills
+                    // Margret
                     mPapyrus->enableDaedric();
                     mPapyrus->host().setPairedKillMoves(true);
                     mPapyrus->host().setActorFights(true);
-                    // Eltrys's ForceGreet package (MS01EltrysForceGreetPackage) wants Weylin dead: GetDead of a reference
-                    // the session killed
+                    // Eltrys's ForceGreet package (MS01EltrysForceGreetPackage) wants Weylin dead: GetDead of a
+                    // reference the session killed
                     mWorldView.setDeadLookup([this](FormId reference) {
                         return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
                     });
@@ -3435,12 +3476,14 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                if (dawnguardOn || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
+                if (dawnguardOn
+                    || (spellSettings != nullptr && spellSettings->getBool(kPackId, "daedric quests", false)))
                 {
                     if (!dawnguardOn)
                         mPapyrus->enableDaedric(); // task 0310: Barbas is moved to the road, the meeting box fires
                     mPapyrus->enableBeginFragmentScenes(); // task 0350
-                    enableSceneWalks(); // task 0350: Sinding's escape scene sends him to his home spot (a package he cannot walk)
+                    enableSceneWalks(); // task 0350: Sinding's escape scene sends him to his home spot (a package he
+                                        // cannot walk)
                     mWorldView.setRaceLookup([this](FormId reference) { // task 0350: his phase waits for "a werewolf"
                         const auto it = mActorRaces.find(reference);
                         return it != mActorRaces.end() ? it->second : kNullFormId;
@@ -3462,18 +3505,20 @@ namespace game_skyrimse
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "dark brotherhood", false)))
                 {
-                    // task 0343: the shack's leave box (DBAstridShackLeaveTriggerScript) fires for the player, Astrid and the
-                    // Black Door speak through Blocking branches and walk-away topics, the nameless links of a response go on
-                    // by themselves and a response's fragments run before the next choice is judged (the Daedric quests' world)
+                    // task 0343: the shack's leave box (DBAstridShackLeaveTriggerScript) fires for the player, Astrid
+                    // and the Black Door speak through Blocking branches and walk-away topics, the nameless links of a
+                    // response go on by themselves and a response's fragments run before the next choice is judged (the
+                    // Daedric quests' world)
                     mPapyrus->enableDaedric();
                     mWorldView.setQuestGreetings(true);
-                    // Astrid's DBAstridCaughtBranchTopic is a menu topic (task 0356: only the quest's own setting, see the
-                    // Solitude block)
+                    // Astrid's DBAstridCaughtBranchTopic is a menu topic (task 0356: only the quest's own setting, see
+                    // the Solitude block)
                     if (spellSettings != nullptr && spellSettings->getBool(kPackId, "dark brotherhood", false))
                         mWorldView.setPromptStartsAreMenus(true);
                     mWorldView.setBlockingBranches(true);
                     mWorldView.setWalkAwayTopics(true);
-                    // Astrid's second greeting asks GetDeadCount of each captive's base: a captive the session killed counts
+                    // Astrid's second greeting asks GetDeadCount of each captive's base: a captive the session killed
+                    // counts
                     auto killed = [this](FormId reference) {
                         return mKilledRefs.count(reference) != 0 || mDeathLedger.find(reference) != nullptr;
                     };
@@ -3489,9 +3534,10 @@ namespace game_skyrimse
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "bards college", false)))
                 {
-                    // task 0331: Viarmo's poem (MS05): a response that links to a topic with no name goes on by itself (the
-                    // verse, then "What do we say really happened?"), the walk-away topic it names is said as the player
-                    // leaves, and the fragments of a response run before the next choice is judged (task 0304's rules)
+                    // task 0331: Viarmo's poem (MS05): a response that links to a topic with no name goes on by itself
+                    // (the verse, then "What do we say really happened?"), the walk-away topic it names is said as the
+                    // player leaves, and the fragments of a response run before the next choice is judged (task 0304's
+                    // rules)
                     mWorldView.setQuestGreetings(true);
                     mWorldView.setWalkAwayTopics(true);
                     mWorldView.setFragmentFlush([this]() {
@@ -3501,8 +3547,8 @@ namespace game_skyrimse
                 }
                 if (qr || (spellSettings != nullptr && spellSettings->getBool(kPackId, "companions", false)))
                 {
-                    // task 0315: Eorlund's "What brings you here?" is the first line of a Blocking branch (C00 stage 30)
-                    // and the chained replies of the Companions' branches want the effects of the line just shown
+                    // task 0315: Eorlund's "What brings you here?" is the first line of a Blocking branch (C00 stage
+                    // 30) and the chained replies of the Companions' branches want the effects of the line just shown
                     mWorldView.setBlockingBranches(true);
                     // task 0340: Skjor's briefing ends with an InvisibleContinue line that goes on with the nameless
                     // branch start `C01SkjorObserverSplit` by itself (task 0304's rule)
@@ -3516,8 +3562,8 @@ namespace game_skyrimse
                             mPapyrus->flushFragments();
                     });
                 }
-                // Task 0324: spell casts, hits and applied effects reach the scripts with `college` (task 0292) and with
-                // `main quest whiterun` (MQ105's shout target scripts wait for OnMagicEffectApply): ONE sink
+                // Task 0324: spell casts, hits and applied effects reach the scripts with `college` (task 0292) and
+                // with `main quest whiterun` (MQ105's shout target scripts wait for OnMagicEffectApply): ONE sink
                 if (spellSettings != nullptr
                     && (qr || spellSettings->getBool(kPackId, "college", false)
                         || spellSettings->getBool(kPackId, "main quest whiterun", false)))
@@ -3578,8 +3624,7 @@ namespace game_skyrimse
                         });
                     mWorldView.setPlayerWardSource([this]() -> float {
                         SkyrimCombat::FighterView view;
-                        return mCellSource.combat().fighterView(
-                                   openeden::sdk::game::CombatSubject::ofPlayer(), view)
+                        return mCellSource.combat().fighterView(openeden::sdk::game::CombatSubject::ofPlayer(), view)
                             ? view.mWardPower
                             : 0.f;
                     });
@@ -3600,14 +3645,17 @@ namespace game_skyrimse
                     });
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info,
-                            "college: spell casts, hits and effects reach the scripts; quests may move actors near the player");
+                            "college: spell casts, hits and effects reach the scripts; quests may move actors near the "
+                            "player");
                 }
                 if (mAmbushOn) // task 0302: OnCombatStateChanged on the scripts of the actor that fights
                     mCellSource.combat().setCombatStateSink(
                         [&host](openeden::sdk::game::ActorHandle actor, bool engaged) {
-                            host.onCombatStateChanged(actor.reference, engaged ? kPapyrusPlayerReference : 0, engaged ? 1 : 0);
+                            host.onCombatStateChanged(
+                                actor.reference, engaged ? kPapyrusPlayerReference : 0, engaged ? 1 : 0);
                         });
-                if (mPapyrus != nullptr && (mPapyrus->companionsOn() || mPapyrus->thievesOn())) // task 0264, 0347: a brawl's bleedout
+                if (mPapyrus != nullptr
+                    && (mPapyrus->companionsOn() || mPapyrus->thievesOn())) // task 0264, 0347: a brawl's bleedout
                 {
                     mCellSource.combat().setEssentialBleedout(true);
                     mCellSource.setStandOnEngage(true);
@@ -3835,7 +3883,8 @@ namespace game_skyrimse
                 if (mVampirism == nullptr)
                     return;
                 mVampirism->poll();
-                // Task 0279: VampireChange's SetRace and VampireCure's way back: the body is drawn with the vampire race
+                // Task 0279: VampireChange's SetRace and VampireCure's way back: the body is drawn with the vampire
+                // race
                 mWorldView.setVampireLook(mVampirism->vampire());
                 if (mVampireTestCureHours > 0.f && mVampirism->vampire() && !mVampireCureScheduled)
                 {
@@ -4117,12 +4166,13 @@ namespace game_skyrimse
                     mPapyrus->host().setFastTravelSink([this](FormId destination) {
                         return mTravel != nullptr && mTravel->queueRequest(destination);
                     });
-                // Task 0325: the player's own MoveTo (the sleep that carries him to the Dark Brotherhood's shack) leaves a
-                // teleport the same global script does; the cell must be an interior with an editor id
+                // Task 0325: the player's own MoveTo (the sleep that carries him to the Dark Brotherhood's shack)
+                // leaves a teleport the same global script does; the cell must be an interior with an editor id
                 if (mPapyrus != nullptr)
                     mPapyrus->host().setPlayerMoveSink([this](FormId cell, const double* at, double heading) {
                         const std::string name = mWorldView.cellEditorIdOf(cell);
-                        return mTravel != nullptr && !name.empty() && mTravel->queueMove(name, at[0], at[1], at[2], heading);
+                        return mTravel != nullptr && !name.empty()
+                            && mTravel->queueMove(name, at[0], at[1], at[2], heading);
                     });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
@@ -4479,7 +4529,8 @@ namespace game_skyrimse
                     && (settings->getBool(kPackId, "dungeon mechanics", false)
                         || settings->getBool(kPackId, std::string(laidtorest::kKey), false))
                     && mPapyrus != nullptr;
-                // Task 0338: Azura's altar (a scripted activator) is activated by the player under `daedric quests`, too
+                // Task 0338: Azura's altar (a scripted activator) is activated by the player under `daedric quests`,
+                // too
                 const bool daedricActivators = settings != nullptr
                     && (settings->getBool(kPackId, "daedric quests", false)
                         || settings->getBool(kPackId, "dark brotherhood", false) // task 0343: the Black Door
@@ -4670,9 +4721,9 @@ namespace game_skyrimse
             }
 
             // Task 0279: PlayerWerewolfChangeScript.StartTracking learns and equips the quest's CurrentHowl
-            // (HowlWerewolfFear: Fury, then its two other words) and the end removes it; what the player held is given back.
-            // A form restored from a save (`fresh` false) already finds the Howl in the shouts chunk: every word of it is
-            // taken as ours, so the end removes them.
+            // (HowlWerewolfFear: Fury, then its two other words) and the end removes it; what the player held is given
+            // back. A form restored from a save (`fresh` false) already finds the Howl in the shouts chunk: every word
+            // of it is taken as ours, so the end removes them.
             void beastGiveHowl(bool fresh)
             {
                 mBeastHowlWords.clear();
@@ -4953,7 +5004,8 @@ namespace game_skyrimse
                 if (settings->getBool(kPackId, marriage::kMarriageKey, false)
                     || settings->getBool(kPackId, "golden claw", false) // tasks 0270, 0335: GetItemCount of the player
                     || settings->getBool(kPackId, "daedric quests", false) // task 0338: Aranea asks for the Star
-                    || settings->getBool(kPackId, "dark brotherhood", false) // task 0343: the shack's key, the Black Door
+                    || settings->getBool(
+                        kPackId, "dark brotherhood", false) // task 0343: the shack's key, the Black Door
                     || (mPapyrus != nullptr && mPapyrus->questRulesOn())) // task 0356
                 {
                     mWorldView.setPlayerWornSource(
@@ -5530,7 +5582,8 @@ namespace game_skyrimse
             }
 
             // Task 0275: the perks the player holds (Actor.AddPerk through the Papyrus host: the Thieves Guild's helper
-            // perk of TG00) change a pickpocket chance by entry point 56, "Mod Pickpocket Chance", in percentage points.
+            // perk of TG00) change a pickpocket chance by entry point 56, "Mod Pickpocket Chance", in percentage
+            // points.
             float pickpocketPerkBonus(std::uint64_t victim)
             {
                 if (mPapyrus == nullptr)
@@ -5556,8 +5609,8 @@ namespace game_skyrimse
                 owner.mKind = PerkParticipant::Kind::Actor;
                 owner.mForm = crime::kPlayerNpcId;
                 owner.mPerks = &perks;
-                // the second tab of the entry point is the victim (RECALLED-VERIFY: the PERK has two tabs); a victim the
-                // pack cannot name is an actor with no data, which a tab with no conditions accepts
+                // the second tab of the entry point is the victim (RECALLED-VERIFY: the PERK has two tabs); a victim
+                // the pack cannot name is an actor with no data, which a tab with no conditions accepts
                 PerkParticipant target;
                 target.mKind = PerkParticipant::Kind::Actor;
                 if (const PlacedRefIndex* refs = mWorldView.placedRefs())
@@ -5739,8 +5792,8 @@ namespace game_skyrimse
                     // the alias of the quest that made the note is where the name comes from
                     if (resolved.find("<Alias") != std::string::npos)
                     {
-                        const FormId quest = mWorldView.formFromFile(
-                            dragonborn::kDragonbornFile, dragonborn::kCultistAmbushLocal);
+                        const FormId quest
+                            = mWorldView.formFromFile(dragonborn::kDragonbornFile, dragonborn::kCultistAmbushLocal);
                         journal::TagHooks tags;
                         const auto isPlayer = [](std::string_view alias) {
                             return alias.size() == 6 && (alias[0] == 'P' || alias[0] == 'p')
@@ -5780,10 +5833,11 @@ namespace game_skyrimse
                     const SpellRecord* record = mWorldView.spellById(spell);
                     return record != nullptr ? progression::prettyPerkName(record->mCommon.mEditorId) : std::string();
                 };
-                hooks.mBookRead = [this](FormId item) { // task 0306: OnRead of a note a quest made (the cultists' orders)
-                    if (mPapyrus != nullptr)
-                        mPapyrus->itemRead(item);
-                };
+                hooks.mBookRead
+                    = [this](FormId item) { // task 0306: OnRead of a note a quest made (the cultists' orders)
+                          if (mPapyrus != nullptr)
+                              mPapyrus->itemRead(item);
+                      };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
@@ -6485,9 +6539,9 @@ namespace game_skyrimse
                         mWorldView.setCreatures(true);
                         say(openeden::sdk::LogLevel::Info,
                             "creatures: on ("
-                            + std::to_string(creatureProfilesAll().size() + creatureProfilesFourth().size()
-                                + creatureProfilesFifth().size())
-                            + " creatures)");
+                                + std::to_string(creatureProfilesAll().size() + creatureProfilesFourth().size()
+                                    + creatureProfilesFifth().size())
+                                + " creatures)");
                     }
                     // Task 0254: dead stays dead across a load (a fix of the neutral saves: no setting). Hooks only;
                     // the keeper does nothing until an actor of the ledger appears.
@@ -6512,8 +6566,7 @@ namespace game_skyrimse
                         if (settings->getBool(kPackId, kCombatTraceKey, false))
                             mDeathKeeper->setTrace(
                                 [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
-                        if (settings->getBool(kPackId, "dawnguard", false)
-                            || mQuestRulesWanted) // task 0330, 0356
+                        if (settings->getBool(kPackId, "dawnguard", false) || mQuestRulesWanted) // task 0330, 0356
                             mCellSource.setStartsDeadLookup([this](openeden::sdk::game::WorldId reference) {
                                 return mWorldView.startsDead(static_cast<FormId>(reference));
                             });
@@ -6705,21 +6758,19 @@ namespace game_skyrimse
                             settings->getBool(kPackId, kActorSleepSnapKey, true));
                         say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
                         // Task 0271: quest aliases' packages and the ForceGreet conversation (needs the brain)
-                        if (settings->getBool(kPackId, kQuestAliasPackagesKey, false)
-                            || mQuestRulesWanted) // task 0356
+                        if (settings->getBool(kPackId, kQuestAliasPackagesKey, false) || mQuestRulesWanted) // task 0356
                         {
                             mWorldView.setAliasPackages(true);
                             // Task 0274: a package that ends (a patrol at its last marker) runs its OnEnd fragment
                             // (the cart horses' last package sets MQ101 stage 41)
-                            mCellSource.actorTable().setPackageEndHook(
-                                [this](openeden::sdk::game::WorldId reference, const PackageRecord& package) {
-                                    if (mPapyrus == nullptr)
-                                        return;
-                                    (void)mPapyrus->host().runPackageEnd(package.mCommon.mId,
-                                        static_cast<FormId>(reference),
-                                        mWorldView.aliasPackageQuest(package.mCommon.mId), package.mEndScript,
-                                        package.mEndFunction);
-                                });
+                            mCellSource.actorTable().setPackageEndHook([this](openeden::sdk::game::WorldId reference,
+                                                                           const PackageRecord& package) {
+                                if (mPapyrus == nullptr)
+                                    return;
+                                (void)mPapyrus->host().runPackageEnd(package.mCommon.mId,
+                                    static_cast<FormId>(reference), mWorldView.aliasPackageQuest(package.mCommon.mId),
+                                    package.mEndScript, package.mEndFunction);
+                            });
                             if (const char* trace = std::getenv("OPENEDEN_PACKAGE_TRACE"))
                                 mWorldView.setPackageTrace(static_cast<FormId>(std::strtoul(trace, nullptr, 10)),
                                     [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
@@ -6963,13 +7014,14 @@ namespace game_skyrimse
             FormId mStonesTestCast = kNullFormId; // task 0248: a proof aid, a hex form id cast once as a blessing
             std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
-            bool mQuestRulesWanted = false; ///< task 0356: `quest rules` with `papyrus` (known before the Papyrus host exists)
+            bool mQuestRulesWanted
+                = false; ///< task 0356: `quest rules` with `papyrus` (known before the Papyrus host exists)
             bool mDungeonMechanics = false; // task 0289: [extension.skyrimse] dungeon mechanics
             std::map<FormId, FormId> mActorRaces; // task 0350: Actor.SetRace
             bool mAmbushOn = false; // task 0302: [extension.skyrimse] ambush
             bool mDragonbornOn = false; // task 0306: [extension.skyrimse] dragonborn
-            /// Tasks 0277, 0327, 0328 and 0329, ONE mechanism for scenes whose actors walk: a scene's Travel package that
-            /// cannot be walked ends with the actor at its destination (and travellers are carried through the
+            /// Tasks 0277, 0327, 0328 and 0329, ONE mechanism for scenes whose actors walk: a scene's Travel package
+            /// that cannot be walked ends with the actor at its destination (and travellers are carried through the
             /// player's doors), and the conditions of a scene read where an actor stands now, not its placement.
             void enableSceneWalks()
             {
@@ -7002,7 +7054,8 @@ namespace game_skyrimse
             std::unique_ptr<FollowerStateChunk> mFollowerStateChunk; // task 0239; refers to mFollowerState
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             openeden::sdk::Logger* mFollowerLogger = nullptr; // task 0239: where the recruit and dismiss lines go
-            // Task 0323: the split of the GameSimulation callback; on only with OPENEDEN_PACK_FRAME_TRACE (a developer aid).
+            // Task 0323: the split of the GameSimulation callback; on only with OPENEDEN_PACK_FRAME_TRACE (a developer
+            // aid).
             FrameSplit mFrameSplit{ FrameSplit::wanted(std::getenv("OPENEDEN_PACK_FRAME_TRACE")) };
             static std::int64_t steadyMicroseconds() { return steadyNowMicroseconds(); }
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184

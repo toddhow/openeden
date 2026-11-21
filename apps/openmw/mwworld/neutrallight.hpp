@@ -69,7 +69,8 @@ namespace MWWorld
     struct NeutralGiLight
     {
         std::uint32_t mColor = 0; ///< As ESM::Light::mData.mColor (sRGB bytes, red lowest)
-        float mGain = 1.f; ///< The brightness the colour byte cannot hold (1 when none); a multiplier of the linear colour
+        float mGain
+            = 1.f; ///< The brightness the colour byte cannot hold (1 when none); a multiplier of the linear colour
         float mRadius = 0.f; ///< Units, as the engine's light radius
         bool mNegative = false;
     };

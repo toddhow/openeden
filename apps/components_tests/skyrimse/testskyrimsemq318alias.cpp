@@ -1,12 +1,11 @@
 // Task 0318 (the main quest after Dragon Rising): MQ104OutroScene's phases 15, 16 and 18 start only when
-// GetDistance(Player alias) < 1000 runs on Balgruuf's alias. The conditions world measured such a distance only from the
-// player; an actor-to-alias distance (the subject a placed actor, the alias the player or another placed reference) was
-// "unknown", so the phases were skipped. Written first and run red against the old measure.
+// GetDistance(Player alias) < 1000 runs on Balgruuf's alias. The conditions world measured such a distance only from
+// the player; an actor-to-alias distance (the subject a placed actor, the alias the player or another placed reference)
+// was "unknown", so the phases were skipped. Written first and run red against the old measure.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 
 #include <gtest/gtest.h>
-
 
 namespace
 {

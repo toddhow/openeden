@@ -75,8 +75,8 @@ namespace
         HavokPack::Packfile parse(const std::string& name) const
         {
             const std::string bytes = read(name);
-            return HavokPack::Packfile::parse(std::span<const std::uint8_t>(
-                reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
+            return HavokPack::Packfile::parse(
+                std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
         }
     };
 
@@ -143,8 +143,8 @@ namespace
                 motion = HavokPack::readMotionTable(motionText);
             }
             std::cout << "SKYRIMSE-CREATURE5-PROJECT " << c.mFolder << " project " << project << " sidecar "
-                      << sidecar.size() << " generators " << parsed.mClips.size() << " blocks "
-                      << motion.mBlocks.size() << std::endl;
+                      << sidecar.size() << " generators " << parsed.mClips.size() << " blocks " << motion.mBlocks.size()
+                      << std::endl;
             for (const HavokPack::SidecarClip& generator : parsed.mClips)
             {
                 bool hit = false;
@@ -159,15 +159,16 @@ namespace
                 }
                 std::string events;
                 const std::string gname = lower(generator.mName);
-                for (const char* key : { "spit", "cast", "release", "mag", "fire", "sleep", "alcove", "sarcoph", "sit" })
+                for (const char* key :
+                    { "spit", "cast", "release", "mag", "fire", "sleep", "alcove", "sarcoph", "sit" })
                     if (gname.find(key) != std::string::npos)
                     {
                         for (const HavokPack::ClipEvent& event : generator.mEvents)
                             events += event.mName + "@" + std::to_string(event.mTime).substr(0, 5) + " ";
                         break;
                     }
-                std::cout << "SKYRIMSE-CREATURE5-GEN " << c.mFolder << " " << generator.mName << " ev " << events << " dur "
-                          << (block != nullptr ? block->mDuration : -1.f) << " stride " << stride << " hit "
+                std::cout << "SKYRIMSE-CREATURE5-GEN " << c.mFolder << " " << generator.mName << " ev " << events
+                          << " dur " << (block != nullptr ? block->mDuration : -1.f) << " stride " << stride << " hit "
                           << (hit ? "Y" : "n") << std::endl;
             }
             const std::string prefix = std::string("meshes/actors/") + c.mFolder + "/animations/";
@@ -204,8 +205,8 @@ namespace
                         stride = std::sqrt(last[1] * last[1] + last[2] * last[2]);
                     }
                     std::cout << "SKYRIMSE-CREATURE5-CLIP " << c.mFolder << " " << stem << " dur " << duration
-                              << " gens " << link.mClips.size() << " stride " << stride << " hit "
-                              << (hit ? "Y" : "n") << " own " << rootX << "," << rootY << std::endl;
+                              << " gens " << link.mClips.size() << " stride " << stride << " hit " << (hit ? "Y" : "n")
+                              << " own " << rootX << "," << rootY << std::endl;
                 }
                 catch (const std::exception& e)
                 {
@@ -227,8 +228,8 @@ namespace
         {
             try
             {
-                const auto skeletons = HavokPack::readSkeletons(archives.parse(
-                    std::string("meshes/actors/") + c.mFolder + "/" + c.mAssets + "/skeleton.hkx"));
+                const auto skeletons = HavokPack::readSkeletons(
+                    archives.parse(std::string("meshes/actors/") + c.mFolder + "/" + c.mAssets + "/skeleton.hkx"));
                 if (skeletons.empty())
                     continue;
                 const HavokPack::Skeleton& skeleton = skeletons.front();
@@ -326,10 +327,9 @@ namespace
                             slabYLo = std::min(slabYLo, v[1]);
                             slabYHi = std::max(slabYHi, v[1]);
                         }
-                std::cout << "SKYRIMSE-CREATURE5-BOUNDS " << c.mFolder << " shapes " << model.mShapes.size()
-                          << " xext " << hi[0] - lo[0] << " yext " << hi[1] - lo[1] << " zext " << hi[2] - lo[2]
-                          << " zmin " << lo[2] << " slabx " << slabHi - slabLo << " slaby " << slabYHi - slabYLo
-                          << std::endl;
+                std::cout << "SKYRIMSE-CREATURE5-BOUNDS " << c.mFolder << " shapes " << model.mShapes.size() << " xext "
+                          << hi[0] - lo[0] << " yext " << hi[1] - lo[1] << " zext " << hi[2] - lo[2] << " zmin "
+                          << lo[2] << " slabx " << slabHi - slabLo << " slaby " << slabYHi - slabYLo << std::endl;
             }
             catch (const std::exception& e)
             {

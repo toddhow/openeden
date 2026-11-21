@@ -1,7 +1,7 @@
 // Task 0338 (docs/tasks/0338-skyrim-black-star.md): what "The Black Star" needed of the dialogue, generated plugins, no
-// game data. SkyrimBlackStarInvisible: a response with the Invisible Continue flag goes on through its links even when the
-// topic linked has a name (the editor's own text "(Invisible Continue)"): the speaker says it and only then offers the
-// next choices (Nelacar's four lines in a row). Without the flag the topic stays a choice.
+// game data. SkyrimBlackStarInvisible: a response with the Invisible Continue flag goes on through its links even when
+// the topic linked has a name (the editor's own text "(Invisible Continue)"): the speaker says it and only then offers
+// the next choices (Nelacar's four lines in a row). Without the flag the topic stays a choice.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/quest.hpp>
@@ -107,10 +107,11 @@ namespace
             Bytes dials;
             dials.append(
                 topic(kTopicHello, "Hello", "", "HELO", { infoRecord(kSelf | 0x20, "Need something?", {}, 0) }, 5.f));
-            // the star response (flagged Invisible Continue, as Nelacar's are) links to the first "(Invisible Continue)" topic, each links to the next (task 0338: Nelacar's
-            // answer is four of them in a row)
+            // the star response (flagged Invisible Continue, as Nelacar's are) links to the first "(Invisible
+            // Continue)" topic, each links to the next (task 0338: Nelacar's answer is four of them in a row)
             dials.append(topic(kTopicStar, "Star", "They're for enchanting, correct?", "CUST",
-                { infoRecord(kSelf | 0x21, "They are. Except the gem is always consumed.", { kTopicInvisible }, continueFlag) },
+                { infoRecord(
+                    kSelf | 0x21, "They are. Except the gem is always consumed.", { kTopicInvisible }, continueFlag) },
                 1.f));
             for (int i = 0; i < chain; ++i)
             {
@@ -207,8 +208,8 @@ namespace
         Turn reply;
         std::string error;
         ASSERT_TRUE(talk.mRuntime->choose(kTopicStar, reply, error)) << error;
-        EXPECT_EQ(reply.text,
-            "They are. Except the gem is always consumed. Line 1. Line 2. Line 3. Line 4. Line 5. Line 6.");
+        EXPECT_EQ(
+            reply.text, "They are. Except the gem is always consumed. Line 1. Line 2. Line 3. Line 4. Line 5. Line 6.");
         ASSERT_EQ(reply.topics.size(), 1u);
         EXPECT_EQ(reply.topics[0].text, "Why are you asking?");
     }

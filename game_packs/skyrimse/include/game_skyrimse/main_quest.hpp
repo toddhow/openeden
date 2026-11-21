@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <string>
 #include <vector>

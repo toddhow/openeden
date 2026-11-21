@@ -1,7 +1,8 @@
-// Task 0348 (College of Winterhold, fourth slice): the ward lesson of MG01. Tolfdir's package "MG01Stage50TolfdirCastAtPlayer"
-// (the UseMagic template, a begin fragment that sets the quest's TimerInit) makes him cast MG01TeachFirebolt at the player;
-// the player's ward absorbs it and the game's own MG01PlayerScript hears OnWardHit; the scene's phases read the player's
-// WardPower (actor value 63). Written first and run red against code that did none of it.
+// Task 0348 (College of Winterhold, fourth slice): the ward lesson of MG01. Tolfdir's package
+// "MG01Stage50TolfdirCastAtPlayer" (the UseMagic template, a begin fragment that sets the quest's TimerInit) makes him
+// cast MG01TeachFirebolt at the player; the player's ward absorbs it and the game's own MG01PlayerScript hears
+// OnWardHit; the scene's phases read the player's WardPower (actor value 63). Written first and run red against code
+// that did none of it.
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/package.hpp>
@@ -22,8 +23,8 @@
 #include <memory>
 #include <optional>
 #include <sstream>
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../contentsource/pluginbuilder.hpp"
@@ -34,7 +35,8 @@ namespace
     using namespace game_skyrimse;
     using namespace openeden::sdk::game;
 
-    // ---- the package: UseMagic and its begin fragment ----------------------------------------------------------------
+    // ---- the package: UseMagic and its begin fragment
+    // ----------------------------------------------------------------
     constexpr FormId kTolfdirBase = 0x0001C1A1;
     constexpr WorldId kTolfdirRef = 0x1C1A2;
     constexpr FormId kTeachFirebolt = 0x0009152C;
@@ -99,7 +101,8 @@ namespace
             brain = std::make_unique<PackageBrain>(src);
             if (installHooks)
             {
-                brain->setUseMagicHook([this](ActorHandle actor, FormId spell) { mCasts.emplace_back(actor.reference, spell); });
+                brain->setUseMagicHook(
+                    [this](ActorHandle actor, FormId spell) { mCasts.emplace_back(actor.reference, spell); });
                 brain->setPackageBeginHook([this](WorldId actor, const PackageRecord& package) {
                     mBegins.emplace_back(actor, package.mBeginFunction);
                 });
@@ -173,7 +176,8 @@ namespace
         EXPECT_TRUE(r.mBegins.empty());
     }
 
-    // ---- the player's ward power as a condition answer ---------------------------------------------------------------
+    // ---- the player's ward power as a condition answer
+    // ---------------------------------------------------------------
     constexpr std::uint32_t kWardPower = 63;
 
     TEST(SkyrimCollege4, theWardPowerOfThePlayerIsWhatTheWardSourceSays)
@@ -212,7 +216,8 @@ namespace
         EXPECT_FLOAT_EQ(world.actorValue(SkyrimConditionWorld::kPlayer, kWardPower), 0.f);
     }
 
-    // ---- an actor's cast at the player, and the ward event ------------------------------------------------------------
+    // ---- an actor's cast at the player, and the ward event
+    // ------------------------------------------------------------
     constexpr WorldId kCasterBase = 100;
     constexpr FormId kFirebolt = 0x1000, kWard = 0x1003, kTeach = 0x1010;
     constexpr FormId kTeachEffect = 0x2010;
@@ -239,7 +244,8 @@ namespace
             addEffect(kTeachEffect, 0, 24, MagicFlag::Detrimental, kProjectile, 41);
             addSpell(kTeach, "MG01TeachFirebolt", 23, MagicCast::FireAndForget, MagicDelivery::Aimed,
                 { { kTeachEffect, 15.f } });
-            addSpell(kFirebolt, "Firebolt", 41, MagicCast::FireAndForget, MagicDelivery::Aimed, { { kFireEffect, 25.f } });
+            addSpell(
+                kFirebolt, "Firebolt", 41, MagicCast::FireAndForget, MagicDelivery::Aimed, { { kFireEffect, 25.f } });
             addSpell(kWard, "WardLesser", 34, MagicCast::Concentration, MagicDelivery::Self,
                 { { kAccumulateEffect, 40.f }, { kPeakEffect, 40.f } });
             FighterProfile caster;
@@ -479,8 +485,8 @@ namespace
         updates(4);
         fireActorCast();
         EXPECT_EQ(count(Event::Kind::Cast), 1u);
-        const auto it = std::find_if(
-            mEvents.begin(), mEvents.end(), [](const Event& e) { return e.mKind == Event::Kind::Cast; });
+        const auto it
+            = std::find_if(mEvents.begin(), mEvents.end(), [](const Event& e) { return e.mKind == Event::Kind::Cast; });
         ASSERT_NE(it, mEvents.end());
         EXPECT_FALSE(it->mCaster.player);
         EXPECT_EQ(it->mCaster.actor.reference, 10u);
@@ -564,7 +570,8 @@ namespace
         EXPECT_FALSE(mWriter.mDamage.empty());
     }
 
-    // ---- OnWardHit reaches the script on the player's alias ----------------------------------------------------------
+    // ---- OnWardHit reaches the script on the player's alias
+    // ----------------------------------------------------------
     using namespace ContentTests;
     using PexAsm::Id;
     using PexAsm::Int;

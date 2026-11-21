@@ -1,6 +1,6 @@
-// Task 0362 item 1: the fog gradient. The fog's start colour rides in the ambient cube's header entries (components/render/
-// ambientcube.hpp) and the shaders blend the fog colour from it to the scene's fog colour by the fog's linear share
-// (lib/view/fog.glsl and .slang, lib/view/ambientcube.glsl and .slang). Hand-worked numbers.
+// Task 0362 item 1: the fog gradient. The fog's start colour rides in the ambient cube's header entries
+// (components/render/ ambientcube.hpp) and the shaders blend the fog colour from it to the scene's fog colour by the
+// fog's linear share (lib/view/fog.glsl and .slang, lib/view/ambientcube.glsl and .slang). Hand-worked numbers.
 #include <gtest/gtest.h>
 
 #include <components/render/ambientcube.hpp>
@@ -9,7 +9,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
 
 namespace
 {

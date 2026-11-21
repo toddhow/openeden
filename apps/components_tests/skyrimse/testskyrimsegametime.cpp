@@ -169,7 +169,11 @@ namespace
                 for (const std::string& line : mErrors)
                     std::cerr << "  error: " << line << std::endl;
         }
-        void tick(int n = 2) { for (int i = 0; i < n; ++i) mHost->tick(0.1f); }
+        void tick(int n = 2)
+        {
+            for (int i = 0; i < n; ++i)
+                mHost->tick(0.1f);
+        }
         void clock(double seconds)
         {
             mHost->setGameClock(seconds);
@@ -274,8 +278,8 @@ namespace
 
     TEST(SkyrimGameTime, a_registration_made_on_another_reference_reaches_that_references_script)
     {
-        // QF_RelationshipMarriageFIN calls Alias_LoveInterest.RegisterForUpdateGameTime(24) on a property: the receiver is
-        // not the script itself, its scripts get the updates
+        // QF_RelationshipMarriageFIN calls Alias_LoveInterest.RegisterForUpdateGameTime(24) on a property: the receiver
+        // is not the script itself, its scripts get the updates
         GtRig rig;
         rig.clock(0.0);
         const PapyrusHost::CallArgument args[]

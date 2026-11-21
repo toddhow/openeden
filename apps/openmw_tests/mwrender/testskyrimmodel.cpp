@@ -103,8 +103,8 @@ namespace
     {
         // The real shader options (the files of the source tree, compiled by glslang at the first pipeline), so that
         // the pipeline the builder asks for is the one the game would make.
-        vsg::ref_ptr<const vsg::Options> mShaderOptions = Resource::createShaderOptions(
-            std::string(OPENEDEN_SHADER_BUILD_DIR), "");
+        vsg::ref_ptr<const vsg::Options> mShaderOptions
+            = Resource::createShaderOptions(std::string(OPENEDEN_SHADER_BUILD_DIR), "");
         Pipeline::Builder mBuilder{ mShaderOptions, vsg::Sampler::create() };
         vsg::ref_ptr<vsgAdapters::nif> mReader
             = vsg::ref_ptr{ new vsgAdapters::nif(mBuilder, vsg::Options::create(), 0, 0) };

@@ -405,11 +405,12 @@ namespace game_skyrimse
             (void)item;
             return -1;
         }
-        /// Task 0318: a quest alias creates an item IN an inventory (the Jarl's reward axe: a leveled list). The item the
-        /// list resolves to, for the alias to hold (0: none). A world that does not know leveled items keeps the form.
+        /// Task 0318: a quest alias creates an item IN an inventory (the Jarl's reward axe: a leveled list). The item
+        /// the list resolves to, for the alias to hold (0: none). A world that does not know leveled items keeps the
+        /// form.
         [[nodiscard]] virtual FormId resolveLeveledItem(FormId base) { return base; }
-        /// Task 0335: whether items can be resolved and added yet (the pack builds its item table on a worker). The quests
-        /// that start with the game make their created items once it is true.
+        /// Task 0335: whether items can be resolved and added yet (the pack builds its item table on a worker). The
+        /// quests that start with the game make their created items once it is true.
         [[nodiscard]] virtual bool itemsReady() { return true; }
         /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
         virtual bool addItem(FormId owner, FormId item, std::int32_t count)
@@ -497,8 +498,8 @@ namespace game_skyrimse
             (void)actor;
             return false;
         }
-        /// Task 0337: `actor.StartCombat(target)` with ANOTHER actor as the target (Kerah and Hogni against Weylin): the
-        /// combat AI engages both against each other. False when either is unknown or the AI is off.
+        /// Task 0337: `actor.StartCombat(target)` with ANOTHER actor as the target (Kerah and Hogni against Weylin):
+        /// the combat AI engages both against each other. False when either is unknown or the AI is off.
         virtual bool startCombatAt(FormId actor, FormId target)
         {
             (void)actor, (void)target;
@@ -519,9 +520,9 @@ namespace game_skyrimse
             (void)actor;
             return false;
         }
-        /// Task 0302: a script set an actor value (Actor.SetAV or SetActorValue; `lowerName` is the key as avKey makes it:
-        /// "aggression", "variable01"); `value` is the number the actor value now has. The pack passes Aggression on to the
-        /// combat AI. Called after the host noted the new value itself.
+        /// Task 0302: a script set an actor value (Actor.SetAV or SetActorValue; `lowerName` is the key as avKey makes
+        /// it: "aggression", "variable01"); `value` is the number the actor value now has. The pack passes Aggression
+        /// on to the combat AI. Called after the host noted the new value itself.
         virtual void actorValueSet(FormId actor, std::string_view lowerName, double value)
         {
             (void)actor, (void)lowerName, (void)value;
@@ -555,15 +556,15 @@ namespace game_skyrimse
             (void)word;
             return false;
         }
-        /// Task 0296 (ObjectReference.AddToMap): the map marker is shown on the world map and the compass. False when the
-        /// pack cannot (the map is off, or the reference is no map marker).
+        /// Task 0296 (ObjectReference.AddToMap): the map marker is shown on the world map and the compass. False when
+        /// the pack cannot (the map is off, or the reference is no map marker).
         virtual bool addToMap(FormId reference)
         {
             (void)reference;
             return false;
         }
-        /// Task 0350 (Actor.SetRace): the race an actor is now; the pack tells the conditions that run on that reference
-        /// (a scene phase waits for "Sinding is a werewolf"). False when the pack keeps no race.
+        /// Task 0350 (Actor.SetRace): the race an actor is now; the pack tells the conditions that run on that
+        /// reference (a scene phase waits for "Sinding is a werewolf"). False when the pack keeps no race.
         virtual bool setActorRace(FormId reference, FormId race)
         {
             (void)reference, (void)race;
@@ -707,16 +708,18 @@ namespace game_skyrimse
 
         void setLog(LogFunction log);
         void setQuestChanged(QuestChanged changed);
-        /// Task 0306: a quest started (not by a stage: the story manager's start): the package brain learns of it. What a
-        /// quest created for an alias is read through `aliasReference` (task 0305's lookup) and moves `aliasRevision`.
+        /// Task 0306: a quest started (not by a stage: the story manager's start): the package brain learns of it. What
+        /// a quest created for an alias is read through `aliasReference` (task 0305's lookup) and moves
+        /// `aliasRevision`.
         using QuestStarted = std::function<void(FormId quest)>;
         void setQuestStarted(QuestStarted started);
         /// Task 0344: told when a script stops a quest (Quest.Stop), so the package brain's copy of the quests stops
         /// giving that quest's alias packages.
         using QuestStopped = std::function<void(FormId quest)>;
         void setQuestStopped(QuestStopped stopped);
-        /// Task 0347: told when the story manager starts a quest again (DGIntimidateQuest, a second brawl) and its stage
-        /// progress was reset, so the package brain's copy forgets the old stages too (GetStage in the packages' conditions).
+        /// Task 0347: told when the story manager starts a quest again (DGIntimidateQuest, a second brawl) and its
+        /// stage progress was reset, so the package brain's copy forgets the old stages too (GetStage in the packages'
+        /// conditions).
         using QuestReset = std::function<void(FormId quest)>;
         void setQuestReset(QuestReset reset);
         void stopQuestForTest(FormId quest); ///< what the native does
@@ -745,25 +748,26 @@ namespace game_skyrimse
         /// a new reference there (PapyrusWorldHooks::relocateObject); the quest's aliases follow it. Off by default.
         void setRelocation(bool on, double maxPlayerDistance);
         /// Task 0337: `Actor.PlayIdleWithTarget(idle, target)` with an idle that is a paired kill move (see
-        /// forsworn::isKillMoveName) kills the target (Weylin's SneakKillMove on Margret); the clip itself is not played.
-        /// Off by default: the native is then a tolerant no-op.
+        /// forsworn::isKillMoveName) kills the target (Weylin's SneakKillMove on Margret); the clip itself is not
+        /// played. Off by default: the native is then a tolerant no-op.
         void setPairedKillMoves(bool on);
-        /// Task 0342: a quest script's `RegisterForUpdate` / `RegisterForSingleUpdate` also registers the scripts of the
-        /// quest's aliases (MS14's burned-house and coffin alias scripts handle OnUpdate and nothing else registers
+        /// Task 0342: a quest script's `RegisterForUpdate` / `RegisterForSingleUpdate` also registers the scripts of
+        /// the quest's aliases (MS14's burned-house and coffin alias scripts handle OnUpdate and nothing else registers
         /// them). Off by default: an alias has its own registration (task 0325).
         void setQuestUpdatesReachAliases(bool on);
-        /// Task 0346: the player enters a box or sphere trigger with his body, `height` units above his feet (default 0: the
-        /// feet only). The gate box of the Solitude opening scene hangs above the road.
+        /// Task 0346: the player enters a box or sphere trigger with his body, `height` units above his feet (default
+        /// 0: the feet only). The gate box of the Solitude opening scene hangs above the road.
         void setPlayerBodyTriggers(double height);
         /// Task 0337: `Actor.StartCombat(target)` with an actor other than the player reaches the hook `startCombatAt`
-        /// (before, only a fight against the player was built and the native ignored every other target). Off by default.
+        /// (before, only a fight against the player was built and the native ignored every other target). Off by
+        /// default.
         void setActorFights(bool on);
 
         /// Task 0286: MoveTo asks PapyrusWorldHooks::moveToCell first (any distance from the player, any cell); the
         /// relocation above is the fallback when the hook refuses. Off by default.
         void setCellMoves(bool on);
-        /// Task 0348: a unique-actor alias whose actor is the Player NPC_ (0x00000007: MG01's Player alias, which carries
-        /// MG01PlayerScript) holds the player's reference (0x14), as in the game. Off by default.
+        /// Task 0348: a unique-actor alias whose actor is the Player NPC_ (0x00000007: MG01's Player alias, which
+        /// carries MG01PlayerScript) holds the player's reference (0x14), as in the game. Off by default.
         void setPlayerAliasFill(bool on);
         /// Task 0317: the scripts of unplaced item forms (see PapyrusHostOptions::mFormScripts).
         void setFormScripts(bool on);
@@ -779,9 +783,9 @@ namespace game_skyrimse
         [[nodiscard]] std::optional<double> anyNumberVariable(FormId form, std::string_view name) const;
         /// Task 0194: the scene runner. Not owned; null: the Scene natives answer false and quests start no scenes.
         void setSceneControl(SceneControl* control);
-        /// Task 0335: an alias created IN another alias (ALCA bit 31) also puts the item into that alias's inventory (the
-        /// world's addItem), and the quests that start with the game create their alias objects at startGame(). Off: as
-        /// before (the quest's own script hands the item over).
+        /// Task 0335: an alias created IN another alias (ALCA bit 31) also puts the item into that alias's inventory
+        /// (the world's addItem), and the quests that start with the game create their alias objects at startGame().
+        /// Off: as before (the quest's own script hands the item over).
         void setCreatedInInventory(bool on);
         /// Task 0320: references a script's Disable does not take effect on (the pack names them). A refused disable is
         /// logged once per reference. Empty function: none.
@@ -811,30 +815,30 @@ namespace game_skyrimse
         /// form.
         void onItemMoved(FormId from, FormId to, FormId item, std::int32_t count);
         /// Task 0345: the placed reference being picked up while the item moves (0: none). An alias that holds a
-        /// placement of the item's base hears OnContainerChanged only when it holds THIS reference (two aliases may hold
-        /// two placements of one base: the temple's wines).
+        /// placement of the item's base hears OnContainerChanged only when it holds THIS reference (two aliases may
+        /// hold two placements of one base: the temple's wines).
         void setPickupSource(FormId reference);
         /// OnHit goes to the victim's scripts (and alias scripts that hold it). `attacker` 0: unknown.
         void onActorHit(FormId victim, FormId attacker, bool blocked, bool bash);
         /// Task 0292 (the College of Winterhold's tests): what a spell did. OnHit(akAggressor = caster, akSource = the
-        /// spell) goes to the scripts that hold `target`; with `target` 0 (the shot ended on the world at x, y, z) to the
-        /// scripts of every reference or alias reference within kSpellHitRadius of that point.
+        /// spell) goes to the scripts that hold `target`; with `target` 0 (the shot ended on the world at x, y, z) to
+        /// the scripts of every reference or alias reference within kSpellHitRadius of that point.
         static constexpr double kSpellHitRadius = 256.0;
         void onSpellHit(FormId caster, FormId spell, FormId target, double x, double y, double z);
         /// OnMagicEffectApply(akCaster, akEffect) goes to the scripts that hold `target`.
         void onMagicEffectApplied(FormId caster, FormId target, FormId effect);
         /// OnSpellCast(akSpell) goes to the scripts that hold `caster`.
         void onSpellCast(FormId caster, FormId spell);
-        /// Task 0348: OnWardHit(akCaster, akSpell, aiStatus) goes to the scripts that hold `target` (MG01PlayerScript on
-        /// the player alias): the target's ward held (some of) a hostile spell of `caster`. `status` 0 = the ward
+        /// Task 0348: OnWardHit(akCaster, akSpell, aiStatus) goes to the scripts that hold `target` (MG01PlayerScript
+        /// on the player alias): the target's ward held (some of) a hostile spell of `caster`. `status` 0 = the ward
         /// absorbed it (the game's 1 = broke, 2 = unharmed are not told).
         void onWardHit(FormId target, FormId caster, FormId spell, int status);
         /// Task 0318: OnLocationChange(akOldLoc, akNewLoc) goes to the scripts that hold `actor` (the player's alias
         /// scripts: MQ104PlayerScript sets the Greybeards' call when he enters Solitude or Windhelm, MQ105PlayerScript
         /// stage 15 when he enters High Hrothgar). A location the pack does not know is 0 (none).
         void onLocationChange(FormId actor, FormId oldLocation, FormId newLocation);
-        /// Task 0318: OnObjectEquipped(akBaseObject, akReference) goes to the scripts that hold `actor` (a shout equipped
-        /// from the shout menu: MQ104's stage 92 and MQ105's stage 85 wait for it).
+        /// Task 0318: OnObjectEquipped(akBaseObject, akReference) goes to the scripts that hold `actor` (a shout
+        /// equipped from the shout menu: MQ104's stage 92 and MQ105's stage 85 wait for it).
         void onObjectEquipped(FormId actor, FormId baseObject, FormId reference);
         /// OnDying and OnDeath go to the victim's scripts; the actor counts as dead for IsDead.
         void onActorDied(FormId victim, FormId killer);
@@ -844,14 +848,16 @@ namespace game_skyrimse
         /// table)? The pack wakes only such sleepers by the player's nearness: the game's own script decides what a
         /// wake means.
         [[nodiscard]] bool handlesGetUp(FormId actor) const;
-        /// Task 0302: the engine's OnGetUp(akFurniture) to the scripts that hold the actor (queued; run by the next tick).
+        /// Task 0302: the engine's OnGetUp(akFurniture) to the scripts that hold the actor (queued; run by the next
+        /// tick).
         void onGetUp(FormId actor, FormId furniture);
-        /// Task 0325: the player slept (a rest at a bed): OnSleepStart(afSleepStartTime, afDesiredSleepEndTime), in game
-        /// days, goes to the scripts that called RegisterForSleep; `onSleepStop(interrupted)` follows when it ends.
+        /// Task 0325: the player slept (a rest at a bed): OnSleepStart(afSleepStartTime, afDesiredSleepEndTime), in
+        /// game days, goes to the scripts that called RegisterForSleep; `onSleepStop(interrupted)` follows when it
+        /// ends.
         void onSleepStart(double startDays, double desiredEndDays);
         void onSleepStop(bool interrupted);
-        /// Task 0302: OnCombatStateChanged(akTarget, aeCombatState) to the scripts that hold the actor. State 0 left the
-        /// fight, 1 in combat, 2 searching (Papyrus's own numbers).
+        /// Task 0302: OnCombatStateChanged(akTarget, aeCombatState) to the scripts that hold the actor. State 0 left
+        /// the fight, 1 in combat, 2 searching (Papyrus's own numbers).
         void onCombatStateChanged(FormId actor, FormId target, std::int32_t state);
         /// Notifications (Debug.Notification) shown since the host was made: a ring of the last kMaxNotifications.
         static constexpr std::size_t kMaxNotifications = 16;
@@ -879,8 +885,8 @@ namespace game_skyrimse
         /// Task 0274: a package ended for an actor: its script (`PF_...`, attached to the package once) gets its OnEnd
         /// fragment `function(akActor)` queued; `quest` is what the script's `GetOwningQuest()` answers. False when
         /// nothing was queued.
-        bool runPackageEnd(FormId package, FormId actor, FormId quest, const std::string& scriptName,
-            const std::string& function);
+        bool runPackageEnd(
+            FormId package, FormId actor, FormId quest, const std::string& scriptName, const std::string& function);
 
         /// Attaches the scripts of every start-game-enabled quest of the index (sorted by form id) and queues the
         /// fragment of its start up stage. Once; later calls do nothing. Needs setQuests.
@@ -911,7 +917,8 @@ namespace game_skyrimse
         /// Task 0256: sends OnTriggerEnter or OnTriggerLeave for every volume the player went into or out of since the
         /// last call; returns how many events were queued. Run by the next tick.
         std::size_t updateTriggers();
-        /// Task 0349: GetOpenState of a reference as the scripts left it (1 open, 3 closed; closed when no script touched it).
+        /// Task 0349: GetOpenState of a reference as the scripts left it (1 open, 3 closed; closed when no script
+        /// touched it).
         [[nodiscard]] int openStateOf(FormId reference) const;
         /// Task 0274: an actor other than the player (a cart horse) is tested against the same volumes: OnTriggerEnter
         /// and OnTriggerLeave go to the volume's scripts with the actor as the argument. The place is the player's.
@@ -1026,10 +1033,10 @@ namespace game_skyrimse
         /// The game seconds a script sees (script time at the host's time scale).
         [[nodiscard]] double gameSeconds() const;
         /// Task 0276: game-time updates (Form/Alias RegisterForUpdateGameTime, RegisterForSingleUpdateGameTime,
-        /// UnregisterForUpdateGameTime: OnUpdateGameTime). Off by default (the natives then do nothing, as before). With
-        /// them on the pack gives the game clock in game seconds each frame (`setGameClock`); a registration made before
-        /// the first clock waits for it. A repeating timer that a long wait jumped over fires once and goes on at its
-        /// next multiple. Timers are saved in the host's state (version 5, only when there are any).
+        /// UnregisterForUpdateGameTime: OnUpdateGameTime). Off by default (the natives then do nothing, as before).
+        /// With them on the pack gives the game clock in game seconds each frame (`setGameClock`); a registration made
+        /// before the first clock waits for it. A repeating timer that a long wait jumped over fires once and goes on
+        /// at its next multiple. Timers are saved in the host's state (version 5, only when there are any).
         void enableGameTimers(bool on);
         void setGameClock(double gameSeconds);
         /// Registrations by scripts of this form are dropped (the pack runs that quest's updates itself).

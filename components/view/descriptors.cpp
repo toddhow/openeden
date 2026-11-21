@@ -138,8 +138,8 @@ namespace View
 
     vsg::ref_ptr<vsg::Descriptor> dummySkyVisSky()
     {
-        // OpenEden (task 0038): the header is followed by the cloud shadow data (Render::Cloud, cloudgpu.hpp), and (task
-        // 0355 stage e) by the interior ambient cube's entries (all zero here: no cube).
+        // OpenEden (task 0038): the header is followed by the cloud shadow data (Render::Cloud, cloudgpu.hpp), and
+        // (task 0355 stage e) by the interior ambient cube's entries (all zero here: no cube).
         auto data = vsg::vec4Array::create(Render::AmbientCube::headerTotalVec4s);
         for (auto& v : *data)
             v = vsg::vec4(0.f, 0.f, 0.f, 0.f);

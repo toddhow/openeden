@@ -18,8 +18,8 @@
 #include <vsg/state/ShaderStage.h>
 
 #include <atomic>
-#include <cstdio>
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -39,9 +39,9 @@ namespace
         return text.str();
     }
 
-    // The object shader's two stages as stub Slang twins: one trivial SPIR-V module listed for every subset of the names
-    // the real stages import (the pipeline only needs a twin for the set it asks for; what the test looks at is the
-    // define set the pipeline asked for, kept beside the twins).
+    // The object shader's two stages as stub Slang twins: one trivial SPIR-V module listed for every subset of the
+    // names the real stages import (the pipeline only needs a twin for the set it asks for; what the test looks at is
+    // the define set the pipeline asked for, kept beside the twins).
     class ForceFolder
     {
     public:

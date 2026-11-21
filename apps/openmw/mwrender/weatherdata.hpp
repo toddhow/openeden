@@ -33,8 +33,8 @@ namespace MWRender
         vsg::vec4 mGrade{ 1.f, 1.f, 1.f, 0.f }; // brightness, saturation, contrast, tint amount
         vsg::vec3 mGradeTint{ 1.f, 1.f, 1.f };
         // Task 0355 stage k (a game pack's weather only): the directional ambient of the weather, six colours, and the
-        // flat ambient colour (before any lightning flash) it was made for; what the flat ambient gains beyond that (the
-        // flash) is added to every face by the shader. mHasAmbientCube false keeps the flat ambient alone.
+        // flat ambient colour (before any lightning flash) it was made for; what the flat ambient gains beyond that
+        // (the flash) is added to every face by the shader. mHasAmbientCube false keeps the flat ambient alone.
         bool mHasAmbientCube = false;
         Render::AmbientCube::Cube mAmbientCube{};
         vsg::vec3 mAmbientCubeBase{ 0.f, 0.f, 0.f };

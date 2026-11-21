@@ -61,8 +61,8 @@ namespace game_skyrimse::ambush
 
         /// Appends to `wake` the placements of `sleepers` (any order) that are in range and were not woken before, and
         /// remembers them. Returns how many were appended.
-        std::size_t update(std::span<const Sleeper> sleepers, const Player& player,
-            std::vector<openeden::sdk::game::WorldId>& wake);
+        std::size_t update(
+            std::span<const Sleeper> sleepers, const Player& player, std::vector<openeden::sdk::game::WorldId>& wake);
         /// A woken placement may wake again (a load, or the actor lay down again).
         void forget(openeden::sdk::game::WorldId reference) { mWoken.erase(reference); }
         void clear() { mWoken.clear(); }

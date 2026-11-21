@@ -79,8 +79,8 @@ namespace
                 mRiding.setTestOwned("LvlHorse");
             if (lookup)
                 mRiding.setOwnedLookup([this](WorldId reference) {
-                    const std::optional<float> rank
-                        = mState.factionRank(static_cast<FormId>(reference), static_cast<FormId>(kPlayerHorseFactionId));
+                    const std::optional<float> rank = mState.factionRank(
+                        static_cast<FormId>(reference), static_cast<FormId>(kPlayerHorseFactionId));
                     return rank.has_value() && *rank >= 1.f;
                 });
             mRiding.setHorseLookup([](WorldId base, std::uint32_t, HorseInfo& out) {

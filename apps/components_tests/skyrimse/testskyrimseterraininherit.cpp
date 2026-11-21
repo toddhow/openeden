@@ -1,8 +1,9 @@
-// Task 0361b: a child world that borrows its parent's land (WhiterunWorld, PNAM usage "Land") has its OWN LAND records for
-// some cells that carry only part of the data: no vertex colours (VCLR) and no base texture (BTXT) for some quadrants.
-// Measured on Skyrim.esm: WhiterunWorld cell (6, -3) has no VCLR and a BTXT for one quadrant of four, Tamriel's (6, -3)
-// has both. The game takes what the child lacks from the parent's land of the same cell; without it the cell drew the
-// default ground texture and white vertex colours, a hard seam against its neighbours. Generated plugins, no game data.
+// Task 0361b: a child world that borrows its parent's land (WhiterunWorld, PNAM usage "Land") has its OWN LAND records
+// for some cells that carry only part of the data: no vertex colours (VCLR) and no base texture (BTXT) for some
+// quadrants. Measured on Skyrim.esm: WhiterunWorld cell (6, -3) has no VCLR and a BTXT for one quadrant of four,
+// Tamriel's (6, -3) has both. The game takes what the child lacks from the parent's land of the same cell; without it
+// the cell drew the default ground texture and white vertex colours, a hard seam against its neighbours. Generated
+// plugins, no game data.
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <gtest/gtest.h>
@@ -63,8 +64,8 @@ namespace
 
     Bytes cellWithLand(std::uint32_t cellId, const Bytes& landRec)
     {
-        Bytes cell = record4("CELL", 0, cellId,
-            sub4("DATA", Bytes().u16(0x0002)).append(sub4("XCLC", Bytes().u32(0).u32(0).u32(0))));
+        Bytes cell = record4(
+            "CELL", 0, cellId, sub4("DATA", Bytes().u16(0x0002)).append(sub4("XCLC", Bytes().u32(0).u32(0).u32(0))));
         cell.append(group4(cellId, kGrupCellChildren, group4(cellId, kGrupTemporary, landRec)));
         return cell;
     }
@@ -85,8 +86,8 @@ namespace
         return order;
     }
 
-    // The parent world has a complete cell (0, 0): grass base in all four quadrants and vertex colours (10, 20, 30). The
-    // child has its own LAND for (0, 0) holding only a rock base in quadrant 2 and a layer in quadrant 0.
+    // The parent world has a complete cell (0, 0): grass base in all four quadrants and vertex colours (10, 20, 30).
+    // The child has its own LAND for (0, 0) holding only a rock base in quadrant 2 and a layer in quadrant 0.
     struct Fixture
     {
         SkyrimTerrainIndex mIndex;
@@ -114,19 +115,20 @@ namespace
             childExtra.append(vtxt());
             if (childHasColours)
                 childExtra.append(vclr(200, 100, 50));
-            bytes.append(worldGroup(kChild, record4("WRLD", 0, kChild, childSubs),
-                cellWithLand(0x01000A00, land(0x01000B00, childExtra))));
+            bytes.append(worldGroup(
+                kChild, record4("WRLD", 0, kChild, childSubs), cellWithLand(0x01000A00, land(0x01000B00, childExtra))));
 
             Bytes ltex;
-            const std::pair<std::uint32_t, const char*> textures[] = { { kLtexGrass, "Grass" }, { kLtexRock, "Rock" },
-                { kLtexSand, "Sand" } };
+            const std::pair<std::uint32_t, const char*> textures[]
+                = { { kLtexGrass, "Grass" }, { kLtexRock, "Rock" }, { kLtexSand, "Sand" } };
             Bytes txst;
             for (const auto& [id, name] : textures)
             {
                 const std::uint32_t set = id + 0x10;
-                ltex.append(record4(
-                    "LTEX", 0, id, sub4("EDID", Bytes().zstring(name)).append(sub4("TNAM", Bytes().u32(set)))));
-                txst.append(record4("TXST", 0, set, sub4("TX00", Bytes().zstring(std::string("Landscape\\") + name + ".DDS"))));
+                ltex.append(
+                    record4("LTEX", 0, id, sub4("EDID", Bytes().zstring(name)).append(sub4("TNAM", Bytes().u32(set)))));
+                txst.append(
+                    record4("TXST", 0, set, sub4("TX00", Bytes().zstring(std::string("Landscape\\") + name + ".DDS"))));
             }
             bytes.append(group4(Content::fourCC("LTEX"), 0, ltex));
             bytes.append(group4(Content::fourCC("TXST"), 0, txst));

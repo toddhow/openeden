@@ -32,10 +32,7 @@ namespace
     class SplatSource : public AlbedoSource
     {
     public:
-        SplatSource()
-        {
-            mImages = { solid(255, 0, 0), solid(0, 0, 255), solid(0, 255, 0) };
-        }
+        SplatSource() { mImages = { solid(255, 0, 0), solid(0, 0, 255), solid(0, 255, 0) }; }
         std::size_t layerCount() const override { return mImages.size(); }
         const Rgba8Image* layerImage(std::size_t index) const override
         {
@@ -48,7 +45,8 @@ namespace
             return h;
         }
         std::uint32_t splatSide(std::uint32_t) const override { return mSplat ? side : 0; }
-        void blendMap(std::int32_t, std::int32_t, std::uint32_t sizeInCells, std::vector<std::uint8_t>& out) const override
+        void blendMap(
+            std::int32_t, std::int32_t, std::uint32_t sizeInCells, std::vector<std::uint8_t>& out) const override
         {
             const std::uint32_t k = 2 * sizeInCells;
             const std::size_t width = std::size_t{ k } * side;
@@ -58,7 +56,8 @@ namespace
                     for (std::uint32_t y = 0; y < side; ++y)
                         for (std::uint32_t x = 0; x < side; ++x)
                         {
-                            std::uint8_t* t = &out[((std::size_t{ sy } * side + y) * width + std::size_t{ sx } * side + x) * 4];
+                            std::uint8_t* t
+                                = &out[((std::size_t{ sy } * side + y) * width + std::size_t{ sx } * side + x) * 4];
                             const bool ramp = sx == 0 && sy == 0;
                             const int w1 = ramp ? static_cast<int>(x * 255 / (side - 1)) : 0;
                             t[0] = static_cast<std::uint8_t>(255 - w1);
@@ -76,7 +75,8 @@ namespace
                     t[3] = 0;
                 }
         }
-        void vertexColours(std::int32_t, std::int32_t, std::uint32_t sizeInCells, std::vector<std::uint8_t>& rgb) const override
+        void vertexColours(
+            std::int32_t, std::int32_t, std::uint32_t sizeInCells, std::vector<std::uint8_t>& rgb) const override
         {
             const std::size_t n = 32 * std::size_t{ sizeInCells } + 1;
             rgb.assign(n * n * 3, 255);

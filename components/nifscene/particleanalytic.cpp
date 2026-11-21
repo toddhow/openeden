@@ -33,7 +33,8 @@ namespace NifScene::ParticleAnalytic
             bool mValid = false;
         };
 
-        // A flipbook atlas is a regular grid listed row by row (left, width, top, height); any other list is not cut up.
+        // A flipbook atlas is a regular grid listed row by row (left, width, top, height); any other list is not cut
+        // up.
         Grid gridOf(const std::vector<Vec4>& rects)
         {
             Grid g;
@@ -194,8 +195,8 @@ namespace NifScene::ParticleAnalytic
             case ParticleSystem::Emitter::Point:
                 break;
         }
-        const float gravity = std::sqrt(system.mGravity[0] * system.mGravity[0] + system.mGravity[1] * system.mGravity[1]
-            + system.mGravity[2] * system.mGravity[2]);
+        const float gravity = std::sqrt(system.mGravity[0] * system.mGravity[0]
+            + system.mGravity[1] * system.mGravity[1] + system.mGravity[2] * system.mGravity[2]);
         const float travel = (s.mSpeed + s.mSpeedVariation) * sys * lifeMax + 0.5f * gravity * lifeMax * lifeMax;
         const float quad = (s.mRadius + s.mRadiusVariation) * sys * maxCurve * 1.5f * std::max(1.f, s.mAspectRatio);
         result.mReach = extent + travel + quad;

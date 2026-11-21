@@ -399,7 +399,8 @@ namespace openeden::extension
 
     void LifecycleManager::runPhase(openeden::sdk::Phase phase, float dt)
     {
-        // Task 0323: one load trace scope a phase (a game pack's callbacks run in GameSimulation); off, one atomic read.
+        // Task 0323: one load trace scope a phase (a game pack's callbacks run in GameSimulation); off, one atomic
+        // read.
         Misc::LoadTrace::Scope phaseTrace(phaseScopeName(phase));
 
         // Process deferred events targeted for this phase at phase boundary

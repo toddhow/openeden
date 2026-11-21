@@ -427,7 +427,8 @@ namespace
         ASSERT_EQ(rig.mHost->attachReference(kOther, kBase, false, { std::move(counter) }), 1u);
         rig.attach();
         ASSERT_TRUE(rig.call("ReadPeer"));
-        EXPECT_EQ(rig.number("peerCount"), 7.0) << "Peer holds a form value of class ObjectReference, which has no Count";
+        EXPECT_EQ(rig.number("peerCount"), 7.0)
+            << "Peer holds a form value of class ObjectReference, which has no Count";
         ASSERT_TRUE(rig.call("WritePeer"));
         ASSERT_TRUE(rig.call("ReadPeer"));
         EXPECT_EQ(rig.number("peerCount"), 42.0);
@@ -541,7 +542,8 @@ namespace
         Bytes co;
         // the layout: one at most; the foundation: needs the layout and no foundation yet; the frame: needs logs
         co.append(houseCobj(kRecLayout, kLayout, kKwDrafting, {}, { { kLayout, 0, 0.f } }));
-        co.append(houseCobj(kRecFoundation, kFoundation, kKwCarpenter, {}, { { kLayout, 0, 1.f }, { kFoundation, 0, 0.f } }));
+        co.append(
+            houseCobj(kRecFoundation, kFoundation, kKwCarpenter, {}, { { kLayout, 0, 1.f }, { kFoundation, 0, 0.f } }));
         co.append(houseCobj(kRecFrame, kFoundation, kKwCarpenter, { { kLogs, 2 } }, { { kLayout, 0, 1.f } }));
         all.append(grp("COBJ", co));
         return all;
@@ -563,7 +565,8 @@ namespace
             std::filesystem::create_directories(mDir);
             mPath = mDir / "test.esp";
             const Bytes all = housePlugin();
-            std::ofstream(mPath, std::ios::binary).write(all.str().data(), static_cast<std::streamsize>(all.str().size()));
+            std::ofstream(mPath, std::ios::binary)
+                .write(all.str().data(), static_cast<std::streamsize>(all.str().size()));
             inventory::Hooks ih;
             ih.mInputs = [this](inventory::Inputs& out) { return inputs(out); };
             ih.mName = [](FormId) { return std::string(); };
@@ -624,7 +627,8 @@ namespace
         EXPECT_EQ(w.mCrafting->table().benchOfKeyword(kKwDrafting), crafting::BenchKind::House);
         EXPECT_EQ(w.mCrafting->table().benchOfKeyword(kKwPlain), crafting::BenchKind::None);
         EXPECT_TRUE(w.mCrafting->table().benchesOf(kFurnDraft).empty()) << "off by default in the table";
-        EXPECT_EQ(w.mCrafting->table().benchesOf(kFurnDraft, true), std::vector<crafting::BenchKind>({ crafting::BenchKind::House }));
+        EXPECT_EQ(w.mCrafting->table().benchesOf(kFurnDraft, true),
+            std::vector<crafting::BenchKind>({ crafting::BenchKind::House }));
         EXPECT_TRUE(w.mCrafting->table().furnitureOffers(kFurnBench, kKwRoom));
         EXPECT_FALSE(w.mCrafting->table().furnitureOffers(kFurnDraft, kKwCarpenter));
         EXPECT_EQ(w.mCrafting->benchAnswer(kFurnDraft), "yes");
@@ -647,7 +651,8 @@ namespace
         w.build(true);
         w.open(kFurnDraft);
         ASSERT_EQ(w.mCrafting->session(), crafting::CraftingService::State::Ready);
-        EXPECT_EQ(w.visible(), std::set<FormId>({ kRecLayout })) << "the workbench's recipes are not the drafting table's";
+        EXPECT_EQ(w.visible(), std::set<FormId>({ kRecLayout }))
+            << "the workbench's recipes are not the drafting table's";
         w.open(kFurnBench);
         EXPECT_TRUE(w.visible().empty()) << "no layout yet: both workbench recipes need it";
     }
@@ -664,7 +669,8 @@ namespace
         EXPECT_EQ(std::get<1>(w.mMoves[0]), inventory::kPlayerOwner);
         EXPECT_EQ(std::get<2>(w.mMoves[0]), kLayout);
         EXPECT_TRUE(w.mSkillUsed.empty());
-        EXPECT_EQ(w.mCrafting->craft(kRecLayout), crafting::Status::UnknownRecipe) << "GetItemCount(layout) == 0 no longer holds";
+        EXPECT_EQ(w.mCrafting->craft(kRecLayout), crafting::Status::UnknownRecipe)
+            << "GetItemCount(layout) == 0 no longer holds";
         EXPECT_EQ(w.held(kLayout), 1);
     }
 
@@ -771,8 +777,9 @@ namespace
         std::map<FormId, std::int32_t> held{ { kLayoutPart, 1 } };
         const auto count = [&held](FormId item) { return held[item]; };
         for (const survey::Ctda& c : recipe->mConditionList)
-            std::cout << "HOUSE condition fn " << c.mFunction << " compare " << int(c.mCompare) << " flags " << int(c.mFlags)
-                      << " value " << c.mComparison << " param1 " << std::hex << c.mParam1 << std::dec << std::endl;
+            std::cout << "HOUSE condition fn " << c.mFunction << " compare " << int(c.mCompare) << " flags "
+                      << int(c.mFlags) << " value " << c.mComparison << " param1 " << std::hex << c.mParam1 << std::dec
+                      << std::endl;
         EXPECT_TRUE(crafting::itemCountConditionsHold(recipe->mConditionList, count));
         held[kFoundationPart] = 1;
         EXPECT_FALSE(crafting::itemCountConditionsHold(recipe->mConditionList, count));

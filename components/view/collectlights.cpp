@@ -60,8 +60,8 @@ namespace View
             {
                 // Task 0355 stage g: the spot vec4 of this light (zero for a light that is not a spot).
                 vsg::vec4 spot(0.f, 0.f, 0.f, 0.f);
-                if (const auto* typed = dynamic_cast<const TypedPointLight*>(light); typed != nullptr
-                    && typed->spotCosHalf > 0.f)
+                if (const auto* typed = dynamic_cast<const TypedPointLight*>(light);
+                    typed != nullptr && typed->spotCosHalf > 0.f)
                 {
                     const vsg::dvec4 rotated
                         = mv * vsg::dvec4(typed->spotAxis.x, typed->spotAxis.y, typed->spotAxis.z, 0.0);
@@ -77,7 +77,8 @@ namespace View
         mData->at(1).w = static_cast<float>(lightCount);
         if (spotRegion)
             mData->at(3).w = static_cast<float>(maxLights); // the marker of the spot region (lightdata.hpp)
-        // OPENEDEN_LIGHT_COUNT_TRACE=1 (developer aid, task 0355): the lights this traversal collected, every 120 packs.
+        // OPENEDEN_LIGHT_COUNT_TRACE=1 (developer aid, task 0355): the lights this traversal collected, every 120
+        // packs.
         static const bool countTrace = std::getenv("OPENEDEN_LIGHT_COUNT_TRACE") != nullptr;
         if (countTrace)
         {
@@ -89,9 +90,9 @@ namespace View
                 {
                     const auto& light = pointLights[i].second;
                     const vsg::vec3 e = vsg::vec3(pointLights[i].first * light->position);
-                    Log(Debug::Info) << "NLIGHTCOUNT light " << i << " colour " << light->color.r << "," << light->color.g
-                                     << "," << light->color.b << " radius " << light->intensity << " eye " << e.x << ","
-                                     << e.y << "," << e.z;
+                    Log(Debug::Info) << "NLIGHTCOUNT light " << i << " colour " << light->color.r << ","
+                                     << light->color.g << "," << light->color.b << " radius " << light->intensity
+                                     << " eye " << e.x << "," << e.y << "," << e.z;
                 }
         }
         if (mShadowData)
@@ -118,8 +119,8 @@ namespace View
                         const double length = vsg::length(axis);
                         if (length > 1e-9)
                         {
-                            snapshot.shadowShape = spot ? Render::PointShadow::Shape::Spot
-                                                        : Render::PointShadow::Shape::Hemisphere;
+                            snapshot.shadowShape
+                                = spot ? Render::PointShadow::Shape::Spot : Render::PointShadow::Shape::Hemisphere;
                             snapshot.shadowAxisEye = axis / length;
                             snapshot.shadowConeCos = spot ? typed->spotCosHalf : 0.f;
                         }

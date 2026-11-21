@@ -3,7 +3,8 @@
 
 namespace MWWorld
 {
-    /// Task 0355 (follow-up of stage d): the fog power and maximum of a game pack's interior (share = pow(linear, power)
+    /// Task 0355 (follow-up of stage d): the fog power and maximum of a game pack's interior (share = pow(linear,
+    /// power)
     /// * max). Both 1 is the plain linear fog and is never stored as a curve. See neutralcellatmosphere.hpp.
     struct NeutralFogCurve
     {

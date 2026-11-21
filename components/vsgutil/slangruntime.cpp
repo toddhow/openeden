@@ -550,10 +550,12 @@ namespace vsgUtil
         std::string extra;
         if (!std::getline(in, info.mSource, '\t') || !std::getline(in, info.mEntry, '\t')
             || !std::getline(in, info.mStage, '\t'))
-            throw std::invalid_argument("a .slang-stage line is <source> <entry> <stage> [<imports>], separated by tabs");
+            throw std::invalid_argument(
+                "a .slang-stage line is <source> <entry> <stage> [<imports>], separated by tabs");
         const bool hasImports = static_cast<bool>(std::getline(in, imports, '\t'));
         if (hasImports && std::getline(in, extra, '\t'))
-            throw std::invalid_argument("a .slang-stage line is <source> <entry> <stage> [<imports>], separated by tabs");
+            throw std::invalid_argument(
+                "a .slang-stage line is <source> <entry> <stage> [<imports>], separated by tabs");
         if (info.mSource.empty() || info.mEntry.empty() || info.mStage.empty() || (hasImports && imports.empty()))
             throw std::invalid_argument("a .slang-stage line has an empty field");
         if (hasImports && imports != "-")
@@ -563,9 +565,8 @@ namespace vsgUtil
             {
                 const bool identifier = !name.empty() && name.size() <= 64
                     && (std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')
-                    && std::all_of(name.begin(), name.end(), [](char c) {
-                           return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
-                       });
+                    && std::all_of(name.begin(), name.end(),
+                        [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; });
                 if (!identifier)
                     throw std::invalid_argument("a .slang-stage import \"" + name + "\" is not a define name");
                 info.mImports.insert(name);
@@ -1062,7 +1063,8 @@ namespace vsgUtil
             // long the compile took; this one how long THIS thread was held, and how it ended).
             char text[256];
             std::snprintf(text, sizeof(text), "Slang shader wait: %s set %s held the %s thread %.0f ms (%s)",
-                request.mStageFile.c_str(), slangSetId(request.mDefines).c_str(), main ? "main" : "loader", milliseconds,
+                request.mStageFile.c_str(), slangSetId(request.mDefines).c_str(), main ? "main" : "loader",
+                milliseconds,
                 timedOut                                        ? "timed out"
                     : result.mState == SlangAvailability::Ready ? "ready"
                                                                 : "failed");

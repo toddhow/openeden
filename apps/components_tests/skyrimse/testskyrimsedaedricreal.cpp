@@ -1,7 +1,7 @@
-// Task 0310: the data "A Daedra's Best Friend" rests on (DA03Start and DA03 of the player's Skyrim SE masters). The pieces
-// are the game's own quests, dialogue and Papyrus; this test pins the facts the run depends on (the start quest runs from
-// the first frame and its guard aliases carry the forced-greeting package, DA03 is not start-game enabled and its stages,
-// objectives and Barbas's packages are as read). Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0310: the data "A Daedra's Best Friend" rests on (DA03Start and DA03 of the player's Skyrim SE masters). The
+// pieces are the game's own quests, dialogue and Papyrus; this test pins the facts the run depends on (the start quest
+// runs from the first frame and its guard aliases carry the forced-greeting package, DA03 is not start-game enabled and
+// its stages, objectives and Barbas's packages are as read). Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/neutral_world.hpp>
@@ -59,7 +59,8 @@ namespace
         bool lod = false;
         for (const QuestAlias& alias : start->mAliases)
         {
-            if (alias.mReference != kNullFormId && alias.mPackages.size() == 1 && alias.mPackages[0] == kGuardGreetPackage)
+            if (alias.mReference != kNullFormId && alias.mPackages.size() == 1
+                && alias.mPackages[0] == kGuardGreetPackage)
                 ++guardsWithPackage;
             if (alias.mActor == kLod)
                 lod = true;

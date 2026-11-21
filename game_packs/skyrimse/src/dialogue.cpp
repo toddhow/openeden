@@ -9,13 +9,13 @@
 #include "game_skyrimse/quest_script.hpp"
 
 #include <algorithm>
-#include <unordered_set>
 #include <cctype>
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <unordered_set>
 
 // Layout status of every subrecord read here: see the header (task 0137). VERIFIED on the five installed Skyrim SE
 // masters by tools/skyrimse_dialogue_check; RECALLED-VERIFY where the header says so. Nothing is copied from xEdit or
@@ -1104,7 +1104,8 @@ namespace game_skyrimse
         ActorView view;
         if (isOtherSubject(subject) && viewOf(subject, view) && view.mRef != nullptr)
         {
-            // task 0337: a reference the session killed is dead too (Eltrys's ForceGreet package asks GetDead of Weylin)
+            // task 0337: a reference the session killed is dead too (Eltrys's ForceGreet package asks GetDead of
+            // Weylin)
             if (mDeadLookup && view.mRef->mId != kNullFormId && mDeadLookup(view.mRef->mId))
                 return true;
             return (view.mRef->mFlags & PlacedFlags::Dead) != 0;
@@ -1203,7 +1204,8 @@ namespace game_skyrimse
                 = mStoryEvent->mLocation2 != kNullFormId ? mStoryEvent->mLocation2 : mStoryEvent->mLocation1;
             return mLocations != nullptr && id != kNullFormId && at != kNullFormId && mLocations->isWithin(at, id);
         }
-        // task 0312: the player's own location, where the pack told it (a quest's stage entry: DLC2MQ01's "on Solstheim")
+        // task 0312: the player's own location, where the pack told it (a quest's stage entry: DLC2MQ01's "on
+        // Solstheim")
         if (subject == kPlayer && mPlayerLocation != kNullFormId)
             return mLocations != nullptr && id != kNullFormId && mLocations->isWithin(mPlayerLocation, id);
         return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown && id != kNullFormId
@@ -1235,9 +1237,10 @@ namespace game_skyrimse
         return mLocations != nullptr && mLocations->isWithin(location, ancestor);
     }
 
-    // Task 0344: what an alias of a quest holds. The quest state knows the fills the data gives and the story walk made; a
-    // reference a script put there with ForceRefTo (Farkas as the Observer of C01) lives only in the alias view the pack
-    // gives a package world (the Papyrus host's table), so the view is asked first for the context quest's aliases.
+    // Task 0344: what an alias of a quest holds. The quest state knows the fills the data gives and the story walk
+    // made; a reference a script put there with ForceRefTo (Farkas as the Observer of C01) lives only in the alias view
+    // the pack gives a package world (the Papyrus host's table), so the view is asked first for the context quest's
+    // aliases.
     AliasFill SkyrimConditionWorld::fillOf(FormId quest, std::uint32_t alias) const
     {
         if (mAliasView && quest != kNullFormId && quest == mContextQuest)
@@ -1818,9 +1821,10 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::inSameCell(conditions::Subject subject, std::uint32_t reference) const
     {
-        // Task 0325 (Astrid's forced greeting: DBAstridSleepGreet needs GetInSameCell(player)): the subject's cell and the
-        // reference's. The player's cell is known for an interior only (the place the core told); a placed reference or
-        // actor stands in the cell the data places it in, which is also where a script's MoveTo put it inside its cell.
+        // Task 0325 (Astrid's forced greeting: DBAstridSleepGreet needs GetInSameCell(player)): the subject's cell and
+        // the reference's. The player's cell is known for an interior only (the place the core told); a placed
+        // reference or actor stands in the cell the data places it in, which is also where a script's MoveTo put it
+        // inside its cell.
         FormId mine = kNullFormId;
         if (subject == kPlayer)
             mine = mPlayerPlaceKnown && mPlayerInterior ? mPlayerCell : kNullFormId;
@@ -1845,8 +1849,8 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::detects(conditions::Subject subject, std::uint32_t target) const
     {
-        // Task 0335: only the player as the target is modelled, and detection is "stands in his interior cell" (GetDetected is
-        // not about sneaking and not a line of sight test: CK wiki, toddhow 2026-11-11)
+        // Task 0335: only the player as the target is modelled, and detection is "stands in his interior cell"
+        // (GetDetected is not about sneaking and not a line of sight test: CK wiki, toddhow 2026-11-11)
         return mDetectsPlayerInCell && target == 0x14 && subject != kPlayer && inSameCell(subject, target);
     }
 
@@ -2401,7 +2405,8 @@ namespace game_skyrimse
         if (!relationKnown(subject, target))
             return 0.f;
         const FormId a = subject == kPlayer ? kPlayerBase : (viewOf(subject, view) ? view.mBase : kNullFormId);
-        const FormId b = target == 0 ? kPlayerBase : baseOfActorReference(resolve(target)); // task 0324: 0 is the player
+        const FormId b
+            = target == 0 ? kPlayerBase : baseOfActorReference(resolve(target)); // task 0324: 0 is the player
         const std::optional<std::uint8_t> rank = mPlacedRefs->relationRank(a, b);
         return rank ? relationshipRankValue(*rank) : 0.f; // no record: acquaintances (0)
     }
@@ -2519,9 +2524,9 @@ namespace game_skyrimse
         const bool debug = sSelectDebugTopic != kNullFormId && topicId == sSelectDebugTopic;
         const auto why = [&](const DialogInfo* info, const char* reason) {
             if (debug)
-                conditions::conditionDebugReport(
-                    "SELECT info " + std::to_string(info->mCommon.mId) + " skipped: " + reason + " (info speaker "
-                    + std::to_string(info->mSpeaker) + ", this " + std::to_string(speaker.mBase) + ")");
+                conditions::conditionDebugReport("SELECT info " + std::to_string(info->mCommon.mId)
+                    + " skipped: " + reason + " (info speaker " + std::to_string(info->mSpeaker) + ", this "
+                    + std::to_string(speaker.mBase) + ")");
         };
         struct DebugAll
         {

@@ -27,7 +27,8 @@ namespace
 
     std::string manifestText()
     {
-        std::ifstream in(std::filesystem::path(OPENMW_PROJECT_SOURCE_DIR) / "game_packs" / "skyrimse" / "extension.json",
+        std::ifstream in(
+            std::filesystem::path(OPENMW_PROJECT_SOURCE_DIR) / "game_packs" / "skyrimse" / "extension.json",
             std::ios::binary);
         std::stringstream text;
         text << in.rdbuf();
@@ -179,9 +180,8 @@ namespace
     {
         Talk talk;
         auto flag = std::make_shared<bool>(false);
-        talk.mRuntime->setLiveQuestVariable([flag](FormId, const std::string&) -> std::optional<float> {
-            return *flag ? 1.0f : 0.0f;
-        });
+        talk.mRuntime->setLiveQuestVariable(
+            [flag](FormId, const std::string&) -> std::optional<float> { return *flag ? 1.0f : 0.0f; });
         talk.mRuntime->setFragmentFlush([flag]() { *flag = true; }); // a fragment queued by the line before
         openeden::sdk::game::DialogueTurn turn;
         std::string error;
@@ -193,9 +193,8 @@ namespace
     {
         Talk talk;
         auto flag = std::make_shared<bool>(false);
-        talk.mRuntime->setLiveQuestVariable([flag](FormId, const std::string&) -> std::optional<float> {
-            return *flag ? 1.0f : 0.0f;
-        });
+        talk.mRuntime->setLiveQuestVariable(
+            [flag](FormId, const std::string&) -> std::optional<float> { return *flag ? 1.0f : 0.0f; });
         openeden::sdk::game::DialogueTurn turn;
         std::string error;
         ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(), turn, error)) << error;

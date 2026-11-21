@@ -169,9 +169,9 @@ TEST(SkyrimCreaturesGuard, aPersonRaisesItsGuardWithTheGuardClip)
 
 TEST(SkyrimCreaturesGuard, aCreatureAsksForNoGuardClip)
 {
-    for (const char* skeleton : { "actors/horker/character assets/skeleton.nif",
-             "actors/icewraith/character assets/skeleton.nif", "actors/canine/character assets wolf/skeleton.nif",
-             "actors/bear/character assets/skeleton.nif" })
+    for (const char* skeleton :
+        { "actors/horker/character assets/skeleton.nif", "actors/icewraith/character assets/skeleton.nif",
+            "actors/canine/character assets wolf/skeleton.nif", "actors/bear/character assets/skeleton.nif" })
     {
         const CreatureProfile* creature = creatureProfileFor(skeleton);
         ASSERT_NE(creature, nullptr) << skeleton;

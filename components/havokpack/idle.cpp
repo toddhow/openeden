@@ -50,8 +50,9 @@ namespace HavokPack
             return {};
         const std::string folder = path.substr(0, fileSlash);
         const std::size_t folderSlash = folder.rfind('/');
-        const std::string_view folderName
-            = folderSlash == std::string::npos ? std::string_view(folder) : std::string_view(folder).substr(folderSlash + 1);
+        const std::string_view folderName = folderSlash == std::string::npos
+            ? std::string_view(folder)
+            : std::string_view(folder).substr(folderSlash + 1);
         // Skyrim keeps the female humanoid skeleton in "<folder> female" under its own name.
         const std::string file = endsWith(std::string(folderName), " female") ? "skeleton_female.hkx" : "skeleton.hkx";
         std::string result = "meshes/" + folder + "/" + file;

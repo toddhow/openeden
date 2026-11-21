@@ -29,7 +29,8 @@ namespace game_skyrimse
         }
 
         constexpr std::uint16_t kHasSameEditorLocAsRefAlias = 181;
-        constexpr std::uint16_t kHasSameEditorLocAsRef = 180; // task 0345: the same question, alias flag in the parameter
+        constexpr std::uint16_t kHasSameEditorLocAsRef
+            = 180; // task 0345: the same question, alias flag in the parameter
         constexpr std::uint16_t kGetIsEditorLocAlias = 567;
 
         /// Tells the environment which reference each alias holds while a location alias's conditions are evaluated.
@@ -685,12 +686,11 @@ namespace game_skyrimse
             {
                 if (alias.mIsLocation || alias.mFill != AliasFillKind::FindMatching)
                     continue;
-                if (std::none_of(alias.mConditions.begin(), alias.mConditions.end(),
-                        [](const survey::Ctda& c) {
-                            // Task 0311: an alias that names its actor by id (GetIsID: the Falkreath steward) is
-                            // filled from the speaker too, the matcher says whether she is the one
-                            return c.mFunction == kGetIsEditorLocAlias || (c.mFunction == kGetIsId && c.mRunOn == 0);
-                        }))
+                if (std::none_of(alias.mConditions.begin(), alias.mConditions.end(), [](const survey::Ctda& c) {
+                        // Task 0311: an alias that names its actor by id (GetIsID: the Falkreath steward) is
+                        // filled from the speaker too, the matcher says whether she is the one
+                        return c.mFunction == kGetIsEditorLocAlias || (c.mFunction == kGetIsId && c.mRunOn == 0);
+                    }))
                     continue;
                 if (filled(state.aliasFill(questId, alias.mId)))
                     continue;
@@ -709,8 +709,8 @@ namespace game_skyrimse
                 if (!mMatcher(*quest, alias, reference, entryBase))
                 {
                     if (mTrace)
-                        mTrace("  speaker " + std::to_string(reference) + " does not match alias " + alias.mName + " of "
-                            + quest->mCommon.mEditorId);
+                        mTrace("  speaker " + std::to_string(reference) + " does not match alias " + alias.mName
+                            + " of " + quest->mCommon.mEditorId);
                     continue;
                 }
                 AliasFill fill;
@@ -721,7 +721,8 @@ namespace game_skyrimse
                 ++mStats.mMatched;
                 ++count;
                 if (mTrace)
-                    mTrace("  speaker " + std::to_string(reference) + " takes alias " + alias.mName + " of " + quest->mCommon.mEditorId);
+                    mTrace("  speaker " + std::to_string(reference) + " takes alias " + alias.mName + " of "
+                        + quest->mCommon.mEditorId);
             }
             // the speaker took an alias of this quest now, or holds one already (filled at the quest's start)
             if (count != before

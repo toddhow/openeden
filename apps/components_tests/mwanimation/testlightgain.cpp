@@ -1,7 +1,7 @@
 // Task 0355 stage b: a neutral light (a game pack's light, made by MWWorld::makeNeutralEsmLight) can carry a brightness
 // multiplier its 8 bit colour cannot hold: ESM::Light::NeutralGain in the flags and the multiplier in mData.mWeight.
-// MWAnim::addLight (components/mwanimation/light.cpp) applies it to the light's colour; a record without the flag (every
-// Morrowind light, whatever its weight) is read exactly as before.
+// MWAnim::addLight (components/mwanimation/light.cpp) applies it to the light's colour; a record without the flag
+// (every Morrowind light, whatever its weight) is read exactly as before.
 #include <components/animation/autoplay.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/mwanimation/light.hpp>
@@ -66,8 +66,8 @@ namespace
     TEST(LightGain, aWeightThatIsNotFiniteOrNotAboveZeroIsIgnored)
     {
         const vsg::vec3 plain = colourOf(record(ESM::Light::Dynamic, 1.f));
-        for (const float bad : { 0.f, -2.f, std::numeric_limits<float>::quiet_NaN(),
-                 std::numeric_limits<float>::infinity() })
+        for (const float bad :
+            { 0.f, -2.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
             EXPECT_EQ(colourOf(record(ESM::Light::Dynamic | ESM::Light::NeutralGain, bad)), plain) << bad;
     }
 

@@ -111,8 +111,7 @@ namespace
 
     TEST(NeutralFlickerWalk, aBiggerAmplitudeSpreadsTheBrightnessWider)
     {
-        auto spread = [](float amp)
-        {
+        auto spread = [](float amp) {
             const auto v = trace({ 0.2f, amp, 3u }, false, 3600);
             return *std::max_element(v.begin(), v.end()) - *std::min_element(v.begin(), v.end());
         };
@@ -271,10 +270,10 @@ namespace
 
     TEST(NeutralFlickerLight, aLightWithoutTheFlagIgnoresItsTimeAndValueFields)
     {
-        // Each light runs on its own after the global generator is seeded the same, so the Morrowind rule's draws match.
+        // Each light runs on its own after the global generator is seeded the same, so the Morrowind rule's draws
+        // match.
         const Misc::Rng::Generator saved = Misc::Rng::getGenerator();
-        auto run = [](const ESM::Light& r)
-        {
+        auto run = [](const ESM::Light& r) {
             Misc::Rng::getGenerator().seed(5);
             Placed placed(r);
             std::vector<float> out;

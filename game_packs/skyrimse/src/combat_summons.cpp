@@ -8,10 +8,10 @@
 #include <game_skyrimse/combat.hpp>
 
 #include <algorithm>
-#include <cstdlib>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <limits>
 #include <string>
 
@@ -282,11 +282,11 @@ namespace game_skyrimse
 
     void SkyrimCombat::tickSummons(CombatRequestWriter& writer)
     {
-        // Task 0306: `summons test kill = <editor id>@<seconds>` kills it no earlier than that combat second (the cultist
-        // of the ambush is created long after the data was read, and must talk first). Tasks 0325 and 0326: a comma
-        // separated list of such entries, and an entry ending in `*` names every actor whose editor id starts so (the
-        // fort's bandits). One actor dies an update, in list order; a named entry is done after its kill, a `*` entry
-        // stays (its next match dies next update).
+        // Task 0306: `summons test kill = <editor id>@<seconds>` kills it no earlier than that combat second (the
+        // cultist of the ambush is created long after the data was read, and must talk first). Tasks 0325 and 0326: a
+        // comma separated list of such entries, and an entry ending in `*` names every actor whose editor id starts so
+        // (the fort's bandits). One actor dies an update, in list order; a named entry is done after its kill, a `*`
+        // entry stays (its next match dies next update).
         if (!mTestKill.empty())
         {
             std::string remaining;

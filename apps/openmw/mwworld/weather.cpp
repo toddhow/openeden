@@ -1088,7 +1088,8 @@ namespace MWWorld
             updateCover(duration, paused, false);
             mRendering.setLightning(0.f, vsg::vec3(0.f, 0.f, 1.f));
             mRendering.setSkyEnabled(false);
-            mRendering.setWeatherAmbientCube(nullptr, vsg::vec3(0.f, 0.f, 0.f)); // task 0355 stage k: indoors, no weather
+            mRendering.setWeatherAmbientCube(
+                nullptr, vsg::vec3(0.f, 0.f, 0.f)); // task 0355 stage k: indoors, no weather
             stopSounds();
             mWindSpeed = 0.f;
             mCurrentWindSpeed = 0.f;
@@ -1231,8 +1232,7 @@ namespace MWWorld
         const bool fogGradient
             = rendered == &mResult && rendered->mHasFogNear && Settings::game().mNeutralFogGradient.get();
         if (fogGradient)
-            fogStartColour
-                = vsg::vec3(rendered->mFogNearColor.x, rendered->mFogNearColor.y, rendered->mFogNearColor.z);
+            fogStartColour = vsg::vec3(rendered->mFogNearColor.x, rendered->mFogNearColor.y, rendered->mFogNearColor.z);
         mRendering.configureFog(rendered->mFogDepth, underwaterFog, rendered->mDLFogFactor,
             rendered->mDLFogOffset / 100.0f, rendered->mFogColor, fogGradient ? &fogStartColour : nullptr, false);
         mRendering.setAmbientColour(rendered->mAmbientColor);
@@ -1245,8 +1245,9 @@ namespace MWWorld
         mRendering.setSunColour(rendered->mSunColor, rendered->mSunColor * rendered->mGlareView * glareFade);
 
         mRendering.getSky()->setWeather(*rendered);
-        // Task 0361 (a): a game pack's exterior is lifted by an exposure at dusk and night (neutralNightLiftStops). Only an
-        // exterior of a neutral weather writes it (an interior keeps its cell's grade); a setting of 0 writes nothing.
+        // Task 0361 (a): a game pack's exterior is lifted by an exposure at dusk and night (neutralNightLiftStops).
+        // Only an exterior of a neutral weather writes it (an interior keeps its cell's grade); a setting of 0 writes
+        // nothing.
         const bool nightLiftActive
             = mRegionProvider != nullptr && isExterior && Settings::game().mNeutralWeatherNightExposure.get() > 0.f;
         const bool weatherImageSpace = Settings::game().mNeutralWeatherImageSpace.get();
@@ -1746,8 +1747,7 @@ namespace MWWorld
             flashColor = vsg::vec4(lightningColour.x, lightningColour.y, lightningColour.z, 0.0f);
 
         // Task 0355 stage k: the flat ambient the weather's cube was made for, before the flash is added to it.
-        mResult.mAmbientCubeBase
-            = vsg::vec3(mResult.mAmbientColor.x, mResult.mAmbientColor.y, mResult.mAmbientColor.z);
+        mResult.mAmbientCubeBase = vsg::vec3(mResult.mAmbientColor.x, mResult.mAmbientColor.y, mResult.mAmbientColor.z);
         mResult.mFogColor += flashColor;
         if (mResult.mHasFogNear)
             mResult.mFogNearColor += flashColor;
@@ -1925,7 +1925,8 @@ namespace MWWorld
 
         mResult.mAmbientColor = lerp(current.mAmbientColor, other.mAmbientColor, factor);
         {
-            // Task 0355 stage k: the cubes blend as the flat colours do (a weather with none counts as its flat colour).
+            // Task 0355 stage k: the cubes blend as the flat colours do (a weather with none counts as its flat
+            // colour).
             const auto rgb = [](const vsg::vec4& c) { return vsg::vec3(c.x, c.y, c.z); };
             std::optional<Render::AmbientCube::Cube> a, b;
             if (current.mHasAmbientCube)

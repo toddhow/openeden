@@ -201,11 +201,12 @@ namespace MWWorld
             record.mAmbi.mFog = packNeutralColor(cell.lighting->fogColor);
             // Task 0303: the values the cell really uses, so a run's lighting can be compared in the log.
             Log(Debug::Info) << "NLIGHT " << cell.editorId << " ambient " << int(cell.lighting->ambient[0]) << ","
-                             << int(cell.lighting->ambient[1]) << "," << int(cell.lighting->ambient[2]) << " directional "
-                             << int(cell.lighting->directional[0]) << "," << int(cell.lighting->directional[1]) << ","
-                             << int(cell.lighting->directional[2]) << " fog " << int(cell.lighting->fogColor[0]) << ","
-                             << int(cell.lighting->fogColor[1]) << "," << int(cell.lighting->fogColor[2])
-                             << " fog near " << cell.lighting->fogNear << " far " << cell.lighting->fogFar;
+                             << int(cell.lighting->ambient[1]) << "," << int(cell.lighting->ambient[2])
+                             << " directional " << int(cell.lighting->directional[0]) << ","
+                             << int(cell.lighting->directional[1]) << "," << int(cell.lighting->directional[2])
+                             << " fog " << int(cell.lighting->fogColor[0]) << "," << int(cell.lighting->fogColor[1])
+                             << "," << int(cell.lighting->fogColor[2]) << " fog near " << cell.lighting->fogNear
+                             << " far " << cell.lighting->fogFar;
         }
         record.mWater = 0.f;
         // Task 0291 (swimming): an interior with water (the pack's CellWaterSource::interiorWater) is a cell with the

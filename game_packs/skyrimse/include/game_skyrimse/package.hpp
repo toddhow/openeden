@@ -66,10 +66,10 @@ namespace game_skyrimse
     /// asks for its conversation with the player.
     inline constexpr std::string_view kQuestAliasPackagesKey = "quest alias packages";
 
-    /// Task 0286: `[extension.skyrimse] actor cell moves` (needs `papyrus`; `neutral world`, `neutral actors`): a script's
-    /// MoveTo and a scene's Travel to another cell move the actor (or object) into that cell through the world, as the
-    /// same placement, instead of making a new reference near the player or carrying the actor through the player's
-    /// doors. Saved in the neutral world save (NWLD version 4).
+    /// Task 0286: `[extension.skyrimse] actor cell moves` (needs `papyrus`; `neutral world`, `neutral actors`): a
+    /// script's MoveTo and a scene's Travel to another cell move the actor (or object) into that cell through the
+    /// world, as the same placement, instead of making a new reference near the player or carrying the actor through
+    /// the player's doors. Saved in the neutral world save (NWLD version 4).
     inline constexpr std::string_view kActorCellMovesKey = "actor cell moves";
 
     /// PTDA target types (stage S6f; names RECALLED-VERIFY from xEdit, the data's counts fit: Patrol targets are 296
@@ -109,7 +109,8 @@ namespace game_skyrimse
         Patrol, ///< a patrol procedure: walk a chain of linked markers, idling at each
         Follow, ///< a Follow or FollowTo procedure: stay near a target actor
         Escort, ///< recognised, not run (the target follows the actor to a place)
-        UseMagic, ///< task 0348: a UseMagic procedure: the actor casts the package's spell (its first Object ID target) once
+        UseMagic, ///< task 0348: a UseMagic procedure: the actor casts the package's spell (its first Object ID target)
+                  ///< once
     };
 
     /// What an actor does while a package runs (S5 implements the first four; the rest stand where they are told).

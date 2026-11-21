@@ -587,12 +587,12 @@ namespace game_skyrimse
         /// damage. Needs `combat real gear`.
         void setDualWield(bool on) { mDualWield = on; }
         [[nodiscard]] bool dualWield() const { return mDualWield; }
-        /// The test weapon of the player's left hand (`combat test player offhand`): the player then dual wields. Empty:
-        /// none. False when the name is too long.
+        /// The test weapon of the player's left hand (`combat test player offhand`): the player then dual wields.
+        /// Empty: none. False when the name is too long.
         bool setTestPlayerOffHand(std::string_view editorId);
         /// On: a fire and forget spell is cast with both hands when the caster can pay the dual cost (the same
-        /// right-hand clip plays): the magnitude of its value effects is multiplied by fMagicDualCastingEffectivenessBase and the cost
-        /// by fMagicDualCastingCostMult (both read from the GMSTs).
+        /// right-hand clip plays): the magnitude of its value effects is multiplied by
+        /// fMagicDualCastingEffectivenessBase and the cost by fMagicDualCastingCostMult (both read from the GMSTs).
         void setDualCast(bool on) { mDualCast = on; }
         [[nodiscard]] bool dualCast() const { return mDualCast; }
         /// Told of every unit of ammunition the player shoots (the item), so the inventory can spend it. Empty: none.
@@ -725,8 +725,8 @@ namespace game_skyrimse
         {
             const WeaponRecord* mWeapon = nullptr; ///< valid as long as the data
             std::vector<ArmourPiece> mPieces;
-            /// Task 0300: the ammunition the player would shoot a bow or crossbow with (the best that fits, from what he
-            /// holds) and its item; null with no ranged weapon or none that fits.
+            /// Task 0300: the ammunition the player would shoot a bow or crossbow with (the best that fits, from what
+            /// he holds) and its item; null with no ranged weapon or none that fits.
             const AmmoRecord* mAmmo = nullptr;
             FormId mAmmoItem = kNullFormId;
         };
@@ -942,7 +942,10 @@ namespace game_skyrimse
         /// Task 0324: answers whether a victim with these factions is the player's ally by what a quest script set
         /// (Faction.SetAlly). A blow of the PLAYER on such an actor is an accident: it does not provoke it. Off (empty)
         /// by default.
-        void setAllyOfPlayerHook(std::function<bool(const std::vector<FormId>&)> hook) { mAllyOfPlayer = std::move(hook); }
+        void setAllyOfPlayerHook(std::function<bool(const std::vector<FormId>&)> hook)
+        {
+            mAllyOfPlayer = std::move(hook);
+        }
         /// Task 0197: the target is chosen from relations, followers, guards and sight (needs the AI); off, the AI's
         /// target is the player as before.
         void setCombatFactions(bool on);
@@ -1029,10 +1032,10 @@ namespace game_skyrimse
         /// Task 0231 (barks): told of the fight's moments (an engagement, a flight, the end of a fight, a hurt actor, a
         /// death). Hook calls only; empty (the default) and nothing is looked at.
         /// Task 0292 (the College of Winterhold's tests): what a spell did, for the Papyrus host's OnHit,
-        /// OnMagicEffectApply and OnSpellCast events. `mCaster` is who cast it; `mTarget` is who it reached (`mHasTarget`
-        /// false for a hit on the world, where `mX`, `mY`, `mZ` is where it ended). Cast: a non-held spell went off.
-        /// Hit: a shot ended on something. EffectApplied: one effect of the spell reached a target (its conditions
-        /// held), the caster itself for a self spell.
+        /// OnMagicEffectApply and OnSpellCast events. `mCaster` is who cast it; `mTarget` is who it reached
+        /// (`mHasTarget` false for a hit on the world, where `mX`, `mY`, `mZ` is where it ended). Cast: a non-held
+        /// spell went off. Hit: a shot ended on something. EffectApplied: one effect of the spell reached a target (its
+        /// conditions held), the caster itself for a self spell.
         struct SpellEvent
         {
             enum class Kind : std::uint8_t
@@ -1040,8 +1043,8 @@ namespace game_skyrimse
                 Cast,
                 Hit,
                 EffectApplied,
-                /// Task 0348: the target's ward held (some of) a hostile spell's magnitude: OnWardHit(akCaster, akSpell)
-                /// of the scripts that hold the target. `mEffect` is the effect the ward took.
+                /// Task 0348: the target's ward held (some of) a hostile spell's magnitude: OnWardHit(akCaster,
+                /// akSpell) of the scripts that hold the target. `mEffect` is the effect the ward took.
                 WardHit,
             };
             Kind mKind = Kind::Cast;
@@ -1058,20 +1061,21 @@ namespace game_skyrimse
         void setSpellEventSink(SpellEventSink sink) { mSpellEventSink = std::move(sink); }
         using BarkSink = std::function<void(barks::Kind, openeden::sdk::game::ActorHandle)>;
         void setBarkSink(BarkSink sink) { mBarkSink = std::move(sink); }
-        /// Task 0302 (draugr ambushes): told when an actor starts a fight (true) or leaves it (false), so the pack can raise
-        /// OnCombatStateChanged on its scripts. Hook calls only; empty (the default) and nothing is told.
+        /// Task 0302 (draugr ambushes): told when an actor starts a fight (true) or leaves it (false), so the pack can
+        /// raise OnCombatStateChanged on its scripts. Hook calls only; empty (the default) and nothing is told.
         using CombatStateSink = std::function<void(openeden::sdk::game::ActorHandle, bool engaged)>;
         void setCombatStateSink(CombatStateSink sink) { mCombatStateSink = std::move(sink); }
         /// Task 0302: a script set the actor's Aggression (masterAmbushScript: 0 while it waits, 2 when it is let out).
         /// From now on the actor is hostile on sight (or not) by the same rule as an NPC record's own number: the
-        /// aggression and its relation to the player (wouldAttackOnSight). An actor the combat does not know yet gets the
-        /// number when its profile is read. A value above 3 is cut to 3.
+        /// aggression and its relation to the player (wouldAttackOnSight). An actor the combat does not know yet gets
+        /// the number when its profile is read. A value above 3 is cut to 3.
         void setAggression(openeden::sdk::game::ActorHandle actor, std::uint8_t aggression);
         /// The most placements whose aggression a script set that the combat remembers.
         static constexpr std::size_t kMaxAggressionSet = 4096;
         /// Task 0347 (a brawl): a script set the actor's Confidence (DGIntimidateQuest: 4, so the opponent never runs
         /// from a fist fight). The profile of an actor already read changes now; a later one gets it when it is read.
-        /// A value above 4 is cut to 4. `aiConfidenceOf` answers the number the combat uses (-1: the actor is not known).
+        /// A value above 4 is cut to 4. `aiConfidenceOf` answers the number the combat uses (-1: the actor is not
+        /// known).
         void setConfidence(openeden::sdk::game::ActorHandle actor, std::uint8_t confidence);
         [[nodiscard]] int aiConfidenceOf(openeden::sdk::game::ActorHandle actor) const;
         /// A damage report as it went to the core: a living actor that lost health says a hurt line.
@@ -1307,8 +1311,8 @@ namespace game_skyrimse
         /// none).
         float sneakAttackFor(Fighter& attacker, Fighter& victim, const WeaponRecord* swung, bool ranged);
         [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
-        /// Task 0300: the bow or crossbow, ammunition and projectile a fighter shoots now. Empty (not ready) when it has
-        /// none. The test weapon (`combat test weapon` and `combat test ammo`) comes first, so every earlier run is
+        /// Task 0300: the bow or crossbow, ammunition and projectile a fighter shoots now. Empty (not ready) when it
+        /// has none. The test weapon (`combat test weapon` and `combat test ammo`) comes first, so every earlier run is
         /// unchanged; then, with `combat ranged gear`, the player's equipped one or the NPC's own.
         struct RangedKit
         {
@@ -1551,7 +1555,8 @@ namespace game_skyrimse
                 mSpellEventSink(event);
         }
         CombatStateSink mCombatStateSink; ///< task 0302
-        std::map<openeden::sdk::game::WorldId, std::uint8_t> mAggressionSet; ///< task 0302: what scripts set, by placement
+        std::map<openeden::sdk::game::WorldId, std::uint8_t>
+            mAggressionSet; ///< task 0302: what scripts set, by placement
         std::map<openeden::sdk::game::WorldId, std::uint8_t> mConfidenceSet; ///< task 0347: the same for Confidence
         BleedoutSink mBleedoutSink; ///< task 0264
         bool mEssentialBleedout = false; ///< task 0264

@@ -170,8 +170,7 @@ namespace game_skyrimse
         /// Task 0274: the same list for ONE placement: the packages a running quest's alias gives the placement itself
         /// (an alias filled with a specific reference, such as the Helgen cart horses) come first. The default is the
         /// base's list.
-        virtual bool packagesForReference(
-            FormId reference, FormId base, std::vector<const PackageRecord*>& out) const
+        virtual bool packagesForReference(FormId reference, FormId base, std::vector<const PackageRecord*>& out) const
         {
             (void)reference;
             return packagesFor(base, out);
@@ -387,8 +386,8 @@ namespace game_skyrimse
         /// actor: a travel or a patrol with no further marker has arrived. Told once per start of the package.
         using EndHook = std::function<void(openeden::sdk::game::WorldId reference, const PackageRecord& package)>;
         void setPackageEndHook(EndHook hook) { mEndHook = std::move(hook); }
-        /// Task 0348: a package that carries an OnBegin script fragment (`PackageRecord::mBeginFunction`) has begun for an
-        /// actor (told once per start of the package, after the brain has taken it). Same shape as the end hook.
+        /// Task 0348: a package that carries an OnBegin script fragment (`PackageRecord::mBeginFunction`) has begun for
+        /// an actor (told once per start of the package, after the brain has taken it). Same shape as the end hook.
         void setPackageBeginHook(EndHook hook) { mBeginHook = std::move(hook); }
         /// Task 0348: a package with a UseMagic procedure has begun: the actor `reference` is to cast `spell` (the
         /// package's first Object ID target) at the player, once. The hook only records the wish; the combat casts.
@@ -403,9 +402,10 @@ namespace game_skyrimse
             return mFollowRefs.count(reference) != 0;
         }
         [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& followerRefs() const { return mFollowRefs; }
-        /// Task 0334: placements whose chosen package is a Follow or Escort of the player (Serana's DLC1NPCFollowMedium,
-        /// Barbas's DA03BarbasFollowPlayer): they follow by their package, are no brain followers (no saved follower,
-        /// the packages still decide), but the player's doors carry them and they take his side like a follower.
+        /// Task 0334: placements whose chosen package is a Follow or Escort of the player (Serana's
+        /// DLC1NPCFollowMedium, Barbas's DA03BarbasFollowPlayer): they follow by their package, are no brain followers
+        /// (no saved follower, the packages still decide), but the player's doors carry them and they take his side
+        /// like a follower.
         [[nodiscard]] bool followsByPackage(openeden::sdk::game::WorldId reference) const
         {
             return mPackageFollowRefs.count(reference) != 0;
@@ -431,10 +431,12 @@ namespace game_skyrimse
         /// player uses, until the target is reachable; a walk that fails ends with the actor placed there. Off by
         /// default; the pack turns it on with `[extension.skyrimse] companions`.
         void setCarryTravellers(bool on) { mCarryTravellers = on; }
-        /// Task 0341 (`side quests`): a MUST COMPLETE Travel package that cannot be walked ends with the actor placed at its target
+        /// Task 0341 (`side quests`): a MUST COMPLETE Travel package that cannot be walked ends with the actor placed
+        /// at its target
         void setSnapMustComplete(bool on) { mSnapMustComplete = on; }
-        /// Task 0349 (`blade in the dark`): the Travel packages with these ids end with the actor placed at the target when the
-        /// walk fails (Delphine's walk to the rented room behind locked doors); a named stand-in, not a rule of the game
+        /// Task 0349 (`blade in the dark`): the Travel packages with these ids end with the actor placed at the target
+        /// when the walk fails (Delphine's walk to the rented room behind locked doors); a named stand-in, not a rule
+        /// of the game
         void setSnapPackages(std::set<FormId> ids) { mSnapPackages = std::move(ids); }
 
         /// Task 0286: a scene's Travel package whose target stands in another cell (see targetIsElsewhere) asks this

@@ -192,9 +192,10 @@ namespace
             std::filesystem::create_directories(mDir / "sky/moon");
             std::filesystem::create_directories(mDir / "comp/fogofwar");
             // Task 0363, stage g: the stage files the build writes (source, entry, stage, the names the stage takes).
-            writeText("sky/moon/main.frag.slang-stage", "moon.slang\tfragMain\tfragment\tDIFFUSE_MAP GLOW_MAP MATERIAL\n");
-            writeText("sky/moon/main.vert.slang-stage",
-                "moon.slang\tvertMain\tvertex\tNORMAL PARTICLE TEXCOORD VERTEX\n");
+            writeText(
+                "sky/moon/main.frag.slang-stage", "moon.slang\tfragMain\tfragment\tDIFFUSE_MAP GLOW_MAP MATERIAL\n");
+            writeText(
+                "sky/moon/main.vert.slang-stage", "moon.slang\tvertMain\tvertex\tNORMAL PARTICLE TEXCOORD VERTEX\n");
             writeText("comp/fogofwar/update.comp.slang-stage", "update.slang\tcompMain\tcompute\t-\n");
             mOptions = vsg::Options::create();
             mOptions->paths = { vsg::Path(mDir.generic_string()) };
@@ -253,8 +254,8 @@ namespace
         folder.write("sky/moon/main.frag.p1a2b3c4d.spv", sPermutationWords);
         folder.writeText("sky/moon/main.frag.permutations", "main.frag.p1a2b3c4d.spv\tDIFFUSE_MAP GLOW_MAP MATERIAL\n");
         // The settings-driven defines the moon does not take do not stop the match.
-        const auto module = vsgUtil::slangTwin("sky/moon/main.frag",
-            { "COVER", "DIFFUSE_MAP", "GI", "GLOW_MAP", "MATERIAL", "PBR" }, folder.options());
+        const auto module = vsgUtil::slangTwin(
+            "sky/moon/main.frag", { "COVER", "DIFFUSE_MAP", "GI", "GLOW_MAP", "MATERIAL", "PBR" }, folder.options());
         ASSERT_TRUE(module);
         EXPECT_EQ(module->code, sPermutationWords);
     }
@@ -279,8 +280,8 @@ namespace
         SlangTwinFolder folder;
         folder.writeText("sky/moon/main.frag.permutations", "main.frag.p1a2b3c4d.spv\tDIFFUSE_MAP GLOW_MAP MATERIAL\n");
         for (int attempt = 0; attempt < 2; ++attempt)
-            EXPECT_FALSE(vsgUtil::slangTwin(
-                "sky/moon/main.frag", { "DIFFUSE_MAP", "GLOW_MAP", "MATERIAL" }, folder.options()));
+            EXPECT_FALSE(
+                vsgUtil::slangTwin("sky/moon/main.frag", { "DIFFUSE_MAP", "GLOW_MAP", "MATERIAL" }, folder.options()));
     }
 
     // Task 0363, stage g: a stage the build wrote no stage file for cannot be asked for a set at all.
@@ -288,8 +289,8 @@ namespace
     {
         SlangTwinFolder folder;
         EXPECT_THROW(vsgUtil::slangTwin("sky/other/main.frag", { "MATERIAL" }, folder.options()), std::runtime_error);
-        EXPECT_THROW(vsgUtil::slangSelectionSet("sky/other/main.frag", { "MATERIAL" }, folder.options()),
-            std::runtime_error);
+        EXPECT_THROW(
+            vsgUtil::slangSelectionSet("sky/other/main.frag", { "MATERIAL" }, folder.options()), std::runtime_error);
     }
 
     // Task 0072, stage c: the compute passes are read with vsgUtil::readShader and made with no defines.
@@ -329,13 +330,13 @@ namespace
         // No manifest at all, then a manifest that lists another set only.
         SlangTwinFolder bare;
         const auto stage = computeStage();
-        EXPECT_THROW(vsgUtil::withSlangTwin(stage, "comp/fogofwar/update.comp", bare.slangOptions()),
-            std::runtime_error);
+        EXPECT_THROW(
+            vsgUtil::withSlangTwin(stage, "comp/fogofwar/update.comp", bare.slangOptions()), std::runtime_error);
         SlangTwinFolder other;
         other.write("comp/fogofwar/update.comp.p1a2b3c4d.spv", sPermutationWords);
         other.writeText("comp/fogofwar/update.comp.permutations", "update.comp.p1a2b3c4d.spv\tCOLOR\n");
-        EXPECT_THROW(vsgUtil::withSlangTwin(stage, "comp/fogofwar/update.comp", other.slangOptions()),
-            std::runtime_error);
+        EXPECT_THROW(
+            vsgUtil::withSlangTwin(stage, "comp/fogofwar/update.comp", other.slangOptions()), std::runtime_error);
         EXPECT_FALSE(vsgUtil::withSlangTwin({}, "comp/fogofwar/update.comp", other.slangOptions()));
     }
 
@@ -544,12 +545,10 @@ namespace
         SlangTwinFolder folder;
         folder.write("sky/moon/main.vert.p00000001.spv", sPermutationWords);
         folder.writeText("sky/moon/main.vert.permutations", "main.vert.p00000001.spv\tTEXCOORD VERTEX\n");
-        const auto module
-            = vsgUtil::slangTwin("sky/moon/main.vert", { "TEXCOORD", "VERTEX" }, folder.options());
+        const auto module = vsgUtil::slangTwin("sky/moon/main.vert", { "TEXCOORD", "VERTEX" }, folder.options());
         ASSERT_TRUE(module);
         EXPECT_EQ(module->code, sPermutationWords);
-        EXPECT_FALSE(vsgUtil::slangTwin(
-            "sky/moon/main.vert", { "TEXCOORD", "VERTEX" }, folder.options(), 1u));
+        EXPECT_FALSE(vsgUtil::slangTwin("sky/moon/main.vert", { "TEXCOORD", "VERTEX" }, folder.options(), 1u));
     }
 
     TEST(ShaderDefines, the_selection_set_is_the_one_the_trace_writes)
@@ -557,23 +556,20 @@ namespace
         SlangTwinFolder counting;
         counting.writeText("sky/moon/main.vert.permutations", sCountingManifest);
         const Names requested{ "GI", "TEXCOORD", "VERTEX" };
-        EXPECT_EQ(
-            vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, counting.options()), std::nullopt);
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, counting.options()), std::nullopt);
         EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, counting.options(), 3u),
             (Names{ "TEXCOORD", "UVSETS_3", "VERTEX" }));
         // A count no file can have is still written, so that a trace shows the set that drew with the GLSL.
         EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, counting.options(), 0u),
             (Names{ "TEXCOORD", "UVSETS_0", "VERTEX" }));
-        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", { "NORMAL" }, counting.options()),
-            (Names{ "NORMAL" }));
-        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", { "NORMAL" }, counting.options(), 3u),
-            std::nullopt);
+        EXPECT_EQ(
+            vsgUtil::slangSelectionSet("sky/moon/main.vert", { "NORMAL" }, counting.options()), (Names{ "NORMAL" }));
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", { "NORMAL" }, counting.options(), 3u), std::nullopt);
         // A family that does not count, or one with no manifest at all: the stage's set, written once.
         SlangTwinFolder bare;
         EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, bare.options()),
             (Names{ "TEXCOORD", "VERTEX" }));
-        EXPECT_EQ(
-            vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, bare.options(), 3u), std::nullopt);
+        EXPECT_EQ(vsgUtil::slangSelectionSet("sky/moon/main.vert", requested, bare.options(), 3u), std::nullopt);
     }
 
     TEST(ShaderDefines, a_pipeline_takes_its_twins_only_when_every_stage_without_code_has_one)
@@ -641,8 +637,7 @@ namespace
         const std::set<std::string>* defines = vsgUtil::requestedDefinesOf(*withHints);
         ASSERT_NE(defines, nullptr);
         EXPECT_EQ(*defines, (Names{ "A", "B" }));
-        const auto bare
-            = vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create());
+        const auto bare = vsg::ShaderStage::create(VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create());
         EXPECT_EQ(vsgUtil::requestedDefinesOf(*bare), nullptr);
         const auto spirv = vsg::ShaderStage::create(
             VK_SHADER_STAGE_FRAGMENT_BIT, "main", vsg::ShaderModule::create(sPermutationWords));
@@ -1107,7 +1102,8 @@ namespace
     // The stages as vsgUtil::readShader makes them: no code, no source.
     vsg::ShaderStages guiStages()
     {
-        return { vsgUtil::readShader("sky/moon/main.vert", nullptr), vsgUtil::readShader("sky/moon/main.frag", nullptr) };
+        return { vsgUtil::readShader("sky/moon/main.vert", nullptr),
+            vsgUtil::readShader("sky/moon/main.frag", nullptr) };
     }
 
     void listGuiTwins(SlangTwinFolder& folder, bool vertex, bool fragment)
@@ -1169,8 +1165,7 @@ namespace
             SlangTwinFolder folder;
             listGuiTwins(folder, vertex, !vertex);
             const vsg::ShaderStages stages = guiStages();
-            EXPECT_THROW(vsgUtil::withSlangTwinsTogether(stages, sGuiPaths, folder.slangOptions()),
-                std::runtime_error);
+            EXPECT_THROW(vsgUtil::withSlangTwinsTogether(stages, sGuiPaths, folder.slangOptions()), std::runtime_error);
             expectUnchangedGui(stages);
         }
     }

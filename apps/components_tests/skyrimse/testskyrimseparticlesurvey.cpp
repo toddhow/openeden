@@ -27,7 +27,8 @@ namespace
 
     std::string lowerOf(std::string s)
     {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::transform(
+            s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return s;
     }
 
@@ -88,7 +89,8 @@ namespace
         {
             if (m.empty())
                 continue;
-            o << "    " << m->mRecordName << " order " << static_cast<std::uint32_t>(m->mOrder) << " active " << m->mActive;
+            o << "    " << m->mRecordName << " order " << static_cast<std::uint32_t>(m->mOrder) << " active "
+              << m->mActive;
             if (const auto* e = dynamic_cast<const Nif::NiPSysEmitter*>(m.getPtr()))
             {
                 o << " speed " << e->mSpeed << "+-" << e->mSpeedVariation << " decl " << e->mDeclination << "+-"
@@ -108,8 +110,8 @@ namespace
                     if (!v->mEmitterObject.empty())
                     {
                         const auto& t = v->mEmitterObject->mTransform;
-                        o << " at " << t.mTranslation.x << "," << t.mTranslation.y << "," << t.mTranslation.z << " scale " << t.mScale
-                          << " rot";
+                        o << " at " << t.mTranslation.x << "," << t.mTranslation.y << "," << t.mTranslation.z
+                          << " scale " << t.mScale << " rot";
                         for (int r = 0; r < 3; ++r)
                             o << " [" << t.mRotation.mValues[r][0] << "," << t.mRotation.mValues[r][1] << ","
                               << t.mRotation.mValues[r][2] << "]";
@@ -120,25 +122,27 @@ namespace
                 o << " grow " << g->mGrowTime << " gen " << g->mGrowGeneration << " fade " << g->mFadeTime << " gen "
                   << g->mFadeGeneration << " base " << g->mBaseScale;
             else if (const auto* r = dynamic_cast<const Nif::NiPSysRotationModifier*>(m.getPtr()))
-                o << " speed " << r->mRotationSpeed << "+-" << r->mRotationSpeedVariation << " angle " << r->mRotationAngle
-                  << "+-" << r->mRotationAngleVariation << " randsign " << r->mRandomRotSpeedSign;
+                o << " speed " << r->mRotationSpeed << "+-" << r->mRotationSpeedVariation << " angle "
+                  << r->mRotationAngle << "+-" << r->mRotationAngleVariation << " randsign " << r->mRandomRotSpeedSign;
             else if (const auto* gr = dynamic_cast<const Nif::NiPSysGravityModifier*>(m.getPtr()))
-                o << " axis " << gr->mGravityAxis.x << "," << gr->mGravityAxis.y << "," << gr->mGravityAxis.z << " strength "
-                  << gr->mStrength << " decay " << gr->mDecay << " force " << static_cast<int>(gr->mForceType)
-                  << " turbulence " << gr->mTurbulence << " worldAligned " << gr->mWorldAligned;
+                o << " axis " << gr->mGravityAxis.x << "," << gr->mGravityAxis.y << "," << gr->mGravityAxis.z
+                  << " strength " << gr->mStrength << " decay " << gr->mDecay << " force "
+                  << static_cast<int>(gr->mForceType) << " turbulence " << gr->mTurbulence << " worldAligned "
+                  << gr->mWorldAligned;
             else if (const auto* d = dynamic_cast<const Nif::NiPSysDragModifier*>(m.getPtr()))
                 o << " drag " << d->mPercentage << " range " << d->mRange;
             else if (const auto* sc = dynamic_cast<const Nif::BSPSysSimpleColorModifier*>(m.getPtr()))
             {
-                o << " fadeIn " << sc->mFadeInPercent << " fadeOut " << sc->mFadeOutPercent << " c1 " << sc->mColor1StartPercent
-                  << ".." << sc->mColor1EndPercent << " c2 " << sc->mColor2StartPercent << ".." << sc->mColor2EndPercent;
+                o << " fadeIn " << sc->mFadeInPercent << " fadeOut " << sc->mFadeOutPercent << " c1 "
+                  << sc->mColor1StartPercent << ".." << sc->mColor1EndPercent << " c2 " << sc->mColor2StartPercent
+                  << ".." << sc->mColor2EndPercent;
                 for (const auto& c : sc->mColors)
                     o << " (" << c.x << "," << c.y << "," << c.z << "," << c.w << ")";
             }
             else if (const auto* st = dynamic_cast<const Nif::BSPSysSubTexModifier*>(m.getPtr()))
-                o << " start " << st->mStartFrame << "+-" << st->mStartFrameFudge << " end " << st->mEndFrame << " loopStart "
-                  << st->mLoopStartFrame << "+-" << st->mLoopStartFrameFudge << " count " << st->mFrameCount << "+-"
-                  << st->mFrameCountFudge;
+                o << " start " << st->mStartFrame << "+-" << st->mStartFrameFudge << " end " << st->mEndFrame
+                  << " loopStart " << st->mLoopStartFrame << "+-" << st->mLoopStartFrameFudge << " count "
+                  << st->mFrameCount << "+-" << st->mFrameCountFudge;
             else if (const auto* sp = dynamic_cast<const Nif::NiPSysSpawnModifier*>(m.getPtr()))
                 o << " generations " << sp->mNumSpawnGenerations << " pct " << sp->mPercentageSpawned;
             else if (const auto* sca = dynamic_cast<const Nif::BSPSysScaleModifier*>(m.getPtr()))
@@ -199,7 +203,8 @@ TEST(SkyrimSeParticleSurvey, aggregate)
                 continue;
             auto stream = archive.getFile(&entry);
             std::string data((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
-            if (data.find("NiParticleSystem") == std::string::npos && data.find("BSStripParticleSystem") == std::string::npos)
+            if (data.find("NiParticleSystem") == std::string::npos
+                && data.find("BSStripParticleSystem") == std::string::npos)
                 continue;
             Group& g = groups[classOf(name)];
             ++g.mFiles;
@@ -221,7 +226,8 @@ TEST(SkyrimSeParticleSurvey, aggregate)
                     g.mWorldSpace += ps->mWorldSpace;
                     ++g.mKinds["system " + ps->mRecordName];
                     g.mNoShader += ps->mShaderProperty.empty();
-                    g.mEffectShader += !ps->mShaderProperty.empty() && ps->mShaderProperty->mRecordName == "BSEffectShaderProperty";
+                    g.mEffectShader
+                        += !ps->mShaderProperty.empty() && ps->mShaderProperty->mRecordName == "BSEffectShaderProperty";
                     for (const auto& m : ps->mModifiers)
                         if (!m.empty())
                             ++g.mKinds["modifier " + m->mRecordName];
@@ -236,9 +242,9 @@ TEST(SkyrimSeParticleSurvey, aggregate)
     }
     for (const auto& [name, g] : groups)
     {
-        line(name + ": files " + std::to_string(g.mFilesWithPsys) + " systems " + std::to_string(g.mSystems) + " worldSpace "
-            + std::to_string(g.mWorldSpace) + " effect-shader " + std::to_string(g.mEffectShader) + " no-shader "
-            + std::to_string(g.mNoShader));
+        line(name + ": files " + std::to_string(g.mFilesWithPsys) + " systems " + std::to_string(g.mSystems)
+            + " worldSpace " + std::to_string(g.mWorldSpace) + " effect-shader " + std::to_string(g.mEffectShader)
+            + " no-shader " + std::to_string(g.mNoShader));
         for (const auto& [t, n] : g.mKinds)
             line(name + ": " + t + " " + std::to_string(n));
     }
@@ -260,7 +266,8 @@ TEST(SkyrimSeParticleSurvey, dump)
         {
             std::string name = lowerOf(std::string(entry.name()));
             std::replace(name.begin(), name.end(), static_cast<char>(92), '/');
-            if (name.find(needle) == std::string::npos || name.size() < 4 || name.compare(name.size() - 4, 4, ".nif") != 0)
+            if (name.find(needle) == std::string::npos || name.size() < 4
+                || name.compare(name.size() - 4, 4, ".nif") != 0)
                 continue;
             auto stream = archive.getFile(&entry);
             std::string data((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());

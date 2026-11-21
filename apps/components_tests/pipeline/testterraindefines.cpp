@@ -290,7 +290,8 @@ namespace
 
     TEST(PipelineTerrainDefines, the_settings_reach_four_vertex_sets_and_every_one_has_a_twin)
     {
-        ASSERT_FALSE(readSource("terrain/main.vert.interface").empty()) << "the shader sources are not beside the tests";
+        ASSERT_FALSE(readSource("terrain/main.vert.interface").empty())
+            << "the shader sources are not beside the tests";
         const std::set<std::string> expected = { "", "DEBUG_CHUNKS", "DEBUG_CHUNKS TERRAIN_MAPS", "TERRAIN_MAPS" };
         EXPECT_EQ(reachable().vertex, expected);
         EXPECT_EQ(listedSets("terrain/main.vert.sets"), expected);
@@ -307,7 +308,8 @@ namespace
     // are a part, and a set that is not listed draws with the GLSL or is compiled at run time.
     TEST(PipelineTerrainDefines, the_settings_reach_43320_fragment_sets_and_every_listed_one_is_among_them)
     {
-        ASSERT_FALSE(readSource("terrain/main.frag.interface").empty()) << "the shader sources are not beside the tests";
+        ASSERT_FALSE(readSource("terrain/main.frag.interface").empty())
+            << "the shader sources are not beside the tests";
         EXPECT_EQ(reachable().fragment.size(), 43320u);
         const std::set<std::string> listed = listedSets("terrain/main.frag.sets");
         EXPECT_FALSE(listed.empty());

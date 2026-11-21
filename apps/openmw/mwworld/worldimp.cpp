@@ -51,8 +51,8 @@
 #include "neutraldialogue.hpp"
 #include "neutralimagespace.hpp"
 #include "neutralmusicdriver.hpp"
-#include "neutralnavthreads.hpp"
 #include "neutralnavigation.hpp"
+#include "neutralnavthreads.hpp"
 #include "neutralphysicswater.hpp"
 #include "neutralpick.hpp"
 #include "neutralplayername.hpp"
@@ -523,90 +523,92 @@ namespace MWWorld
         }
 
         // Task 0291 (swimming): the water a neutral actor stands in, by the grid square of its position.
-        mPhysics->setNeutralWaterLookup([this](const MWWorld::CellStore& home, float x, float y) -> std::optional<float> {
-            if (!home.isNeutral())
-                return std::nullopt;
-            if (!home.isExterior())
-                return neutralWaterLevelAt(home, x, y);
-            try
-            {
-                const ESM::ExteriorCellLocation location
-                    = ESM::positionToExteriorCellLocation(x, y, home.getCell()->getWorldSpace());
-                return neutralWaterLevelAt(mWorldModel.getExterior(location, false), x, y);
-            }
-            catch (const std::exception&)
-            {
-                return std::nullopt; // the square cannot be built: no water
-            }
-        });
+        mPhysics->setNeutralWaterLookup(
+            [this](const MWWorld::CellStore& home, float x, float y) -> std::optional<float> {
+                if (!home.isNeutral())
+                    return std::nullopt;
+                if (!home.isExterior())
+                    return neutralWaterLevelAt(home, x, y);
+                try
+                {
+                    const ESM::ExteriorCellLocation location
+                        = ESM::positionToExteriorCellLocation(x, y, home.getCell()->getWorldSpace());
+                    return neutralWaterLevelAt(mWorldModel.getExterior(location, false), x, y);
+                }
+                catch (const std::exception&)
+                {
+                    return std::nullopt; // the square cannot be built: no water
+                }
+            });
 
         // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
         // session's navmesh is built for (the capsule can only make it narrower), so no second navmesh is made.
-        mPhysics->setNeutralPathFinder(
-            [this](const vsg::vec3& from, const vsg::vec3& to, const MWPhysics::NeutralActor::Capsule& capsule,
-                std::vector<vsg::vec3>& out) {
-                Misc::LoadTrace::Scope trace("neutral.pathfind"); // task 0339: a walking NPC's path ask (value = status)
-                const DetourNavigator::AgentBounds sessionAgent = getPathfindingAgentBounds(getPlayerConstPtr());
-                // Task 0159: a round capsule is a cylinder agent (a box agent's corner is 1.41 times as wide).
-                const DetourNavigator::AgentBounds bounds
-                    = neutralActorAgentBounds(sessionAgent, MWPhysics::NeutralPath::navigationRadius(capsule.mRadius));
-                // The first path of an agent size the navigator does not know yet adds it (a navmesh of its own is then
-                // built on the worker threads, so the first answers are NavMeshNotFound and the follower asks again).
-                if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))
-                    return MWPhysics::NeutralPath::FindStatus::NoPath;
-                const auto flags = static_cast<DetourNavigator::Flags>(
-                    DetourNavigator::Flag_walk | DetourNavigator::Flag_openDoor);
-                DetourNavigator::Status status = DetourNavigator::findPath(*mNavigator, bounds, from, to, flags,
-                    DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {}, std::back_inserter(out));
-                // Task 0336: a goal beyond the navmesh built round the player has no polygon: take the farthest point of
-                // the line to it that has one and say Partial (the follower walks it and asks again from there).
-                if (Settings::game().mNeutralActorLongPaths.get()
-                    && (status == DetourNavigator::Status::EndPolygonNotFound
-                        || status == DetourNavigator::Status::TargetPolygonNotFound))
-                    for (const MWWorld::LongPathPull& pull : MWWorld::longPathPulls())
-                    {
-                        const vsg::vec3 nearer = from + (to - from) * pull.mFraction;
-                        out.clear();
-                        status = DetourNavigator::findPath(*mNavigator, bounds, from, nearer, flags,
-                            DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {},
-                            std::back_inserter(out));
-                        if (status == DetourNavigator::Status::Success || status == DetourNavigator::Status::PartialPath)
-                        {
-                            status = DetourNavigator::Status::PartialPath;
-                            break;
-                        }
-                        if (status != DetourNavigator::Status::EndPolygonNotFound
-                            && status != DetourNavigator::Status::TargetPolygonNotFound)
-                            break;
-                    }
-
-                trace.setValue(static_cast<std::int64_t>(status));
-                static const bool pathTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
-                if (pathTrace && status != DetourNavigator::Status::Success) // task 0336: the raw answer and the worker queue
-                    Log(Debug::Info) << "NACTNAV raw status " << DetourNavigator::getMessage(status) << " from " << from.x
-                                     << " " << from.y << " " << from.z << " to " << to.x << " " << to.y << " " << to.z
-                                     << " radius " << bounds.mHalfExtents.x << " jobs "
-                                     << mNavigator->getStats().mUpdater.mJobs;
-                switch (status)
+        mPhysics->setNeutralPathFinder([this](const vsg::vec3& from, const vsg::vec3& to,
+                                           const MWPhysics::NeutralActor::Capsule& capsule,
+                                           std::vector<vsg::vec3>& out) {
+            Misc::LoadTrace::Scope trace("neutral.pathfind"); // task 0339: a walking NPC's path ask (value = status)
+            const DetourNavigator::AgentBounds sessionAgent = getPathfindingAgentBounds(getPlayerConstPtr());
+            // Task 0159: a round capsule is a cylinder agent (a box agent's corner is 1.41 times as wide).
+            const DetourNavigator::AgentBounds bounds
+                = neutralActorAgentBounds(sessionAgent, MWPhysics::NeutralPath::navigationRadius(capsule.mRadius));
+            // The first path of an agent size the navigator does not know yet adds it (a navmesh of its own is then
+            // built on the worker threads, so the first answers are NavMeshNotFound and the follower asks again).
+            if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))
+                return MWPhysics::NeutralPath::FindStatus::NoPath;
+            const auto flags
+                = static_cast<DetourNavigator::Flags>(DetourNavigator::Flag_walk | DetourNavigator::Flag_openDoor);
+            DetourNavigator::Status status = DetourNavigator::findPath(*mNavigator, bounds, from, to, flags,
+                DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {}, std::back_inserter(out));
+            // Task 0336: a goal beyond the navmesh built round the player has no polygon: take the farthest point of
+            // the line to it that has one and say Partial (the follower walks it and asks again from there).
+            if (Settings::game().mNeutralActorLongPaths.get()
+                && (status == DetourNavigator::Status::EndPolygonNotFound
+                    || status == DetourNavigator::Status::TargetPolygonNotFound))
+                for (const MWWorld::LongPathPull& pull : MWWorld::longPathPulls())
                 {
-                    case DetourNavigator::Status::Success:
-                        return MWPhysics::NeutralPath::FindStatus::Success;
-                    case DetourNavigator::Status::PartialPath:
-                        // Task 0280: the navmesh of a large creature's agent is built tile by tile on the worker
-                        // threads; a partial path while it is being built only means that the tiles are missing.
-                        if (capsule.mRadius >= MWPhysics::NeutralMover::kLargeCreatureRadius)
-                            return refineNeutralPathStatus(MWPhysics::NeutralPath::FindStatus::Partial,
-                                mNavigator->getStats().mUpdater.mJobs != 0);
-                        return MWPhysics::NeutralPath::FindStatus::Partial;
-                    case DetourNavigator::Status::NavMeshNotFound:
-                    case DetourNavigator::Status::StartPolygonNotFound:
-                    case DetourNavigator::Status::EndPolygonNotFound:
-                    case DetourNavigator::Status::TargetPolygonNotFound:
-                        return MWPhysics::NeutralPath::FindStatus::NotReady;
-                    default:
-                        return MWPhysics::NeutralPath::FindStatus::NoPath;
+                    const vsg::vec3 nearer = from + (to - from) * pull.mFraction;
+                    out.clear();
+                    status = DetourNavigator::findPath(*mNavigator, bounds, from, nearer, flags,
+                        DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {},
+                        std::back_inserter(out));
+                    if (status == DetourNavigator::Status::Success || status == DetourNavigator::Status::PartialPath)
+                    {
+                        status = DetourNavigator::Status::PartialPath;
+                        break;
+                    }
+                    if (status != DetourNavigator::Status::EndPolygonNotFound
+                        && status != DetourNavigator::Status::TargetPolygonNotFound)
+                        break;
                 }
-            });
+
+            trace.setValue(static_cast<std::int64_t>(status));
+            static const bool pathTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+            if (pathTrace
+                && status != DetourNavigator::Status::Success) // task 0336: the raw answer and the worker queue
+                Log(Debug::Info) << "NACTNAV raw status " << DetourNavigator::getMessage(status) << " from " << from.x
+                                 << " " << from.y << " " << from.z << " to " << to.x << " " << to.y << " " << to.z
+                                 << " radius " << bounds.mHalfExtents.x << " jobs "
+                                 << mNavigator->getStats().mUpdater.mJobs;
+            switch (status)
+            {
+                case DetourNavigator::Status::Success:
+                    return MWPhysics::NeutralPath::FindStatus::Success;
+                case DetourNavigator::Status::PartialPath:
+                    // Task 0280: the navmesh of a large creature's agent is built tile by tile on the worker
+                    // threads; a partial path while it is being built only means that the tiles are missing.
+                    if (capsule.mRadius >= MWPhysics::NeutralMover::kLargeCreatureRadius)
+                        return refineNeutralPathStatus(
+                            MWPhysics::NeutralPath::FindStatus::Partial, mNavigator->getStats().mUpdater.mJobs != 0);
+                    return MWPhysics::NeutralPath::FindStatus::Partial;
+                case DetourNavigator::Status::NavMeshNotFound:
+                case DetourNavigator::Status::StartPolygonNotFound:
+                case DetourNavigator::Status::EndPolygonNotFound:
+                case DetourNavigator::Status::TargetPolygonNotFound:
+                    return MWPhysics::NeutralPath::FindStatus::NotReady;
+                default:
+                    return MWPhysics::NeutralPath::FindStatus::NoPath;
+            }
+        });
 
         mProjectileManager = std::make_unique<ProjectileManager>(mRendering, mPhysics.get());
 
@@ -1738,7 +1740,8 @@ namespace MWWorld
         }
         static const bool placeTrace = std::getenv("OPENEDEN_PLACE_TRACE") != nullptr;
         if (placeTrace)
-            Log(Debug::Info) << "NPLACE interior " << place.interior << " cell " << place.cell << " world " << place.world;
+            Log(Debug::Info) << "NPLACE interior " << place.interior << " cell " << place.cell << " world "
+                             << place.world;
         mPhysics->notifyNeutralPlayerPlace(place);
     }
 
@@ -1763,7 +1766,8 @@ namespace MWWorld
             mPhysics->setNeutralFocus(getPlayerPtr().getRefData().getPosition().asVec3());
             notifyNeutralPlayerPlace();
             {
-                Misc::LoadTrace::Scope trace("physics.neutral.actors"); // task 0323: the pack's actor, AI and combat update
+                Misc::LoadTrace::Scope trace(
+                    "physics.neutral.actors"); // task 0323: the pack's actor, AI and combat update
                 mPhysics->updateNeutralActors(duration);
             }
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsMoved())
@@ -2493,8 +2497,8 @@ namespace MWWorld
                              << mRendering->getCamera()->getPosition().y << ","
                              << mRendering->getCamera()->getPosition().z << " pitch "
                              << mRendering->getCamera()->getPitch() << " yaw " << mRendering->getCamera()->getYaw()
-                             << " max " << maxDistance << " camera " << camDist << " hit "
-                             << rayToObject.mHit << " object "
+                             << " max " << maxDistance << " camera " << camDist << " hit " << rayToObject.mHit
+                             << " object "
                              << (focusObject.isEmpty() ? std::string("none")
                                                        : focusObject.getCellRef().getRefId().toDebugString())
                              << " distance " << mDistanceToFocusObject;

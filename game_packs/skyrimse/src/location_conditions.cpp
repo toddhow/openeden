@@ -19,9 +19,9 @@ namespace game_skyrimse
             return source->locationHasRefType(location, source->resolveLocationForm(c.mParam1)) ? 1.f : 0.f;
         }
 
-        // 565 GetIsEditorLocation(location): the candidate is that location or inside it. Task 0342: run on an ACTOR (the
-        // Innkeeper alias of MS14: this location, JobInnkeeperFaction and Jonna by id), the subject's editor location
-        // is the one that must lie inside it, as 567 does for the location an alias holds
+        // 565 GetIsEditorLocation(location): the candidate is that location or inside it. Task 0342: run on an ACTOR
+        // (the Innkeeper alias of MS14: this location, JobInnkeeperFaction and Jonna by id), the subject's editor
+        // location is the one that must lie inside it, as 567 does for the location an alias holds
         float getIsEditorLocation(
             const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
         {
@@ -87,9 +87,8 @@ namespace game_skyrimse
 
     const std::vector<conditions::ExtraFunction>& aliasLocationExtraFunctions()
     {
-        static const std::vector<conditions::ExtraFunction> table
-            = { { 180, &hasSameEditorLocAsRefAlias }, { 181, &hasSameEditorLocAsRefAlias },
-                { 567, &getIsEditorLocAlias } };
+        static const std::vector<conditions::ExtraFunction> table = { { 180, &hasSameEditorLocAsRefAlias },
+            { 181, &hasSameEditorLocAsRefAlias }, { 567, &getIsEditorLocAlias } };
         return table;
     }
 

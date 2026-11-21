@@ -48,7 +48,8 @@ namespace
 
     TEST(SkyVisWorld, aWorldHasAFolderOfItsOwn)
     {
-        EXPECT_EQ(skyVisFilePath(-3, 7, "skyrimse:w92445"), "openeden/probes/exterior/skyrimse_w92445/-3_7.skyvis.json");
+        EXPECT_EQ(
+            skyVisFilePath(-3, 7, "skyrimse:w92445"), "openeden/probes/exterior/skyrimse_w92445/-3_7.skyvis.json");
         EXPECT_EQ(skyVisFilePath(1, 2, "SkyrimSE:W92445"), skyVisFilePath(1, 2, "skyrimse:w92445"));
         EXPECT_NE(skyVisFilePath(1, 2, "skyrimse:w1"), skyVisFilePath(1, 2, "skyrimse:w2"));
     }

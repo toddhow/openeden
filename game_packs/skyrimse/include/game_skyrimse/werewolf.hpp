@@ -133,19 +133,21 @@ namespace game_skyrimse::werewolf
 
     // Where each fact comes from (docs/tasks/0279-skyrim-werewolf-vampire-2.md section 1; the sidecar
     // `animationdata/werewolfbeastproject.txt` and the IDLE records of Skyrim.esm):
-    //   VERIFIED  the quest script ends the form when the clip `ww_bleedoutstart` (generator `BleedOutStart.HKX`) raises
+    //   VERIFIED  the quest script ends the form when the clip `ww_bleedoutstart` (generator `BleedOutStart.HKX`)
+    //   raises
     //             its event `TransformToHuman` at 1.799 s (`OnAnimationEvent`, PlayerWerewolfChangeScript); the IDLE
     //             `SpecialTransformToHuman` sends `bleedOutIdleStart` to the beast's behaviour graph;
-    //             the file `ww_howl` is played by the generators `WW Howl.hkx` (5.0 s, HowlEnd) and `WW Howl.hkx01`, the
-    //             one that carries `SoundPlay.NPCWerewolfTransformationB3D/B2D` at 0.2 s: the transformation into the beast;
-    //             the file `ww_howlforward` (3.333 s) by `WW Howl.hkx03`, whose events are `BeginCastVoice` and
-    //             `Voice_SpellFire_Event` at 0.733 s: the shout; the IDLE `SpecialFeeding` (event `SpecialFeeding`) names
-    //             the file `ww_specialfeeding`; the quest PlayerWerewolfQuest's VMAD gives CurrentHowl = HowlWerewolfFear
-    //             0xCF790 with the words 0xCF78E, 0xCF794 and 0xCF795 (PlayerWerewolfChangeScript.StartTracking learns
-    //             and equips them);
-    //             the file `ww_attackright` (1.26667 s) is the generator `AttackRightPower_State` (cache block 12,
-    //             playback speed 1.1, `HitFrame` at 0.232 s).
-    //   RECALLED-VERIFY  that `AttackRightPower_State` is the right power attack (the name and the matching duration say
+    //             the file `ww_howl` is played by the generators `WW Howl.hkx` (5.0 s, HowlEnd) and `WW Howl.hkx01`,
+    //             the one that carries `SoundPlay.NPCWerewolfTransformationB3D/B2D` at 0.2 s: the transformation into
+    //             the beast; the file `ww_howlforward` (3.333 s) by `WW Howl.hkx03`, whose events are `BeginCastVoice`
+    //             and `Voice_SpellFire_Event` at 0.733 s: the shout; the IDLE `SpecialFeeding` (event `SpecialFeeding`)
+    //             names the file `ww_specialfeeding`; the quest PlayerWerewolfQuest's VMAD gives CurrentHowl =
+    //             HowlWerewolfFear 0xCF790 with the words 0xCF78E, 0xCF794 and 0xCF795
+    //             (PlayerWerewolfChangeScript.StartTracking learns and equips them); the file `ww_attackright` (1.26667
+    //             s) is the generator `AttackRightPower_State` (cache block 12, playback speed 1.1, `HitFrame` at 0.232
+    //             s).
+    //   RECALLED-VERIFY  that `AttackRightPower_State` is the right power attack (the name and the matching duration
+    //   say
     //             so; the behaviour graph itself is not read); that the shift into the beast plays `ww_howl`.
     inline constexpr std::string_view kTransformInClip = "ww_howl";
     inline constexpr std::string_view kTransformOutClip = "ww_bleedoutstart";

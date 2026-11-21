@@ -53,13 +53,13 @@ namespace MWWorld
         if (!std::isfinite(light.flickerMovement) || !std::isfinite(light.radius) || light.flickerMovement <= 0.0
             || light.radius <= 0.0)
             return 0.f;
-        const double limit = std::min(static_cast<double>(MWAnim::NeutralFlicker::kMaxMovement),
-            kMovementRadiusShare * light.radius);
+        const double limit
+            = std::min(static_cast<double>(MWAnim::NeutralFlicker::kMaxMovement), kMovementRadiusShare * light.radius);
         return static_cast<float>(std::min(light.flickerMovement, limit));
     }
 
-    ESM::Light makeNeutralEsmLight(const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed,
-        bool lightTypes, bool movement)
+    ESM::Light makeNeutralEsmLight(
+        const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed, bool lightTypes, bool movement)
     {
         ESM::Light record;
         record.blank();
@@ -100,8 +100,8 @@ namespace MWWorld
         {
             // Task 0355 stage h: the light's own flicker or pulse numbers (a record with none usable keeps the rule).
             const auto narrow = [](double v) { return std::isfinite(v) ? static_cast<float>(v) : 0.f; };
-            const std::int32_t packed = MWAnim::NeutralFlicker::packTimeField(
-                narrow(light.flickerPeriod), narrow(light.flickerIntensity));
+            const std::int32_t packed
+                = MWAnim::NeutralFlicker::packTimeField(narrow(light.flickerPeriod), narrow(light.flickerIntensity));
             if (packed != 0)
             {
                 flags |= ESM::Light::NeutralFlicker;

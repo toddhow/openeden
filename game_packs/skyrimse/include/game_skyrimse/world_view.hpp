@@ -35,8 +35,8 @@
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/progression.hpp>
 #include <game_skyrimse/quest.hpp>
-#include <game_skyrimse/quest_priority.hpp>
 #include <game_skyrimse/quest_alias.hpp>
+#include <game_skyrimse/quest_priority.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/scene_runner.hpp>
 #include <game_skyrimse/story.hpp>
@@ -45,11 +45,11 @@
 
 #include <game_skyrimse/background_value.hpp>
 #include <openeden/game/actor_appearance.hpp>
-#include <openeden/game/cell_fog_source.hpp>
+#include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/ambient_cube_source.hpp>
+#include <openeden/game/cell_fog_source.hpp>
 #include <openeden/game/cell_image_space_source.hpp>
 #include <openeden/game/cell_light_source.hpp>
-#include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/player_body.hpp>
@@ -387,8 +387,8 @@ namespace game_skyrimse
         [[nodiscard]] PackageActivity activityOf(const PackageRecord& package) const override;
         [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const override;
         [[nodiscard]] bool forceGreetTopic(const PackageRecord& package, FormId& out) const override;
-        /// Task 0310: a reference with a primitive (a trigger volume) is listed with the scripted references even when it
-        /// carries no script (a quest alias holds its script); set before any cell is read
+        /// Task 0310: a reference with a primitive (a trigger volume) is listed with the scripted references even when
+        /// it carries no script (a quest alias holds its script); set before any cell is read
         void setPrimitiveTriggers(bool on) { mPrimitiveTriggers = on; }
         [[nodiscard]] bool linkedRef(FormId reference, FormId keyword, FormId& out) const override;
         /// Task 0299: the stored angles of a scripted placement of a cell this view materialised (a trap's facing).
@@ -649,13 +649,18 @@ namespace game_skyrimse
         void setPlayerPlace(bool interior, FormId cell, FormId world);
         /// Task 0312: the world the player stands in (none indoors or before the place is known) and the world of an
         /// exterior cell (none for an interior or an unknown cell).
-        [[nodiscard]] FormId playerWorld() const { return mPlayerPlaceKnown && !mPlayerInterior ? mPlayerWorld : kNullFormId; }
+        [[nodiscard]] FormId playerWorld() const
+        {
+            return mPlayerPlaceKnown && !mPlayerInterior ? mPlayerWorld : kNullFormId;
+        }
         [[nodiscard]] FormId worldOfCell(FormId cell);
-        /// Task 0312: the location the player stands in now (an interior's, or the exterior square's), none when unknown.
+        /// Task 0312: the location the player stands in now (an interior's, or the exterior square's), none when
+        /// unknown.
         [[nodiscard]] FormId playerLocationNow() const;
         /// Task 0271: the packages quest aliases give (ALPC) join an actor's list (off by default).
         void setAliasPackages(bool on) { mAliasPackagesOn = on; }
-        /// Task 0330: whether the 3D of a reference is loaded (fn_555 HasLoaded3D for a scene's phase), set by the pack.
+        /// Task 0330: whether the 3D of a reference is loaded (fn_555 HasLoaded3D for a scene's phase), set by the
+        /// pack.
         void setLoadedLookup(SkyrimConditionWorld::LoadedLookup lookup) { mLoadedLookup = std::move(lookup); }
         /// Task 0330: an interior's water is judged by its content even when the engine asks before the cell is built
         /// (a start cell). Off: a cell not built yet is judged by its record alone (task 0291's rule).
@@ -663,7 +668,8 @@ namespace game_skyrimse
         /// Task 0330: the placement's record says it starts dead (known once its cell has been read).
         [[nodiscard]] bool startsDead(FormId reference) const { return mStartsDeadRefs.count(reference) != 0; }
         /// Task 0302 (draugr ambushes): the package conditions also see what the game's scripts did to an actor's
-        /// Variable01 (the follower overlay), so a package that tests it stops passing when the script lets the actor out.
+        /// Variable01 (the follower overlay), so a package that tests it stops passing when the script lets the actor
+        /// out.
         void setAmbush(bool on) { mAmbushOn = on; }
         [[nodiscard]] bool aliasPackagesOn() const { return mAliasPackagesOn; }
         /// Task 0271 (a developer aid, `OPENEDEN_PACKAGE_TRACE=<decimal base id>`): the packages of this NPC base and
@@ -683,7 +689,8 @@ namespace game_skyrimse
         void setOpenServices(bool on);
         /// Task 0341 (`side quests`): the packages of every alias of an actor are tried in ONE order by quest priority
         void setAliasPriorityOrder(bool on) { mAliasPriorityOrder = on; }
-        /// Task 0298: a Blocking dialogue branch starts a conversation instead of Hello (DialogueRuntime::setBlockingBranches).
+        /// Task 0298: a Blocking dialogue branch starts a conversation instead of Hello
+        /// (DialogueRuntime::setBlockingBranches).
         void setBlockingBranches(bool on);
         void setFragmentFlush(std::function<void()> flush); ///< task 0304
         void setDialogueTrace(std::function<void(const std::string&)> trace); ///< task 0304
@@ -848,14 +855,12 @@ namespace game_skyrimse
         /// conditions (BYOH's Orphan01..07) is filled by nothing but a script, so the packages it lists go only to what
         /// a script forced into it: the filler's "any reference" fill of such an alias gave a Riften orphan's packages
         /// to Brynjolf. Without this lookup `AliasLookup` is used for them too (the older behaviour).
-        void setForcedAliasLookup(AliasLookup lookup)
-        {
-            mForcedAliasLookup = std::move(lookup);
-        }
+        void setForcedAliasLookup(AliasLookup lookup) { mForcedAliasLookup = std::move(lookup); }
         /// Task 0306: a quest started with no stage (the story manager's start): the package brain's copy runs it.
         void startPackageQuest(FormId quest);
         void stopPackageQuest(FormId quest); ///< task 0344: a script stopped the quest (Quest.Stop)
-        void resetPackageQuest(FormId quest); ///< task 0347: the story manager starts it again: its stages are forgotten
+        void resetPackageQuest(
+            FormId quest); ///< task 0347: the story manager starts it again: its stages are forgotten
         /// Task 0187: where the script fragments of a shown dialogue line go (applied now if the runtime exists, else
         /// when it is made). Main thread.
         void setInfoFragmentSink(InfoFragmentSink sink);
@@ -896,7 +901,8 @@ namespace game_skyrimse
         /// Task 0211: the location of a cell the view has indexed (its XLCN, else for an exterior the location whose
         /// cell list holds its grid square); kNullFormId for none or before the dialogue data is ready. Main thread.
         [[nodiscard]] FormId locationOfCell(FormId cell) const;
-        /// Task 0276: where the player is, once a frame, for the scene conditions (GetDistance to an alias). Main thread.
+        /// Task 0276: where the player is, once a frame, for the scene conditions (GetDistance to an alias). Main
+        /// thread.
         void setPlayerPosition(double x, double y, double z);
         /// Task 0276: is the location the same as `ancestor` or inside it (ObjectReference.IsInLocation)? False before
         /// the dialogue data is ready. Main thread.
@@ -1047,8 +1053,7 @@ namespace game_skyrimse
         [[nodiscard]] bool readCellRefs(
             const CellSource& source, const CellEntry& entry, std::vector<PlacedRef>& out, std::string& error);
         [[nodiscard]] openeden::sdk::game::PlacedObject makeObject(const PlacedRef& ref, bool& baseMissing) const;
-        static void foldEnableParents(
-            std::vector<openeden::sdk::game::PlacedObject>& objects, const Materialised& own,
+        static void foldEnableParents(std::vector<openeden::sdk::game::PlacedObject>& objects, const Materialised& own,
             const Materialised* persistent);
         /// The LIGH data of a base form, if the base is a light that has some.
         [[nodiscard]] const LightData* lightOfBase(FormId base) const;

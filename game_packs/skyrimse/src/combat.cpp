@@ -1339,9 +1339,9 @@ namespace game_skyrimse
             if (f != nullptr && !f->mDead && !actor.mGiveUp && actor.mTarget.player)
                 return true;
         }
-        // Task 0316: with the combat AI on a named hostile counts only once it is ENGAGED (the loop above); one that never
-        // engaged (not loaded, out of sight after a loss, or the player dead) is not a fight. With the AI off the hostile
-        // attacks by `startHostiles`, so a living one counts as before.
+        // Task 0316: with the combat AI on a named hostile counts only once it is ENGAGED (the loop above); one that
+        // never engaged (not loaded, out of sight after a loss, or the player dead) is not a fight. With the AI off the
+        // hostile attacks by `startHostiles`, so a living one counts as before.
         if (mAiOn)
             return false;
         for (const ActorHandle& handle : mHostiles)
@@ -1464,7 +1464,8 @@ namespace game_skyrimse
             ++mSwingsRequested;
             if (mTrace)
                 trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "")
-                    + (fighter.mSwingLeft ? " left hand" : "") + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
+                    + (fighter.mSwingLeft ? " left hand" : "") + " hit at " + std::to_string(mPlayerHitTime)
+                    + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
         if (fighter.mDead || fighter.mSwinging || fighter.mStaggered || isParalyzed(fighter)) // task 0233
@@ -1811,7 +1812,8 @@ namespace game_skyrimse
                 const MeleeHit other = computeMeleeHit(second, mCombatSettings);
                 result.mDamageBefore += other.mDamageBefore;
                 result.mDamageAfter += other.mDamageAfter;
-                trace("COMBAT dual wield power attack adds " + fmt(other.mDamageAfter) + " from " + off->mCommon.mEditorId);
+                trace("COMBAT dual wield power attack adds " + fmt(other.mDamageAfter) + " from "
+                    + off->mCommon.mEditorId);
             }
         }
         if (!bash)
@@ -2037,8 +2039,8 @@ namespace game_skyrimse
         const RangedKit kit = rangedKitFor(fighter); // task 0300
         if (kit.mBow == nullptr)
             return;
-        const std::string_view clip = kit.crossbow() ? crossbowClipsFor(*kit.mBow).mAim
-                                                     : mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
+        const std::string_view clip
+            = kit.crossbow() ? crossbowClipsFor(*kit.mBow).mAim : mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
         if (clip.empty())
             return;
         fighter.mNextAttack = mClock + kHostileAttackPeriod;

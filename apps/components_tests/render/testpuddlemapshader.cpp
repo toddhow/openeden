@@ -118,8 +118,7 @@ namespace
         EXPECT_NE(text.find("PUDDLE_WINDOW_SIDE"), std::string::npos);
     }
 
-    INSTANTIATE_TEST_SUITE_P(
-        Twins, RenderPuddleMapShader, testing::Values("lib/material/puddlemap.slang"));
+    INSTANTIATE_TEST_SUITE_P(Twins, RenderPuddleMapShader, testing::Values("lib/material/puddlemap.slang"));
 
     TEST(RenderPuddleMapShaderFiles, the_binding_is_20_in_both_binding_files_and_the_layout)
     {
@@ -138,8 +137,7 @@ namespace
         RenderPuddleMapShaderFiles, only_the_terrain_and_object_stages_include_the_map_and_only_under_the_puddle_define)
     {
         // Stage W-c: the object shader reads the map too (under the height test), so a road takes the baked puddles.
-        for (const char* file :
-            { "terrain/terrain.frag.slang", "default/default.frag.slang" })
+        for (const char* file : { "terrain/terrain.frag.slang", "default/default.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;

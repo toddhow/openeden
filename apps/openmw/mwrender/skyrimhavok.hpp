@@ -34,8 +34,8 @@ namespace MWRender::SkyrimHavok
 
     /// One sequence from a sampled clip. `nodeNames[i]` is the NIF node track i drives (an empty name skips the
     /// track). A duration that is not finite, not positive or over kMaxClipSeconds gives a sequence with no tracks.
-    [[nodiscard]] NifScene::Sequence sequenceFromSampler(std::string name, float duration,
-        const std::vector<std::string>& nodeNames, const Sampler& sampler);
+    [[nodiscard]] NifScene::Sequence sequenceFromSampler(
+        std::string name, float duration, const std::vector<std::string>& nodeNames, const Sampler& sampler);
 
     /// Adds the sequences of the model's Havok project to the scene (one per event name of each clip, none for a name
     /// the scene already has). Returns how many were added; 0 when the model has no project or anything fails (the

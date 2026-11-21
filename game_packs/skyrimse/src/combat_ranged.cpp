@@ -14,8 +14,9 @@ namespace game_skyrimse
     {
         bool containsNoCase(std::string_view text, std::string_view word)
         {
-            const auto it = std::search(text.begin(), text.end(), word.begin(), word.end(),
-                [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); });
+            const auto it = std::search(text.begin(), text.end(), word.begin(), word.end(), [](char a, char b) {
+                return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
+            });
             return it != text.end();
         }
 

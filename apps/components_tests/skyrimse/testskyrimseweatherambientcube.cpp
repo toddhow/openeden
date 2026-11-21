@@ -1,5 +1,5 @@
-// Task 0355, stage k: the weather's directional ambient (WTHR DALC) as the SDK's plain description. Records are built by
-// hand; every expected number is written out from the sample bytes.
+// Task 0355, stage k: the weather's directional ambient (WTHR DALC) as the SDK's plain description. Records are built
+// by hand; every expected number is written out from the sample bytes.
 #include <game_skyrimse/weather_source.hpp>
 
 #include <gtest/gtest.h>

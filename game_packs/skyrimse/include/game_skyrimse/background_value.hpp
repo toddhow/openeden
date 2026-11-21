@@ -47,7 +47,8 @@ namespace game_skyrimse
         /// The value when it is ready, else null. Never blocks.
         [[nodiscard]] T* tryGet() { return ready() ? &*mValue : nullptr; }
 
-        /// The value; waits for the build when it is still running (the old, blocking behaviour). Null if never started.
+        /// The value; waits for the build when it is still running (the old, blocking behaviour). Null if never
+        /// started.
         [[nodiscard]] T* take()
         {
             if (!mStarted)

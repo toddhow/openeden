@@ -164,7 +164,6 @@ namespace
         }
     };
 
-
     // ---- a fake core for the state machine ------------------------------------------------------------------
     class Core final : public ActorRequestWriter, public RidingWriter, public PairedWriter
     {
@@ -291,8 +290,8 @@ TEST(SkyrimKillMoveRules, only_the_player_with_a_sword_against_a_living_non_esse
     c = lethalSwordBlow();
     c.mVictimIsPlayer = true;
     EXPECT_FALSE(eligible(c));
-    for (std::uint8_t type : { std::uint8_t(0), std::uint8_t(2), std::uint8_t(3), std::uint8_t(4), std::uint8_t(5),
-             std::uint8_t(7) })
+    for (std::uint8_t type :
+        { std::uint8_t(0), std::uint8_t(2), std::uint8_t(3), std::uint8_t(4), std::uint8_t(5), std::uint8_t(7) })
     {
         c = lethalSwordBlow();
         c.mWeaponAnimType = type;
@@ -568,7 +567,8 @@ TEST_F(KillMoveCombat, a_lethal_blow_the_hook_accepts_leaves_the_victim_at_one_h
     EXPECT_FLOAT_EQ(view.mHealth, 1.f);
 }
 
-TEST_F(KillMoveCombat, neither_the_victim_nor_the_player_takes_a_blow_while_the_move_plays_and_the_victim_dies_at_its_end)
+TEST_F(
+    KillMoveCombat, neither_the_victim_nor_the_player_takes_a_blow_while_the_move_plays_and_the_victim_dies_at_its_end)
 {
     mData.mProfiles[kFighterBase].mHealthMax = 3.f;
     mCombat.onActorAdded(infoOf(10, kFighterBase, "Vilkas"));

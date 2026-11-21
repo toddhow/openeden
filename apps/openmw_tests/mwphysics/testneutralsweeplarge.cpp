@@ -1,8 +1,8 @@
 // Task 0280 (dragons, second slice): the player's blows reach a dragon. Task 0253 reported that the player's swings
 // "never reached the 150 radius capsule" and killed the dragon with a test setting. The runs of that task stood the
-// player 900 units away; the swing's reach is measured from the capsule's SURFACE (centre distance minus the radius), so
-// a bare-handed swing (reach 96) reaches a dragon whose centre is at most 150 + 96 = 246 units away and no more. These
-// tests pin that geometry for the dragon's capsule (radius 150, height 414), the arc and the height band. They
+// player 900 units away; the swing's reach is measured from the capsule's SURFACE (centre distance minus the radius),
+// so a bare-handed swing (reach 96) reaches a dragon whose centre is at most 150 + 96 = 246 units away and no more.
+// These tests pin that geometry for the dragon's capsule (radius 150, height 414), the arc and the height band. They
 // characterise the sweep as it is (no code changed for them; they passed the first time they were run). The attacker
 // stands at the origin facing +Y.
 #include "apps/openmw/mwphysics/neutralsweep.hpp"

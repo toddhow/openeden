@@ -115,8 +115,7 @@ namespace MWWorld
 
         /// Task 0312: registers the neutral worldspace a text "<gameId>:w<world>" names (the id a cell's worldSpaceId
         /// shows), if the game's pack can describe that world; the RefId, or an empty one for any other text.
-        ESM::RefId registerNeutralWorldspaceText(
-            NeutralWorld::NeutralWorldStore& neutral, std::string_view text) const;
+        ESM::RefId registerNeutralWorldspaceText(NeutralWorld::NeutralWorldStore& neutral, std::string_view text) const;
 
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
 
@@ -280,7 +279,8 @@ namespace MWWorld
         mutable std::map<ESM::RefId, NeutralWorldspace> mNeutralWorldspaces;
         std::vector<std::pair<ESM::RefId, CellStore*>> mIdCache;
         std::size_t mIdCacheIndex = 0;
-        mutable NeutralRelocations mNeutralRelocations; // task 0286 (restoreNeutralSave is const, like the cells it builds)
+        mutable NeutralRelocations
+            mNeutralRelocations; // task 0286 (restoreNeutralSave is const, like the cells it builds)
 
         CellStore& getOrInsertCellStore(const ESM::Cell& cell);
 

@@ -216,8 +216,9 @@ namespace OMW
         std::chrono::steady_clock::time_point started;
         std::chrono::steady_clock::time_point lastSave;
         std::size_t lastLogged = 99;
-        // Task 0358: a game pack's world (the player starts in a neutral exterior): the field is still made of 8192 unit
-        // cells (the argument's x and y), the game's cells are smaller (Skyrim's 4096), and the files are the world's.
+        // Task 0358: a game pack's world (the player starts in a neutral exterior): the field is still made of 8192
+        // unit cells (the argument's x and y), the game's cells are smaller (Skyrim's 4096), and the files are the
+        // world's.
         bool neutral = false;
         ESM::RefId worldspace;
         std::string worldKey;
@@ -429,8 +430,8 @@ namespace OMW
                 Log(Debug::Error) << "[GI] no world source for \"" << worldKey << "\"";
                 return false;
             }
-            // The centre of a field cell is the corner of four of Skyrim's cells; the player is put a little inside one of
-            // them, so that no rounding of his position can leave him in its neighbour.
+            // The centre of a field cell is the corner of four of Skyrim's cells; the player is put a little inside one
+            // of them, so that no rounding of his position can leave him in its neighbour.
             pos.pos[0] += neutralInsideNudge;
             pos.pos[1] += neutralInsideNudge;
             std::string error;
@@ -508,8 +509,10 @@ namespace OMW
                 {
                     Log(Debug::Error) << "[GI] exterior cell " << current().first << "," << current().second
                                       << " did not load; nothing was baked for it (the player is in "
-                                      << (cell ? std::string(cell->getCell()->getDescription()) : std::string("no cell"))
-                                      << ", wanted game cell " << wantedSquare.first << "," << wantedSquare.second << ")";
+                                      << (cell ? std::string(cell->getCell()->getDescription())
+                                               : std::string("no cell"))
+                                      << ", wanted game cell " << wantedSquare.first << "," << wantedSquare.second
+                                      << ")";
                     ++failed;
                     nextCell();
                     return false;

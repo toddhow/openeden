@@ -20,11 +20,10 @@
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
-#include <cstdio>
 #include <components/script_papyrus/pexfile.hpp>
+#include <cstdio>
 
 #include <algorithm>
-#include <unordered_set>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
@@ -33,6 +32,7 @@
 #include <span>
 #include <sstream>
 #include <system_error>
+#include <unordered_set>
 
 namespace game_skyrimse
 {
@@ -242,7 +242,8 @@ namespace game_skyrimse
             std::uint32_t mAlias = 0;
             std::uint8_t mPriority = 0;
             std::vector<FormId> mPackages;
-            bool mScriptOnly = false; ///< task 0314: no fill data and no conditions: only a script's ForceRefTo fills it
+            bool mScriptOnly
+                = false; ///< task 0314: no fill data and no conditions: only a script's ForceRefTo fills it
         };
         std::vector<DynamicAliasPackages> mDynamicAliasPackages;
         mutable std::map<FormId, FormId> mPackageOwner; ///< task 0274: package -> the quest whose alias lists it
@@ -271,9 +272,9 @@ namespace game_skyrimse
 
     SkyrimWorldView::~SkyrimWorldView()
     {
-        // Task 0365: the two record readers below each walk every plugin (several seconds on the five masters); tell them to
-        // stop after the plugin they are on, or the main thread waits for them while the window cannot answer (the
-        // freeze monitor ends such a run with exit code 173).
+        // Task 0365: the two record readers below each walk every plugin (several seconds on the five masters); tell
+        // them to stop after the plugin they are on, or the main thread waits for them while the window cannot answer
+        // (the freeze monitor ends such a run with exit code 173).
         mStopReaders.store(true, std::memory_order_release);
         if (mCombatThread.joinable())
             mCombatThread.join();
@@ -287,7 +288,8 @@ namespace game_skyrimse
         if (mActorIndex != nullptr)
             return true;
         // Task 0361e: a worker that loadCell started has the actor records ready or nearly so: adopt them (this is the
-        // main thread) instead of reading every plugin again here, which took about 2 s of a cell load with the masters.
+        // main thread) instead of reading every plugin again here, which took about 2 s of a cell load with the
+        // masters.
         if (mCombatState.load(std::memory_order_acquire) != 0)
         {
             (void)combatReady();
@@ -319,7 +321,7 @@ namespace game_skyrimse
         if (mOptions.mNotice)
             mOptions.mNotice("actor records read on the main thread in "
                 + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                     std::chrono::steady_clock::now() - readStarted)
+                    std::chrono::steady_clock::now() - readStarted)
                                      .count())
                 + " ms");
         return true;
@@ -1259,7 +1261,8 @@ namespace game_skyrimse
         const bool loadingScreens = mWantLoadingScreens;
         mDialogueThread
             = std::thread([this, plugins = std::move(plugins), order = mOrder, mapMarkers, loadingScreens]() {
-                  std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers, loadingScreens, &mStopReaders);
+                  std::unique_ptr<DialogueData> data
+                      = buildDialogueData(plugins, order, mapMarkers, loadingScreens, &mStopReaders);
                   mPrefetched = std::move(data);
                   mDialogueReady.store(true);
               });
@@ -1902,7 +1905,8 @@ namespace game_skyrimse
                 if (!mDialogue->mPackageQuests.running(entry.mQuest))
                     continue;
                 const QuestRecord* quest = mDialogue->mData->mQuests.quest(entry.mQuest);
-                AliasPackageGroup group{ entry.mQuest, quest != nullptr ? quest->mPriority : std::uint8_t(0), false, {} };
+                AliasPackageGroup group{ entry.mQuest, quest != nullptr ? quest->mPriority : std::uint8_t(0), false,
+                    {} };
                 for (const FormId id : entry.mPackages)
                     if (const PackageRecord* p = index.package(id))
                         group.mPackages.push_back(p);
@@ -1910,8 +1914,8 @@ namespace game_skyrimse
             }
         if (mPackageTraceLog && base == mPackageTraceBase)
             mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " base list " + std::to_string(out.size())
-                + (found == mDialogue->mAliasPackagesOfReference.end() ? ", no alias entry" : ", alias entry")
-                + " (" + std::to_string(mDialogue->mAliasPackagesOfReference.size()) + " references have one)");
+                + (found == mDialogue->mAliasPackagesOfReference.end() ? ", no alias entry" : ", alias entry") + " ("
+                + std::to_string(mDialogue->mAliasPackagesOfReference.size()) + " references have one)");
         if (mAliasPriorityOrder)
         {
             // Task 0341: the unique-actor aliases join the one order (see orderWithUniqueActorGroups)
@@ -1924,7 +1928,8 @@ namespace game_skyrimse
                 out = orderWithUniqueActorGroups(out, frontCount, unique, groups);
                 if (mPackageTraceLog && base == mPackageTraceBase)
                     for (const PackageRecord* p : out)
-                        mPackageTraceLog("PKTRACE ref " + std::to_string(reference) + " ordered " + p->mCommon.mEditorId);
+                        mPackageTraceLog(
+                            "PKTRACE ref " + std::to_string(reference) + " ordered " + p->mCommon.mEditorId);
                 return true;
             }
         }
@@ -2033,9 +2038,8 @@ namespace game_skyrimse
             world.setPlacedRefs(nullptr);
         }
         world.setSpeaker(speaker);
-        world.setTalkedLookup(mAliasPackagesOn ? SkyrimConditionWorld::TalkedLookup([this](FormId reference) {
-            return mTalkedTo.count(reference) != 0;
-        })
+        world.setTalkedLookup(mAliasPackagesOn ? SkyrimConditionWorld::TalkedLookup(
+                                  [this](FormId reference) { return mTalkedTo.count(reference) != 0; })
                                                : SkyrimConditionWorld::TalkedLookup()); // task 0324
         world.setLoadedLookup(mLoadedLookup); // task 0330
         world.setFollowerOverlay(mAmbushOn ? mFollowerOverlay : nullptr); // task 0302: Variable01 of an ambusher
@@ -2346,10 +2350,10 @@ namespace game_skyrimse
                         ? "right"
                         : (best->mSide == Side::Front && roll ? "front" : "left");
                     slot.mClip = std::string(roll ? "bedroll_" : "bed_") + side + "sleep";
-                    // Task 0302 (draugr ambushes, `ambush`): a creature's alcove marker is not a bed. The draugr lies in it
-                    // with the draugr project's own idle and gets up with its exit clip (a draugr set of the alcove names
-                    // IdleSleepLayEnterInstant: no enter clip, it is placed lying). RECALLED-VERIFY: that the Bg marker is
-                    // the lying one; only the file names and that set tell.
+                    // Task 0302 (draugr ambushes, `ambush`): a creature's alcove marker is not a bed. The draugr lies
+                    // in it with the draugr project's own idle and gets up with its exit clip (a draugr set of the
+                    // alcove names IdleSleepLayEnterInstant: no enter clip, it is placed lying). RECALLED-VERIFY: that
+                    // the Bg marker is the lying one; only the file names and that set tell.
                     if (mAmbushOn && lowerModel.find("creaturealcovebgmarker") != std::string::npos)
                     {
                         slot.mClip = "specialidle_alcovelayingidle";
@@ -2361,9 +2365,9 @@ namespace game_skyrimse
                             slot.mQuickExitClip = slot.mExitClip; // the same get-up for a conversation or a fight
                             slot.mQuickExitMotion = exitMotion;
                         }
-                        found.push_back({ std::hypot(seat.mX - fromX, seat.mY - fromY)
-                                + 2.0 * std::abs(seat.mZ - fromZ),
-                            std::move(slot) });
+                        found.push_back(
+                            { std::hypot(seat.mX - fromX, seat.mY - fromY) + 2.0 * std::abs(seat.mZ - fromZ),
+                                std::move(slot) });
                         continue;
                     }
                     const std::string enter = std::string(roll ? "bedroll_" : "bed_") + side + "enter";
@@ -2618,7 +2622,8 @@ namespace game_skyrimse
             return kNullFormId;
         if (site.mInterior)
             return locationOfCell(site.mCell);
-        return locationOfGridSquare(site.mWorld, static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize)),
+        return locationOfGridSquare(site.mWorld,
+            static_cast<std::int32_t>(std::floor(site.mX / QuestAliasFiller::kCellSize)),
             static_cast<std::int32_t>(std::floor(site.mY / QuestAliasFiller::kCellSize)));
     }
 
@@ -2785,11 +2790,12 @@ namespace game_skyrimse
         out.mEvaluate = [this, state, data](const std::vector<survey::Ctda>& list, FormId scene, FormId quest) {
             SkyrimConditionWorld* world = state->mQuestWorld.get();
             world->setLoadedLookup(mLoadedLookup); // task 0330: a phase waits for HasLoaded3D of its actors
-            world->setDeadLookup(mDeadLookup); // task 0346: ExectionScene's phase 13 waits for GetDead of the Prisoner alias
+            world->setDeadLookup(
+                mDeadLookup); // task 0346: ExectionScene's phase 13 waits for GetDead of the Prisoner alias
             world->setPlayerWardSource(mPlayerWardSource); // task 0348: the ward lesson's phases wait for WardPower
             const SceneRecord* record = data->mScenes.scene(scene);
-            // Task 0328: a scene's phase waits for "the player alias is in this cell" (MQ105EinarthTeachScene's phase 7:
-            // GetInCell(HighHrothgar) on the Player alias): the quest world is told where the player stands, as the
+            // Task 0328: a scene's phase waits for "the player alias is in this cell" (MQ105EinarthTeachScene's phase
+            // 7: GetInCell(HighHrothgar) on the Player alias): the quest world is told where the player stands, as the
             // package worlds are (only with `quest alias packages`, like the other player facts)
             world->setPlayerPlace(mAliasPackagesOn && mPlayerPlaceKnown, mPlayerInterior, mPlayerCell, mPlayerWorld);
             world->setStoryEvent(nullptr);
@@ -3075,8 +3081,8 @@ namespace game_skyrimse
         speaker.mBase = static_cast<FormId>(base);
         speaker.mReference = static_cast<FormId>(reference);
         speaker.mCell = static_cast<FormId>(cell);
-        // task 0338: a talking activator (Azura's altar) speaks with the voice type of its record; the lookup is read when
-        // a speaker is set
+        // task 0338: a talking activator (Azura's altar) speaks with the voice type of its record; the lookup is read
+        // when a speaker is set
         mDialogue->mRuntime->setActivatorVoiceLookup([this](FormId b) { return talkingActivatorVoice(b); });
         if (mAliasPackagesOn && speaker.mReference != kNullFormId) // task 0324: the greeting package of Lydia ends
             mTalkedTo.insert(speaker.mReference);
@@ -3105,7 +3111,8 @@ namespace game_skyrimse
         if (mForcedGreet.mTopic)
         {
             const FormId topic = mForcedGreet.mTopic(speaker.mReference);
-            if (topic == kForceGreetHelloTopic) // task 0308: the actor's own greeting (a Blocking branch's start, else Hello)
+            if (topic
+                == kForceGreetHelloTopic) // task 0308: the actor's own greeting (a Blocking branch's start, else Hello)
             {
                 mForcedGreetReference = speaker.mReference;
                 if (mForcedGreet.mBegan)
@@ -4349,7 +4356,8 @@ namespace game_skyrimse
                     LightOverrides overrides;
                     overrides.mRadiusDelta = ref.mLightRadiusDelta;
                     overrides.mFadeDelta = ref.mLightFadeDelta;
-                    components.light = makeLightComponent(applyLightOverrides(*light, overrides), mStats.mComponents, lightLimits);
+                    components.light
+                        = makeLightComponent(applyLightOverrides(*light, overrides), mStats.mComponents, lightLimits);
                 }
                 else
                     components.light = makeLightComponent(*light, mStats.mComponents, lightLimits);
@@ -4531,7 +4539,8 @@ namespace game_skyrimse
         if (evidence == mWaterEvidence.end() && mJudgeWaterEarly)
         {
             std::string error;
-            const std::shared_ptr<const Materialised> own = const_cast<SkyrimWorldView*>(this)->materialise(cell, error);
+            const std::shared_ptr<const Materialised> own
+                = const_cast<SkyrimWorldView*>(this)->materialise(cell, error);
             if (own != nullptr && mWaterEvidence.size() < 65536)
                 evidence = const_cast<SkyrimWorldView*>(this)
                                ->mWaterEvidence.emplace(cell, gatherWaterEvidence(own->mObjects, own->mComponents))
@@ -4543,8 +4552,8 @@ namespace game_skyrimse
     }
 
     // Task 0293: a placement with an enable parent starts in its parent's state (opposite when the XESP flag says so),
-    // a chain of parents follows its root; a parent this cell and the world's persistent cell do not hold (the player, a
-    // marker in another square) leaves the placement as its own flags say. The seven towns' Imperial and Stormcloak
+    // a chain of parents follows its root; a parent this cell and the world's persistent cell do not hold (the player,
+    // a marker in another square) leaves the placement as its own flags say. The seven towns' Imperial and Stormcloak
     // garrisons are enabled by markers of which only one starts enabled.
     void SkyrimWorldView::foldEnableParents(
         std::vector<sdkgame::PlacedObject>& objects, const Materialised& own, const Materialised* persistent)

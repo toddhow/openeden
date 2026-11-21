@@ -2,8 +2,8 @@
 
 #include <atomic>
 #include <cmath>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 
 #include <array>
@@ -62,8 +62,8 @@ namespace
                 return;
             ++mSamples;
             if (offset != nullptr)
-                Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness << " off "
-                                 << (*offset)[0] << "," << (*offset)[1] << "," << (*offset)[2];
+                Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness << " off " << (*offset)[0]
+                                 << "," << (*offset)[1] << "," << (*offset)[2];
             else
                 Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness;
         }
@@ -145,7 +145,8 @@ namespace
             , mMoves(params.mMovement > 0.f)
         {
             hints.autoPlay = true;
-            mTrace.begin("own period_ms,amp_permille", static_cast<int>(params.mPeriod * 1000.f), static_cast<int>(params.mAmplitude * 1000.f));
+            mTrace.begin("own period_ms,amp_permille", static_cast<int>(params.mPeriod * 1000.f),
+                static_cast<int>(params.mAmplitude * 1000.f));
         }
         void apply(vsg::Light& light, float time)
         {
@@ -157,7 +158,8 @@ namespace
             }
             const float b = mWalk.step(mDt.get(time));
             light.color = mBaseColor * (fixedFlickerBrightness() >= 0.f ? fixedFlickerBrightness() : b);
-            // Task 0362 item 2: a light with a movement amplitude wanders round its place (the offset is seeded, no clock).
+            // Task 0362 item 2: a light with a movement amplitude wanders round its place (the offset is seeded, no
+            // clock).
             if (mMoves)
             {
                 if (auto* point = dynamic_cast<vsg::PointLight*>(&light))
@@ -167,9 +169,9 @@ namespace
                         mMovementBaseTaken = true;
                         mBasePosition = point->position;
                     }
-                    // Task 0362 item 2 (toddhow's decision): a light that holds a point shadow slot does not move, so the
-                    // shadow cache (which redraws a slot whose light moved over a unit) is not redrawn every frame. It keeps
-                    // the place it had and moves on when it loses the slot.
+                    // Task 0362 item 2 (toddhow's decision): a light that holds a point shadow slot does not move, so
+                    // the shadow cache (which redraws a slot whose light moved over a unit) is not redrawn every frame.
+                    // It keeps the place it had and moves on when it loses the slot.
                     const auto id = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(point));
                     bool holdsSlot = false;
                     for (int k = 0; k < Anim::pointShadowSlotCount; ++k)

@@ -185,8 +185,8 @@ namespace game_skyrimse::killmove
             mTime = 0.f;
             (void)paired->playPairedClip(mVictim, kVictimClip);
             if (mLog)
-                mLog("KILLMOVE playing " + std::to_string(info.duration) + " s anchor " + std::to_string(mAnchor.mX) + " "
-                    + std::to_string(mAnchor.mY) + " heading " + std::to_string(mAnchor.mHeading));
+                mLog("KILLMOVE playing " + std::to_string(info.duration) + " s anchor " + std::to_string(mAnchor.mX)
+                    + " " + std::to_string(mAnchor.mY) + " heading " + std::to_string(mAnchor.mHeading));
         }
         // Playing: the victim stands still where the blow left him, the killer is held at the anchor.
         (void)writer.setMovement(mVictim, 0.f, 0.f);

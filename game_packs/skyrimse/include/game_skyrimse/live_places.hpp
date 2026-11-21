@@ -1,7 +1,7 @@
-// Task 0313: where actors are NOW, for the Papyrus host. A script's GetDistance and GetPosition read the data's placement
-// of a reference, which for a dead dragon that fell (or any actor that walked) is not where it is. The first ask for a
-// reference watches it; the place is read from the core once an update from then on (a handful of references, never
-// every actor). Off by default; the cell source owns one and the pack turns it on with `main quest whiterun`.
+// Task 0313: where actors are NOW, for the Papyrus host. A script's GetDistance and GetPosition read the data's
+// placement of a reference, which for a dead dragon that fell (or any actor that walked) is not where it is. The first
+// ask for a reference watches it; the place is read from the core once an update from then on (a handful of references,
+// never every actor). Off by default; the cell source owns one and the pack turns it on with `main quest whiterun`.
 #pragma once
 
 #include <openeden/game/actor_rules.hpp>
@@ -41,8 +41,8 @@ namespace game_skyrimse
             return true;
         }
 
-        /// Reads the places of the watched references. `handleOf` is the actor table's lookup (an invalid handle: not an
-        /// actor, or not loaded: the last place read is kept).
+        /// Reads the places of the watched references. `handleOf` is the actor table's lookup (an invalid handle: not
+        /// an actor, or not loaded: the last place read is kept).
         template <class HandleOf>
         void update(HandleOf&& handleOf, const openeden::sdk::game::ActorRequestWriter& writer)
         {

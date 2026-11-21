@@ -455,7 +455,8 @@ namespace NifScene
                     }
                     const auto* interpolator
                         = dynamic_cast<const Nif::NiFloatInterpolator*>(controller->mInterpolator.getPtr());
-                    if (interpolator == nullptr || interpolator->mData.empty() || interpolator->mData->mKeyList == nullptr)
+                    if (interpolator == nullptr || interpolator->mData.empty()
+                        || interpolator->mData->mKeyList == nullptr)
                         continue;
                     const auto& keys = *interpolator->mData->mKeyList;
                     if (keys.mKeys.empty())
@@ -478,7 +479,8 @@ namespace NifScene
                         const bool tangents = t.mInterpolation == 2 || t.mInterpolation == 3;
                         t.mKeys.push_back(
                             { time, key.mValue, tangents ? key.mInTan : 0.f, tangents ? key.mOutTan : 0.f });
-                        finite = finite && std::isfinite(t.mKeys.back().mInTan) && std::isfinite(t.mKeys.back().mOutTan);
+                        finite
+                            = finite && std::isfinite(t.mKeys.back().mInTan) && std::isfinite(t.mKeys.back().mOutTan);
                     }
                     if (!finite || t.mKeys.size() > 4096)
                         continue;
@@ -599,7 +601,8 @@ namespace NifScene
                             ps.mHasColor = color->mColors.size() >= 3;
                             ps.mFadeIn = std::clamp(finite(color->mFadeInPercent, 0.f), 0.f, 1.f);
                             ps.mFadeOut = std::clamp(finite(color->mFadeOutPercent, 0.f), 0.f, 1.f);
-                            // read order: colour 1 end, colour 1 start, colour 2 end, colour 2 start (ascending in the data)
+                            // read order: colour 1 end, colour 1 start, colour 2 end, colour 2 start (ascending in the
+                            // data)
                             ps.mColorStops = { std::clamp(finite(color->mColor1EndPercent, 0.f), 0.f, 1.f),
                                 std::clamp(finite(color->mColor1StartPercent, 0.5f), 0.f, 1.f),
                                 std::clamp(finite(color->mColor2EndPercent, 0.5f), 0.f, 1.f),
@@ -642,7 +645,8 @@ namespace NifScene
                             ps.mRandomRotationSign = rotation->mRandomRotSpeedSign;
                         }
                     }
-                    // the birth rate: the system's own emitter controller (its interpolator's value, or the mean of its keys)
+                    // the birth rate: the system's own emitter controller (its interpolator's value, or the mean of its
+                    // keys)
                     for (const auto& other : mFile.mRecords)
                     {
                         const auto* ctlr = dynamic_cast<const Nif::NiPSysEmitterCtlr*>(other.get());
@@ -1248,18 +1252,20 @@ namespace NifScene
         for (std::size_t i = 0; i < scene.mParticleSystems.size(); ++i)
         {
             const ParticleSystem& p = scene.mParticleSystems[i];
-            out << "psys " << i << " name=" << p.mName << " node=" << static_cast<std::int64_t>(p.mNode == sNone ? -1 : p.mNode)
+            out << "psys " << i << " name=" << p.mName
+                << " node=" << static_cast<std::int64_t>(p.mNode == sNone ? -1 : p.mNode)
                 << " emitterNode=" << static_cast<std::int64_t>(p.mEmitterNode == sNone ? -1 : p.mEmitterNode)
                 << " material=" << static_cast<std::int64_t>(p.mMaterial == sNone ? -1 : p.mMaterial)
                 << " alpha=" << static_cast<std::int64_t>(p.mAlpha == sNone ? -1 : p.mAlpha)
                 << " world=" << p.mWorldSpace << " max=" << p.mMaxParticles << " rate=" << p.mBirthRate
-                << " emitter=" << static_cast<int>(p.mEmitter) << " size=" << p.mEmitterSize[0] << "," << p.mEmitterSize[1]
-                << "," << p.mEmitterSize[2] << " speed=" << p.mSpeed << "+-" << p.mSpeedVariation
+                << " emitter=" << static_cast<int>(p.mEmitter) << " size=" << p.mEmitterSize[0] << ","
+                << p.mEmitterSize[1] << "," << p.mEmitterSize[2] << " speed=" << p.mSpeed << "+-" << p.mSpeedVariation
                 << " decl=" << p.mDeclination << "+-" << p.mDeclinationVariation << " planar=" << p.mPlanarAngle << "+-"
-                << p.mPlanarAngleVariation << " radius=" << p.mRadius << "+-" << p.mRadiusVariation << " life=" << p.mLife
-                << "+-" << p.mLifeVariation << " scales=" << p.mScales.size() << " color=" << p.mHasColor
-                << " subtex=" << p.mHasSubTexture << "/" << p.mSubTextures.size() << " gravity=" << p.mGravity[0] << ","
-                << p.mGravity[1] << "," << p.mGravity[2] << " drag=" << p.mDrag << "\n";
+                << p.mPlanarAngleVariation << " radius=" << p.mRadius << "+-" << p.mRadiusVariation
+                << " life=" << p.mLife << "+-" << p.mLifeVariation << " scales=" << p.mScales.size()
+                << " color=" << p.mHasColor << " subtex=" << p.mHasSubTexture << "/" << p.mSubTextures.size()
+                << " gravity=" << p.mGravity[0] << "," << p.mGravity[1] << "," << p.mGravity[2] << " drag=" << p.mDrag
+                << "\n";
         }
         for (const std::string& warning : scene.mWarnings)
             out << "warning " << warning << "\n";

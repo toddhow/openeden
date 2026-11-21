@@ -2,8 +2,8 @@
 #define OPENEDEN_GAME_SKYRIMSE_KILLMOVE_H
 
 // Kill moves, first slice (task 0278): a one-handed sword blow of the player that would kill a person plays the
-// game's own paired clip `actors/character/animations/paired_1hmkillmove` (human against human) with the victim, and the
-// victim dies at the clip's end.
+// game's own paired clip `actors/character/animations/paired_1hmkillmove` (human against human) with the victim, and
+// the victim dies at the clip's end.
 //
 // What the data says (docs/tasks/0267 section 2, docs/tasks/0278): a kill move is ONE clip for two skeletons, as the
 // horse mount is, but its frame (`PairedRoot`) is the KILLER's and the victim's own root node (the track "2_", no bone)
@@ -109,9 +109,15 @@ namespace game_skyrimse::killmove
         void setChance(float chance) { mChance = chance; }
         void setSeed(std::uint64_t seed) { mSeed = seed; }
         /// Holds an actor (its package off, its goal cancelled) or lets it go.
-        void setHold(std::function<void(openeden::sdk::game::WorldId reference, bool hold)> hold) { mHold = std::move(hold); }
+        void setHold(std::function<void(openeden::sdk::game::WorldId reference, bool hold)> hold)
+        {
+            mHold = std::move(hold);
+        }
         /// Called once when the clip is over or could not be played: the victim must die now.
-        void setFinish(std::function<void(openeden::sdk::game::ActorHandle victim)> finish) { mFinish = std::move(finish); }
+        void setFinish(std::function<void(openeden::sdk::game::ActorHandle victim)> finish)
+        {
+            mFinish = std::move(finish);
+        }
         void setLog(std::function<void(const std::string&)> log) { mLog = std::move(log); }
 
         /// A blow would kill `victim`. True: it is a kill move (the caller leaves the victim alive and invulnerable
@@ -123,7 +129,10 @@ namespace game_skyrimse::killmove
         [[nodiscard]] Phase phase() const { return mPhase; }
         [[nodiscard]] bool active() const { return mPhase != Phase::Idle; }
         /// The clip the player's body plays (empty unless Playing).
-        [[nodiscard]] std::string_view playerClip() const { return mPhase == Phase::Playing ? kKillerClip : std::string_view(); }
+        [[nodiscard]] std::string_view playerClip() const
+        {
+            return mPhase == Phase::Playing ? kKillerClip : std::string_view();
+        }
         [[nodiscard]] openeden::sdk::game::ActorHandle victim() const { return mVictim; }
         [[nodiscard]] std::uint32_t started() const { return mStarted; }
         [[nodiscard]] std::uint32_t finished() const { return mFinished; }

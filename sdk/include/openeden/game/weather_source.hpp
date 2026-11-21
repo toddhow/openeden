@@ -153,10 +153,10 @@ namespace openeden::sdk::game
         bool hasAmbientCube = false;
         PerTimeOfDay<std::array<WeatherColour, 6>> ambientCube;
 
-        // Added after 0.5 (task 0362 item 1; trailing, so the layout and the 0.5 tests stand): `fog` above is the colour
-        // of the fog at its far end (the pack takes the weather's Fog Far colour); `fogNear` is the colour of the fog
-        // where it starts (the weather's Fog Near colour). The fog's colour goes from one to the other with the fog's
-        // linear share. Defaults mean "none given": the fog is `fog` alone.
+        // Added after 0.5 (task 0362 item 1; trailing, so the layout and the 0.5 tests stand): `fog` above is the
+        // colour of the fog at its far end (the pack takes the weather's Fog Far colour); `fogNear` is the colour of
+        // the fog where it starts (the weather's Fog Near colour). The fog's colour goes from one to the other with the
+        // fog's linear share. Defaults mean "none given": the fog is `fog` alone.
         bool hasFogNear = false;
         PerTimeOfDay<WeatherColour> fogNear;
 

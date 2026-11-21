@@ -125,8 +125,7 @@ namespace
             dials.append(topic(kTopicEvil, "Evil", "Olaf was Numinex. (Persuade)", "CUST",
                 { infoRecord(kSelf | 0x33, "That might work.", {}, 0) }, 1.f));
             dials.append(topic(kTopicExit, "Exit", "", "CUST",
-                { infoRecord(kSelf | 0x34, "You're leaving? Okay, we'll just work on the verse in a bit.", {},
-                    0) },
+                { infoRecord(kSelf | 0x34, "You're leaving? Okay, we'll just work on the verse in a bit.", {}, 0) },
                 1.f));
             Bytes npc;
             npc.append(edid("Lod"));

@@ -1,6 +1,6 @@
-// Task 0292: fn_630 GetVMScriptVariable (Faralda's bridge package asks the bridge trigger's script variable) is answered
-// by the live source the Papyrus host gives (what the running scripts of the object hold). Written first and run red
-// against a world that answered 0 for every script variable.
+// Task 0292: fn_630 GetVMScriptVariable (Faralda's bridge package asks the bridge trigger's script variable) is
+// answered by the live source the Papyrus host gives (what the running scripts of the object hold). Written first and
+// run red against a world that answered 0 for every script variable.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/survey.hpp>
 

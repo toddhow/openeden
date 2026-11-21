@@ -1,8 +1,8 @@
-// Task 0285: the two natives the favour jobs need to pay their reward: Form.GetGoldValue (the base value of an item, from
-// the pack's inventory model) and GlobalVariable.GetValueInt (the whole part of a global). The wheat, potato, leek,
-// gourd, cabbage and nirnroot sales (FavorJobsGatherWheatScript) and the ore sales (FavorJobsMineOreScript) compute
-// count times value from them; before, both were tolerant and the reward was 0 gold. Generated scripts and a fake game;
-// no game data. Written first and run red against the tolerant natives.
+// Task 0285: the two natives the favour jobs need to pay their reward: Form.GetGoldValue (the base value of an item,
+// from the pack's inventory model) and GlobalVariable.GetValueInt (the whole part of a global). The wheat, potato,
+// leek, gourd, cabbage and nirnroot sales (FavorJobsGatherWheatScript) and the ore sales (FavorJobsMineOreScript)
+// compute count times value from them; before, both were tolerant and the reward was 0 gold. Generated scripts and a
+// fake game; no game data. Written first and run red against the tolerant natives.
 #include <game_skyrimse/papyrus_host.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/vmad.hpp>

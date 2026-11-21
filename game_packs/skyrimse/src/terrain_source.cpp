@@ -2,8 +2,8 @@
 
 #include "game_skyrimse/pack_core.hpp"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstring>
@@ -545,9 +545,10 @@ namespace game_skyrimse
             }
         }
 
-        // Task 0361b: a child world that borrows its parent's land has its own LAND for some cells with only part of the
-        // data (WhiterunWorld (6, -3): no VCLR, a BTXT for one quadrant of four, while Tamriel's (6, -3) has all of
-        // them). What the record lacks comes from the parent's land of the same cell; its own fields, layers included, stay.
+        // Task 0361b: a child world that borrows its parent's land has its own LAND for some cells with only part of
+        // the data (WhiterunWorld (6, -3): no VCLR, a BTXT for one quadrant of four, while Tamriel's (6, -3) has all of
+        // them). What the record lacks comes from the parent's land of the same cell; its own fields, layers included,
+        // stay.
         bool needsParent = !out.hasColours;
         for (const bool missing : noBase)
             needsParent = needsParent || missing;

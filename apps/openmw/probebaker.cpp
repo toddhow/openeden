@@ -385,8 +385,9 @@ namespace OMW
                 return true;
             });
             // Task 0358: the lights of a game pack's neutral cell are not ESM::Light references: each placement's base
-            // carries a LightComponent, and the engine draws it through makeNeutralEsmLight (scene.cpp, insertModel). The
-            // bake takes the same colour, gain and radius, so a Skyrim interior is baked with the light it is shown with.
+            // carries a LightComponent, and the engine draws it through makeNeutralEsmLight (scene.cpp, insertModel).
+            // The bake takes the same colour, gain and radius, so a Skyrim interior is baked with the light it is shown
+            // with.
             cell->forEachNeutralRef([&](const MWWorld::LiveCellRef<MWWorld::NeutralBase>& live) {
                 if (live.mBase == nullptr || !live.mBase->mLight || !live.mData.isEnabled()
                     || live.mRef.getCount(false) == 0)

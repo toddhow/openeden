@@ -66,13 +66,13 @@ namespace NifScene::UvAnim
         const double h10 = u3 - 2.0 * u2 + u;
         const double h01 = -2.0 * u3 + 3.0 * u2;
         const double h11 = u3 - u2;
-        return static_cast<float>(
-            h00 * a.mValue + h10 * h * a.mOutTan + h01 * b.mValue + h11 * h * b.mInTan);
+        return static_cast<float>(h00 * a.mValue + h10 * h * a.mOutTan + h01 * b.mValue + h11 * h * b.mInTan);
     }
 
     std::array<float, 16> matrixAt(const UvAnimation& animation, double clock)
     {
-        const auto pick = [&](const FloatTrack& track, float base) { return track.empty() ? base : sample(track, clock); };
+        const auto pick
+            = [&](const FloatTrack& track, float base) { return track.empty() ? base : sample(track, clock); };
         std::array<float, 16> m{};
         m[0] = pick(animation.mScale[0], animation.mBaseScale[0]);
         m[5] = pick(animation.mScale[1], animation.mBaseScale[1]);

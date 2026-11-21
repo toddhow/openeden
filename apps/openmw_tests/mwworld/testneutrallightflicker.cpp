@@ -1,5 +1,5 @@
-// Task 0355 stage h: a Skyrim light's own flicker numbers reach the engine's light record. makeNeutralEsmLight carries a
-// usable period and intensity amplitude in ESM::Light (NeutralFlicker, packed mTime, the seed in mValue) only when
+// Task 0355 stage h: a Skyrim light's own flicker numbers reach the engine's light record. makeNeutralEsmLight carries
+// a usable period and intensity amplitude in ESM::Light (NeutralFlicker, packed mTime, the seed in mValue) only when
 // asked for; without the request, or with no usable numbers, the record is as it was.
 #include <gtest/gtest.h>
 
@@ -62,26 +62,26 @@ namespace
 
     TEST(NeutralLightFlicker, aLightThatDoesNotAnimateOrHasNoUsableNumbersKeepsTheOldRule)
     {
-        EXPECT_EQ(MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::None, 0.25, 0.4), false, true, 1u)
-                          .mData.mFlags
+        EXPECT_EQ(
+            MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::None, 0.25, 0.4), false, true, 1u).mData.mFlags
                 & ESM::Light::NeutralFlicker,
             0);
         // The 12 flickers of the masters with an amplitude of 0 and the 11 slow flickers keep Morrowind's rule.
-        EXPECT_EQ(MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::Flicker, 0.25, 0.0), false, true, 1u)
-                          .mData.mFlags
+        EXPECT_EQ(
+            MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::Flicker, 0.25, 0.0), false, true, 1u).mData.mFlags
                 & ESM::Light::NeutralFlicker,
             0);
         EXPECT_EQ(MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::FlickerSlow, 1.0, 0.0), false, true, 1u)
-                          .mData.mFlags
+                      .mData.mFlags
                 & ESM::Light::NeutralFlicker,
             0);
-        EXPECT_EQ(MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::Flicker, 0.0, 0.4), false, true, 1u)
-                          .mData.mFlags
+        EXPECT_EQ(
+            MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::Flicker, 0.0, 0.4), false, true, 1u).mData.mFlags
                 & ESM::Light::NeutralFlicker,
             0);
         const double nan = std::numeric_limits<double>::quiet_NaN();
-        EXPECT_EQ(MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::Flicker, nan, 0.4), false, true, 1u)
-                          .mData.mFlags
+        EXPECT_EQ(
+            MWWorld::makeNeutralEsmLight(flickerLight(LightAnimation::Flicker, nan, 0.4), false, true, 1u).mData.mFlags
                 & ESM::Light::NeutralFlicker,
             0);
     }

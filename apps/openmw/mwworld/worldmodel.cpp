@@ -432,17 +432,16 @@ namespace MWWorld
             if (source == nullptr || !source->fogFarColorForCell(cell.id, bytes))
                 return std::nullopt;
             Log(Debug::Info) << "NFOGFAR " << cell.editorId << " near colour " << int(cell.lighting->fogColor[0]) << ","
-                             << int(cell.lighting->fogColor[1]) << "," << int(cell.lighting->fogColor[2]) << " far colour "
-                             << static_cast<int>(bytes[0]) << "," << static_cast<int>(bytes[1]) << ","
+                             << int(cell.lighting->fogColor[1]) << "," << int(cell.lighting->fogColor[2])
+                             << " far colour " << static_cast<int>(bytes[0]) << "," << static_cast<int>(bytes[1]) << ","
                              << static_cast<int>(bytes[2]);
             return std::array<float, 3>{ bytes[0] / 255.f, bytes[1] / 255.f, bytes[2] / 255.f };
         }
     }
 
-    CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId,
-        const openeden::sdk::game::WorldCell& cell, std::string_view name, bool& reused,
-        std::optional<float> interiorWater, std::optional<NeutralFogCurve> fogCurve,
-        std::optional<std::array<float, 3>> fogFar) const
+    CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
+        std::string_view name, bool& reused, std::optional<float> interiorWater,
+        std::optional<NeutralFogCurve> fogCurve, std::optional<std::array<float, 3>> fogFar) const
     {
         reused = false;
         // A cell built earlier, by either route, is the same store (the "come back" path).
@@ -535,9 +534,9 @@ namespace MWWorld
             result.mError = "the interior cell " + std::to_string(id) + " has no editor id";
             return result;
         }
-        result.mStore = emplaceNeutralCellStore(
-            gameId, *cell, cell->editorId, result.mReused, neutralInteriorWater(neutral, gameId, *cell),
-            neutralInteriorFogCurve(neutral, gameId, *cell), neutralInteriorFogFar(neutral, gameId, *cell));
+        result.mStore = emplaceNeutralCellStore(gameId, *cell, cell->editorId, result.mReused,
+            neutralInteriorWater(neutral, gameId, *cell), neutralInteriorFogCurve(neutral, gameId, *cell),
+            neutralInteriorFogFar(neutral, gameId, *cell));
         result.mStatus = NeutralCellStatus::Found;
         // Register the store under its name, so that the lookup by name after the teleport finds this very store.
         mInteriors.emplace(cell->editorId, result.mStore);
@@ -1358,7 +1357,8 @@ namespace MWWorld
                     store = found.mStore;
                 else if (found.mStatus == NeutralCellStatus::Exterior && found.mWorldSupported)
                 {
-                    // where the placement stands decides (a persistent cell reports the grid (0, 0)); no place: the grid
+                    // where the placement stands decides (a persistent cell reports the grid (0, 0)); no place: the
+                    // grid
                     if (from != nullptr)
                         store = findNeutralExterior(neutral,
                             ESM::positionToExteriorCellLocation(
@@ -1386,8 +1386,8 @@ namespace MWWorld
         }
         catch (const std::exception& e)
         {
-            Log(Debug::Warning) << "Neutral move: the cell of the placement " << placement << " cannot be built: "
-                                << e.what();
+            Log(Debug::Warning) << "Neutral move: the cell of the placement " << placement
+                                << " cannot be built: " << e.what();
             return Ptr();
         }
         if (store == nullptr)
@@ -1401,14 +1401,15 @@ namespace MWWorld
         });
         if (found.isEmpty())
             Log(Debug::Info) << "Neutral move: the placement " << placement << " is not in the cell "
-                                << store->getCell()->getNameId() << " (" << store->getCell()->getGridX() << ", "
-                                << store->getCell()->getGridY() << ") the pack's cell " << cell << " leads to" << (from != nullptr ? " (from given)" : " (no from)");
+                             << store->getCell()->getNameId() << " (" << store->getCell()->getGridX() << ", "
+                             << store->getCell()->getGridY() << ") the pack's cell " << cell << " leads to"
+                             << (from != nullptr ? " (from given)" : " (no from)");
         return found;
     }
 
-    CellStore* WorldModel::resolveNeutralDestination(NeutralWorld::NeutralWorldStore& neutral,
-        std::string_view gameId, openeden::sdk::game::WorldId cell, const openeden::sdk::game::Vec3d& position,
-        const CellStore* source, std::string& error) const
+    CellStore* WorldModel::resolveNeutralDestination(NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId,
+        openeden::sdk::game::WorldId cell, const openeden::sdk::game::Vec3d& position, const CellStore* source,
+        std::string& error) const
     {
         error.clear();
         try
@@ -1421,8 +1422,8 @@ namespace MWWorld
                     store = found.mStore;
                 else if (found.mStatus == NeutralCellStatus::Exterior && found.mWorldSupported)
                 {
-                    // The position decides: a world's persistent cell reports the grid (0, 0), and for any other exterior
-                    // the position lies in its own square anyway
+                    // The position decides: a world's persistent cell reports the grid (0, 0), and for any other
+                    // exterior the position lies in its own square anyway
                     const ESM::ExteriorCellLocation where = ESM::positionToExteriorCellLocation(
                         static_cast<float>(position.x), static_cast<float>(position.y), found.mWorldspace);
                     store = findNeutralExterior(neutral, where);

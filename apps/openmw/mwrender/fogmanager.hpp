@@ -19,10 +19,10 @@ namespace MWRender
         FogManager();
 
         void configure(float viewDistance, const MWWorld::Cell& cell);
-        /// Task 0362 item 1: `otherColour` (when not null) is the fog's second colour: `color` stays the colour the scene
-        /// uses everywhere (the background, water, particles ...); `otherIsEnd` says the other colour is the fog's far end
-        /// (then `color` is where it starts) or its start (then `color` is the far end). In the object and terrain
-        /// shaders the fog goes from one to the other with its linear share (lib/view/fog.glsl).
+        /// Task 0362 item 1: `otherColour` (when not null) is the fog's second colour: `color` stays the colour the
+        /// scene uses everywhere (the background, water, particles ...); `otherIsEnd` says the other colour is the
+        /// fog's far end (then `color` is where it starts) or its start (then `color` is the far end). In the object
+        /// and terrain shaders the fog goes from one to the other with its linear share (lib/view/fog.glsl).
         void configure(float viewDistance, float fogDepth, float underwaterFog, float dlFactor, float dlOffset,
             const vsg::vec4& color, const vsg::vec3* otherColour = nullptr, bool otherIsEnd = false);
 

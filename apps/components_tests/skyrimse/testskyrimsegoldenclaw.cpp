@@ -1,7 +1,7 @@
 // Task 0335 (the side quest MS13 "The Golden Claw"): fn_45 GetDetected(player) for an actor that stands in the player's
-// interior cell. MS13LucanCamillaSceneView's phase 4 starts only when `IsSneaking(player) == 0` and `GetDetected(player)`
-// holds for Lucan: before, nothing implemented ConditionWorld::detects, so the scene waited in phase 3 for ever. Generated
-// records only, no game data.
+// interior cell. MS13LucanCamillaSceneView's phase 4 starts only when `IsSneaking(player) == 0` and
+// `GetDetected(player)` holds for Lucan: before, nothing implemented ConditionWorld::detects, so the scene waited in
+// phase 3 for ever. Generated records only, no game data.
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/dialogue.hpp>
@@ -100,7 +100,8 @@ namespace
         EXPECT_FALSE(f.holds(getDetected(0x14, 0.f)));
     }
 
-    // ---- the claw is created IN Arvel's inventory by the quest alias, also for a quest that starts with the game --------------
+    // ---- the claw is created IN Arvel's inventory by the quest alias, also for a quest that starts with the game
+    // --------------
 
     constexpr FormId kQuest = 0x01000800;
     constexpr FormId kArvel = 0x01000A01; // the placed reference the alias "Arvel" is
@@ -222,7 +223,8 @@ namespace
             mVmad.mAliases.push_back(vmad::AliasScripts{ kQuest, 2, { scriptNamed("ClawWatch") } });
             mHost = std::make_unique<PapyrusHost>(mData);
             mHost->setWorldHooks(&mHooks);
-            mHost->setLog([this](bool error, const std::string& line) { mLogs.push_back((error ? "E " : "I ") + line); });
+            mHost->setLog(
+                [this](bool error, const std::string& line) { mLogs.push_back((error ? "E " : "I ") + line); });
             mHost->setCreatedInInventory(inInventory);
             const Bytes bytes = questBytes(flags, at);
             QuestRecords parsed;

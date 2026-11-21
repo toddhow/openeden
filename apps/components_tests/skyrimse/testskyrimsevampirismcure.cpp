@@ -1,7 +1,9 @@
 // Task 0279 (vampirism, second slice): the cure and the vampire races. Numbers by hand:
-//  - the game's own cure is PlayerVampireQuestScript.VampireCure(player), run by the Falion quest VC01 (its fragment) and
+//  - the game's own cure is PlayerVampireQuestScript.VampireCure(player), run by the Falion quest VC01 (its fragment)
+//  and
 //    by the Companions' cure; a port that has no `cure` refuses it;
-//  - the vampire race of each playable race: Argonian 0x13740 -> 0x8883A, Breton 0x13741 -> 0x8883C, Dark Elf 0x13742 ->
+//  - the vampire race of each playable race: Argonian 0x13740 -> 0x8883A, Breton 0x13741 -> 0x8883C, Dark Elf 0x13742
+//  ->
 //    0x8883D, High Elf 0x13743 -> 0x88840, Imperial 0x13744 -> 0x88844, Khajiit 0x13745 -> 0x88845, Nord 0x13746 ->
 //    0x88794, Orc 0x13747 -> 0xA82B9, Redguard 0x13748 -> 0x88846, Wood Elf 0x13749 -> 0x88884 (the quest script's own
 //    race properties, read from the record's RACE ids).

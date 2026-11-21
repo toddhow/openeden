@@ -41,9 +41,10 @@ namespace HavokPack::Gait
         // change is a linear cross-fade of mCrossFade seconds (12 frames at 60 a second).
         float mSwitchBand = 0.1f;
         float mCrossFade = 0.2f;
-        // Task 0361: the speed the walk gives way to the run, 0 for the half way speed above. The half way speed lets the
-        // walk cycle play at up to 2.6 times its natural rate before the run takes over (and the run at 0.6); a speed
-        // where the two playback rates are equal (the geometric mean, see balancedSwitchSpeed) is the fairest switch.
+        // Task 0361: the speed the walk gives way to the run, 0 for the half way speed above. The half way speed lets
+        // the walk cycle play at up to 2.6 times its natural rate before the run takes over (and the run at 0.6); a
+        // speed where the two playback rates are equal (the geometric mean, see balancedSwitchSpeed) is the fairest
+        // switch.
         float mSwitchSpeed = 0.f;
     };
 

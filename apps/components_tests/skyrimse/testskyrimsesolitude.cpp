@@ -7,9 +7,10 @@
 #include <limits>
 #include <vector>
 
-// Task 0346 (Solitude: the execution of Roggvir, SolitudeOpening): the gate's box trigger (REFR 0x85373, centre z -8180, half
-// height 200) hangs 36 units above the road the player stands on (feet at z -8416), so only his BODY reaches it. The player's
-// body is a vertical segment from his feet to `solitude::kPlayerBodyHeight` above them; other subjects keep the point test.
+// Task 0346 (Solitude: the execution of Roggvir, SolitudeOpening): the gate's box trigger (REFR 0x85373, centre z
+// -8180, half height 200) hangs 36 units above the road the player stands on (feet at z -8416), so only his BODY
+// reaches it. The player's body is a vertical segment from his feet to `solitude::kPlayerBodyHeight` above them; other
+// subjects keep the point test.
 
 namespace
 {
@@ -71,7 +72,8 @@ namespace
     {
         EXPECT_FALSE(volumeContainsBody(gateBox(), -65237.0, 104652.0, -8416.0, 0.0));
         EXPECT_FALSE(volumeContainsBody(gateBox(), -65237.0, 104652.0, -8416.0, -5.0));
-        EXPECT_FALSE(volumeContainsBody(gateBox(), -65237.0, 104652.0, -8416.0, std::numeric_limits<double>::quiet_NaN()));
+        EXPECT_FALSE(
+            volumeContainsBody(gateBox(), -65237.0, 104652.0, -8416.0, std::numeric_limits<double>::quiet_NaN()));
         EXPECT_TRUE(volumeContainsBody(gateBox(), -65237.0, 104652.0, -8200.0, 0.0));
     }
 

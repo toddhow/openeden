@@ -1,8 +1,8 @@
 // Task 0282 (word walls and combat): Actor.IsInCombat is answered from the world hooks (the combat AI's engaged state),
 // so a script that asks "is the player fighting?" gets a real answer. The word wall's own rule, which the shipped
 // WordWallTriggerScript.StartFX applies, is written out in a generated script: it teaches only when the player is
-// within 300 units of the look target and not in combat, or within 200 units whatever he is doing. Generated scripts; no
-// game data. Written first and run red against a stub (see the task's stage log).
+// within 300 units of the look target and not in combat, or within 200 units whatever he is doing. Generated scripts;
+// no game data. Written first and run red against a stub (see the task's stage log).
 #include <game_skyrimse/papyrus_host.hpp>
 
 #include <gtest/gtest.h>
@@ -95,7 +95,8 @@ namespace
             .local("n", "Bool")
             .callMethod("IsInCombat", Id("::Npc_var"), Id("n"))
             .assign(Id("npcCombat"), Id("n"));
-        // the shipped StartFX condition: dist < 300 && !IsInCombat() || dist <= 200 (jumps are relative, in instructions)
+        // the shipped StartFX condition: dist < 300 && !IsInCombat() || dist <= 200 (jumps are relative, in
+        // instructions)
         s.function("TryTeach")
             .local("p", "Actor")
             .local("d", "Float")

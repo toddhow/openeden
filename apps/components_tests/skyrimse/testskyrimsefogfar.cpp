@@ -1,6 +1,6 @@
-// Task 0362 item 1: the FAR fog colour of a Skyrim SE interior (XCLL offset 72 of a 92 byte record; an LGTM DATA the same;
-// the template's where the fog colour inherit flag 0x4 says so). Generated plugins only; every number is written out by
-// hand.
+// Task 0362 item 1: the FAR fog colour of a Skyrim SE interior (XCLL offset 72 of a 92 byte record; an LGTM DATA the
+// same; the template's where the fog colour inherit flag 0x4 says so). Generated plugins only; every number is written
+// out by hand.
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
 
@@ -34,7 +34,8 @@ namespace
         return sub4("EDID", Bytes().zstring(s));
     }
 
-    // 92 bytes: near fog colour (7, 8, 9) at 8, far fog colour `far` at 72, the inherit word at 88. 64 bytes have no far.
+    // 92 bytes: near fog colour (7, 8, 9) at 8, far fog colour `far` at 72, the inherit word at 88. 64 bytes have no
+    // far.
     Bytes xcll(std::uint8_t fr, std::uint8_t fg, std::uint8_t fb, std::uint32_t inherit, std::size_t size = 92)
     {
         Bytes d;
@@ -85,8 +86,8 @@ namespace
         bytes.append(group4(Content::fourCC("LGTM"), kGrupTop, templateRecord()));
         Bytes cells;
         cells.append(interiorCell(kOwn, "OwnFar", withTemplate(sub4("XCLL", xcll(30, 40, 50, 0)))));
-        cells.append(
-            interiorCell(kInherits, "InheritsFar", withTemplate(sub4("XCLL", xcll(30, 40, 50, LightingInherit::FogColor)))));
+        cells.append(interiorCell(
+            kInherits, "InheritsFar", withTemplate(sub4("XCLL", xcll(30, 40, 50, LightingInherit::FogColor)))));
         cells.append(interiorCell(kShort, "ShortXcll", sub4("XCLL", xcll(0, 0, 0, 0, 64))));
         cells.append(interiorCell(kNoXcll, "NoXcll", Bytes()));
         bytes.append(group4(Content::fourCC("CELL"), kGrupTop, cells));

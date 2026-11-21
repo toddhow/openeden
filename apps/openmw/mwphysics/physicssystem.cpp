@@ -1820,8 +1820,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool PhysicsSystem::NeutralRequestApplier::placeLiving(
-        const void* key, double x, double y, double z, float heading)
+    bool PhysicsSystem::NeutralRequestApplier::placeLiving(const void* key, double x, double y, double z, float heading)
     {
         NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
         if (entry == nullptr)
@@ -2252,7 +2251,7 @@ namespace MWPhysics
             {
                 const std::optional<float> water = mNeutralWaterLookup
                     ? mNeutralWaterLookup(
-                          *ptr.getCell(), ptr.getRefData().getPosition().pos[0], ptr.getRefData().getPosition().pos[1])
+                        *ptr.getCell(), ptr.getRefData().getPosition().pos[0], ptr.getRefData().getPosition().pos[1])
                     : std::nullopt;
                 if (water)
                 {
@@ -2562,17 +2561,19 @@ namespace MWPhysics
     {
         // Task 0336 (trace only): which rule stopped the walk and, for a wall, what the wall is.
         std::string text = result.mRefusal == NeutralMover::Result::Refusal::Wall ? " refusal wall"
-            : result.mRefusal == NeutralMover::Result::Refusal::NoFloor          ? " refusal no-floor"
-            : result.mRefusal == NeutralMover::Result::Refusal::Slope            ? " refusal slope"
-                                                                                 : " refusal none";
+            : result.mRefusal == NeutralMover::Result::Refusal::NoFloor           ? " refusal no-floor"
+            : result.mRefusal == NeutralMover::Result::Refusal::Slope             ? " refusal slope"
+                                                                                  : " refusal none";
         if (result.mRefusal == NeutralMover::Result::Refusal::Slope)
             text += " normal.z " + std::to_string(result.mGroundNormalZ);
-        if ((result.mRefusal == NeutralMover::Result::Refusal::Wall || result.mRefusal == NeutralMover::Result::Refusal::Slope)
+        if ((result.mRefusal == NeutralMover::Result::Refusal::Wall
+                || result.mRefusal == NeutralMover::Result::Refusal::Slope)
             && result.mHitBody != 0xFFFFFFFFu)
         {
             JPH::BodyLockRead lock(mPhysicsSystem.GetBodyLockInterface(), JPH::BodyID(result.mHitBody));
             if (lock.Succeeded())
-                if (const PtrHolder* holder = Misc::Convert::toPointerFromUserData<PtrHolder>(lock.GetBody().GetUserData()))
+                if (const PtrHolder* holder
+                    = Misc::Convert::toPointerFromUserData<PtrHolder>(lock.GetBody().GetUserData()))
                     text += " body " + std::string(holder->getPtr().getCellRef().getRefId().toDebugString());
         }
         return text;
@@ -2655,7 +2656,8 @@ namespace MWPhysics
         if (trace && (entry.mWalkFrames == 1 || entry.mWalkFrames % 30 == 0))
             Log(Debug::Info) << "NACTWALK " << ptr.getCellRef().getRefId() << " frame " << entry.mWalkFrames << " pos "
                              << pos.pos[0] << " " << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2]
-                             << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "") << (ridden ? " mount" : " foot")
+                             << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "")
+                             << (ridden ? " mount" : " foot")
                              << (result.mBlocked ? describeNeutralRefusal(result) : std::string())
                              << (limits.mStepDown > NeutralMover::kStepDown ? " step down " : "")
                              << (limits.mStepDown > NeutralMover::kStepDown ? std::to_string(limits.mStepDown) : "")

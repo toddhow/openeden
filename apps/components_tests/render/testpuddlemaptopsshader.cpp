@@ -103,8 +103,7 @@ namespace
         EXPECT_NE(text.find("mode == 4u"), std::string::npos);
     }
 
-    INSTANTIATE_TEST_SUITE_P(
-        Twins, PuddleMapTopsShader, testing::Values("lib/material/puddlemap.slang"));
+    INSTANTIATE_TEST_SUITE_P(Twins, PuddleMapTopsShader, testing::Values("lib/material/puddlemap.slang"));
 
     TEST(PuddleMapTopsShaderUse, terrain_asks_without_the_object_test_and_objects_ask_with_it)
     {

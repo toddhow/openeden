@@ -11,9 +11,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
-#include <algorithm>
 #include <optional>
 #include <span>
 #include <string>
@@ -232,10 +232,7 @@ namespace
                 return "Actor";
             return {};
         }
-        FormId worldOf(FormId reference) const override
-        {
-            return reference == kPlayerRef ? kSolstheimWorldForm : 0;
-        }
+        FormId worldOf(FormId reference) const override { return reference == kPlayerRef ? kSolstheimWorldForm : 0; }
         void add(const ScriptBuilder& script)
         {
             std::string lower = script.name();
@@ -353,7 +350,8 @@ namespace
             EXPECT_FALSE(tolerant(key)) << key;
     }
 
-    // ---- the player's location in a quest's stage entry (DLC2MQ01's stage 10 has an entry for "on Solstheim") ---------
+    // ---- the player's location in a quest's stage entry (DLC2MQ01's stage 10 has an entry for "on Solstheim")
+    // ---------
 
     TEST(ShipLocation, thePlayerIsInALocationOrInsideItWhenThePackTellsWhereHeStands)
     {
