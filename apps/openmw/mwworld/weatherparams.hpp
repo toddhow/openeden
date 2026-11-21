@@ -85,6 +85,9 @@ namespace MWWorld
         NeutralWeatherSound::Set sounds;
         // Task 0355 stage k. Morrowind's INI gives none: the flat ambient colour only.
         std::optional<AmbientCubeParams> ambientCube;
+        // Task 0362 item 1. Morrowind's INI gives none: `fog` alone. A game pack's weather gives the colour the fog has
+        // where it starts (sunrise, day, sunset, night); `fog` is then its colour at the far end.
+        std::optional<std::array<vsg::vec4, 4>> fogNear;
     };
 
     /// One entry of the weather table: the weather's name (its script-visible id), its numbers and the three values the

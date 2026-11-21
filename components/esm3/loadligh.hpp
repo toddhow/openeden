@@ -66,6 +66,10 @@ namespace ESM
         /// Task 0355 stage g: the full opening angle of a NeutralSpot light, in degrees. Not part of the record's file
         /// data: blank() sets 0 and load() leaves it 0.
         float mNeutralSpotFov = 0.f;
+        /// Task 0362 item 2: how far (units) a NeutralFlicker light wanders from its place, the movement amplitude of
+        /// the game's record, already made safe by MWWorld::neutralLightMovement. Not part of the file data: blank()
+        /// sets 0 and load() leaves it 0.
+        float mNeutralMovement = 0.f;
 
         uint32_t mRecordFlags;
         std::string mModel, mIcon, mName;

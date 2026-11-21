@@ -57,6 +57,9 @@ namespace MWRender
         float mSunElevation = 0.f;
 
         vsg::vec4 mFogColor;
+        // Task 0362 item 1 (a game pack's weather only): the fog's colour where it starts; mFogColor is its far end.
+        bool mHasFogNear = false;
+        vsg::vec4 mFogNearColor{ 0.f, 0.f, 0.f, 1.f };
 
         vsg::vec4 mAmbientColor;
 

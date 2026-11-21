@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
 #include <openeden/game/world_model.hpp>
 #include <openeden/version.hpp>
 
@@ -16,7 +19,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kCellFogSourceVersion{ 0, 1 };
+    inline constexpr Version kCellFogSourceVersion{ 0, 2 };
 
     class CellFogSource
     {
@@ -27,5 +30,15 @@ namespace openeden::sdk::game
         /// (with the lighting template's values where the cell inherits them). False when the cell is unknown or has no
         /// lighting; `power` and `max` are then 1.
         [[nodiscard]] virtual bool fogCurveForCell(WorldId cell, double& power, double& max) = 0;
+
+        /// Added in 0.2 (task 0362 item 1): the fog's FAR colour of the cell (XCLL's, with the lighting template's when
+        /// the cell inherits its fog colour), 8 bit red, green, blue. CellLighting::fogColor is the near colour; the fog's
+        /// colour goes from near to far with its linear share. False (the default) when the cell has none.
+        [[nodiscard]] virtual bool fogFarColorForCell(WorldId cell, std::array<std::uint8_t, 3>& colour)
+        {
+            (void)cell;
+            colour = {};
+            return false;
+        }
     };
 }

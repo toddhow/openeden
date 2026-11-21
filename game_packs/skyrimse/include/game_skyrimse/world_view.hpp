@@ -961,6 +961,7 @@ namespace game_skyrimse
         /// Task 0355 (follow-up): the fog power and maximum of an interior (its own XCLL with the lighting template's
         /// values where the cell inherits them). Reads no file: the cell's lighting is part of the index.
         bool fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max) override;
+        bool fogFarColorForCell(openeden::sdk::game::WorldId cell, std::array<std::uint8_t, 3>& colour) override;
         /// Task 0355 stage e: the ambient cube of an interior loadCell has returned (kept per cell, capped).
         bool ambientCubeForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out) override;
         /// Task 0355 stages f and j: the directional rotation and fade, the clip distance and the light fade distances

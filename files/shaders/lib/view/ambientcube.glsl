@@ -26,3 +26,10 @@ vec3 ambientCubeAmbient(vec3 worldNormal, vec3 flatAmbient)
         + skyHeader[AMBIENT_CUBE_BASE + (n.z >= 0.0 ? 6 : 7)].xyz * sq.z;
     return max(cube + (flatAmbient - skyHeader[AMBIENT_CUBE_BASE + 1].xyz), vec3(0.0));
 }
+
+// OpenEden (task 0362 item 1): the colour of the fog where it starts (xyz) and whether one is given (w), written next to the
+// cube's flag (components/render/ambientcube.hpp). Pass it to applyFog (lib/view/fog.glsl).
+vec4 fogStartColour()
+{
+    return vec4(skyHeader[AMBIENT_CUBE_BASE].yzw, skyHeader[AMBIENT_CUBE_BASE + 1].w);
+}

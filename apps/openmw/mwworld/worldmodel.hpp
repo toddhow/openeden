@@ -294,7 +294,8 @@ namespace MWWorld
         /// ESMStore and the CellStore into mCells; the store that already exists for this cell when there is one.
         CellStore* emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
             std::string_view name, bool& reused, std::optional<float> interiorWater,
-            std::optional<NeutralFogCurve> fogCurve = std::nullopt) const;
+            std::optional<NeutralFogCurve> fogCurve = std::nullopt,
+            std::optional<std::array<float, 3>> fogFar = std::nullopt) const;
 
         CellStore& insertCellStore(const ESM::Cell& cell);
 

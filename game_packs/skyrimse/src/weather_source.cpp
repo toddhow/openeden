@@ -281,6 +281,9 @@ namespace game_skyrimse
 
         d.sky = tableOf(w, SkyColourType::SkyUpper);
         d.fog = tableOf(w, SkyColourType::FogFar);
+        // Task 0362 item 1: the fog's colour where it starts. The record holds both colours for all four times of day.
+        d.fogNear = tableOf(w, SkyColourType::FogNear);
+        d.hasFogNear = true;
         d.ambient = tableOf(w, SkyColourType::Ambient);
         d.sun = tableOf(w, SkyColourType::Sunlight);
         d.sunDiscSunset = colourOf(w, SkyColourType::Sun, WeatherConstants::Sunset);

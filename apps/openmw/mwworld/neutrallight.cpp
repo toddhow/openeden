@@ -48,8 +48,18 @@ namespace MWWorld
         return gain > 1.0 ? static_cast<float>(std::min(gain, 64.0)) : 1.f;
     }
 
-    ESM::Light makeNeutralEsmLight(
-        const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed, bool lightTypes)
+    float neutralLightMovement(const LightComponent& light)
+    {
+        if (!std::isfinite(light.flickerMovement) || !std::isfinite(light.radius) || light.flickerMovement <= 0.0
+            || light.radius <= 0.0)
+            return 0.f;
+        const double limit = std::min(static_cast<double>(MWAnim::NeutralFlicker::kMaxMovement),
+            kMovementRadiusShare * light.radius);
+        return static_cast<float>(std::min(light.flickerMovement, limit));
+    }
+
+    ESM::Light makeNeutralEsmLight(const LightComponent& light, bool fadeGain, bool ownFlicker, std::uint32_t seed,
+        bool lightTypes, bool movement)
     {
         ESM::Light record;
         record.blank();
@@ -97,6 +107,8 @@ namespace MWWorld
                 flags |= ESM::Light::NeutralFlicker;
                 record.mData.mTime = packed;
                 record.mData.mValue = static_cast<std::int32_t>(seed);
+                if (movement)
+                    record.mNeutralMovement = neutralLightMovement(light);
             }
         }
         if (lightTypes)

@@ -8,9 +8,13 @@
 // How it reaches the GPU: it rides at the end of the sky-visibility header buffer (binding VIEW_SKYVIS_SKY_BINDING),
 // after the cloud shadow data (see cloudgpu.hpp), so the view descriptor set has no new binding. Eight vec4 from
 // `base`:
-//   [base + 0]     = (enabled, 0, 0, 0): 0 when the cell has no cube (the shader then returns the flat ambient)
-//   [base + 1]     = (baseline.xyz, 0): the flat ambient the cube was made for; what the flat ambient has gained since
-//                    (Night Eye) is added to every face, as the baked probes do (giAmbient)
+//   [base + 0]     = (enabled, fogOther.xyz): 0 when the cell has no cube (the shader then returns the flat ambient);
+//                    fogOther is the fog's second colour (task 0362 item 1; read only when [base + 1].w is not 0)
+//   [base + 1]     = (baseline.xyz, fogOtherMode): the flat ambient the cube was made for; what the flat ambient has
+//                    gained since (Night Eye) is added to every face, as the baked probes do (giAmbient); fogOtherMode is
+//                    +1 when fogOther is the fog's colour at its far end (the scene's fog colour is where it starts), -1
+//                    when it is the colour where it starts (the scene's is the far end), 0 when there is none; the shaders
+//                    blend the two with the fog's linear share
 //   [base + 2 + i] = (colour of face i, 0), i = +X, -X, +Y, -Y, +Z, -Z
 // All colours are in the view's colour space (linear with HDR). No game types.
 
@@ -137,18 +141,28 @@ namespace Render::AmbientCube
 
     /// Writes the cube's entries of `header` (headerTotalVec4s long, from the start of the buffer). A null cube writes
     /// only the "off" flag.
-    inline void write(vsg::vec4* header, const Cube* cube, const vsg::vec3& baseline)
+    inline void write(vsg::vec4* header, const Cube* cube, const vsg::vec3& baseline, const vsg::vec3* fogOther,
+        bool fogOtherIsEnd)
     {
         vsg::vec4* at = header + base;
+        const vsg::vec3 start = fogOther != nullptr ? *fogOther : vsg::vec3(0.f, 0.f, 0.f);
+        const float startOn = fogOther == nullptr ? 0.f : (fogOtherIsEnd ? 1.f : -1.f);
         if (cube == nullptr)
         {
-            at[0] = vsg::vec4(0.f, 0.f, 0.f, 0.f);
+            at[0] = vsg::vec4(0.f, start.x, start.y, start.z);
+            at[1].w = startOn;
             return;
         }
-        at[0] = vsg::vec4(1.f, 0.f, 0.f, 0.f);
-        at[1] = vsg::vec4(baseline.x, baseline.y, baseline.z, 0.f);
+        at[0] = vsg::vec4(1.f, start.x, start.y, start.z);
+        at[1] = vsg::vec4(baseline.x, baseline.y, baseline.z, startOn);
         for (std::size_t i = 0; i < 6; ++i)
             at[2 + i] = vsg::vec4((*cube)[i].x, (*cube)[i].y, (*cube)[i].z, 0.f);
+    }
+
+    /// As above with no fog start colour.
+    inline void write(vsg::vec4* header, const Cube* cube, const vsg::vec3& baseline)
+    {
+        write(header, cube, baseline, nullptr, false);
     }
 }
 

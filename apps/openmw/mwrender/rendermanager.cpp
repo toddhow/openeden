@@ -3184,10 +3184,18 @@ namespace MWRender
             }
             const vsg::vec4 baseline
                 = toView(mAmbientCube ? mAmbientColor : vsg::vec4(mWeatherAmbientBase, mAmbientColor.w));
+            // Task 0362 item 1: the fog's second colour, in the view's colour space like the scene's fog colour.
+            std::optional<vsg::vec3> fogOther;
+            if (const vsg::vec3* other = mFog->getFogOtherColor(isUnderwater))
+            {
+                const vsg::vec4 c = toView(vsg::vec4(other->x, other->y, other->z, 1.f));
+                fogOther = vsg::vec3(c.x, c.y, c.z);
+            }
             std::array<vsg::vec4, Render::AmbientCube::vec4s> packed{};
             std::vector<vsg::vec4> scratch(Render::AmbientCube::headerTotalVec4s);
-            Render::AmbientCube::write(
-                scratch.data(), shown ? &viewCube : nullptr, vsg::vec3(baseline.x, baseline.y, baseline.z));
+            Render::AmbientCube::write(scratch.data(), shown ? &viewCube : nullptr,
+                vsg::vec3(baseline.x, baseline.y, baseline.z), fogOther ? &*fogOther : nullptr,
+                mFog->getFogOtherIsEnd());
             std::copy(scratch.begin() + Render::AmbientCube::base, scratch.end(), packed.begin());
             vsg::vec4* header = mSkyVisHeader->data() + Render::AmbientCube::base;
             if (!std::equal(packed.begin(), packed.end(), header))
@@ -3387,10 +3395,10 @@ namespace MWRender
         mFog->configure(mFogRange, cell);
     }
 
-    void RenderManager::configureFog(
-        float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& color)
+    void RenderManager::configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset,
+        const vsg::vec4& color, const vsg::vec3* otherColour, bool otherIsEnd)
     {
-        mFog->configure(mFogRange, fogDepth, underwaterFog, dlFactor, dlOffset, color);
+        mFog->configure(mFogRange, fogDepth, underwaterFog, dlFactor, dlOffset, color, otherColour, otherIsEnd);
     }
 
     Render::Tonemap::SssSources RenderManager::sssSources() const

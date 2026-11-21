@@ -27,4 +27,10 @@ float3 ambientCubeAmbient(float3 worldNormal, float3 flatAmbient)
     return max(cube + (flatAmbient - skyHeader[AMBIENT_CUBE_BASE + 1].xyz), float3(0.0));
 }
 
+// Task 0362 item 1: the twin of fogStartColour in ambientcube.glsl.
+float4 fogStartColour()
+{
+    return float4(skyHeader[AMBIENT_CUBE_BASE].yzw, skyHeader[AMBIENT_CUBE_BASE + 1].w);
+}
+
 #endif

@@ -392,6 +392,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testtonemapconstants.cpp
     render/testaerialmath.cpp
     render/testfogcurve.cpp
+    render/testfogstart.cpp
     render/testwatermath.cpp
     render/testambientcube.cpp
     render/testambientcubeexterior.cpp
@@ -539,6 +540,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testlightcontroller.cpp
     mwanimation/testlightgain.cpp
     mwanimation/testlightflicker.cpp
+    mwanimation/testlightmovement.cpp
     mwanimation/testlighttypes.cpp
     mwanimation/testsceneryanim.cpp
     mwanimation/testpointshadowcarrier.cpp
@@ -949,6 +951,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseneutralworld.cpp
     skyrimse/testskyrimselightingtemplate.cpp
     skyrimse/testskyrimsefogcurve.cpp
+    skyrimse/testskyrimsefogfar.cpp
     skyrimse/testskyrimseambientcube.cpp
     skyrimse/testskyrimseweatherambientcube.cpp
     skyrimse/testskyrimsecelllight.cpp

@@ -166,6 +166,9 @@ namespace MWWorld
         // -Y, +Z, -Z). Empty for Morrowind.
         std::optional<AmbientCubeParams> mAmbientCube;
 
+        // Task 0362 item 1 (a game pack's weather only): the fog's colour where it starts; mFogColor is then its far end.
+        std::optional<TimeOfDayInterpolator<vsg::vec4>> mFogNearColor;
+
         // Fog depth/density
         TimeOfDayInterpolator<float> mLandFogDepth;
 

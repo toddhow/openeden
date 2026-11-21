@@ -285,6 +285,9 @@ namespace MWWorld
         if (mAmbientLoopSoundID == "None")
             mAmbientLoopSoundID = ESM::RefId();
         mAmbientCube = params.ambientCube;
+        if (params.fogNear)
+            mFogNearColor = TimeOfDayInterpolator<vsg::vec4>(
+                (*params.fogNear)[0], (*params.fogNear)[1], (*params.fogNear)[2], (*params.fogNear)[3]);
     }
 
     float Weather::transitionDelta() const
@@ -1221,8 +1224,17 @@ namespace MWWorld
             rendered = &mAtmosphereResult;
         }
 
+        // Task 0362 item 1: a game pack's fog starts in its near colour and ends in its far one (mFogColor, the scene's
+        // colour); the near colour goes to the object and terrain shaders. Not with the atmosphere: it changes the far
+        // colour, so the two would not belong together.
+        vsg::vec3 fogStartColour(0.f, 0.f, 0.f);
+        const bool fogGradient
+            = rendered == &mResult && rendered->mHasFogNear && Settings::game().mNeutralFogGradient.get();
+        if (fogGradient)
+            fogStartColour
+                = vsg::vec3(rendered->mFogNearColor.x, rendered->mFogNearColor.y, rendered->mFogNearColor.z);
         mRendering.configureFog(rendered->mFogDepth, underwaterFog, rendered->mDLFogFactor,
-            rendered->mDLFogOffset / 100.0f, rendered->mFogColor);
+            rendered->mDLFogOffset / 100.0f, rendered->mFogColor, fogGradient ? &fogStartColour : nullptr, false);
         mRendering.setAmbientColour(rendered->mAmbientColor);
         // Task 0355 stage k: a game pack's directional ambient. Off, or a weather with none, the renderer is told "no
         // cube" and the flat ambient stands.
@@ -1737,6 +1749,8 @@ namespace MWWorld
         mResult.mAmbientCubeBase
             = vsg::vec3(mResult.mAmbientColor.x, mResult.mAmbientColor.y, mResult.mAmbientColor.z);
         mResult.mFogColor += flashColor;
+        if (mResult.mHasFogNear)
+            mResult.mFogNearColor += flashColor;
         mResult.mAmbientColor += flashColor;
         mResult.mSunColor += flashColor;
     }
@@ -1776,6 +1790,9 @@ namespace MWWorld
 
         mResult.mFogDepth = current.mLandFogDepth.getValue(gameHour, mTimeSettings, "Fog");
         mResult.mFogColor = current.mFogColor.getValue(gameHour, mTimeSettings, "Fog");
+        mResult.mHasFogNear = current.mFogNearColor.has_value();
+        if (current.mFogNearColor)
+            mResult.mFogNearColor = current.mFogNearColor->getValue(gameHour, mTimeSettings, "Fog");
         mResult.mAmbientColor = current.mAmbientColor.getValue(gameHour, mTimeSettings, "Ambient");
         mResult.mSunColor = current.mSunColor.getValue(gameHour, mTimeSettings, "Sun");
         mResult.mSkyColor = current.mSkyColor.getValue(gameHour, mTimeSettings, "Sky");
@@ -1898,6 +1915,11 @@ namespace MWWorld
         }
 
         mResult.mFogColor = lerp(current.mFogColor, other.mFogColor, factor);
+        // Task 0362 item 1: a weather with no near colour counts as its far colour (a single-colour fog) in the blend.
+        mResult.mHasFogNear = current.mHasFogNear || other.mHasFogNear;
+        if (mResult.mHasFogNear)
+            mResult.mFogNearColor = lerp(current.mHasFogNear ? current.mFogNearColor : current.mFogColor,
+                other.mHasFogNear ? other.mFogNearColor : other.mFogColor, factor);
         mResult.mSunColor = lerp(current.mSunColor, other.mSunColor, factor);
         mResult.mSkyColor = lerp(current.mSkyColor, other.mSkyColor, factor);
 

@@ -321,7 +321,10 @@ namespace MWRender
         void exteriorCellLoaded(int x, int y, int cellSize = 8192, const std::string& world = std::string());
         void exteriorCellUnloaded(int x, int y, int cellSize = 8192, const std::string& world = std::string());
         void configureFog(const MWWorld::Cell& cell);
-        void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour);
+        /// `otherColour` (task 0362 item 1; null for none) is the fog's second colour, at its far end when `otherIsEnd`,
+        /// else where it starts (see FogManager::configure).
+        void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& colour,
+            const vsg::vec3* otherColour = nullptr, bool otherIsEnd = false);
 
         void addCell(const MWWorld::CellStore* store);
         void removeCell(const MWWorld::CellStore* store);

@@ -6,10 +6,13 @@
 #include <cstdint>
 #include <optional>
 
+#include <array>
+
 #include <vsg/lighting/Light.h>
 #include <vsg/lighting/PointLight.h>
 
 #include <components/animation/deltatime.hpp>
+#include <components/animation/pointshadowcarrier.hpp>
 #include <components/animation/tmutable.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadligh.hpp>
@@ -41,12 +44,16 @@ namespace
             if (mId < 12)
                 Log(Debug::Info) << "LFLICKNEW id " << mId << " " << kind << " " << flags << " " << radius;
         }
-        void sample(float time, float brightness)
+        void sample(float time, float brightness, const std::array<float, 3>* offset = nullptr)
         {
             if (mId < 0 || mId >= 12 || mSamples >= 600)
                 return;
             ++mSamples;
-            Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness;
+            if (offset != nullptr)
+                Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness << " off "
+                                 << (*offset)[0] << "," << (*offset)[1] << "," << (*offset)[2];
+            else
+                Log(Debug::Info) << "LFLICK " << mId << " t " << time << " b " << brightness;
         }
     };
     class LightController : public Anim::TMutable<LightController, vsg::Light>
@@ -113,12 +120,16 @@ namespace
         bool mStarted = false;
         MWAnim::NeutralFlicker::Walk mWalk;
         vsg::vec3 mBaseColor;
+        bool mMoves;
+        bool mMovementBaseTaken = false;
+        vsg::dvec3 mBasePosition{ 0.0, 0.0, 0.0 };
         FlickerTrace mTrace;
 
     public:
         NeutralLightController(const MWAnim::NeutralFlicker::Params& params, bool pulse, const vsg::vec3& baseColor)
             : mWalk(params, pulse)
             , mBaseColor(baseColor)
+            , mMoves(params.mMovement > 0.f)
         {
             hints.autoPlay = true;
             mTrace.begin("own period_ms,amp_permille", static_cast<int>(params.mPeriod * 1000.f), static_cast<int>(params.mAmplitude * 1000.f));
@@ -133,6 +144,32 @@ namespace
             }
             const float b = mWalk.step(mDt.get(time));
             light.color = mBaseColor * b;
+            // Task 0362 item 2: a light with a movement amplitude wanders round its place (the offset is seeded, no clock).
+            if (mMoves)
+            {
+                if (auto* point = dynamic_cast<vsg::PointLight*>(&light))
+                {
+                    if (!mMovementBaseTaken)
+                    {
+                        mMovementBaseTaken = true;
+                        mBasePosition = point->position;
+                    }
+                    // Task 0362 item 2 (toddhow's decision): a light that holds a point shadow slot does not move, so the
+                    // shadow cache (which redraws a slot whose light moved over a unit) is not redrawn every frame. It keeps
+                    // the place it had and moves on when it loses the slot.
+                    const auto id = static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(point));
+                    bool holdsSlot = false;
+                    for (int k = 0; k < Anim::pointShadowSlotCount; ++k)
+                        holdsSlot = holdsSlot || Anim::pointShadowOwner(k) == id;
+                    if (!holdsSlot)
+                    {
+                        const auto& o = mWalk.offset();
+                        point->position = mBasePosition + vsg::dvec3(o[0], o[1], o[2]);
+                    }
+                }
+                mTrace.sample(time, b, &mWalk.offset());
+                return;
+            }
             mTrace.sample(time, b);
         }
     };
@@ -175,8 +212,9 @@ namespace
             return {};
         if (light.mData.mFlags & ESM::Light::NeutralFlicker)
         {
-            if (const auto params = MWAnim::NeutralFlicker::unpack(light.mData.mTime, light.mData.mValue))
+            if (auto params = MWAnim::NeutralFlicker::unpack(light.mData.mTime, light.mData.mValue))
             {
+                params->mMovement = light.mNeutralMovement;
                 // The same precedence as the Morrowind rule: a flicker bit wins over a pulse bit.
                 const bool pulse = !(light.mData.mFlags & (ESM::Light::Flicker | ESM::Light::FlickerSlow));
                 return vsg::ref_ptr<Anim::Controller>(NeutralLightController::create(*params, pulse, color));

@@ -119,6 +119,7 @@ namespace Settings
         SettingValue<bool> mNeutralImageSpaceEffects{ mIndex, "Game", "neutral image space effects" };
         SettingValue<bool> mNeutralCellImageSpace{ mIndex, "Game", "neutral cell image space" }; // task 0355 c
         SettingValue<bool> mNeutralInteriorFog{ mIndex, "Game", "neutral interior fog" }; // task 0355 d
+        SettingValue<bool> mNeutralFogGradient{ mIndex, "Game", "neutral fog gradient" }; // task 0362 item 1
         SettingValue<bool> mNeutralAmbientCube{ mIndex, "Game", "neutral ambient cube" }; // task 0355 e
         SettingValue<bool> mNeutralWeatherAmbientCube{ mIndex, "Game", "neutral weather ambient cube" }; // task 0355 k
         SettingValue<bool> mNeutralInteriorSun{ mIndex, "Game", "neutral interior sun" }; // task 0355 f
@@ -135,6 +136,7 @@ namespace Settings
         SettingValue<bool> mNeutralActorIdleFidgets{ mIndex, "Game", "neutral actor idle fidgets" }; // task 0361
         SettingValue<bool> mNeutralPlayerSpeeds{ mIndex, "Game", "neutral player speeds" }; // task 0361e
         SettingValue<bool> mNeutralLightFlicker{ mIndex, "Game", "neutral light flicker" }; // task 0355 stage h
+        SettingValue<bool> mNeutralLightMovement{ mIndex, "Game", "neutral light movement" }; // task 0362 item 2
         SettingValue<bool> mNeutralLightTypes{ mIndex, "Game", "neutral light types" }; // task 0355 stage g
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
         SettingValue<bool> mNeutralHavokCollision{ mIndex, "Game", "neutral havok collision" };

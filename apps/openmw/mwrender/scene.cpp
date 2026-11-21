@@ -297,7 +297,7 @@ namespace MWRender
                     Settings::game().mNeutralLightFlicker,
                     MWWorld::neutralLightSeed(static_cast<std::uint32_t>(refNum.mContentFile),
                         static_cast<std::uint32_t>(refNum.mIndex)),
-                    Settings::game().mNeutralLightTypes);
+                    Settings::game().mNeutralLightTypes, Settings::game().mNeutralLightMovement);
                 light = &*neutralLight;
                 // OPENEDEN_NEUTRAL_LIGHT_FORCE_FOV=<degrees> (developer aid, task 0355 stage g): with [Game] neutral
                 // light types on, every neutral light becomes a spot of that opening angle along its local +X axis, so

@@ -49,8 +49,11 @@ namespace MWAnim::NeutralFlicker
         const std::int32_t permille = (timeField >> 16) & 0x7FFF;
         if (ms < 20 || ms > 10000 || permille < 1 || permille > 950)
             return std::nullopt;
-        return Params{ static_cast<float>(ms) / 1000.f, static_cast<float>(permille) / 1000.f,
-            static_cast<std::uint32_t>(seedField) };
+        Params p;
+        p.mPeriod = static_cast<float>(ms) / 1000.f;
+        p.mAmplitude = static_cast<float>(permille) / 1000.f;
+        p.mSeed = static_cast<std::uint32_t>(seedField);
+        return p;
     }
 
     Walk::Walk(const Params& params, bool pulse)
@@ -60,9 +63,25 @@ namespace MWAnim::NeutralFlicker
         , mLow(1.f
               - (std::isfinite(params.mAmplitude) ? std::clamp(params.mAmplitude, 0.f, kMaxAmplitude) : 0.f))
         , mPulse(pulse)
+        , mMovement(std::isfinite(params.mMovement) ? std::clamp(params.mMovement, 0.f, kMaxMovement) : 0.f)
     {
         mBrightness = mLow + unit(mState) * (1.f - mLow);
         mFrom = mBrightness;
+        // The offset legs are as long as the brightness legs (see below): cut the amplitude to the speed limit.
+        mMovement = std::min(mMovement, kMaxMovementSpeed * 0.5f * std::max(mPulse ? mPeriod * 0.5f : mPeriod, kMinLeg));
+        if (mMovement > 0.f)
+        {
+            // Its own generator (the seed mixed with another constant), so the brightness a light has is the same with and
+            // without a movement amplitude.
+            mMoveState = static_cast<std::uint64_t>(params.mSeed) * kGolden + 0x7654321ull;
+            for (std::size_t i = 0; i < 3; ++i)
+            {
+                mOffset[i] = (unit(mMoveState) * 2.f - 1.f) * mMovement;
+                mOffsetFrom[i] = mOffset[i];
+            }
+            for (std::size_t i = 0; i < 3; ++i)
+                mOffsetTarget[i] = (unit(mMoveState) * 2.f - 1.f) * mMovement;
+        }
         if (mPulse)
         {
             mLegLength = std::max(mPeriod * 0.5f, kMinLeg);
@@ -91,6 +110,13 @@ namespace MWAnim::NeutralFlicker
                 mBrightness = mTarget;
                 mFrom = mTarget;
                 mLegTime = 0.f;
+                if (mMovement > 0.f)
+                {
+                    mOffset = mOffsetTarget;
+                    mOffsetFrom = mOffsetTarget;
+                    for (std::size_t i = 0; i < 3; ++i)
+                        mOffsetTarget[i] = (unit(mMoveState) * 2.f - 1.f) * mMovement;
+                }
                 if (mPulse)
                 {
                     mGoingUp = !mGoingUp;
@@ -105,6 +131,13 @@ namespace MWAnim::NeutralFlicker
                 if (mPulse)
                     f = f * f * (3.f - 2.f * f); // eased, so a pulse turns smoothly at its ends
                 mBrightness = mFrom + (mTarget - mFrom) * f;
+                if (mMovement > 0.f)
+                {
+                    // The offset eases between its points whatever the brightness does (a flicker's brightness is linear).
+                    const float e = f * f * (3.f - 2.f * f);
+                    for (std::size_t i = 0; i < 3; ++i)
+                        mOffset[i] = mOffsetFrom[i] + (mOffsetTarget[i] - mOffsetFrom[i]) * e;
+                }
             }
         }
         return mBrightness;

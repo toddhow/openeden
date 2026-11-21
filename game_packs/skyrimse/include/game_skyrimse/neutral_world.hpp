@@ -809,6 +809,7 @@ namespace game_skyrimse
         bool imageSpacePending() override;
         /// Task 0355 (follow-up): forwards to the view when it can name the fog curve of a cell.
         bool fogCurveForCell(openeden::sdk::game::WorldId cell, double& power, double& max) override;
+        bool fogFarColorForCell(openeden::sdk::game::WorldId cell, std::array<std::uint8_t, 3>& colour) override;
         bool ambientCubeForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::AmbientCube& out) override;
         /// Task 0355 stages f and j: forwards to the view (directional rotation and fade, clip distance, light fade).
         bool lightSettingsForCell(

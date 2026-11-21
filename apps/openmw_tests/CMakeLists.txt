@@ -53,6 +53,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutrallight.cpp
     mwworld/testneutrallightgain.cpp
     mwworld/testneutrallightflicker.cpp
+    mwworld/testneutrallightmovement.cpp
     mwworld/testneutralgilight.cpp
     mwworld/testneutrallighttypes.cpp
     mwworld/testneutrallightreal.cpp
@@ -60,6 +61,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralcellatmosphere.cpp
     mwworld/testneutralweathergrade.cpp
     mwworld/testneutralfogcurve.cpp
+    mwworld/testneutralfogfar.cpp
     mwworld/testneutralcelllight.cpp
     mwworld/testneutralgradeshader.cpp
     mwworld/testneutraldoor.cpp

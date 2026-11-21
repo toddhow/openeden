@@ -28,6 +28,7 @@ namespace MWRender
     {
         auto color = vsg::vec4(MWAnim::rgbColor(cell.getMood().mFogColor), 1);
         mLandFogCurve = {};
+        mHasFogOtherColor = false;
 
         // Task 0355 stage d: a game pack's interior states its own linear fog (near and far, in units). It wins over
         // [Fog] use distant fog, which is Morrowind's: the cell's own distances are the data. The underwater fog is
@@ -40,6 +41,15 @@ namespace MWRender
             mUnderwaterFogStart = std::min(viewDistance, 7168.f) * (1 - mUnderwaterIndoorFog);
             mUnderwaterFogEnd = std::min(viewDistance, 7168.f);
             mFogColor = color;
+            // Task 0362 item 1: the cell's fog colour stays the scene's colour (where the fog starts); the far colour is
+            // where it ends, read by the object and terrain shaders only, so every other path is as before.
+            if (cell.hasNeutralFogFarColor())
+            {
+                const auto& farColour = cell.getNeutralFogFarColor();
+                mFogOtherColor = vsg::vec3(farColour[0], farColour[1], farColour[2]);
+                mHasFogOtherColor = true;
+                mFogOtherIsEnd = true;
+            }
             return;
         }
 
@@ -58,10 +68,14 @@ namespace MWRender
             configure(viewDistance, fogDensity, mUnderwaterIndoorFog, 1.0f, 0.0f, color);
     }
 
-    void FogManager::configure(
-        float viewDistance, float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const vsg::vec4& color)
+    void FogManager::configure(float viewDistance, float fogDepth, float underwaterFog, float dlFactor, float dlOffset,
+        const vsg::vec4& color, const vsg::vec3* otherColour, bool otherIsEnd)
     {
         mLandFogCurve = {};
+        mHasFogOtherColor = otherColour != nullptr;
+        mFogOtherIsEnd = otherIsEnd;
+        if (otherColour != nullptr)
+            mFogOtherColor = *otherColour;
         if (Settings::fog().mUseDistantFog)
         {
             mLandFogStart

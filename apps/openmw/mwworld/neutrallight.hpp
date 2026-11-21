@@ -42,8 +42,20 @@ namespace MWWorld
     /// or pulse; without it, or with no usable numbers, the record is as before (Morrowind's rule).
     /// With `lightTypes` (task 0355 stage g) a spot light's cone (NeutralSpot, mNeutralSpotFov) and the game's shadow
     /// rule (NeutralShadowCasts or NeutralShadowNever; none for "unspecified") are kept in the record too.
+    /// With `movement` (task 0362 item 2; only for a light that has its own flicker) the record also carries the
+    /// light's movement amplitude (ESM::Light::mNeutralMovement, see neutralLightMovement).
     [[nodiscard]] ESM::Light makeNeutralEsmLight(const openeden::sdk::game::LightComponent& light,
-        bool fadeGain = false, bool ownFlicker = false, std::uint32_t seed = 0, bool lightTypes = false);
+        bool fadeGain = false, bool ownFlicker = false, std::uint32_t seed = 0, bool lightTypes = false,
+        bool movement = false);
+
+    /// The part of a light's share of its radius a movement amplitude may reach: over the five masters the amplitude
+    /// is 0.1 to 512 (median 5) against radii of 64 to 1,024, and the 99th percentile of amplitude over radius is 2.0
+    /// (effect lights), so the amplitude is cut to a quarter of the radius and to NeutralFlicker::kMaxMovement.
+    inline constexpr double kMovementRadiusShare = 0.25;
+
+    /// The movement amplitude (units) the engine's light takes: the record's, cut as above; 0 when the record has none
+    /// or a number that is not usable.
+    [[nodiscard]] float neutralLightMovement(const openeden::sdk::game::LightComponent& light);
 
     /// A per-light seed from a placement's identity (content file index and reference number): the same placement
     /// always gets the same seed, whatever else is loaded.

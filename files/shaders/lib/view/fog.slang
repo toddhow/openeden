@@ -157,9 +157,12 @@ float3 mixFog(float3 src, float3 fogColour, float fogValue)
     return lerp(src, fogColour, fogValue);
 }
 
-float3 applyFog(float3 src, float distance, float3 fogColour)
+// Task 0362 item 1: `fogStart` is the colour of the fog where it starts (xyz) and whether it is given (w); the twin of the
+// GLSL overload (see fog.glsl).
+float3 applyFog(float3 src, float distance, float3 fogColour, float4 fogStart)
 {
     float fogValue;
+    float linearShare = 1.0;
     if (aerialActive())
     {
         fogValue = 1.0 - exp(-aerialBeta() * max(distance, 0.0));
@@ -171,8 +174,21 @@ float3 applyFog(float3 src, float distance, float3 fogColour)
             - exp(-2.0 * max(0.0, distance - scene.fogStart / 2.0) / max(fogEnd - scene.fogStart / 2.0, 1e-6));
     }
     else
+    {
         fogValue = fogCurve(clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0));
+        linearShare = clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0);
+        // fogStart.w: +1 the colour in xyz is the fog's far end, -1 its start, 0 none (see fogStartColour).
+        if (fogStart.w > 0.5)
+            fogColour = lerp(fogColour, fogStart.xyz, linearShare);
+        else if (fogStart.w < -0.5)
+            fogColour = lerp(fogStart.xyz, fogColour, linearShare);
+    }
     return mixFog(src, fogColour, fogValue);
+}
+
+float3 applyFog(float3 src, float distance, float3 fogColour)
+{
+    return applyFog(src, distance, fogColour, float4(0.0));
 }
 
 float3 applyFog(float3 src, float distance)
@@ -180,7 +196,7 @@ float3 applyFog(float3 src, float distance)
     return applyFog(src, distance, scene.fogColor.xyz);
 }
 
-float3 applyFog(float3 src, float3 viewPos, float2 fragCoord)
+float3 applyFog(float3 src, float3 viewPos, float2 fragCoord, float4 fogStart)
 {
     if (aerialActive())
     {
@@ -202,9 +218,14 @@ float3 applyFog(float3 src, float3 viewPos, float2 fragCoord)
         float3 glow = sunGlowColour(normalize(viewPos), scene.fogColor.xyz);
         if (cSunGlowDebug)
             return applyFog(float3(0.0), distance, glow);
-        return applyFog(src, distance, scene.fogColor.xyz + glow);
+        return applyFog(src, distance, scene.fogColor.xyz + glow, fogStart);
     }
-    return applyFog(src, distance);
+    return applyFog(src, distance, scene.fogColor.xyz, fogStart);
+}
+
+float3 applyFog(float3 src, float3 viewPos, float2 fragCoord)
+{
+    return applyFog(src, viewPos, fragCoord, float4(0.0));
 }
 
 #endif

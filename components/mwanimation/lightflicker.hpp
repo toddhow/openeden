@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_MWANIMATION_LIGHTFLICKER_H
 #define VSGOPENMW_MWANIMATION_LIGHTFLICKER_H
 
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -19,12 +20,21 @@ namespace MWAnim::NeutralFlicker
     inline constexpr float kMaxPeriod = 10.f;
     /// The deepest dip: the brightness never goes below 1 - kMaxAmplitude (the data has amplitudes up to 5).
     inline constexpr float kMaxAmplitude = 0.95f;
+    /// The largest movement amplitude Walk takes (units).
+    inline constexpr float kMaxMovement = 64.f;
+    /// The fastest the light's offset may travel (units a second, task 0362 item 2): a leg of one period crosses at most
+    /// twice the amplitude, so the amplitude is cut to this speed times half a leg. Without it a light with a period of
+    /// 0.08 s and an amplitude of 64 would swing over 100 units twelve times a second.
+    inline constexpr float kMaxMovementSpeed = 40.f;
 
     struct Params
     {
         float mPeriod = 0.f; ///< seconds between new targets (a flicker) or for one full cycle (a pulse)
         float mAmplitude = 0.f; ///< fraction of the brightness the light dips
         std::uint32_t mSeed = 0;
+        /// Task 0362 item 2: the light's movement amplitude in units: it wanders inside a cube of this half-size round its
+        /// place, to a new seeded point every period (a pulse: eased, as its brightness). 0 (the default) is no movement.
+        float mMovement = 0.f;
 
         friend bool operator==(const Params&, const Params&) = default;
     };
@@ -49,6 +59,8 @@ namespace MWAnim::NeutralFlicker
         float step(float dt);
 
         [[nodiscard]] float brightness() const { return mBrightness; }
+        /// The light's offset from its place in units (task 0362 item 2); all 0 without movement.
+        [[nodiscard]] const std::array<float, 3>& offset() const { return mOffset; }
         [[nodiscard]] float low() const { return mLow; }
 
     private:
@@ -63,6 +75,11 @@ namespace MWAnim::NeutralFlicker
         float mLegTime = 0.f;
         float mLegLength = 1.f;
         bool mGoingUp = false;
+        float mMovement = 0.f;
+        std::uint64_t mMoveState = 0;
+        std::array<float, 3> mOffset{};
+        std::array<float, 3> mOffsetFrom{};
+        std::array<float, 3> mOffsetTarget{};
     };
 }
 

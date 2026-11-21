@@ -444,10 +444,15 @@ void main()
 #ifdef COVER_DEBUG
     outColor.xyz = vec3(coverS.amount, coverS.upwardness, coverS.mask);
 #endif
-    outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
+#ifdef AMBIENT_CUBE
+    const vec4 fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
+#else
+    const vec4 fogStart = vec4(0.0);
+#endif
+    outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos, fogStart);
 #ifdef AO_TERRAIN
     // The fog's share of the colour, as default/main.frag does it for objects.
-    terrainAmbientPart *= applyFog(vec3(1.0), frag_in.viewPos) - applyFog(vec3(0.0), frag_in.viewPos);
+    terrainAmbientPart *= applyFog(vec3(1.0), frag_in.viewPos, fogStart) - applyFog(vec3(0.0), frag_in.viewPos, fogStart);
 #endif
 
 #ifdef DEBUG_SHADOW

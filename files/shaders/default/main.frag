@@ -567,11 +567,16 @@ void main()
     // OpenEden: debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
     if (colorMode != 3)
     {
+#ifdef AMBIENT_CUBE
+        const vec4 fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
+#else
+        const vec4 fogStart = vec4(0.0);
+#endif
 #ifdef GBUFFER_AMBIENT
         // Fog keeps this share of the colour (mix(fog, c, k) = k * c + (1 - k) * fog): the ambient part shrinks with it.
-        ambientPart *= applyFog(vec3(1.0), frag_in.viewPos) - applyFog(vec3(0.0), frag_in.viewPos);
+        ambientPart *= applyFog(vec3(1.0), frag_in.viewPos, fogStart) - applyFog(vec3(0.0), frag_in.viewPos, fogStart);
 #endif
-        outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos);
+        outColor.xyz = applyFog(outColor.xyz, frag_in.viewPos, fogStart);
     }
 
 #ifdef DEBUG_SHADOW

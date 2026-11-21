@@ -246,7 +246,12 @@ namespace game_skyrimse
         if ((own.mInherit & LightingInherit::Directional) != 0)
             out.mDirectional = templateLighting->mDirectional;
         if ((own.mInherit & LightingInherit::FogColor) != 0)
+        {
             out.mFogColor = templateLighting->mFogColor;
+            // Task 0362 item 1: the far colour goes with the fog colour flag (xEdit has one "Fog Color" flag; RECALLED-VERIFY).
+            out.mFogFarColor = templateLighting->mFogFarColor;
+            out.mHasFogFar = templateLighting->mHasFogFar;
+        }
         if ((own.mInherit & LightingInherit::FogNear) != 0)
             out.mFogNear = templateLighting->mFogNear;
         if ((own.mInherit & LightingInherit::FogFar) != 0)
@@ -873,6 +878,14 @@ namespace game_skyrimse
         max = 1.0;
         auto* source = dynamic_cast<openeden::sdk::game::CellFogSource*>(&mView);
         return source != nullptr && source->fogCurveForCell(cell, power, max);
+    }
+
+    bool SkyrimCellSource::fogFarColorForCell(
+        openeden::sdk::game::WorldId cell, std::array<std::uint8_t, 3>& colour)
+    {
+        colour = {};
+        auto* source = dynamic_cast<openeden::sdk::game::CellFogSource*>(&mView);
+        return source != nullptr && source->fogFarColorForCell(cell, colour);
     }
 
     bool SkyrimCellSource::lightSettingsForCell(

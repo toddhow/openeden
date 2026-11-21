@@ -218,6 +218,8 @@ namespace MWWorld
                     colour(w.ambientCube.sunset[face]), colour(w.ambientCube.night[face]) };
             p.ambientCube = cube;
         }
+        if (w.hasFogNear)
+            p.fogNear = colours(w.fogNear);
         // The sounds are files (WeatherParams::sounds, stage W-S4); the INI-style loop sound ids stay empty or "None".
         // The game's own particle data waits for a later stage.
         return entry;

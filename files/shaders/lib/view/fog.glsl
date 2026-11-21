@@ -164,9 +164,13 @@ vec3 mixFog(vec3 src, vec3 fogColour, float fogValue)
 
 // openeden-vsg: OpenMW's [Fog] radial fog and exponential fog (compatibility/fog.glsl at cf3dbd3aa7; task 0012).
 // OpenEden (task 0040): `fogColour` is the colour the fog tends to (the scene's, plus the sun glow where there is one).
-vec3 applyFog(vec3 src, float distance, vec3 fogColour)
+// OpenEden (task 0362 item 1): `fogStart` is the colour of the fog where it starts (xyz) and whether it is given (w, 1 or 0;
+// the object and terrain shaders read it from the sky header buffer, lib/view/ambientcube.glsl). A game pack's fog goes
+// from it to the scene's fog colour (the fog's far end) with the fog's linear share. w 0 is the single colour as before.
+vec3 applyFog(vec3 src, float distance, vec3 fogColour, vec4 fogStart)
 {
     float fogValue;
+    float linearShare = 1.0;
     if (aerialActive())
     {
         // No direction here (water's depth fog): a ray along the ground in the weather's air.
@@ -178,8 +182,21 @@ vec3 applyFog(vec3 src, float distance, vec3 fogColour)
         fogValue = 1.0 - exp(-2.0 * max(0.0, distance - scene.fogStart / 2.0) / max(fogEnd - scene.fogStart / 2.0, 1e-6));
     }
     else
+    {
         fogValue = fogCurve(clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0));
+        linearShare = clamp((distance - scene.fogStart) * scene.fogScale, 0.0, 1.0);
+        // fogStart.w: +1 the colour in xyz is the fog's far end, -1 its start, 0 none (see fogStartColour).
+        if (fogStart.w > 0.5)
+            fogColour = mix(fogColour, fogStart.xyz, linearShare);
+        else if (fogStart.w < -0.5)
+            fogColour = mix(fogStart.xyz, fogColour, linearShare);
+    }
     return mixFog(src, fogColour, fogValue);
+}
+
+vec3 applyFog(vec3 src, float distance, vec3 fogColour)
+{
+    return applyFog(src, distance, fogColour, vec4(0.0));
 }
 
 vec3 applyFog(/*Scene scene, */vec3 src, float distance)
@@ -188,7 +205,7 @@ vec3 applyFog(/*Scene scene, */vec3 src, float distance)
 }
 
 // Distance from the eye (radial fog) or along the view direction (OpenMW's default).
-vec3 applyFog(vec3 src, vec3 viewPos)
+vec3 applyFog(vec3 src, vec3 viewPos, vec4 fogStart)
 {
     // OpenEden (task 0066): the aerial perspective is the fog where it is on; the volumetric fog is not used with it.
     if (aerialActive())
@@ -212,7 +229,12 @@ vec3 applyFog(vec3 src, vec3 viewPos)
         vec3 glow = sunGlowColour(normalize(viewPos), scene.fogColor.xyz);
         if (cSunGlowDebug)
             return applyFog(vec3(0.0), distance, glow);
-        return applyFog(src, distance, scene.fogColor.xyz + glow);
+        return applyFog(src, distance, scene.fogColor.xyz + glow, fogStart);
     }
-    return applyFog(src, distance);
+    return applyFog(src, distance, scene.fogColor.xyz, fogStart);
+}
+
+vec3 applyFog(vec3 src, vec3 viewPos)
+{
+    return applyFog(src, viewPos, vec4(0.0));
 }

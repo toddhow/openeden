@@ -103,7 +103,8 @@ namespace MWWorld
     /// The engine's cell object of a neutral interior record: `Cell(record)`, plus the fog the pack's lighting asks for
     /// when [Game] neutral interior fog is on (task 0355 stage d), with its power and maximum when `curve` is set.
     [[nodiscard]] Cell makeNeutralInteriorCell(const ESM::Cell& record, const openeden::sdk::game::WorldCell& cell,
-        std::optional<NeutralFogCurve> curve = std::nullopt);
+        std::optional<NeutralFogCurve> curve = std::nullopt,
+        std::optional<std::array<float, 3>> fogFar = std::nullopt);
 
     /// Task 0355 stage c: whether the tonemap carries the image space grade (the GRADE shader define). The older two
     /// settings ask for it as before; the cell setting counts only in a neutral world, because it is on by default and

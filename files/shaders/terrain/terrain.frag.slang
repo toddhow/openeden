@@ -421,11 +421,16 @@ FragmentOutput fragMain(FragmentInput input)
 #ifdef COVER_DEBUG
     outColor.xyz = float3(coverS.amount, coverS.upwardness, coverS.mask);
 #endif
-    outColor.xyz = applyFog(outColor.xyz, input.io.viewPos, input.fragCoord.xy);
+#ifdef AMBIENT_CUBE
+    const float4 fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
+#else
+    const float4 fogStart = float4(0.0);
+#endif
+    outColor.xyz = applyFog(outColor.xyz, input.io.viewPos, input.fragCoord.xy, fogStart);
 #ifdef AO_TERRAIN
     // The fog's share of the colour, as default/main.frag does it for objects.
-    terrainAmbientPart *= applyFog(float3(1.0), input.io.viewPos, input.fragCoord.xy)
-        - applyFog(float3(0.0), input.io.viewPos, input.fragCoord.xy);
+    terrainAmbientPart *= applyFog(float3(1.0), input.io.viewPos, input.fragCoord.xy, fogStart)
+        - applyFog(float3(0.0), input.io.viewPos, input.fragCoord.xy, fogStart);
 #endif
 
 #ifdef DEBUG_SHADOW

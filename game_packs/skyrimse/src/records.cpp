@@ -808,6 +808,11 @@ namespace game_skyrimse
                                 {
                                     lighting.mInherit = readLe<std::uint32_t>(p + 88);
                                     lighting.mFogMax = readLe<float>(p + 76);
+                                    // Task 0362 item 1: the fog FAR colour (xEdit's XCLL, RECALLED-VERIFY; 76 more bytes
+                                    // of the same record agree with it: it differs from the near colour in 222 of 928).
+                                    for (std::size_t i = 0; i < 3; ++i)
+                                        lighting.mFogFarColor[i] = static_cast<std::uint8_t>(p[72 + i]);
+                                    lighting.mHasFogFar = true;
                                 }
                                 // Task 0355 stage e: the ambient cube, six colours at 40 (both sizes).
                                 for (std::size_t face = 0; face < 6; ++face)
@@ -1300,7 +1305,12 @@ namespace game_skyrimse
                                     if (data.size() >= 40)
                                         lighting.mFogPower = readLe<float>(p + 36);
                                     if (data.size() >= 80)
+                                    {
                                         lighting.mFogMax = readLe<float>(p + 76);
+                                        for (std::size_t i = 0; i < 3; ++i)
+                                            lighting.mFogFarColor[i] = static_cast<std::uint8_t>(p[72 + i]);
+                                        lighting.mHasFogFar = true;
+                                    }
                                     readLightingWords(p, data.size(), lighting); // task 0355 f and j
                                     templateLighting = lighting;
                                 }

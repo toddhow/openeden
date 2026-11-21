@@ -93,13 +93,17 @@ namespace MWWorld
         return curve;
     }
 
-    Cell makeNeutralInteriorCell(
-        const ESM::Cell& record, const openeden::sdk::game::WorldCell& cell, std::optional<NeutralFogCurve> curve)
+    Cell makeNeutralInteriorCell(const ESM::Cell& record, const openeden::sdk::game::WorldCell& cell,
+        std::optional<NeutralFogCurve> curve, std::optional<std::array<float, 3>> fogFar)
     {
         Cell out(record);
         const auto lighting = cell.lighting ? &*cell.lighting : nullptr;
         if (const auto fog = neutralInteriorFog(lighting, Settings::game().mNeutralInteriorFog.get()))
+        {
             out.setNeutralFog(fog->start, fog->end, curve ? curve->power : 1.f, curve ? curve->max : 1.f);
+            if (fogFar)
+                out.setNeutralFogFarColor(*fogFar);
+        }
         return out;
     }
 

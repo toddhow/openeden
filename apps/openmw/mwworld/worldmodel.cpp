@@ -418,9 +418,31 @@ namespace MWWorld
         }
     }
 
+    namespace
+    {
+        // Task 0362 item 1: the fog's far colour of an interior (0..1), when the pack has one and the setting is on.
+        std::optional<std::array<float, 3>> neutralInteriorFogFar(NeutralWorld::NeutralWorldStore& neutral,
+            std::string_view gameId, const openeden::sdk::game::WorldCell& cell)
+        {
+            if (!cell.interior || !cell.lighting || !Settings::game().mNeutralInteriorFog.get()
+                || !Settings::game().mNeutralFogGradient.get())
+                return std::nullopt;
+            auto* source = dynamic_cast<openeden::sdk::game::CellFogSource*>(neutral.source(gameId));
+            std::array<std::uint8_t, 3> bytes{};
+            if (source == nullptr || !source->fogFarColorForCell(cell.id, bytes))
+                return std::nullopt;
+            Log(Debug::Info) << "NFOGFAR " << cell.editorId << " near colour " << int(cell.lighting->fogColor[0]) << ","
+                             << int(cell.lighting->fogColor[1]) << "," << int(cell.lighting->fogColor[2]) << " far colour "
+                             << static_cast<int>(bytes[0]) << "," << static_cast<int>(bytes[1]) << ","
+                             << static_cast<int>(bytes[2]);
+            return std::array<float, 3>{ bytes[0] / 255.f, bytes[1] / 255.f, bytes[2] / 255.f };
+        }
+    }
+
     CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId,
         const openeden::sdk::game::WorldCell& cell, std::string_view name, bool& reused,
-        std::optional<float> interiorWater, std::optional<NeutralFogCurve> fogCurve) const
+        std::optional<float> interiorWater, std::optional<NeutralFogCurve> fogCurve,
+        std::optional<std::array<float, 3>> fogFar) const
     {
         reused = false;
         // A cell built earlier, by either route, is the same store (the "come back" path).
@@ -450,7 +472,7 @@ namespace MWWorld
         mNeutralCells.push_back(makeNeutralCellRecord(gameId, cell, interiorWater));
         const ESM::Cell& record = mNeutralCells.back();
         const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(record.mId),
-            std::forward_as_tuple(makeNeutralInteriorCell(record, cell, fogCurve), mStore, mReaders));
+            std::forward_as_tuple(makeNeutralInteriorCell(record, cell, fogCurve, fogFar), mStore, mReaders));
         if (!inserted)
         {
             mNeutralCells.pop_back();
@@ -515,7 +537,7 @@ namespace MWWorld
         }
         result.mStore = emplaceNeutralCellStore(
             gameId, *cell, cell->editorId, result.mReused, neutralInteriorWater(neutral, gameId, *cell),
-            neutralInteriorFogCurve(neutral, gameId, *cell));
+            neutralInteriorFogCurve(neutral, gameId, *cell), neutralInteriorFogFar(neutral, gameId, *cell));
         result.mStatus = NeutralCellStatus::Found;
         // Register the store under its name, so that the lookup by name after the teleport finds this very store.
         mInteriors.emplace(cell->editorId, result.mStore);
@@ -561,7 +583,7 @@ namespace MWWorld
             }
             bool reused = false;
             return emplaceNeutralCellStore(gameId, *cell, name, reused, neutralInteriorWater(*neutral, gameId, *cell),
-                neutralInteriorFogCurve(*neutral, gameId, *cell));
+                neutralInteriorFogCurve(*neutral, gameId, *cell), neutralInteriorFogFar(*neutral, gameId, *cell));
         }
         return nullptr;
     }

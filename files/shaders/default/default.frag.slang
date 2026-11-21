@@ -577,12 +577,17 @@ FragmentOutput fragMain(FragmentInput input)
             break;
         default:
         {
+#ifdef AMBIENT_CUBE
+            const float4 fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
+#else
+            const float4 fogStart = float4(0.0);
+#endif
 #ifdef GBUFFER_AMBIENT
             // Fog keeps this share of the colour: the ambient part shrinks with it.
-            ambientPart *= applyFog(float3(1.0), input.io.viewPos, input.fragCoord.xy)
-                - applyFog(float3(0.0), input.io.viewPos, input.fragCoord.xy);
+            ambientPart *= applyFog(float3(1.0), input.io.viewPos, input.fragCoord.xy, fogStart)
+                - applyFog(float3(0.0), input.io.viewPos, input.fragCoord.xy, fogStart);
 #endif
-            outColor.xyz = applyFog(outColor.xyz, input.io.viewPos, input.fragCoord.xy);
+            outColor.xyz = applyFog(outColor.xyz, input.io.viewPos, input.fragCoord.xy, fogStart);
             break;
         }
     }

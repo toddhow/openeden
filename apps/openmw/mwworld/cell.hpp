@@ -1,6 +1,7 @@
 #ifndef OPENW_MWORLD_CELL
 #define OPENW_MWORLD_CELL
 
+#include <array>
 #include <optional>
 
 #include <components/misc/vsgmath.hpp>
@@ -74,6 +75,15 @@ namespace MWWorld
             mNeutralFogPower = power;
             mNeutralFogMax = max;
         }
+        /// Task 0362 item 1: the fog's FAR colour (0..1 floats) of a game pack's interior; getMood().mFogColor is the near
+        /// colour. None when the pack gave none.
+        bool hasNeutralFogFarColor() const { return mHasNeutralFogFar; }
+        const std::array<float, 3>& getNeutralFogFarColor() const { return mNeutralFogFar; }
+        void setNeutralFogFarColor(const std::array<float, 3>& colour)
+        {
+            mHasNeutralFogFar = true;
+            mNeutralFogFar = colour;
+        }
         const ESM::RefId& getId() const { return mId; }
         ESM::RefId getWorldSpace() const { return mIsExterior ? mParent : mId; }
 
@@ -102,6 +112,8 @@ namespace MWWorld
         float mNeutralFogEnd = 0.f;
         float mNeutralFogPower = 1.f;
         float mNeutralFogMax = 1.f;
+        bool mHasNeutralFogFar = false;
+        std::array<float, 3> mNeutralFogFar{ 0.f, 0.f, 0.f };
     };
 }
 

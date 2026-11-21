@@ -4438,6 +4438,22 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::fogFarColorForCell(sdkgame::WorldId cell, std::array<std::uint8_t, 3>& colour)
+    {
+        colour = {};
+        if (!awaitIndex() || cell == kNullFormId)
+            return false;
+        const auto it = mCells.find(static_cast<FormId>(cell));
+        if (it == mCells.end() || !it->second.mLighting || !it->second.mInfo.interior)
+            return false;
+        const CellLightingData lighting
+            = applyLightingTemplate(*it->second.mLighting, lightingTemplateOf(it->second.mLightingTemplate));
+        if (!lighting.mHasFogFar)
+            return false;
+        colour = lighting.mFogFarColor;
+        return true;
+    }
+
     bool SkyrimWorldView::lightSettingsForCell(sdkgame::WorldId cell, sdkgame::CellLightSettings& out)
     {
         out = {};
