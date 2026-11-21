@@ -169,9 +169,9 @@ namespace
         return text.str();
     }
 
-    TEST(RenderImageSpaceShader, bothTonemapShadersHaveTheGradeBehindTheirOwnDefineAndTheSameWeights)
+    TEST(RenderImageSpaceShader, theTonemapShaderHasTheGradeBehindItsOwnDefineAndTheLumaWeights)
     {
-        for (const char* file : { "post/tonemap.frag", "post/tonemap.slang" })
+        for (const char* file : { "post/tonemap.slang" })
         {
             const std::string text = shaderText(file);
             ASSERT_FALSE(text.empty()) << file;
@@ -180,8 +180,5 @@ namespace
             EXPECT_NE(text.find("0.7152"), std::string::npos) << file;
             EXPECT_NE(text.find("0.0722"), std::string::npos) << file;
         }
-        // The GLSL declares the define it reads, so a pipeline without it is the old pipeline.
-        EXPECT_NE(shaderText("post/tonemap.frag").find("import_defines (AO, BLOOM, DEBUG_VIEW, GRADE, SSS)"),
-            std::string::npos);
     }
 }

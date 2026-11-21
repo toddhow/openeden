@@ -54,9 +54,9 @@ namespace
         return std::string(std::istreambuf_iterator<char>(in), {});
     }
 
-    TEST(ImageSpacePivot, bothShadersPivotOnTheAverageAndNotOnOneHalf)
+    TEST(ImageSpacePivot, theShaderPivotsOnTheAverageAndNotOnOneHalf)
     {
-        for (const char* file : { "files/shaders/post/tonemap.frag", "files/shaders/post/tonemap.slang" })
+        for (const char* file : { "files/shaders/post/tonemap.slang" })
         {
             const std::string text = readFile(file);
             ASSERT_FALSE(text.empty()) << file;

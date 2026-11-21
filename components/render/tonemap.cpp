@@ -133,7 +133,7 @@ namespace Render
         }
         // Compiled once: a resize only changes the image, the viewport and the pipeline built around them. The
         // stages are post/fullscreen.vert and post/tonemap.frag (task 0072, stage g: they were strings here), the
-        // fragment's constants in post/tonemapconstants.glsl.
+        // fragment's constants in post/tonemapconstants.slang.
         auto& stages = mStages[(bloom ? 1 : 0) + (debug ? 2 : 0) + (ao ? 4 : 0) + (sss ? 8 : 0) + (grade ? 16 : 0)];
         if (stages.empty())
         {

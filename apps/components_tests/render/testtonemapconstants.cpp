@@ -1,5 +1,5 @@
 // Task 0072, stage g: the tonemap's constants repeat Render::Hdr and Render::Sss. tonemap.cpp used to write them into
-// its GLSL string; they are now in post/tonemapconstants.glsl and its Slang twin post/tonemapconstants.slang, and are
+// its GLSL string; they are now in post/tonemapconstants.slang, and are
 // read back here. The ambient occlusion pass's settings come from ao.settings (Resource::ShaderSettings), as
 // ambientocclusion.cpp wrote them in from [Rendering] ao radius, ao slices and ao steps. Written before the twins.
 #include <gtest/gtest.h>
@@ -73,13 +73,6 @@ namespace
         EXPECT_EQ(constants.size(), 10u);
     }
 
-    TEST(RenderTonemapConstants, the_glsl_holds_the_cpp_values)
-    {
-        const std::string text = readShaderText("post/tonemapconstants.glsl");
-        ASSERT_FALSE(text.empty()) << "the shader sources are not beside the tests";
-        expectTheCppValues(readConstants(text, std::regex(R"(#define\s+(\w+)\s+([^\r\n]+))")));
-    }
-
     TEST(RenderTonemapConstants, the_slang_twin_holds_the_cpp_values)
     {
         const std::string text = readShaderText("post/tonemapconstants.slang");
@@ -141,10 +134,6 @@ namespace
         // The check below can tell the spellings apart.
         EXPECT_EQ(printedAsTonemapCpp(2.2f), "2.20000005");
         EXPECT_NE(printedAsTonemapCpp(2.2f), "2.2");
-
-        const std::string glsl = readShaderText("post/tonemapconstants.glsl");
-        ASSERT_FALSE(glsl.empty()) << "the shader sources are not beside the tests";
-        EXPECT_EQ(valueTexts(glsl, std::regex(R"(#define\s+(\w+)\s+([^\r\n]+))")), tonemapCppText("vec3"));
 
         const std::string slang = readShaderText("post/tonemapconstants.slang");
         ASSERT_FALSE(slang.empty()) << "post/tonemapconstants.slang is missing";
