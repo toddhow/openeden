@@ -73,10 +73,6 @@ set(SHADER_FILES
     default/main.frag
     terrain/bindings.glsl
     terrain/data.glsl
-    water/main.vert
-    water/main.frag
-    water/fresnel.glsl
-    water/rainripples.glsl
     comp/bindings.glsl
     comp/worldoverlay/workgroupsize.glsl
     comp/light/workgroupsize.glsl
