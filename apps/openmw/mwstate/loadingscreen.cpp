@@ -4,6 +4,7 @@
 
 #include "../mwbase/windowmanager.hpp"
 #include "../mwgui/loadingscreen.hpp"
+#include "shaderwaitlabel.hpp"
 
 namespace MWState
 {
@@ -31,7 +32,10 @@ namespace MWState
             return false;
         }
 
-        auto description = loading->getDescription();
+        // Task 0363, stage f: while a thread waits for a shader to compile the screen says so.
+        const int waiters = shaderWaiters();
+        auto description = loadingScreenText(loading->getDescription(), waiters);
+        setShaderLabelShown(waiters > 0);
         requiresRender = !description.empty();
         if (requiresRender)
         {

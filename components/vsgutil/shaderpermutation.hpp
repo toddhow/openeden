@@ -132,6 +132,10 @@ namespace vsgUtil
     /// checked against the GLSL stage `glsl` describes; any failure gives null, with one log line, and the GLSL is
     /// used. Without `glsl` there is no check, so no run-time compile.
     ///
+    /// Task 0363, stage f: that call now WAITS for the worker (SlangRuntime::obtainOrWait, SlangWaitSettings: a loader
+    /// thread up to 20 s, the main thread up to 2 s with its window messages pumped), so `*pending` is set only when
+    /// the wait ran out; the paragraph below describes what happens then (and what happened before stage f).
+    ///
     /// Queue item 3 of decision 0012: a set that is neither prebuilt nor in the cache is NOT compiled on the calling
     /// thread. The call returns null at once with `*pending` set (when `pending` is given), the set is queued for the
     /// runtime's worker thread, and the caller draws the GLSL for now; a later call, after the worker wrote the cache,
@@ -147,6 +151,11 @@ namespace vsgUtil
         /// list keeps those it imports.
         const std::set<std::string>* mRequested = nullptr;
     };
+    /// Task 0363, stage f: true when the developer aid OPENEDEN_SLANG_UNLIST (a comma list of stage files such as
+    /// "default/main.frag", read once) names `path`. findSlangPermutation then ignores that stage's prebuilt files for
+    /// a caller that has the GLSL to check against.
+    bool slangStageUnlisted(const std::string& path);
+
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(const std::string& path, const std::set<std::string>& defines,
         const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl = nullptr, bool* pending = nullptr);
 

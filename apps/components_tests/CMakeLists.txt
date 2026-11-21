@@ -389,6 +389,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testpassstages.cpp
     vsg/testomwfxvertex.cpp
     vsg/testslangruntime.cpp
+    vsg/testslangwait.cpp
     vsg/testpostpasses.cpp
 
     render/testtonemapconstants.cpp

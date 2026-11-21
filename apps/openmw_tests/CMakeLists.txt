@@ -317,6 +317,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testneutralsavesetting.cpp
     mwstate/testautoframes.cpp
     mwstate/testgamepackchunks.cpp
+    mwstate/testshaderwaitlabel.cpp
 
     mwlua/testpackbindings.cpp
     mwlua/testpackbindingsb.cpp

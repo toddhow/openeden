@@ -631,6 +631,10 @@ namespace vsgUtil
 
         std::map<std::string, std::vector<uint32_t>> mDone; // worker results when there is no cache folder (mMutex)
 
+        // Task 0363, stage f: obtainOrWait (mMutex).
+        SlangWaitSettings mWait;
+        std::set<std::string> mWaitTimedOut; // key texts that ran into the limit: not waited for again
+
         // The worker (queue item 3 of decision 0012, step 3). Its jobs own copies of what they need.
         struct Job
         {
@@ -771,16 +775,18 @@ namespace vsgUtil
         const Stats stats = mState->mStats;
         if (stats.mCompiled + stats.mCacheHits + stats.mFailed + stats.mRefusedSets + stats.mQueued == 0)
             return;
-        char text[640];
+        char text[960];
         std::snprintf(text, sizeof(text),
             "Slang run-time shaders: %zu compiled in %.0f ms (%zu on the main thread, %zu on other threads), %zu read "
             "from the cache in %.1f ms, %zu failed, %zu refused sets remembered; longest wait on the compile lock "
             "%.0f ms (%s thread); %zu queued for the worker, %zu found the queue full, %zu dropped at exit, "
-            "%zu releases of the idle compiler",
+            "%zu releases of the idle compiler; %zu requests waited for the worker (%zu on the main thread, %zu "
+            "timed out) %.0f ms in all, the longest %.0f ms",
             stats.mCompiled, stats.mCompileMilliseconds, stats.mCompiledOnMain, stats.mCompiledOnOther,
             stats.mCacheHits, stats.mCacheMilliseconds, stats.mFailed, stats.mRefusedSets,
             stats.mLongestWaitMilliseconds, stats.mLongestWaitWasMain ? "main" : "other", stats.mQueued,
-            stats.mQueueFull, stats.mDroppedAtExit, stats.mReleases);
+            stats.mQueueFull, stats.mDroppedAtExit, stats.mReleases, stats.mWaits, stats.mMainThreadWaits,
+            stats.mWaitTimeouts, stats.mWaitedMilliseconds, stats.mLongestWaitedMilliseconds);
         try
         {
             if (mState->mLog)
@@ -916,6 +922,149 @@ namespace vsgUtil
         catch (...)
         {
             result = {};
+        }
+        return result;
+    }
+
+    void SlangRuntime::setWaitSettings(SlangWaitSettings settings) const
+    {
+        std::lock_guard lock(mState->mMutex);
+        mState->mWait = std::move(settings);
+    }
+
+    SlangObtained SlangRuntime::obtainOrWait(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const
+    {
+        State& state = *mState;
+        SlangObtained result = obtainOrQueue(request, check);
+        if (result.mState != SlangAvailability::Pending)
+            return result;
+        const SlangThreadKind kind = state.threadKind();
+        if (kind == SlangThreadKind::Worker)
+            return result; // never waits for itself
+        SlangWaitSettings settings;
+        std::string key;
+        try
+        {
+            key = keyText(request, check);
+        }
+        catch (...)
+        {
+            return result;
+        }
+        {
+            std::lock_guard lock(state.mMutex);
+            settings = state.mWait;
+            if (state.mWaitTimedOut.count(key) != 0)
+                return result; // it ran into the limit once: the caller does not wait for it again
+        }
+        const bool main = kind == SlangThreadKind::Main;
+        std::chrono::milliseconds limit = main ? settings.mMainThread : settings.mOtherThreads;
+        if (main && settings.mMainThreadLimit)
+        {
+            try
+            {
+                limit = settings.mMainThreadLimit();
+            }
+            catch (...)
+            {
+            }
+        }
+        if (limit.count() <= 0)
+            return result;
+        // The observer is told before and after, whatever happens in between (a throw from the pump, a time-out).
+        struct Observed
+        {
+            const std::function<void(bool)>& mObserver;
+            explicit Observed(const std::function<void(bool)>& observer)
+                : mObserver(observer)
+            {
+                call(true);
+            }
+            ~Observed() { call(false); }
+            void call(bool begin) const
+            {
+                if (!mObserver)
+                    return;
+                try
+                {
+                    mObserver(begin);
+                }
+                catch (...)
+                {
+                }
+            }
+        } observed(settings.mObserver);
+        const auto begin = Clock::now();
+        bool timedOut = false;
+        constexpr auto slice = std::chrono::milliseconds(25);
+        for (;;)
+        {
+            {
+                std::unique_lock lock(state.mQueueMutex);
+                // The worker notifies after every job: a result is looked for at once and not only after a slice.
+                state.mQueueChanged.wait_for(lock, slice);
+            }
+            if (main && settings.mPump)
+            {
+                try
+                {
+                    settings.mPump();
+                }
+                catch (...)
+                {
+                }
+            }
+            result = obtainOrQueue(request, check);
+            if (result.mState != SlangAvailability::Pending)
+                break;
+            if (Clock::now() - begin >= limit)
+            {
+                timedOut = true;
+                break;
+            }
+        }
+        const double milliseconds = std::chrono::duration<double, std::milli>(Clock::now() - begin).count();
+        {
+            std::lock_guard lock(state.mMutex);
+            ++state.mStats.mWaits;
+            if (main)
+                ++state.mStats.mMainThreadWaits;
+            state.mStats.mWaitedMilliseconds += milliseconds;
+            state.mStats.mLongestWaitedMilliseconds = std::max(state.mStats.mLongestWaitedMilliseconds, milliseconds);
+            if (timedOut)
+            {
+                ++state.mStats.mWaitTimeouts;
+                state.mWaitTimedOut.insert(key);
+            }
+        }
+        {
+            // One line per wait, to match a stall or a loading screen to its cause (the compile's own line says how
+            // long the compile took; this one how long THIS thread was held, and how it ended).
+            char text[256];
+            std::snprintf(text, sizeof(text), "Slang shader wait: %s set %s held the %s thread %.0f ms (%s)",
+                request.mStageFile.c_str(), slangSetId(request.mDefines).c_str(), main ? "main" : "loader", milliseconds,
+                timedOut                                        ? "timed out"
+                    : result.mState == SlangAvailability::Ready ? "ready"
+                                                                : "failed");
+            std::function<void(bool, const std::string&)> sink;
+            {
+                std::lock_guard lock(state.mMutex);
+                sink = state.mLog;
+            }
+            if (sink)
+                sink(false, text);
+            else
+                vsg::info(text);
+        }
+        if (timedOut)
+        {
+            char text[256];
+            std::snprintf(text, sizeof(text),
+                "The Slang shader %s (set %s) was still not compiled after %.0f ms on the %s thread; it stays queued "
+                "and is not waited for again",
+                request.mStageFile.c_str(), slangSetId(request.mDefines).c_str(), milliseconds,
+                main ? "main" : "loader");
+            state.warn(text);
         }
         return result;
     }

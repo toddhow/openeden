@@ -644,7 +644,9 @@ namespace vsgUtil
             };
             // A cache hit was checked in full when it was made; it is read back for the structure only.
             check.mCheckHit = checkSlangTwinStructure;
-            auto obtained = runtime->obtainOrQueue(request, check);
+            // Task 0363, stage f: a set that is neither prebuilt nor cached is waited for (bounded, see
+            // SlangWaitSettings) instead of drawn with the GLSL meanwhile. Pending now means the wait ran out.
+            auto obtained = runtime->obtainOrWait(request, check);
             RuntimeAnswer answer;
             answer.mState = obtained.mState;
             if (obtained.mState == SlangAvailability::Ready && !obtained.mWords.empty())
@@ -790,6 +792,32 @@ namespace vsgUtil
         }
     }
 
+    bool slangStageUnlisted(const std::string& path)
+    {
+        static const std::set<std::string> unlisted = [] {
+            std::set<std::string> result;
+            const char* text = std::getenv("OPENEDEN_SLANG_UNLIST");
+            if (text == nullptr)
+                return result;
+            std::string current;
+            for (const char* c = text;; ++c)
+            {
+                if (*c == ',' || *c == '\0')
+                {
+                    if (!current.empty())
+                        result.insert(current);
+                    current.clear();
+                    if (*c == '\0')
+                        break;
+                }
+                else
+                    current.push_back(*c);
+            }
+            return result;
+        }();
+        return unlisted.count(path) != 0;
+    }
+
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(const std::string& path, const std::set<std::string>& defines,
         const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl, bool* pending)
     {
@@ -850,7 +878,13 @@ namespace vsgUtil
                     it = cache.mManifests.emplace(std::make_pair(paths, path), loadManifest(path, options)).first;
                 if (!it->second)
                     return {};
-                const std::optional<std::string> file = selectPermutation(*it->second, defines);
+                std::optional<std::string> file = selectPermutation(*it->second, defines);
+                // Task 0363, stage f: a developer aid, OPENEDEN_SLANG_UNLIST=<stage file>[,<stage file>...] treats the
+                // listed stages' prebuilt permutations as missing for pipelines (a caller with the GLSL to check
+                // against), so that the run-time compile and the wait for it can be seen with a cold cache. The
+                // self-tests (no GLSL) and the traces still see the build's files.
+                if (file && glsl != nullptr && slangStageUnlisted(path))
+                    file.reset();
                 if (!file)
                 {
                     // Task 0072, stage b (review): a family is ported but this set was never listed; the GLSL draws it

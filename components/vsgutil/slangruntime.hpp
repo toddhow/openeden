@@ -171,6 +171,32 @@ namespace vsgUtil
         SlangAvailability mState = SlangAvailability::Unavailable;
     };
 
+    /// Task 0363, stage f: how long a caller waits for a set that is neither prebuilt nor cached (obtainOrWait), and
+    /// what happens while it waits. The GLSL fallback of the older stages goes away with stage g, so a first request
+    /// for a set waits for the worker instead of drawing something else.
+    struct SlangWaitSettings
+    {
+        /// The most a loader or other non-main thread waits for one set (a compile takes 0.3 to 1 s, the first one of
+        /// a run about 0.4 s more for the library; the queue is first in, first out). Zero: do not wait (the
+        /// request stays Pending, as in obtainOrQueue).
+        std::chrono::milliseconds mOtherThreads{ 20000 };
+        /// The most the thread that made the runtime (the game's main thread) waits. It is short, because the main
+        /// thread draws the frames: behind a loading screen the work is done on loader threads and this never
+        /// happens, in play a set that is not prebuilt should be unreachable (plan B); this is the safety bound.
+        std::chrono::milliseconds mMainThread{ 2000 };
+        /// When set, asked (on the main thread, when a wait starts) instead of mMainThread: the game gives a long
+        /// limit while no frame can be drawn anyway (start-up, a loading screen, menus: the first compile of a run also
+        /// loads the library and runs the self-tests, about 1.5 s) and the short one while it is running.
+        std::function<std::chrono::milliseconds()> mMainThreadLimit;
+        /// Called about every 25 ms by a main thread that waits, so the window keeps answering its messages (the
+        /// freeze monitor ends a game that does not for 5 s). Not called on other threads.
+        std::function<void()> mPump;
+        /// Called with true when a thread starts to wait and false when it stops (any thread, paired, also after a
+        /// time-out); the game puts "Compiling shaders" on the loading screen while any thread waits. Must be quick
+        /// and thread safe.
+        std::function<void(bool begin)> mObserver;
+    };
+
     class SlangRuntime : public vsg::Inherit<vsg::Object, SlangRuntime>
     {
     public:
@@ -229,6 +255,17 @@ namespace vsgUtil
         /// use (they outlive the call) and must not hold the options that hold this runtime.
         SlangObtained obtainOrQueue(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const;
 
+        /// Task 0363, stage f. Like obtainOrQueue, but a request the worker has to compile is WAITED for, up to the
+        /// limit of SlangWaitSettings for the calling thread: the caller sleeps in slices of 25 ms (the main thread
+        /// calls mPump in each), asks again after each slice and returns Ready as soon as the worker has the result,
+        /// Unavailable when the compile failed or was refused, and Pending only when the limit passed (the set is then
+        /// remembered as timed out: later calls return Pending at once, they do not wait again; one warning). The
+        /// worker thread itself never waits. A cache hit, a failed set and a disabled runtime answer at once.
+        SlangObtained obtainOrWait(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const;
+
+        /// Sets the waiting rules (see SlangWaitSettings); thread safe, for any time before or between calls.
+        void setWaitSettings(SlangWaitSettings settings) const;
+
         /// The most requests the queue holds (the one the worker is compiling is not counted).
         static constexpr std::size_t maxQueuedCompiles = 256;
 
@@ -277,6 +314,12 @@ namespace vsgUtil
             std::size_t mQueueFull = 0; // requests answered Pending without a place in the queue
             std::size_t mDroppedAtExit = 0; // queued requests the destructor dropped
             std::size_t mReleases = 0; // times the compiler's session was given back after an idle time
+            // Task 0363, stage f: obtainOrWait.
+            std::size_t mWaits = 0; // requests that waited for the worker
+            std::size_t mWaitTimeouts = 0; // of those, how many ran into the limit
+            std::size_t mMainThreadWaits = 0; // of those, how many were on the main thread
+            double mWaitedMilliseconds = 0; // the sum of the waits
+            double mLongestWaitedMilliseconds = 0;
         };
         Stats stats() const;
 

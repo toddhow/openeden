@@ -1945,6 +1945,17 @@ namespace
         SlangRuntime* runtime() const { return mOptions->getObject<SlangRuntime>(vsgUtil::slangRuntimeKey); }
     };
 
+    // Task 0363, stage f: findSlangPermutation now WAITS for a set the worker has to compile (SlangRuntime::obtainOrWait).
+    // The tests below that pin the older "pending at once, the GLSL draws meanwhile" path switch the wait off, as the
+    // game does for no thread; the waiting path has its own tests (testslangwait.cpp and the last one of this group).
+    void noWait(GameRuntime& game)
+    {
+        vsgUtil::SlangWaitSettings settings;
+        settings.mOtherThreads = std::chrono::milliseconds(0);
+        settings.mMainThread = std::chrono::milliseconds(0);
+        game.runtime()->setWaitSettings(settings);
+    }
+
     TEST(SlangRuntimeLibrary, the_library_the_build_copied_is_found_and_starts)
     {
         // Review of stage h, finding 4: the other library tests skip when the library is absent, which on Linux would
@@ -1961,6 +1972,7 @@ namespace
     {
         GameRuntime game("openeden_slangruntime_production");
         ASSERT_NE(game.runtime(), nullptr);
+        noWait(game); // the older, non-waiting path (stage f)
         const auto manifest = vsgUtil::parsePermutationManifest(
             readText(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "default" / "main.frag.permutations"));
         ASSERT_FALSE(vsgUtil::selectPermutation(manifest, unlistedObjectFragment)) << "the test's set is listed now";
@@ -2074,6 +2086,7 @@ namespace
         // A set without texture coordinate arrays: the choice of the stage holds its twin (not counted by pipeline).
         GameRuntime game("openeden_slangruntime_choice");
         ASSERT_NE(game.runtime(), nullptr);
+        noWait(game); // the older, non-waiting path (stage f)
         const std::set<std::string> names = { "BILLBOARD", "NORMAL", "VERTEX" };
         const auto manifest = vsgUtil::parsePermutationManifest(
             readText(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "default" / "main.vert.permutations"));
@@ -2165,6 +2178,7 @@ namespace
         // library and runs both self-tests.
         GameRuntime game("openeden_slangruntime_firstcompile");
         ASSERT_NE(game.runtime(), nullptr);
+        noWait(game); // the older, non-waiting path (stage f)
         auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
         ASSERT_NE(glsl, nullptr);
         const auto start = std::chrono::steady_clock::now();
@@ -2181,6 +2195,70 @@ namespace
         ASSERT_NE(module, nullptr);
         std::cout << "[ info ] first request returned after " << askMs << " ms; the Slang version was ready after "
                   << ms << " ms\n";
+    }
+
+    // Task 0363, stage f: with the wait on (the default of a runtime nobody configured: loaders 20 s, the main thread
+    // 2 s) findSlangPermutation returns the module itself for a set the build never listed, from the worker's compile,
+    // and not "pending". The loading screen's label and the pump come from the game's settings (vsgengine.cpp).
+    TEST(SlangRuntimeLibrary, an_unlisted_set_is_waited_for_and_the_module_comes_back_in_the_first_call)
+    {
+        GameRuntime game("openeden_slangruntime_waits");
+        ASSERT_NE(game.runtime(), nullptr);
+        std::atomic<int> begins{ 0 };
+        std::atomic<int> ends{ 0 };
+        vsgUtil::SlangWaitSettings settings;
+        settings.mMainThread = std::chrono::seconds(60); // the first compile loads the library and runs the self-tests
+        settings.mObserver = [&](bool begin) { ++(begin ? begins : ends); };
+        game.runtime()->setWaitSettings(settings);
+        auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
+        ASSERT_NE(glsl, nullptr);
+        bool pending = true;
+        const auto start = std::chrono::steady_clock::now();
+        const auto module = vsgUtil::findSlangPermutation(
+            "default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage, &pending);
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        ASSERT_NE(module, nullptr) << "a wait that ends in a module, not a null with `pending`";
+        EXPECT_FALSE(pending);
+        EXPECT_FALSE(module->code.empty());
+        EXPECT_EQ(begins, 1);
+        EXPECT_EQ(ends, 1);
+        EXPECT_EQ(game.runtime()->stats().mWaits, 1u);
+        EXPECT_EQ(game.runtime()->stats().mCompiledOnMain, 0u) << "still the worker that compiles";
+        EXPECT_TRUE(game.mWarnings.empty()) << game.mWarnings.front();
+        std::cout << "[ info ] the first request waited " << ms << " ms (library start, self-tests and the compile)\n";
+    }
+
+    TEST(SlangRuntimeLibrary, a_set_the_runtime_refuses_ends_the_wait_with_no_module_and_no_pending)
+    {
+        // The refused-set path of the older test, now through the wait: the answer is "none, for good", so the caller
+        // (until stage g deletes the GLSL) draws the GLSL, and nothing is waited for again.
+        GameRuntime game("openeden_slangruntime_waitrefused");
+        ASSERT_NE(game.runtime(), nullptr);
+        vsgUtil::SlangWaitSettings settings;
+        settings.mMainThread = std::chrono::seconds(60);
+        game.runtime()->setWaitSettings(settings);
+        // another set than the older test's (the module entries of a process outlive a test: a refused set is
+        // remembered for the process)
+        std::set<std::string> refused = refusedObjectVertex;
+        refused.insert("COLOR");
+        auto glsl = glslFor("default/main.vert", refused);
+        ASSERT_NE(glsl, nullptr);
+        bool pending = true;
+        EXPECT_EQ(vsgUtil::findSlangPermutation(
+                      "default/main.vert", refused, game.mOptions, &glsl->mStage, &pending),
+            nullptr)
+            << "GBUFFER_MOTION without SKIN is refused";
+        EXPECT_FALSE(pending) << "refused is an answer, not a wait that ran out";
+        const auto waits = game.runtime()->stats().mWaits;
+        EXPECT_EQ(waits, 1u);
+        pending = true;
+        EXPECT_EQ(vsgUtil::findSlangPermutation(
+                      "default/main.vert", refused, game.mOptions, &glsl->mStage, &pending),
+            nullptr);
+        EXPECT_FALSE(pending);
+        EXPECT_EQ(game.runtime()->stats().mWaits, waits) << "and not waited for again";
+        ASSERT_EQ(game.mWarnings.size(), 1u) << "the refusal says why, once";
+        EXPECT_NE(game.mWarnings[0].find("default/main.vert"), std::string::npos) << game.mWarnings[0];
     }
 
     // The child process of the test below: a library folder without glslang, in a process that has never loaded it.

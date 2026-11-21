@@ -39,6 +39,8 @@
 #include <components/vsgadapters/sdl/surface.hpp>
 #include <components/vsgadapters/sdl/window.hpp>
 #include <components/vsgutil/readimage.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
+#include <components/vsgutil/slangruntime.hpp>
 
 #include "bodyanalyser.hpp"
 #include "bodybaker.hpp"
@@ -53,6 +55,7 @@
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/menu.hpp"
+#include "mwstate/shaderwaitlabel.hpp"
 #include "mwstate/statemanagerimp.hpp"
 #include "probebaker.hpp"
 #include "puddlebaker.hpp"
@@ -489,6 +492,30 @@ namespace OMW
             // Task 0072, stage h: where the Slang compiler in the game keeps what it compiled at run time.
             Files::pathToUnicodeString(mCfgMgr.getUserDataPath() / "openeden" / "shadercache"));
 
+        // Task 0363, stage f: a shader set that is neither prebuilt nor cached is waited for. The main thread keeps
+        // the window's messages pumped (the freeze monitor ends a game that does not answer for 5 s), and the loading
+        // screen says "Compiling shaders" while any thread waits.
+        if (auto* slangRuntime = mResourceSystem->shaderOptions->getObject<vsgUtil::SlangRuntime>(vsgUtil::slangRuntimeKey))
+        {
+            vsgUtil::SlangWaitSettings waiting;
+            waiting.mPump = [] { SDL_PumpEvents(); };
+            waiting.mObserver = [](bool begin) { MWState::shaderWait(begin); };
+            // The main thread may hold a frame back for 2 s in play (the frames that draw the scene); while nothing is
+            // drawn anyway (start-up, a loading screen, menus) it waits as long as a loader does.
+            waiting.mMainThreadLimit = [this] {
+                bool playing = false;
+                if (mStateManager)
+                {
+                    const auto gameState = mStateManager->getGameState();
+                    playing = gameState
+                        && MWState::countsAsAutoFrame(
+                            mStateManager->getState(), gameState->requiresScene, gameState->updateLua);
+                }
+                return playing ? std::chrono::milliseconds(2000) : std::chrono::milliseconds(20000);
+            };
+            slangRuntime->setWaitSettings(std::move(waiting));
+        }
+
         setWindowIcon(args.resourceDir / "openmw.png");
 
         // OpenEden (task 0023, F0c): what the machine's Vulkan supports, to the log and a JSON file. Off by default.
@@ -735,9 +762,16 @@ namespace OMW
             bodyBaker = std::make_unique<BodyBaker>(
                 args.bakeBodies ? BodyBaker::Mode::Bake : BodyBaker::Mode::Check, out, *mResourceSystem);
         }
+        // Test aid (task 0363, stage f): OPENEDEN_SHADER_WAIT_SHOTS=<n> takes a screenshot, at most n of them and one
+        // second apart, whenever the loading screen says "Compiling shaders".
+        int waitShotsLeft = 0;
+        if (const char* shots = std::getenv("OPENEDEN_SHADER_WAIT_SHOTS"))
+            waitShotsLeft = std::atoi(shots);
+        auto lastWaitShot = std::chrono::steady_clock::time_point{};
         auto callback
             = [this, &args, &probeBaker, &skyVisBaker, &lodTerrainBaker, &lodObjectBaker, &bodyAnalyser, &bodyBaker,
-                  &runningFrame, &autoScreenshotFired, &autoQuitFired](double dt, bool& requiresRender, bool& quit) {
+                  &runningFrame, &autoScreenshotFired, &autoQuitFired, &waitShotsLeft,
+                  &lastWaitShot](double dt, bool& requiresRender, bool& quit) {
                   auto state = mStateManager->getGameState();
                   quit = !state;
                   if (quit)
@@ -800,6 +834,17 @@ namespace OMW
                           Log(Debug::Info) << "Auto-quit at running frame " << runningFrame;
                           mStateManager->requestQuit();
                           autoQuitFired = true;
+                      }
+                  }
+                  if (waitShotsLeft > 0)
+                  {
+                      const auto now = std::chrono::steady_clock::now();
+                      if (MWState::shaderLabelShown() && now - lastWaitShot >= std::chrono::seconds(1))
+                      {
+                          lastWaitShot = now;
+                          --waitShotsLeft;
+                          Log(Debug::Info) << "Shader wait: the loading screen says \"Compiling shaders\"; screenshot";
+                          mInputManager->executeAction(MWInput::A_Screenshot);
                       }
                   }
                   // OpenEden: a screenshot asked for during this callback (F12 in the input update, Lua's
