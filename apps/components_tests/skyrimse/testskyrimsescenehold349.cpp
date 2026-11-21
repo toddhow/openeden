@@ -238,7 +238,8 @@ namespace
     }
 
     // dialogue in phases 0 and 1, spoken by alias 1 then alias 2
-    [[maybe_unused]] Parsed twoLines(std::uint32_t flags = 0, const Bytes& vmad = Bytes(), const Bytes& completion0 = Bytes())
+    [[maybe_unused]] Parsed twoLines(
+        std::uint32_t flags = 0, const Bytes& vmad = Bytes(), const Bytes& completion0 = Bytes())
     {
         return Parsed({ scenRecord(kScene, flags, { phase(Bytes(), completion0), phase() }, { 1, 2 },
             { dialogueAction(1, 1, 0, kTopicA), dialogueAction(2, 2, 1, kTopicB) }, kQuest, Bytes(), vmad) });

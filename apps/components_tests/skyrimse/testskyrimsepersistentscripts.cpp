@@ -82,7 +82,8 @@ namespace
     }
 
     // CELL top group > block > sub-block > cell record + children group.
-    [[maybe_unused]] Bytes interiorCellGroup(std::uint32_t cellId, const Bytes& cellRec, const Bytes& persistent, const Bytes& temporary)
+    [[maybe_unused]] Bytes interiorCellGroup(
+        std::uint32_t cellId, const Bytes& cellRec, const Bytes& persistent, const Bytes& temporary)
     {
         Bytes sub = cellRec;
         sub.append(childrenGroup(cellId, persistent, temporary));
