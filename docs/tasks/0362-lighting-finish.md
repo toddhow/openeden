@@ -22,3 +22,11 @@ runs at 1.5), so these are judged by frames too (`sheet_night.png`, `sheet_mare.
 Morrowind: Balmora fixed frame `1c5d47ad0b5dc32d` and hdr `b451a8a6ca771e79` equal for `integ2` and this build. Not run: `worldobjects_check`, Linux gate,
 clang-format 14, clang-tidy, Lua tests, GPU cost of the 36 taps, a before frame of the pivot against the old mid-grey (no toggle exists), Night Eye
 contrast (still neutral, task 0257).
+
+### 0362a follow-up: cost of `gradePivot()` and worldobjects_check
+`tools/worldobjects_check` against `integ2`: 110 objects, OK, exit 0, no dumps.
+GPU cost (1920x1080, `gpu timing`, `diag` pose, graded, pivot on against `gradePivot()` forced to 0.5 in the build's shader copies, interleaved, 5 pairs):
+the machine's GPU was shared (85 percent busy, about 28 GPU processes), so single runs ranged 0.33 to 1.3 ms for the tonemap pass. The uncontended floors
+were: pivot on 0.393 ms (4 runs, identical), pivot off 0.334 ms (1 run): about +0.06 ms (+18 percent of the pass); contended pairs are not usable. Analytic
+estimate: 36 cached fetches x 2 M pixels = 75 M texel fetches. Left as is (36 taps); a once-per-frame reduction was not built (needs a new compute or
+fragment reduction pass; the tonemap's vertex stage cannot see sceneColor).
