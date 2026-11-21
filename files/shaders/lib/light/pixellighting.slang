@@ -6,8 +6,11 @@
 import lib.light.equations;
 import lib.light.pointlights;
 import lib.light.select;
-#ifdef POINT_SHADOW
+#if defined(POINT_SHADOW) || defined(MODE_CONSTANTS)
 import lib.light.pointshadow;
+#endif
+#ifdef MODE_CONSTANTS
+import lib.modeconstants; // task 0363 (stage c): cPointShadow
 #endif
 
 // OpenMW's calcSpecIntensity.
@@ -42,7 +45,10 @@ void pointLightsPerPixel(float2 screenCoord, float3 viewNormal, float3 viewPos, 
         {
             float3 lightDir = lightVec / d;
             float illumination = attenuate(lightColor.w, d) * pointLightCone(lightIdx, -lightDir);
-#ifdef POINT_SHADOW
+#ifdef MODE_CONSTANTS
+            if (cPointShadow)
+                illumination *= pointLightShadow(lightIndexList[offset + l], viewPos);
+#elif defined(POINT_SHADOW)
             // Task 0077: the shadow of this light, if it has a slot (lib/light/pointshadow.*).
             illumination *= pointLightShadow(lightIndexList[offset + l], viewPos);
 #endif

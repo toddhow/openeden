@@ -1172,6 +1172,41 @@ namespace
         expectGlsl(Pipeline::terrain(folder.options(false)));
     }
 
+    // Task 0363 (stage c): with `shader constants` the terrain asks for the one MODE_CONSTANTS permutation of each
+    // stage whatever its settings are, and the stage carries the values (Pipeline::terrainConstants); with the switch
+    // off the same listing gives the GLSL (the set the define form needs is not listed).
+    TEST(ShaderTwinChoice, the_terrain_with_the_constants_switch_takes_the_constants_permutation_and_its_values)
+    {
+        PipelineTwinFolder folder;
+        folder.list("terrain/main.vert", "00000007", "MODE_CONSTANTS", sTerrainVertexTwinWords);
+        folder.list("terrain/main.frag", "00000008", "MODE_CONSTANTS", sTerrainFragmentTwinWords);
+        auto options = vsg::Options::create(*folder.options(true));
+        auto settings = vsgUtil::SettingsConstants::create();
+        settings->constantDefines = true;
+        options->setObject(vsgUtil::settingsConstantsKey, settings);
+        const Pipeline::WetnessOptions wetness{ true, false, false };
+        const auto bind = Pipeline::terrain(
+            options, false, 0, true, wetness, false, Pipeline::CoverOptions{}, 0, false, false, false);
+        expectTwins(bind, sTerrainVertexTwinWords, sTerrainFragmentTwinWords);
+        const auto fragment = stageOf(bind, VK_SHADER_STAGE_FRAGMENT_BIT);
+        ASSERT_TRUE(fragment);
+        const auto flag = [&](uint32_t id) {
+            const auto it = fragment->specializationConstants.find(id);
+            const auto* value = it == fragment->specializationConstants.end()
+                ? nullptr
+                : dynamic_cast<const vsg::Value<VkBool32>*>(it->second.get());
+            return value != nullptr && value->value() != VK_FALSE;
+        };
+        EXPECT_TRUE(flag(Pipeline::TerrainConstantId::GiSky));
+        EXPECT_TRUE(flag(Pipeline::TerrainConstantId::Wetness));
+        EXPECT_FALSE(flag(Pipeline::TerrainConstantId::WetnessPuddles));
+        EXPECT_FALSE(flag(Pipeline::TerrainConstantId::Cover));
+
+        // Without the switch the define form asks for the set its settings make, which is not listed here.
+        expectGlsl(Pipeline::terrain(
+            folder.options(true), false, 0, true, wetness, false, Pipeline::CoverOptions{}, 0, false, false, false));
+    }
+
     // Task 0072, review of stage f, finding 7: the GUI's stages (read with readShader, compiled with no defines) take
     // their twins together through vsgUtil::withSlangTwinsTogether, as copies.
     const std::string sGuiVertGlsl = "#version 450\nvoid main() { gl_Position = vec4(0.0); }\n";

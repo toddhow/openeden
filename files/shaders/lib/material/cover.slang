@@ -87,8 +87,13 @@ CoverSurface coverSurfaceAt(float3 worldPos, float3 worldNormal)
     if (s.upwardness <= 0.0)
         return s;
 #ifdef GI_SKY
-    float2 sky = skyVisUp(worldPos);
-    s.exposure = wetExposure(sky.x, sky.y);
+#ifdef MODE_CONSTANTS
+    if (cGiSky) // task 0363 (stage c)
+#endif
+    {
+        float2 sky = skyVisUp(worldPos);
+        s.exposure = wetExposure(sky.x, sky.y);
+    }
 #endif
     s.mask = coverMaskOf(s.amount, s.upwardness, s.exposure, wetNoise(worldPos.xy / coverNoiseCell));
     return s;

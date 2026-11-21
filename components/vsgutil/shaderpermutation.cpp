@@ -469,14 +469,31 @@ namespace vsgUtil
     std::set<std::string> constantDefinesFor(
         const std::string& path, std::set<std::string> defines, const vsg::Options* options)
     {
-        if (options == nullptr || path != "water/main.frag")
+        if (options == nullptr)
+            return defines;
+        const bool water = path == "water/main.frag";
+        const bool terrainFragment = path == "terrain/main.frag";
+        const bool terrainVertex = path == "terrain/main.vert";
+        if (!water && !terrainFragment && !terrainVertex)
             return defines;
         const auto* settings = options->getObject<SettingsConstants>(settingsConstantsKey);
         if (settings == nullptr || !settings->constantDefines)
             return defines;
-        for (const char* name : { "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW" })
+        if (water)
+        {
+            for (const char* name : { "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW" })
+                defines.erase(name);
+            defines.insert("SHADOW_CONSTANTS");
+            return defines;
+        }
+        // Task 0363 (stage c): the terrain keeps the defines that change its interface (the maps and their classes,
+        // the G-buffer outputs) and takes every other one as a constant (Pipeline::terrainConstants and the settings
+        // table); MODE_CONSTANTS names the permutation that reads them so.
+        for (const char* name : { "AMBIENT_CUBE", "AO_TERRAIN", "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "COVER",
+                 "COVER_DEBUG", "DEBUG_CHUNKS", "DEBUG_SHADOW", "GI_SKY", "PARALLAX_POM_HIGH", "PARALLAX_POM_LOW",
+                 "POINT_SHADOW", "VOLUME_CLOUD_SHADOW", "WETNESS", "WETNESS_DEBUG", "WETNESS_PUDDLES" })
             defines.erase(name);
-        defines.insert("SHADOW_CONSTANTS");
+        defines.insert("MODE_CONSTANTS");
         return defines;
     }
 
@@ -700,6 +717,12 @@ namespace vsgUtil
                 return "the twin is not SPIR-V 1.0";
             if (slang.mSpecConstantOps != 0)
                 return "the twin has an expression over specialization constants (OpSpecConstantOp)";
+            // Task 0363 (stage c): a constants permutation declares every binding of the features its constants gate,
+            // which the GLSL of the pipeline's own defines does not (the GLSL has them only where the define is on);
+            // the build compares each listed one with the GLSL of all those features on (SlangPermutations), and the
+            // sets of this family are all listed.
+            if (set.count("MODE_CONSTANTS") != 0)
+                return {};
             std::map<uint32_t, uint32_t> pinned;
             for (const std::string& name : set)
             {

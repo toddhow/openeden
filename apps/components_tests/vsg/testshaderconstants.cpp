@@ -94,7 +94,8 @@ namespace
         const Defines in{ "BUMP_MAP", "CLOUD_SHADOW", "VOLUME_CLOUD_SHADOW" };
         EXPECT_EQ(vsgUtil::constantDefinesFor("water/main.frag", in, optionsWith(false).get()), in);
         EXPECT_EQ(vsgUtil::constantDefinesFor("water/main.frag", in, nullptr), in);
-        EXPECT_EQ(vsgUtil::constantDefinesFor("terrain/main.frag", in, optionsWith(true).get()), in);
+        // Task 0363 (stage c): the terrain takes the constants too now (testterrainconstants.cpp); the other stage files do not.
+        EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.frag", in, optionsWith(true).get()), in);
         EXPECT_EQ(vsgUtil::constantDefinesFor("water/main.vert", in, optionsWith(true).get()), in);
     }
 

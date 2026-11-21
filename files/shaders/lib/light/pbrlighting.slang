@@ -7,8 +7,11 @@ import lib.light.equations;
 import lib.light.pointlights;
 import lib.material.pbr;
 import lib.light.select;
-#ifdef POINT_SHADOW
+#if defined(POINT_SHADOW) || defined(MODE_CONSTANTS)
 import lib.light.pointshadow;
+#endif
+#ifdef MODE_CONSTANTS
+import lib.modeconstants; // task 0363 (stage c): cPointShadow
 #endif
 
 void pbrPointLights(float2 screenCoord, float3 normal, float3 viewPos, float roughness, float3 f0, out float3 diffuse,
@@ -31,7 +34,10 @@ void pbrPointLights(float2 screenCoord, float3 normal, float3 viewPos, float rou
         {
             float3 lightDir = lightVec / d;
             float illumination = attenuate(lightColor.w, d) * pointLightCone(lightIdx, -lightDir);
-#ifdef POINT_SHADOW
+#ifdef MODE_CONSTANTS
+            if (cPointShadow)
+                illumination *= pointLightShadow(lightIndexList[offset + l], viewPos);
+#elif defined(POINT_SHADOW)
             // Task 0077: the shadow of this light, if it has a slot (lib/light/pointshadow.*).
             illumination *= pointLightShadow(lightIndexList[offset + l], viewPos);
 #endif

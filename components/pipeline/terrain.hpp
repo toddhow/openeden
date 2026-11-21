@@ -3,6 +3,7 @@
 
 #include <vsg/io/Options.h>
 #include <vsg/state/GraphicsPipeline.h>
+#include <vsg/state/ShaderStage.h>
 
 #include <set>
 #include <string>
@@ -40,6 +41,32 @@ namespace Pipeline
     /// The set a stage is drawn with is this, cut to the names its `#pragma import_defines` lists, plus the `#define`
     /// lines of the settings files it includes (vsgUtil::stageDefines).
     std::set<std::string> terrainDefines(bool maps, unsigned int gbufferOutputs, bool giSky,
+        const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
+        bool aoTerrain, bool pointShadow = false, bool ambientCube = false);
+
+    /// Task 0363 (stage c): the ids of the terrain's specialization constants (lib/modeconstants.slang), above the
+    /// settings table's (Resource::settingsConstantTable) and clear of the object shader's.
+    namespace TerrainConstantId
+    {
+        inline constexpr uint32_t GiSky = 2000;
+        inline constexpr uint32_t Wetness = 2001;
+        inline constexpr uint32_t WetnessPuddles = 2002;
+        inline constexpr uint32_t WetnessDebug = 2003;
+        inline constexpr uint32_t Cover = 2004;
+        inline constexpr uint32_t CoverDebug = 2005;
+        inline constexpr uint32_t AmbientCube = 2006;
+        inline constexpr uint32_t PointShadow = 2007;
+        inline constexpr uint32_t AoTerrain = 2008;
+        inline constexpr uint32_t PomMinSteps = 2009;
+        inline constexpr uint32_t PomMaxSteps = 2010;
+        inline constexpr uint32_t PomRefineTaps = 2011;
+    }
+
+    /// Task 0363 (stage c): the values of those constants for the same arguments as terrainDefines: a flag is true
+    /// exactly when the define would be present, and the three step counts are those of lib/material/parallax.slang
+    /// for the quality (medium when none). Given to the terrain's MODE_CONSTANTS permutation (`[Rendering] shader
+    /// constants`); the CPU works out everything derived, the shader branches on each constant alone.
+    vsg::ShaderStage::SpecializationConstants terrainConstants(bool maps, unsigned int gbufferOutputs, bool giSky,
         const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
         bool aoTerrain, bool pointShadow = false, bool ambientCube = false);
 }

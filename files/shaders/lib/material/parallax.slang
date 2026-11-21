@@ -14,7 +14,13 @@ float2 getParallaxOffset(float3 eyeDir, float height)
 }
 
 #ifdef PARALLAX_POM
-#if defined(PARALLAX_POM_LOW)
+#ifdef MODE_CONSTANTS
+// Task 0363 (stage c): the quality's three numbers are specialization constants (lib/modeconstants.slang), worked out
+// by the CPU (Pipeline::terrainConstants); the rows below are the define form's.
+#define POM_MIN_STEPS cPomMinSteps
+#define POM_MAX_STEPS cPomMaxSteps
+#define POM_REFINE_TAPS cPomRefineTaps
+#elif defined(PARALLAX_POM_LOW)
 static const int POM_MIN_STEPS = 8;
 static const int POM_MAX_STEPS = 12;
 static const int POM_REFINE_TAPS = 0;

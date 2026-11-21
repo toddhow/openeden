@@ -100,8 +100,11 @@ namespace vsgUtil
 
     /// Task 0363 (stage b): the set a Slang twin is chosen by when `options` ask for constants instead of defines
     /// (SettingsConstants::constantDefines): for "water/main.frag" the four shadow settings' defines are replaced by
-    /// the one name SHADOW_CONSTANTS, whose permutation reads them as specialization constants (lib/view/shadow.slang). Any
-    /// other stage, and any call without the switch, returns `defines` unchanged.
+    /// the one name SHADOW_CONSTANTS, whose permutation reads them as specialization constants (lib/view/shadow.slang).
+    /// Task 0363 (stage c): for "terrain/main.frag" and "terrain/main.vert" every define except the map class
+    /// (TERRAIN_MAPS, TERRAIN_PBR, PARALLAX_POM) and the G-buffer outputs is dropped and MODE_CONSTANTS added; the
+    /// permutation reads them as constants (lib/modeconstants.slang, Pipeline::terrainConstants). Any other stage, and
+    /// any call without the switch, returns `defines` unchanged.
     std::set<std::string> constantDefinesFor(
         const std::string& path, std::set<std::string> defines, const vsg::Options* options);
 

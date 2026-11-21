@@ -158,13 +158,26 @@ WetSurface wetSurfaceAt(float3 worldPos, float3 worldNormal)
     if (raw <= 0.0)
         return s;
 #ifdef GI_SKY
-    float2 sky = skyVisUp(worldPos);
-    s.exposure = wetExposure(sky.x, sky.y);
+#ifdef MODE_CONSTANTS
+    if (cGiSky) // task 0363 (stage c): the terrain takes GI_SKY as a constant
+#endif
+    {
+        float2 sky = skyVisUp(worldPos);
+        s.exposure = wetExposure(sky.x, sky.y);
+    }
 #endif
     s.wet = raw * s.exposure;
 #ifdef WETNESS_PUDDLES
+#ifdef MODE_CONSTANTS
+    if (cWetnessPuddles)
+    {
+        if (s.wet > wetPuddleStart)
+            s.puddle = wetPuddleMask(s.wet, worldNormal.z, wetNoise(worldPos.xy / wetPuddleNoiseCell));
+    }
+#else
     if (s.wet > wetPuddleStart)
         s.puddle = wetPuddleMask(s.wet, worldNormal.z, wetNoise(worldPos.xy / wetPuddleNoiseCell));
+#endif
 #endif
     return s;
 }
@@ -180,8 +193,16 @@ float3 wetPuddleNormal(float3 worldPos)
 float3 wetSkyReflection(float3 worldPos, float3 dir, float surfaceRoughness)
 {
 #ifdef GI_SKY
+#ifdef MODE_CONSTANTS
+    if (cGiSky)
+    {
+        if (giReflectionEnabled())
+            return giReflection(worldPos, dir, surfaceRoughness, scene.ambient.xyz);
+    }
+#else
     if (giReflectionEnabled())
         return giReflection(worldPos, dir, surfaceRoughness, scene.ambient.xyz);
+#endif
 #endif
     float up = clamp(dir.z, 0.0, 1.0);
     return lerp(scene.fogColor.xyz, scene.skyColor.xyz, sqrt(up));

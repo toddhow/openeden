@@ -17,6 +17,9 @@ import lib.view.scene;
 __exported import lib.view.cascades;
 __exported import lib.view.shadowsettings;
 
+#if defined(MODE_CONSTANTS) && !defined(SHADOW_CONSTANTS)
+#define SHADOW_CONSTANTS // task 0363 (stage c): the terrain's constants permutation takes the shadow settings so too
+#endif
 #ifdef SHADOW_CONSTANTS
 // Task 0363 (stage b): the three cloud shadow defines as specialization constants (ids of
 // Resource::settingsConstantTable; a stage takes this form when `[Rendering] shader constants` is on,
@@ -208,7 +211,7 @@ float shadow(float3 viewPos, float3 viewNormal)
 }
 #endif
 
-#ifdef DEBUG_SHADOW
+#if defined(DEBUG_SHADOW) || defined(MODE_CONSTANTS)
 // The GLSL reads gl_FragCoord; the caller passes the fragment's window position.
 float4 debugShadow(float4 color, float2 fragCoord)
 {

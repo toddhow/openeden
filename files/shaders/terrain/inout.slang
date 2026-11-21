@@ -9,7 +9,7 @@ struct TerrainInout
     float3 viewPos : V_VIEWPOS;
     float3 viewNormal : V_VIEWNORMAL;
     float3 pointLightDiffuse : V_POINTLIGHTDIFFUSE;
-#ifdef DEBUG_CHUNKS
+#if defined(DEBUG_CHUNKS) || defined(MODE_CONSTANTS) // task 0363 (stage c): the constants permutation always has it
     float2 localTexCoord : V_LOCALTEXCOORD;
 #endif
 #ifdef TERRAIN_MAPS

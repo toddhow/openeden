@@ -8,7 +8,7 @@
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
 
-#ifndef CLOUD_SHADOW
+#if !defined(CLOUD_SHADOW) && !defined(MODE_CONSTANTS) // task 0363 (stage c): MODE_CONSTANTS has cloudshadow.slang too
 [[vk::binding(VIEW_SKYVIS_SKY_BINDING, VIEW_SET)]] StructuredBuffer<float4> skyHeader;
 #define SKY_HEADER_DECLARED // task 0355: lib/view/ambientcube.slang declares the header only when nobody did
 #endif

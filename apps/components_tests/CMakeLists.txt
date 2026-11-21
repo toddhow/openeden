@@ -537,6 +537,7 @@ file(GLOB UNITTEST_SRC_FILES
     pipeline/testinstancetint.cpp
     pipeline/testoverlaydepthbias.cpp
     pipeline/testterraindefines.cpp
+    pipeline/testterrainconstants.cpp
 
     mwanimation/testclonematerials.cpp
     mwanimation/testskinprevious.cpp

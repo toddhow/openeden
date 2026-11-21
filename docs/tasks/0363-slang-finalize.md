@@ -257,26 +257,46 @@ Branch rebased onto `main` `ce89b4d3c2` (the stage b commit was already in `main
 
 **Not run after the flip:** the full `components-tests` and `openmw-tests`, the Linux gate, the Lua tests, clang-format 14, a cold first start on a real player machine (the first compile of unlisted sets happens on the Slang worker while the GLSL draws, as since task 0072 stage h), the editor with the new default.
 
-## Stage c log (terrain to constants): NOT BUILT, design only
+## Stage c log, 2026-11-20: the terrain on constants (BUILT; `[Rendering] shader constants` stays default false)
 
-Stage c was started on slangfinal-0363 (rebased onto main 56bde39c6f) and stopped after the read-through of
-`terrain/terrain.frag.slang`, `terrain.vert.slang`, `terrain/inout.slang` and the libs it pulls in. No code, test,
-golden or frame changed; the work tree equals main. Reason: the change touches about ten shared Slang includes
-(`wetness`, `cover`, `pixellighting`, `pbrlighting`, `parallax`, `skyvis`, `ambientcube`, `view/shadow`) that the object
-shader also uses, 20 per-set interface-exception files, `Pipeline::terrain`, the settings table and the CMake sets, and
-every step needs a rebuild plus the SlangPermutations/InterfaceRecords runs. Doing it half would leave the golden data in
-a state nobody could review.
+Branch `slangfinal-0363`, built and measured in `I:/Projects/OpenEden-work/combat3/build` only. The same hand wrote tests and code; the new tests (`apps/components_tests/pipeline/testterrainconstants.cpp`, 13 tests) were written first and are compile-red against the old code (the API they call did not exist); no separate reviewer. Windows only.
 
-Design to execute (all from the stage a/b decisions):
-- Keep as compile-time defines (K, they change the interface): TERRAIN_MAPS, GBUFFER output state, DEBUG_CHUNKS varying
-  (vertex stage declares it always under MODE_CONSTANTS), the map-class defines.
-- Constants (C, ids 2000+ via a new `Pipeline::terrainConstants`, plus 1070 DEBUG_SHADOW and 1071 DEBUG_CHUNKS in the
-  settings table): GI_SKY, WETNESS_PUDDLES, POINT_SHADOW, COVER, AMBIENT_CUBE, PARALLAX quality (POM steps/taps), cloud
-  shadow flags (reuse 1067-1069), DEBUG_SHADOW.
-- A pseudo define MODE_CONSTANTS (as SHADOW_CONSTANTS for water), added by `constantDefinesFor` for terrain/main.frag and
-  main.vert; define-mode SPIR-V stays byte-identical because every new branch sits under `#ifdef MODE_CONSTANTS`.
-- One constant per branch (no `a && b`, no OpSpecConstantOp); skyHeader declared once (SKY_HEADER_DECLARED guard).
-- Expected result: terrain fragment 43,320 reachable sets to about 20 classes, vertex 4 to 2.
-- Test-change groups needed (approved, to list when done): PipelineTerrainDefines count model, terrain `.sets`,
-  `.interface`, `.interface-exceptions` files, compileGlsl pseudo-define expansion in the two Slang tests.
-- Still to measure: frames new-Slang vs old-Slang, Morrowind checks, cost in three interleaved quiet runs.
+**What was built**
+- `Pipeline::terrainConstants(...)` (same arguments as `terrainDefines`; the values are worked out from that define set, so the two forms cannot disagree: a test compares them over 64 argument combinations) and `Pipeline::TerrainConstantId` (ids 2000 to 2011: `cGiSky`, `cWetness`, `cWetnessPuddles`, `cWetnessDebug`, `cCover`, `cCoverDebug`, `cAmbientCube`, `cPointShadow`, `cAoTerrain`, `cPomMinSteps`, `cPomMaxSteps`, `cPomRefineTaps`). The parallax quality is three int constants worked out by the CPU (low 8/12/0, medium 10/20/4, high 16/48/4).
+- Two new settings constants (settings table, ids 1070 and 1071): `cDebugShadow` (`[Shadows] enable debug hud`) and `cDebugChunks` (`[Terrain] debug chunks`); the settings files keep their `#define` lines for the GLSL.
+- `vsgUtil::constantDefinesFor` for `terrain/main.frag` and `terrain/main.vert` (with the switch on): every define except TERRAIN_MAPS, TERRAIN_PBR, PARALLAX_POM and the three G-buffer defines is dropped and `MODE_CONSTANTS` added. `Pipeline::terrain` gives the twin stages the constants' values only when the switch is on.
+- Slang: new module `lib/modeconstants.slang` (declares the constants under `#ifdef MODE_CONSTANTS`, nothing otherwise); `terrain/terrain.frag.slang` defines the "on" names for its own `#ifdef`s and the textual includes under `MODE_CONSTANTS` and branches on each constant alone through `IF_BEGIN(c) ... IF_END` (`if (c) { ... }` in the constants form, nothing in the define form); the shared includes `wetness`, `cover` (GI_SKY exposure), `pixellighting`, `pbrlighting` (point light shadow), `parallax` (the three step counts), `shadow` (`MODE_CONSTANTS` implies `SHADOW_CONSTANTS`, and `debugShadow` is always there), `skyvis` and `ambientcube` (the sky header is declared by cloudshadow.slang), `terrain/inout.slang` and `terrain.vert.slang` (the `localTexCoord` varying always exists) carry the constants form under `#ifdef MODE_CONSTANTS`. **Define form unchanged, proved:** the 224 SPIR-V files the build made before the edits and the same 224 after have equal MD5 (the other 22 are new).
+- `checkTwinAgainstGlsl` (the run-time check of a twin compiled on the worker) returns after its structural checks for a set with `MODE_CONSTANTS`: the twin declares the bindings of every feature its constants gate, which the pipeline's GLSL of its own defines does not; the build compares every listed one with the GLSL of all those features on (SlangPermutations), and all 22 are listed.
+
+**Set counts:** terrain fragment 43,320 reachable define sets (40 of them built) -> **20** constants permutations (5 map classes x 4 G-buffer states; 283 KB at most, 4.85 MB together; the old 40 are 3.55 MB); terrain vertex 4 -> **2** (27 KB). The old sets stay built for the switch off. In game (Balmora, the test profile, `OPENEDEN_SHADER_TRACE`) the pipeline took `GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL MODE_CONSTANTS PARALLAX_POM TERRAIN_MAPS TERRAIN_PBR` and `MODE_CONSTANTS TERRAIN_MAPS` as `slang`. No `OpSpecConstantOp` in any of the 22 (`SlangPermutations` checks it).
+
+**Golden data for review (rewritten as reviewed data, never regenerated to make a twin pass):** `terrain/main.frag.sets` (+20 set lines), `terrain/main.vert.sets` (+2), `terrain/main.frag.interface` (+1,834 lines: the 20 new sets and the `defines` line; no old record changed), `terrain/main.vert.interface` (+2 sets, the `defines` line), `terrain/main.frag.interface-exceptions` (+16 lines: the unread `in location=3 vec3f32` of the GLSL in the 16 sets with maps, the same as the define sets above). The other interface records were rewritten by the writer test identically apart from line endings and restored.
+
+**Existing tests edited (listed for toddhow's approval, per the per-stage rule):**
+1. `apps/components_tests/vsg/testslangpermutations.cpp`: `compileGlsl` expands `MODE_CONSTANTS` (the GLSL with the sky field, ambient cube, wetness with puddles, cover, AO terrain, point light shadows with maps, both cloud shadows, `DEBUG_CHUNKS` and `DEBUG_SHADOW` on); the "neither imported nor a settings define" check lets the pseudo define through for `terrain/` stages; a table of the terrain constants (ids and names) joins the settings table in `isSettingsConstant` and `settingsConstantName`.
+2. `apps/components_tests/vsg/testslanginterfacerecords.cpp`: the same expansion and table; `possibleDefines` adds `MODE_CONSTANTS` for `terrain/` stages.
+3. `apps/components_tests/pipeline/testterraindefines.cpp`: `listedSets` skips the `MODE_CONSTANTS` lines (they are not define sets the settings make; `TerrainConstants` counts them).
+4. `apps/components_tests/vsg/testshaderconstants.cpp`: the line that said `terrain/main.frag` is unchanged with the switch on now names `default/main.frag`.
+5. `apps/components_tests/vsg/testshaderdefines.cpp`: one test added (`ShaderTwinChoice.the_terrain_with_the_constants_switch_takes_the_constants_permutation_and_its_values`), nothing changed. `apps/components_tests/CMakeLists.txt`: registration only.
+
+**Tests run:** `TerrainConstants.*:ShaderConstants.*:PipelineTerrainDefines.*:SlangPermutations.*:SlangInterfaceRecords.*:ShaderDefines.*:ShaderTwinChoice.*:SlangRuntimeLibrary.*:PostPassesSwitchOff.*` 108 tests, 106 passed, 2 skipped (the record writers); the whole `components-tests` minus `*Slang*`, `*Complement*`, `*Property*`: 15,017 ran, 14,850 passed, the rest are data-gated skips, 0 failed. The `*Slang*` group (81 tests: the runtime library reproducing every listed permutation byte for byte, the light grid on the GPU, the compiler release and the rest) 78 passed, 3 skipped, 0 failed.
+
+**Frames** (Morrowind, the test profile's main settings with `hdr`, `gbuffer`, `pbr material maps`, `parallax`, `gi exterior`, `ao terrain`, `taa`, clouds, wetness, cover, point light shadows; 1280 x 720, `OPENEDEN_FIXED_FRAME_TIME`, quiet window, volume 0; every scene run as constants, define form and define form again, the second pair is the run noise; pixels over 4 levels / max level, of 921,600; viewed: Balmora, rain, snow, the Pelagiad ground):
+
+| scene | define against define (noise) | constants against define |
+| --- | --- | --- |
+| Balmora from 900 up (clear) | 1,367 / 77 | 1,154 and 699 / 78 |
+| Ascadian Isles from 800 up | 0 / 0 | 0 / 1 (14 px differ at all) |
+| Pelagiad on the ground (POM) | 0 / 2 | 0 / 1 and 0 / 2 |
+| Seyda Neen on the ground | 28 / 8 | 24 and 22 / 7 and 8 |
+| rain (Ascadian Isles) | 0 / 0 | 0 / 1 |
+| snow (Moesring Mountains, cover on, snow cover seen) | 1 / 17 | 1 and 0 / 17 and 4 |
+| night at Seyda Neen | 0 / 1 | 3,066 / 106: all in one region, a walking NPC moved (viewed) |
+
+Constants runs of one scene are byte for byte equal to each other (Balmora). **Two scenes were not usable and are not claimed:** an Ashlands close-up of Ald-ruhn (`ash`: runs of one mode differ from each other by 42 to 69 mean brightness at frame 2,400, so the weather or lighting state is not repeatable there; a bisect with one setting off at a time did not isolate a cause, and the GLSL mode differs from both modes as much) and a torch-lit night scene (the carried torch's flicker is not seeded: runs of one mode differ in 394,212 pixels). The point light shadows on the terrain are therefore **not shown in a frame** (the plain night frame is too dark, the torch frame is noise); they are the same code path as the define form (`pointLightShadow` under `cPointShadow`) and compile in all 16 map sets. A Skyrim exterior with terrain layers (`tools/neutral_session_check` `tlayers`, `neutral terrain layers`, `hdr`, `gbuffer`, `pbr`, wetness and cover): one frame each, constants against define 178 px over 4 levels (max 67, scattered edge pixels; define against define 0 over 4), viewed. The scattered large differences look like a float rounding flip (a `ceil` of the parallax step count) and were not traced.
+
+**Morrowind unchanged against the `integ2` build:** `tools/worldobjects_check` 110 objects OK, no dumps; the fixed Balmora frame (`--random-seed 7`, frame 600) `1c5d47ad0b5dc32d` for both builds with the default settings; with `hdr = true` the new build (Slang by default since stage b) gives `22dad8bc6b4cac45` for the define form and for `shader constants = true` alike (byte-identical), the GLSL reference `b451a8a6ca771e79` differs in 6 pixels of 480,000 by one level.
+
+**Cost** (GPU main scene pass, `gpu timing`, median of the last 400 of 700 frames, three interleaved runs per mode, nothing else running): Ascadian Isles from 800 up, define form 0.7001, 0.7172, 0.6992 ms (mean 0.7055), constants 0.6942, 0.7039, 0.6978 ms (mean 0.6986: -1.0 percent); night at Seyda Neen, define 0.9105, 0.8812, 0.8795 (mean 0.8904), constants 0.8747, 0.8741, 0.9089 (mean 0.8859: -0.5 percent). Rule (+2 percent or +0.03 ms): met. The wall time of these runs is 7.1 to 8.1 ms in both modes. These scenes show the terrain from the air; the heaviest permutation (`GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL MODE_CONSTANTS PARALLAX_POM TERRAIN_MAPS TERRAIN_PBR`) is the one used.
+
+**Not run / not done:** the Linux gate and GCC `-Werror`, clang-format 14 (not installed; lines wrapped by hand), clang-tidy, the Lua tests, `openmw-tests`, a fresh review, a validation layer (none installed), AMD or Intel drivers, the point light shadows on the terrain in a frame (above), the terrain without maps in a Skyrim frame, a cold first start (the 22 new permutations are built, nothing is compiled at run time for the terrain with the switch on), the editor (`eden-studio` not rebuilt), the `cDebugShadow` and `cDebugChunks` views in a frame. The constants permutation compiles every feature in, so it is larger (up to 283 KB against 40 to 65 KB for a define set); its register use was not measured apart from the GPU time above.

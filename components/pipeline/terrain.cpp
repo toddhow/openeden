@@ -1,5 +1,6 @@
 #include "terrain.hpp"
 
+#include <vsg/core/Value.h>
 #include <vsg/state/ColorBlendState.h>
 #include <vsg/state/DepthStencilState.h>
 #include <vsg/state/InputAssemblyState.h>
@@ -79,6 +80,43 @@ namespace Pipeline
         return defines;
     }
 
+    vsg::ShaderStage::SpecializationConstants terrainConstants(bool maps, unsigned int gbufferOutputs, bool giSky,
+        const WetnessOptions& wetness, bool pbr, const CoverOptions& cover, unsigned int parallaxQuality,
+        bool aoTerrain, bool pointShadow, bool ambientCube)
+    {
+        // Worked out from the define set itself, so the two forms cannot disagree (the test compares them too).
+        const std::set<std::string> defines = terrainDefines(
+            maps, gbufferOutputs, giSky, wetness, pbr, cover, parallaxQuality, aoTerrain, pointShadow, ambientCube);
+        const auto flag = [&](const char* name) { return vsg::Value<VkBool32>::create(defines.count(name) ? VK_TRUE : VK_FALSE); };
+        vsg::ShaderStage::SpecializationConstants constants;
+        constants[TerrainConstantId::GiSky] = flag("GI_SKY");
+        constants[TerrainConstantId::Wetness] = flag("WETNESS");
+        constants[TerrainConstantId::WetnessPuddles] = flag("WETNESS_PUDDLES");
+        constants[TerrainConstantId::WetnessDebug] = flag("WETNESS_DEBUG");
+        constants[TerrainConstantId::Cover] = flag("COVER");
+        constants[TerrainConstantId::CoverDebug] = flag("COVER_DEBUG");
+        constants[TerrainConstantId::AmbientCube] = flag("AMBIENT_CUBE");
+        constants[TerrainConstantId::PointShadow] = flag("POINT_SHADOW");
+        constants[TerrainConstantId::AoTerrain] = flag("AO_TERRAIN");
+        // lib/material/parallax.slang: low, high, and medium (also the value when parallax is off).
+        int minSteps = 10, maxSteps = 20, refineTaps = 4;
+        if (defines.count("PARALLAX_POM_LOW"))
+        {
+            minSteps = 8;
+            maxSteps = 12;
+            refineTaps = 0;
+        }
+        else if (defines.count("PARALLAX_POM_HIGH"))
+        {
+            minSteps = 16;
+            maxSteps = 48;
+        }
+        constants[TerrainConstantId::PomMinSteps] = vsg::intValue::create(minSteps);
+        constants[TerrainConstantId::PomMaxSteps] = vsg::intValue::create(maxSteps);
+        constants[TerrainConstantId::PomRefineTaps] = vsg::intValue::create(refineTaps);
+        return constants;
+    }
+
     vsg::ref_ptr<vsg::BindGraphicsPipeline> terrain(vsg::ref_ptr<const vsg::Options> shaderOptions, bool maps,
         unsigned int gbufferOutputs, bool giSky, const WetnessOptions& wetness, bool pbr, const CoverOptions& cover,
         unsigned int parallaxQuality, bool aoTerrain, bool pointShadow, bool ambientCube)
@@ -137,6 +175,21 @@ namespace Pipeline
             }
             if (vsgUtil::takeSlangTwinsTogether(copies, twins))
             {
+                // Task 0363 (stage c): a twin that reads the terrain's defines as constants (MODE_CONSTANTS) gets their
+                // values; a twin made with defines does not declare these ids, which Vulkan ignores, so they are only
+                // given when the switch is on.
+                if (const auto* constants = shaderOptions->getObject<vsgUtil::SettingsConstants>(
+                        vsgUtil::settingsConstantsKey);
+                    constants != nullptr && constants->constantDefines)
+                {
+                    const auto values = terrainConstants(maps, gbufferOutputs, giSky, wetness, pbr, cover,
+                        parallaxQuality, aoTerrain, pointShadow, ambientCube);
+                    for (auto& twin : copies)
+                    {
+                        for (const auto& [id, value] : values)
+                            twin->specializationConstants[id] = value;
+                    }
+                }
                 for (auto& twin : copies)
                     vsgUtil::addSettingsConstants(*twin, shaderOptions.get());
                 shaders = copies;

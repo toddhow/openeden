@@ -60,7 +60,7 @@ VertexOutput vertMain(uint vertexIndexU : SV_VulkanVertexID, uint instanceIndexU
     float3 viewNormal = normalize(mul(inverse(transpose(pc.modelview)), float4(normal, 0)).xyz);
     output.io.viewPos = viewPos.xyz;
     output.io.texCoord = uv;
-#ifdef DEBUG_CHUNKS
+#if defined(DEBUG_CHUNKS) || defined(MODE_CONSTANTS)
     output.io.localTexCoord = float2(vert) / float(numVerts - 1);
 #endif
     output.io.viewNormal = viewNormal;

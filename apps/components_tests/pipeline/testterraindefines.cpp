@@ -261,6 +261,10 @@ namespace
                 line.pop_back();
             if (line.empty() || line[0] == '#')
                 continue;
+            // Task 0363 (stage c): the constants permutations are not define sets the settings make (they are
+            // counted by TerrainConstants in testterrainconstants.cpp).
+            if (line.find("MODE_CONSTANTS") != std::string::npos)
+                continue;
             out.insert(line == "-" ? std::string() : line);
         }
         return out;

@@ -5,3 +5,6 @@
 DEBUG_CHUNKS
 DEBUG_CHUNKS TERRAIN_MAPS
 TERRAIN_MAPS
+# Task 0363 (stage c): the constants permutations (DEBUG_CHUNKS is the constant cDebugChunks; the varying is always there).
+MODE_CONSTANTS
+MODE_CONSTANTS TERRAIN_MAPS

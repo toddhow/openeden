@@ -146,6 +146,10 @@ namespace Resource
             { "cCloudShadow", settingsConstantBase + 67, 'b' },
             { "cCloudShadowDebug", settingsConstantBase + 68, 'b' },
             { "cVolumeCloudShadow", settingsConstantBase + 69, 'b' },
+            // Task 0363 (stage c): the shadow hud and the chunk border debug views, for the terrain's constants
+            // permutation (MODE_CONSTANTS); the settings files keep their #define lines for the GLSL.
+            { "cDebugShadow", settingsConstantBase + 70, 'b' },
+            { "cDebugChunks", settingsConstantBase + 71, 'b' },
             // material.settings (lib/material/terms.glsl)
             { "cClampLighting", settingsConstantBase + 80, 'b' },
             // ao.settings (post/ao.frag; task 0072, stage g): named as ambientocclusion.cpp named its defines
@@ -213,8 +217,10 @@ namespace Resource
             addDefine("VOLUME_CLOUD_SHADOW", source, *constants);
         setConstantOnly("cVolumeCloudShadow", volumeCloudShadows, *constants);
         constants->constantDefines = Settings::Manager::getBool("shader constants", "Rendering");
-        if (Settings::Manager::getBool("enable debug hud", "Shadows"))
+        const bool debugShadow = Settings::Manager::getBool("enable debug hud", "Shadows");
+        if (debugShadow)
             addDefine("DEBUG_SHADOW", source, *constants);
+        setConstantOnly("cDebugShadow", debugShadow, *constants);
         objects["shadow.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");
@@ -270,8 +276,10 @@ namespace Resource
         objects["fog.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");
-        if (Settings::Manager::getBool("debug chunks", "Terrain"))
+        const bool debugChunks = Settings::Manager::getBool("debug chunks", "Terrain");
+        if (debugChunks)
             addDefine("DEBUG_CHUNKS", source, *constants);
+        setConstantOnly("cDebugChunks", debugChunks, *constants);
         objects["terrain.settings"] = vsg::ShaderModule::create(source.str());
 
         source.str("");

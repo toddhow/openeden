@@ -9,6 +9,31 @@ import glsl;
 static const int colorMode = 2;
 
 #include "lib/sets.slang"
+#ifdef MODE_CONSTANTS
+// Task 0363 (stage c): the constants permutation. Every define the terrain's settings can make but the interface does
+// not depend on is declared as a specialization constant (lib/modeconstants.slang, Pipeline::terrainConstants): the
+// features are compiled in and each use branches on its constant alone. The names below are defined only so that this
+// file's own #ifdefs and the textual includes (wetness, cover, skyvis, ambient cube, puddle map) take their "on" path;
+// the modules (shadow, pixellighting, pbrlighting, parallax) read MODE_CONSTANTS themselves. TERRAIN_MAPS, TERRAIN_PBR,
+// PARALLAX_POM and the G-buffer defines stay defines: they change the bindings and the outputs.
+import lib.modeconstants;
+#define GI_SKY
+#define AMBIENT_CUBE
+#define WETNESS
+#define WETNESS_PUDDLES
+#define COVER
+#define AO_TERRAIN
+#ifdef TERRAIN_MAPS
+#define POINT_SHADOW
+#endif
+// IF_BEGIN(c) ... IF_END is "if (c) { ... }" in the constants form and nothing in the define form (so that the
+// define form's SPIR-V stays byte for byte what it was).
+#define IF_BEGIN(c) if (c) {
+#define IF_END }
+#else
+#define IF_BEGIN(c)
+#define IF_END
+#endif
 import lib.view.scene;
 import lib.view.linear;
 import lib.view.fog;
@@ -156,8 +181,21 @@ FragmentOutput fragMain(FragmentInput input)
 
     float4 outColor = float4(0, 0, 0, 1);
 #ifdef COVER
+#ifdef MODE_CONSTANTS
+    CoverSurface coverS;
+    coverS.mask = 0.0;
+    coverS.kind = 0;
+    coverS.amount = 0.0;
+    coverS.upwardness = 0.0;
+    coverS.exposure = 1.0;
+    IF_BEGIN(cCover)
+    coverS = coverSurfaceAt(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
+        mul((float3x3)scene.invView, normalize(input.io.viewNormal)));
+    IF_END
+#else
     CoverSurface coverS = coverSurfaceAt(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
         mul((float3x3)scene.invView, normalize(input.io.viewNormal)));
+#endif
 #endif
 #ifdef TERRAIN_MAPS
     float3x3 normalToView = transpose(float3x3(input.io.viewTangent, input.io.viewBinormal, input.io.viewNormal));
@@ -255,14 +293,18 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
     }
 #if defined(COVER) && defined(TERRAIN_PBR)
+    IF_BEGIN(cCover)
     terrainS.roughness = lerp(terrainS.roughness, coverRoughnessOf(coverS.kind), coverS.mask);
     terrainS.metalness *= 1.0 - coverS.mask;
+    IF_END
 #endif
     float3 viewNormal = normalize(mul(normalToView, blendedNormal));
     // The shadow bias keeps the geometry normal, as OpenMW's shadows did.
     float sunShadow = shadow(input.io.viewPos, input.io.viewNormal);
 #ifdef POINT_SHADOW
+    IF_BEGIN(cPointShadow)
     pointShadowNormal = normalize(input.io.viewNormal);
+    IF_END
 #endif
     // terrain.frag's specular: shininess 128 and the layer's diffuse alpha as a grey specular colour.
     const float shininess = 128.0;
@@ -298,7 +340,9 @@ FragmentOutput fragMain(FragmentInput input)
     // The layers are blended on encoded values and converted once (task 0025).
     outColor.xyz = toLinearIfView(outColor.xyz);
 #ifdef COVER
+    IF_BEGIN(cCover)
     outColor.xyz = lerp(outColor.xyz, coverColourOf(coverS.kind), coverS.mask);
+    IF_END
 #endif
 #ifdef WETNESS
 #ifdef TERRAIN_PBR
@@ -307,6 +351,30 @@ FragmentOutput fragMain(FragmentInput input)
     const float wetTerrainRoughness = 0.95;
 #endif
     float3 wetWorldPos = mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz;
+#ifdef MODE_CONSTANTS
+    WetSurface wetS;
+    wetS.wet = 0.0;
+    wetS.exposure = 1.0;
+    wetS.puddle = 0.0;
+    float wetPuddleDark = wetPuddleDarkening;
+    float wetRippleGate = 1.0;
+    PuddleShade wetPm = {};
+    IF_BEGIN(cWetness)
+    wetS = wetSurfaceAt(wetWorldPos, mul((float3x3)scene.invView, normalize(input.io.viewNormal)));
+    IF_BEGIN(cWetnessPuddles)
+    wetPm = puddleShadeAt(
+        wetWorldPos, wetS.wet, mul((float3x3)scene.invView, normalize(input.io.viewNormal)).z, false);
+    if (wetPm.covered)
+    {
+        wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;
+        wetPuddleDark = wetPuddleDarkening * puddleDepthTint(wetPm.depth);
+        wetRippleGate = wetPm.rippleGate;
+    }
+    IF_END
+    if (wetS.wet > 0.0)
+        outColor.xyz *= wetDarkening(wetS.wet, wetTerrainRoughness) * lerp(1.0, wetPuddleDark, wetS.puddle);
+    IF_END
+#else
     WetSurface wetS = wetSurfaceAt(wetWorldPos, mul((float3x3)scene.invView, normalize(input.io.viewNormal)));
     float wetPuddleDark = wetPuddleDarkening;
     float wetRippleGate = 1.0;
@@ -323,6 +391,7 @@ FragmentOutput fragMain(FragmentInput input)
     if (wetS.wet > 0.0)
         outColor.xyz *= wetDarkening(wetS.wet, wetTerrainRoughness) * lerp(1.0, wetPuddleDark, wetS.puddle);
 #endif
+#endif
 
     uint colorWidth, colorHeight;
     colorMap.GetDimensions(colorWidth, colorHeight);
@@ -330,7 +399,9 @@ FragmentOutput fragMain(FragmentInput input)
     float2 colorCoord = (input.io.texCoord - 0.5) * colorTexSize / (colorTexSize + 1) + 0.5;
     float4 vertexColor = colorMap.Sample(colorCoord);
 #ifdef COVER
+    IF_BEGIN(cCover)
     vertexColor.xyz = lerp(vertexColor.xyz, float3(dot(vertexColor.xyz, float3(1.0 / 3.0))), coverS.mask);
+    IF_END
 #endif
 #ifdef AO_TERRAIN
     // Task 0048: the ambient part of this pixel's colour (see the GLSL); set in each lighting branch.
@@ -340,23 +411,45 @@ FragmentOutput fragMain(FragmentInput input)
     {
         float3 terrainAmbient = scene.ambient.xyz;
 #ifdef AMBIENT_CUBE
+        IF_BEGIN(cAmbientCube)
         terrainAmbient = ambientCubeAmbient(mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainAmbient);
+        IF_END
 #endif
 #ifdef GI_SKY
+        IF_BEGIN(cGiSky)
         terrainAmbient = skyVisAmbient(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
             mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainAmbient);
+        IF_END
 #endif
         float terrainDiffuseScale = 1.0 - terrainS.metalness;
 #ifdef AO_TERRAIN
+        IF_BEGIN(cAoTerrain)
         terrainAmbientPart
             = outColor.xyz * (terrainAmbient * getAmbient(vertexColor) * (terrainDiffuseScale * terrainS.occlusion));
+        IF_END
 #endif
         outColor *= materialTermsScaled(
             terrainAmbient, diffuse, vertexColor, terrainDiffuseScale * terrainS.occlusion, terrainDiffuseScale);
         outColor.xyz += specularLight;
     }
 #else
-#ifdef AMBIENT_CUBE
+#ifdef MODE_CONSTANTS
+    // The define form's three branches (cube, sky field, neither) as one ambient: with neither constant on it is
+    // scene.ambient, which materialTerms uses too.
+    float3 terrainSkyAmbient = scene.ambient.xyz;
+    IF_BEGIN(cAmbientCube)
+    terrainSkyAmbient
+        = ambientCubeAmbient(mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainSkyAmbient);
+    IF_END
+    IF_BEGIN(cGiSky)
+    terrainSkyAmbient = skyVisAmbient(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
+        mul((float3x3)scene.invView, normalize(input.io.viewNormal)), terrainSkyAmbient);
+    IF_END
+    IF_BEGIN(cAoTerrain)
+    terrainAmbientPart = outColor.xyz * (terrainSkyAmbient * getAmbient(vertexColor));
+    IF_END
+    outColor *= materialTermsAmbient(terrainSkyAmbient, diffuse, vertexColor);
+#elif defined(AMBIENT_CUBE)
     float3 terrainSkyAmbient
         = ambientCubeAmbient(mul((float3x3)scene.invView, normalize(input.io.viewNormal)), scene.ambient.xyz);
 #ifdef GI_SKY
@@ -385,6 +478,7 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
 #endif
 #ifdef WETNESS
+    IF_BEGIN(cWetness)
     if (wetS.wet > 0.0)
     {
         float3 wetN = normalize(input.io.viewNormal);
@@ -409,19 +503,31 @@ FragmentOutput fragMain(FragmentInput input)
             outColor.xyz += wetSky * (wetFresnel(dot(wetNW, -wetEye)) * wetPuddleReflection * wetS.puddle);
         }
     }
-#ifdef WETNESS_DEBUG
+    IF_END
+#if defined(WETNESS_DEBUG) || defined(MODE_CONSTANTS)
+    IF_BEGIN(cWetnessDebug)
     outColor.xyz = float3(wetS.wet, wetS.exposure, wetS.puddle);
+    IF_END
 #endif
 #ifdef WETNESS_PUDDLES
     // Task 0095: a debug view of the puddle map (the setting `wetness puddle debug`).
+    IF_BEGIN(cWetnessPuddles)
     if (puddleDebugMode() != 0u)
         outColor.xyz = puddleDebugColour(wetPm);
+    IF_END
 #endif
 #endif
-#ifdef COVER_DEBUG
+#if defined(COVER_DEBUG) || defined(MODE_CONSTANTS)
+    IF_BEGIN(cCoverDebug)
     outColor.xyz = float3(coverS.amount, coverS.upwardness, coverS.mask);
+    IF_END
 #endif
-#ifdef AMBIENT_CUBE
+#ifdef MODE_CONSTANTS
+    float4 fogStart = float4(0.0);
+    IF_BEGIN(cAmbientCube)
+    fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
+    IF_END
+#elif defined(AMBIENT_CUBE)
     const float4 fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
 #else
     const float4 fogStart = float4(0.0);
@@ -429,12 +535,16 @@ FragmentOutput fragMain(FragmentInput input)
     outColor.xyz = applyFog(outColor.xyz, input.io.viewPos, input.fragCoord.xy, fogStart);
 #ifdef AO_TERRAIN
     // The fog's share of the colour, as default/main.frag does it for objects.
+    IF_BEGIN(cAoTerrain)
     terrainAmbientPart *= applyFog(float3(1.0), input.io.viewPos, input.fragCoord.xy, fogStart)
         - applyFog(float3(0.0), input.io.viewPos, input.fragCoord.xy, fogStart);
+    IF_END
 #endif
 
-#ifdef DEBUG_SHADOW
+#if defined(DEBUG_SHADOW) || defined(MODE_CONSTANTS)
+    IF_BEGIN(cDebugShadow)
     outColor = debugShadow(outColor, input.fragCoord.xy);
+    IF_END
 #endif
 
 #ifdef GBUFFER
@@ -457,7 +567,12 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
 #endif
 #ifdef GBUFFER_AMBIENT
-#ifdef AO_TERRAIN
+#ifdef MODE_CONSTANTS
+    output.ambientPart = float4(0.0);
+    IF_BEGIN(cAoTerrain)
+    output.ambientPart = float4(terrainAmbientPart, 1.0);
+    IF_END
+#elif defined(AO_TERRAIN)
     output.ambientPart = float4(terrainAmbientPart, 1.0);
 #else
     output.ambientPart = float4(0.0);
@@ -466,7 +581,8 @@ FragmentOutput fragMain(FragmentInput input)
     output.normal = outNormal;
 #endif
 
-#ifdef DEBUG_CHUNKS
+#if defined(DEBUG_CHUNKS) || defined(MODE_CONSTANTS)
+    IF_BEGIN(cDebugChunks)
     float b = 0.005;
     if (input.io.texCoord.x < b || input.io.texCoord.y < b || input.io.texCoord.x > 1 - b
         || input.io.texCoord.y > 1 - b)
@@ -474,6 +590,7 @@ FragmentOutput fragMain(FragmentInput input)
     if (input.io.localTexCoord.x < b || input.io.localTexCoord.y < b || input.io.localTexCoord.x > 1 - b
         || input.io.localTexCoord.y > 1 - b)
         outColor.xyz = float3(0, 0, 1);
+    IF_END
 #endif
     // Task 0087: the dither of the GLSL's last statement (see terrain/main.frag).
     float code = input.io.chunkFade < 1.0 ? input.io.chunkFade : data.batch.fade;

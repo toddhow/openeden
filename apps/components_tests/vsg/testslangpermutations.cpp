@@ -4,6 +4,7 @@
 // C++ side builds the pipeline layouts by hand and links stages by location, so any difference is a bug.
 #include <gtest/gtest.h>
 
+#include <components/pipeline/terrain.hpp>
 #include <components/resource/shadersettings.hpp>
 #include <components/vsgutil/shaderpermutation.hpp>
 #include <components/vsgutil/spirvinterface.hpp>
@@ -20,6 +21,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -88,6 +90,19 @@ namespace
             {
                 settingsDefines.insert("CLOUD_SHADOW");
                 settingsDefines.insert("VOLUME_CLOUD_SHADOW");
+                continue;
+            }
+            // Task 0363 (stage c): MODE_CONSTANTS is the terrain's constants permutation: its interface is the GLSL's
+            // with every feature on (the sky field, the ambient cube, wetness with puddles, cover, the cloud shadows,
+            // point light shadows with the maps, the two debug views); the map class and G-buffer defines are real.
+            if (name == "MODE_CONSTANTS")
+            {
+                for (const char* settingsName : { "CLOUD_SHADOW", "VOLUME_CLOUD_SHADOW", "DEBUG_CHUNKS", "DEBUG_SHADOW" })
+                    settingsDefines.insert(settingsName);
+                for (const char* define : { "GI_SKY", "WETNESS", "WETNESS_PUDDLES", "COVER", "AMBIENT_CUBE", "AO_TERRAIN" })
+                    defines.push_back(define);
+                if (canonicalDefines.find("TERRAIN_MAPS") != std::string::npos)
+                    defines.push_back("POINT_SHADOW");
                 continue;
             }
             // Task 0072 (water family): a name of Resource::settingsDefineNames() is a "#define <name> 1" line of a
@@ -166,11 +181,38 @@ namespace
         return exceptions;
     }
 
+    // Task 0363 (stage c): the terrain's constants permutation also declares these (Pipeline::TerrainConstantId,
+    // lib/modeconstants.slang); they are not in Resource::settingsConstantTable.
+    struct TerrainConstantInfo
+    {
+        const char* mName;
+        uint32_t mId;
+        char mType;
+    };
+    [[maybe_unused]] std::span<const TerrainConstantInfo> terrainConstantTable()
+    {
+        namespace Id = Pipeline::TerrainConstantId;
+        static const TerrainConstantInfo table[] = { { "cGiSky", Id::GiSky, 'b' }, { "cWetness", Id::Wetness, 'b' },
+            { "cWetnessPuddles", Id::WetnessPuddles, 'b' }, { "cWetnessDebug", Id::WetnessDebug, 'b' },
+            { "cCover", Id::Cover, 'b' }, { "cCoverDebug", Id::CoverDebug, 'b' },
+            { "cAmbientCube", Id::AmbientCube, 'b' }, { "cPointShadow", Id::PointShadow, 'b' },
+            { "cAoTerrain", Id::AoTerrain, 'b' }, { "cPomMinSteps", Id::PomMinSteps, 'i' },
+            { "cPomMaxSteps", Id::PomMaxSteps, 'i' }, { "cPomRefineTaps", Id::PomRefineTaps, 'i' } };
+        return table;
+    }
+
     // A twin takes the GLSL's `*.settings` constants as specialization constants with the ids and types of
     // Resource::settingsConstantTable; the GLSL has them as plain constants, so these lines exist in the twin only.
     [[maybe_unused]] bool isSettingsConstant(const std::string& line)
     {
         for (const auto& entry : Resource::settingsConstantTable())
+        {
+            const std::string id = "id=" + std::to_string(entry.mId) + " ";
+            const char* type = entry.mType == 'b' ? "bool" : entry.mType == 'i' ? "i32" : "f32";
+            if (line == "spec_constant " + id + type || line.rfind("spec_constant_default " + id, 0) == 0)
+                return true;
+        }
+        for (const auto& entry : terrainConstantTable())
         {
             const std::string id = "id=" + std::to_string(entry.mId) + " ";
             const char* type = entry.mType == 'b' ? "bool" : entry.mType == 'i' ? "i32" : "f32";
@@ -216,6 +258,11 @@ namespace
         {
             if (entry.mId == id)
                 return std::string(entry.mName);
+        }
+        for (const auto& entry : terrainConstantTable())
+        {
+            if (entry.mId == id)
+                return entry.mName;
         }
         return {};
     }
@@ -276,6 +323,9 @@ namespace
                     }
                     // Task 0363 (stage b): the water's constants permutation (vsgUtil::constantDefinesFor).
                     if (name == "SHADOW_CONSTANTS" && stageFile == "water/main.frag")
+                        continue;
+                    // Task 0363 (stage c): the terrain's constants permutation.
+                    if (name == "MODE_CONSTANTS" && stageFile.rfind("terrain/", 0) == 0)
                         continue;
                     EXPECT_EQ(possible.count(name), 1u) << name << " is neither imported nor a settings define";
                 }
