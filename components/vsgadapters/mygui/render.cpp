@@ -275,9 +275,7 @@ namespace vsgAdapters::mygui
     void Render::registerShader(
         const std::string& shaderName, const std::string& vertexProgramFile, const std::string& fragmentProgramFile)
     {
-        // OpenEden (task 0072): with `[Rendering] slang shaders` on, the Slang twins of the GUI stages (no defines),
-        // both or neither (review of stage f, finding 7): VSG compiles a pipeline's stages together when one is GLSL,
-        // and glslang cannot link a SPIR-V stage, so a twin beside a GLSL stage would draw no GUI at all.
+        // OpenEden (task 0072): the Slang twins of the GUI stages (no defines), both or neither.
         const auto shaders
             = vsgUtil::withSlangTwinsTogether(vsg::ShaderStages{ vsgUtil::readShader(vertexProgramFile, mShaderOptions),
                                                   vsgUtil::readShader(fragmentProgramFile, mShaderOptions) },

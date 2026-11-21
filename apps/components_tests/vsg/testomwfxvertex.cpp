@@ -111,11 +111,10 @@ namespace
             writeText("post/other.frag.slang-stage", "other.slang\tfragMain\tfragment\t-\n");
         }
         vsg::ref_ptr<const vsg::Options> options() const { return mOptions; }
-        // As the game makes them with `[Rendering] slang shaders` on, with one settings constant.
+        // As the game makes them, with one settings constant.
         vsg::ref_ptr<const vsg::Options> slangOptions() const
         {
             auto options = vsg::Options::create(*mOptions);
-            options->setValue(vsgUtil::preferSlangKey, true);
             auto constants = vsgUtil::SettingsConstants::create();
             constants->constants[1004] = vsg::floatValue::create(0.25f);
             options->setObject(vsgUtil::settingsConstantsKey, constants);

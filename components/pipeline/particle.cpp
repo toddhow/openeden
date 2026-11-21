@@ -29,7 +29,7 @@ namespace Pipeline
 
     vsg::ref_ptr<vsg::BindComputePipeline> Particle::create(ParticleModeFlags modes) const
     {
-        // Task 0072, stage c: the Slang twin when `[Rendering] slang shaders` is on and it was built.
+        // Task 0072, stage c: the Slang twin (task 0363, stage g: the only shader there is).
         const std::string path = "comp/particle/simulate.comp";
         auto shaderStage = vsgUtil::withSlangTwin(vsgUtil::readShader(path, mShaderOptions), path, mShaderOptions);
         shaderStage = vsg::ShaderStage::create(*shaderStage);

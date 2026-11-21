@@ -2,6 +2,17 @@
 
 Rules and pitfalls for the shaders. Rendering code has its own guides (`components/render/CLAUDE.md`, `apps/openmw/mwrender/CLAUDE.md`).
 
+## There is no GLSL (task 0363, stage g)
+
+Read this first: the sections below are the history of the port and still name GLSL files and the `slang shaders` setting; both are gone.
+
+- **Every shader of the game is Slang.** The only GLSL file left is `post/omwfx.vert`, the vertex stage of the `.omwfx` post-processing passes (`vsgUtil::readOmwfxVertexStage`: it is paired with a fragment stage translated from a mod's `.omwfx` text, which glslang compiles; the stage-h exemption takes the Slang twin of this one stage when the build has it, and the GLSL file is the fallback where it has not, for example in a folder with no `.slang-stage` file). The `.omwfx` translation itself (`components/fx`) keeps glslang; nothing else reads GLSL.
+- **A stage is its `.slang-stage` file.** `<stage>.slang-stage` (written by `openeden_add_slang_permutations()` into the build's `resources/shaders`) is one line, tab separated: source, entry, stage kind and the names the stage imports (the `defines` line of its `<stage>.interface`; `-` for none). `vsgUtil::readShader` returns a stage with no code, `Pipeline::Graphics::create` and the terrain, GUI, compute and post-pass readers take the twin of the stage's exact set (prebuilt, from the cache, or compiled on the worker and waited for, task 0363 stage f), and **throw when there is none**: the draw is left out and the builder of the model logs the error with the stage and its defines (a model that cannot be drawn is a model left out, as a model whose file cannot be read; nothing else draws instead). `SlangRuntime` has already warned once for the set.
+- **The reference for a twin's interface is the recorded `<stage>.interface` (golden data).** `SlangInterfaceRecords.every_permutation_has_the_recorded_interface` compares every built set with it (with the `.interface-exceptions`); the configure step of this folder checks that every listed set names only imported names. A new set is added to the `.sets` file and its record is edited by hand (the records can no longer be regenerated from GLSL: they say "recorded when the GLSL existed").
+- **Files C++ includes are `.hpp`.** The 19 headers the engine includes (`lib/view/bindings.hpp`, `data.hpp`, `cascades.hpp`, `lib/sets.hpp`, the compute workgroup sizes, `terrain/bindings.hpp` and `data.hpp`, ...) were GLSL files that also compile as C++; they are plain C++ headers now and the Slang side repeats their numbers (a test reads both).
+- **`[Rendering] slang shaders` is gone.** An old `settings.cfg` that still has the line is harmless (an unknown key is ignored and commented at the next save). `[Rendering] shader constants` stays (default false).
+- **Tests that read shader text** read the Slang file (`readSource("lib/view/fog.slang")`); a GLSL half of a "both languages" test was removed with the GLSL.
+
 ## Slang twins of the GLSL (task 0072)
 
 - **New shaders are Slang** (decision 0009). Existing GLSL is ported family by family under task 0072; the GLSL stays until toddhow agrees to delete it.

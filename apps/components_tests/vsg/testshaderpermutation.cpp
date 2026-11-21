@@ -131,15 +131,4 @@ namespace
             "sky/moon/main.frag\tDIFFUSE_MAP MATERIAL");
         EXPECT_EQ(vsgUtil::traceLine("gui/gui.vert", {}), "gui/gui.vert\t");
     }
-
-    TEST(ShaderPermutation, the_preference_is_read_from_the_options)
-    {
-        EXPECT_FALSE(vsgUtil::prefersSlang(nullptr));
-        auto options = vsg::Options::create();
-        EXPECT_FALSE(vsgUtil::prefersSlang(options.get()));
-        options->setValue(vsgUtil::preferSlangKey, true);
-        EXPECT_TRUE(vsgUtil::prefersSlang(options.get()));
-        options->setValue(vsgUtil::preferSlangKey, false);
-        EXPECT_FALSE(vsgUtil::prefersSlang(options.get()));
-    }
 }

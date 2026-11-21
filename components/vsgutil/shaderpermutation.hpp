@@ -116,12 +116,6 @@ namespace vsgUtil
     std::set<std::string> stageDefines(
         const std::set<std::string>& requested, const std::set<std::string>& imports, const vsg::Options* options);
 
-    /// The name of the bool value on the shader vsg::Options that holds `[Rendering] slang shaders`.
-    inline constexpr const char* preferSlangKey = "openeden.preferSlang";
-
-    /// True when the options (or none) say Slang twins are preferred.
-    bool prefersSlang(const vsg::Options* options);
-
     /// The Slang module for the stage file `path` (for example "sky/moon/main.frag") compiled with exactly `defines`:
     /// the precompiled one, read through the options' paths from "<path>.permutations"; null when there is none or the
     /// manifest cannot be read (logged once per path). Thread safe; manifests are read once per path and search paths,

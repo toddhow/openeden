@@ -145,8 +145,7 @@ namespace UiRml
             vsg::DescriptorSetLayouts{ vsg::DescriptorSetLayout::create(textureBindings) },
             vsg::PushConstantRanges{ { VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants) } });
 
-        // Task 0111 (U2): with `[Rendering] slang shaders` on, the Slang twins of the two stages (no defines), both or
-        // neither, as the MyGUI render does; otherwise the GLSL, exactly as before.
+        // Task 0111 (U2): the Slang twins of the two stages (no defines), both or neither, as the MyGUI render does.
         const vsg::ShaderStages shaders
             = vsgUtil::withSlangTwinsTogether(vsg::ShaderStages{ vsgUtil::readShader(sVertexShader, shaderOptions),
                                                   vsgUtil::readShader(sFragmentShader, shaderOptions) },

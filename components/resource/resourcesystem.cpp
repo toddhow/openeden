@@ -60,13 +60,11 @@ namespace Resource
         // (mwanimation/clone.hpp).
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
-        // Task 0072: `[Rendering] slang shaders`, for every reader of these options (pipelines, the terrain, the GUI).
-        options->setValue(vsgUtil::preferSlangKey, Settings::rendering().mSlangShaders.get());
         // Task 0072, stage b: the `*.settings` values the Slang twins take as specialization constants.
         options->setObject(vsgUtil::settingsConstantsKey, shaderSettings->constants);
-        // Task 0072, stage h: with the switch on, a define set with no prebuilt permutation is compiled at run time
-        // and cached under the user data folder. Nothing is loaded here: the library starts at the first compile.
-        if (Settings::rendering().mSlangShaders.get())
+        // Task 0072, stage h: a define set with no prebuilt permutation is compiled at run time and cached under the
+        // user data folder (task 0363, stage g: there is no GLSL to fall back to, and no switch). Nothing is loaded
+        // here: the library starts at the first compile.
         {
             // OPENEDEN_SHADER_CACHE names another cache folder (for benchmarks and checks that start from an empty or
             // a kept cache); the setting's own place is the user data folder.

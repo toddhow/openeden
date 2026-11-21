@@ -7,7 +7,7 @@
 
 namespace
 {
-#include <files/shaders/comp/fogofwar/constants.glsl>
+#include <files/shaders/comp/fogofwar/constants.hpp>
 }
 namespace Pipeline
 {
@@ -25,7 +25,7 @@ namespace Pipeline
         vsg::PushConstantRanges pushConstantRanges{ { computeStage, 0, 2 * sizeof(vsg::vec4) } };
         auto layout = vsg::PipelineLayout::create(descriptorSetLayouts, pushConstantRanges);
 
-        // Task 0072, stage c: the Slang twin when `[Rendering] slang shaders` is on and it was built.
+        // Task 0072, stage c: the Slang twin (task 0363, stage g: the only shader there is).
         const std::string path = "comp/fogofwar/update.comp";
         auto shaderStage = vsgUtil::withSlangTwin(vsgUtil::readShader(path, shaderOptions), path, shaderOptions);
         return vsg::BindComputePipeline::create(vsg::ComputePipeline::create(layout, shaderStage));

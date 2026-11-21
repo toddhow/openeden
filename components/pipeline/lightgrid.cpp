@@ -20,7 +20,7 @@ namespace Pipeline
         descriptorSetLayouts.emplace_back(vsg::DescriptorSetLayout::create(bindings));
 
         auto layout = vsg::PipelineLayout::create(descriptorSetLayouts, vsg::PushConstantRanges());
-        // Task 0072, stage c: the Slang twin when `[Rendering] slang shaders` is on and it was built.
+        // Task 0072, stage c: the Slang twin (task 0363, stage g: the only shader there is).
         const std::string path = "comp/light/assign.comp";
         auto shaderStage = vsgUtil::withSlangTwin(vsgUtil::readShader(path, shaderOptions), path, shaderOptions);
         return vsg::BindComputePipeline::create(vsg::ComputePipeline::create(layout, shaderStage));

@@ -45,7 +45,7 @@ namespace Resource
 {
     /// The options every shader of the game is read with, over the folder `shaderPath` (the build's or install's
     /// resources/shaders): the `*.settings` reader (Resource::ShaderSettings, made now from the settings), glsl and
-    /// spirv readers, shared objects, and `[Rendering] slang shaders` as vsgUtil::preferSlangKey. Task 0072, review of
+    /// spirv readers, shared objects and the Slang runtime. Task 0072, review of
     /// the stage f and g rounds, finding 1: public, so that tests compile the shaders with the game's own options.
     vsg::ref_ptr<const vsg::Options> createShaderOptions(
         const std::string& shaderPath, const std::string& cacheDirectory = {});

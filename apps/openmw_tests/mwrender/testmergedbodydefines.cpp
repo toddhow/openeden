@@ -1,6 +1,6 @@
 // Tests for MWRender::MergedBodies::pipelineDefines and compareDefines (task 0072, review of stage f, finding 1). The
 // merged body refuses a merged pipeline whose defines differ from the stock part's pipeline. It read the defines from
-// each stage's module hints, but a Slang twin's module has none, so with `[Rendering] slang shaders` on both sides were
+// each stage's module hints, but a Slang twin's module has none, so both sides were
 // empty and the check was silently skipped (it also skipped a stage only one side had). The defines are now those of
 // the GLSL kept beside the twin (vsgUtil::requestedDefinesOf), and a stage only one side has fails the check. The pipelines
 // are built by hand from plain VSG objects (no device), their stages twinned the way the engine twins them. Written

@@ -76,7 +76,7 @@ namespace
 
     // The game's shader options (createShaderOptions, components/resource/resourcesystem.cpp) over `paths`, made
     // now: the ShaderSettings read the settings when made.
-    vsg::ref_ptr<vsg::Options> gameOptions(const std::string& path, bool preferSlang)
+    vsg::ref_ptr<vsg::Options> gameOptions(const std::string& path)
     {
         auto options = vsg::Options::create();
         vsg::ref_ptr<Resource::ShaderSettings> settings{ new Resource::ShaderSettings };
@@ -85,7 +85,6 @@ namespace
         options->sharedObjects = vsg::SharedObjects::create();
         options->findDynamicObjects = {};
         options->propagateDynamicObjects = {};
-        options->setValue(vsgUtil::preferSlangKey, preferSlang);
         options->setObject(vsgUtil::settingsConstantsKey, settings->constants);
         return options;
     }
@@ -117,7 +116,7 @@ namespace
     {
         const std::filesystem::path built(OPENEDEN_SHADER_BUILD_DIR);
         const AoSettingsScope ao(37.25f, 8, 16);
-        const auto options = gameOptions(built.generic_string(), true);
+        const auto options = gameOptions(built.generic_string());
         std::string error;
         const auto stages
             = vsgUtil::readPassStages({ { "post/fullscreen.vert", {} }, { "post/ao.frag", {} } }, options, &error);

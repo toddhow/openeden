@@ -585,12 +585,6 @@ namespace vsgUtil
         return defines;
     }
 
-    bool prefersSlang(const vsg::Options* options)
-    {
-        bool value = false;
-        return options != nullptr && options->getValue(preferSlangKey, value) && value;
-    }
-
     namespace
     {
         // A twin module made from SPIR-V words (a run-time compile), with the specialization constant ids it declares

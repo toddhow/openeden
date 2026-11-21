@@ -9,7 +9,7 @@ new feature too.
 - `profile.cfg` lists the settings, one section per `settings.cfg` section, each with a comment naming the task that
   added it and what it shows.
 - `variants/*.cfg` hold settings that exclude each other or cost a lot, so they are separate: `msaa` (multisampling
-  instead of TAA), `glsl` (the GLSL shaders instead of the Slang ones), `lowtier` (the weakest whole-map tier), `aces`
+  instead of TAA), `lowtier` (the weakest whole-map tier), `aces`
   (another tonemap curve), `pcss` (soft shadow edges), `lowmemory` (a simulated 4 GiB card for the texture downscaler),
   `stats` (frame counters and the cell-load trace), `nolod` (the world LOD off, to tell a LOD pop from the live terrain), `vramsmall` (a simulated 225 MiB card for the video memory scale-back, the low tier), `rmlui` (the new UI system's test panel over the game).
 - `prepare.sh` makes a **profile folder** under `I:\Projects\OpenEden-work\testprofile\<name>` from a **copy** of your
