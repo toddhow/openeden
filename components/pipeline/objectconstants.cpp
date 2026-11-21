@@ -33,6 +33,16 @@ namespace Pipeline
         constants[ObjectConstantId::CoverLit] = flag(pbrLit && has("COVER"));
         constants[ObjectConstantId::LodFade] = flag(has("LOD_FADE"));
         constants[ObjectConstantId::AdjustCoverage] = flag(has("ADJUST_COVERAGE"));
+        // Plan B. The old single step parallax is the fallback only where parallax occlusion does not run (the shader's
+        // `#elif`); the precipitation light is a constant only where the shader can draw it (a diffuse map and
+        // coordinates), otherwise vsgUtil::constantDefinesFor keeps the define.
+        const bool pom = has("PARALLAX_POM") && has("HEIGHT_MAP");
+        constants[ObjectConstantId::Pom] = flag(pom);
+        constants[ObjectConstantId::ParallaxDiscard] = flag(has("PARALLAX_DISCARD"));
+        constants[ObjectConstantId::Parallax] = flag(has("PARALLAX") && !pom);
+        constants[ObjectConstantId::ReconstructNormalZ] = flag(has("RECONSTRUCT_NORMAL_Z"));
+        constants[ObjectConstantId::Rmaos] = flag(has("MATERIAL_MAP_RMAOS"));
+        constants[ObjectConstantId::PrecipLit] = flag(has("PRECIPITATION_LIT"));
         // lib/material/parallax.slang: low, high, and medium (also the value when parallax is off).
         int minSteps = 10, maxSteps = 20, refineTaps = 4;
         if (has("PARALLAX_POM_LOW"))

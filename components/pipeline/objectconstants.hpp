@@ -24,6 +24,13 @@ namespace Pipeline
         inline constexpr uint32_t LodFade = 2026;
         inline constexpr uint32_t AdjustCoverage = 2027;
         inline constexpr uint32_t LodSway = 2028; // the vertex stage's
+        // Plan B: control flow over units and varyings the define set still decides.
+        inline constexpr uint32_t Pom = 2029;
+        inline constexpr uint32_t ParallaxDiscard = 2030;
+        inline constexpr uint32_t Parallax = 2031;
+        inline constexpr uint32_t ReconstructNormalZ = 2032;
+        inline constexpr uint32_t Rmaos = 2033;
+        inline constexpr uint32_t PrecipLit = 2034;
     }
 
     /// The values of the fragment stage's constants for the stage's define set (the names Pipeline::getDefine gives the

@@ -73,7 +73,8 @@ namespace
 
     const uint32_t allFragmentFlags[] = { TId::GiSky, TId::Wetness, TId::WetnessPuddles, TId::WetnessDebug, TId::Cover,
         TId::CoverDebug, TId::AmbientCube, TId::PointShadow, Id::Gi, Id::PerPixelLighting, Id::PbrLit, Id::PbrPhysical,
-        Id::WetLit, Id::CoverLit, Id::LodFade, Id::AdjustCoverage };
+        Id::WetLit, Id::CoverLit, Id::LodFade, Id::AdjustCoverage, Id::Pom, Id::ParallaxDiscard, Id::Parallax,
+        Id::ReconstructNormalZ, Id::Rmaos, Id::PrecipLit };
 
     TEST(ObjectConstants, nothing_on_sets_every_flag_false_and_the_medium_parallax_numbers)
     {
@@ -95,7 +96,9 @@ namespace
             { "WETNESS_PUDDLES", TId::WetnessPuddles }, { "WETNESS_DEBUG", TId::WetnessDebug },
             { "COVER", TId::Cover }, { "COVER_DEBUG", TId::CoverDebug }, { "AMBIENT_CUBE", TId::AmbientCube },
             { "POINT_SHADOW", TId::PointShadow }, { "PBR_PHYSICAL", Id::PbrPhysical }, { "LOD_FADE", Id::LodFade },
-            { "ADJUST_COVERAGE", Id::AdjustCoverage } };
+            { "ADJUST_COVERAGE", Id::AdjustCoverage }, { "PARALLAX_DISCARD", Id::ParallaxDiscard },
+            { "RECONSTRUCT_NORMAL_Z", Id::ReconstructNormalZ }, { "MATERIAL_MAP_RMAOS", Id::Rmaos },
+            { "PRECIPITATION_LIT", Id::PrecipLit } };
         for (const auto& entry : plain)
         {
             const auto on = Pipeline::objectFragmentConstants({ entry.define });
@@ -151,6 +154,44 @@ namespace
         EXPECT_EQ(intOf(high, TId::PomRefineTaps), 4);
     }
 
+    // Plan B: parallax occlusion runs only with a height map, and the single step parallax is its fallback (the
+    // shader's `#elif`), so a set with both takes the occlusion only.
+    TEST(ObjectConstants, parallax_occlusion_needs_the_height_map_and_replaces_the_single_step)
+    {
+        EXPECT_TRUE(boolOf(Pipeline::objectFragmentConstants({ "HEIGHT_MAP", "PARALLAX_POM" }), Id::Pom));
+        EXPECT_FALSE(boolOf(Pipeline::objectFragmentConstants({ "PARALLAX_POM" }), Id::Pom));
+        EXPECT_FALSE(boolOf(Pipeline::objectFragmentConstants({ "HEIGHT_MAP" }), Id::Pom));
+        EXPECT_TRUE(boolOf(Pipeline::objectFragmentConstants({ "PARALLAX" }), Id::Parallax));
+        EXPECT_TRUE(boolOf(Pipeline::objectFragmentConstants({ "HEIGHT_MAP", "PARALLAX" }), Id::Parallax));
+        const auto both = Pipeline::objectFragmentConstants({ "HEIGHT_MAP", "PARALLAX", "PARALLAX_POM" });
+        EXPECT_TRUE(boolOf(both, Id::Pom));
+        EXPECT_FALSE(boolOf(both, Id::Parallax));
+        const auto noHeight = Pipeline::objectFragmentConstants({ "PARALLAX", "PARALLAX_POM" });
+        EXPECT_FALSE(boolOf(noHeight, Id::Pom));
+        EXPECT_TRUE(boolOf(noHeight, Id::Parallax));
+    }
+
+    // Plan B: the precipitation light is a constant only where the shader can draw it; any other set keeps the define.
+    TEST(ObjectConstants, the_precipitation_light_is_folded_only_with_a_diffuse_map_and_coordinates)
+    {
+        const auto options = optionsWith(true);
+        const Defines rain{ "DIFFUSE_MAP", "NORMAL", "PRECIPITATION_LIT", "TEXCOORD", "UVSETS_1" };
+        EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.frag", rain, options.get()),
+            (Defines{ "DIFFUSE_MAP", "MODE_CONSTANTS", "NORMAL", "TEXCOORD", "UVSETS_1" }));
+        const Defines bare{ "NORMAL", "PRECIPITATION_LIT" };
+        EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.frag", bare, options.get()),
+            (Defines{ "MODE_CONSTANTS", "NORMAL", "PRECIPITATION_LIT" }));
+    }
+
+    TEST(ObjectConstants, the_plan_b_defines_are_dropped_and_their_units_stay)
+    {
+        const Defines in{ "DIFFUSE_MAP", "HEIGHT_MAP", "MATERIAL", "MATERIAL_MAP", "MATERIAL_MAP_RMAOS", "NORMAL",
+            "NORMAL_MAP", "PARALLAX", "PARALLAX_DISCARD", "PARALLAX_POM", "RECONSTRUCT_NORMAL_Z", "TEXCOORD" };
+        EXPECT_EQ(vsgUtil::constantDefinesFor("default/main.frag", in, optionsWith(true).get()),
+            (Defines{ "DIFFUSE_MAP", "HEIGHT_MAP", "MATERIAL", "MATERIAL_MAP", "MODE_CONSTANTS", "NORMAL", "NORMAL_MAP",
+                "TEXCOORD" }));
+    }
+
     TEST(ObjectConstants, the_vertex_has_one_flag_for_the_far_tree_sway)
     {
         EXPECT_FALSE(boolOf(Pipeline::objectVertexConstants({ "COLOR", "NORMAL" }), Id::LodSway));
@@ -163,7 +204,8 @@ namespace
         for (uint32_t id : { TId::GiSky, TId::Wetness, TId::WetnessPuddles, TId::WetnessDebug, TId::Cover,
                  TId::CoverDebug, TId::AmbientCube, TId::PointShadow, TId::AoTerrain, TId::PomMinSteps,
                  TId::PomMaxSteps, TId::PomRefineTaps, Id::Gi, Id::PerPixelLighting, Id::PbrLit, Id::PbrPhysical,
-                 Id::WetLit, Id::CoverLit, Id::LodFade, Id::AdjustCoverage, Id::LodSway })
+                 Id::WetLit, Id::CoverLit, Id::LodFade, Id::AdjustCoverage, Id::LodSway, Id::Pom, Id::ParallaxDiscard,
+                 Id::Parallax, Id::ReconstructNormalZ, Id::Rmaos, Id::PrecipLit })
             EXPECT_TRUE(ids.insert(id).second) << id;
         for (const auto& entry : Resource::settingsConstantTable())
             EXPECT_EQ(ids.count(entry.mId), 0u) << entry.mName;
@@ -172,14 +214,15 @@ namespace
     const char* const controls[] = { "ADJUST_COVERAGE", "AMBIENT_CUBE", "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "COVER",
         "COVER_DEBUG", "DEBUG_SHADOW", "FORCE_PER_PIXEL_LIGHTING", "GI", "GI_SKY", "LOD_FADE", "PARALLAX_POM_HIGH",
         "PARALLAX_POM_LOW", "PBR", "PBR_PHYSICAL", "POINT_SHADOW", "VOLUME_CLOUD_SHADOW", "WETNESS", "WETNESS_DEBUG",
-        "WETNESS_PUDDLES" };
+        "WETNESS_PUDDLES", "MATERIAL_MAP_RMAOS", "PARALLAX", "PARALLAX_DISCARD", "PARALLAX_POM",
+        "RECONSTRUCT_NORMAL_Z" };
 
     // What stays a define (it changes the interface or the outputs): everything that is not in `controls`.
     TEST(ObjectConstants, the_fragment_drops_the_controls_and_keeps_the_content_defines)
     {
         Defines in{ "ALPHA_TO_COVERAGE", "COLOR", "DIFFUSE_MAP", "GBUFFER", "GBUFFER_AMBIENT", "GBUFFER_MATERIAL",
-            "GBUFFER_MOTION", "HEIGHT_MAP", "MATERIAL", "NORMAL", "NORMAL_MAP", "PARALLAX_POM", "PARTICLE",
-            "PRECIPITATION_LIT", "SOFT_PARTICLE", "SPECULAR_MAP", "TEXCOORD" };
+            "GBUFFER_MOTION", "HEIGHT_MAP", "MATERIAL", "NORMAL", "NORMAL_MAP", "PARTICLE", "SOFT_PARTICLE",
+            "SPECULAR_MAP", "TEXCOORD" };
         const Defines content = in;
         for (const char* name : controls)
             in.insert(name);
@@ -293,7 +336,8 @@ namespace
         EXPECT_NE(text.find("MODE_CONSTANTS"), std::string::npos);
         for (const char* name : { "cGi", "cGiSky", "cWetnessPuddles", "cWetnessDebug", "cCoverDebug", "cAmbientCube",
                  "cPointShadow", "cDebugShadow", "cPerPixel", "cPbrLit", "cPbrPhysical", "cWetLit", "cCoverLit",
-                 "cLodFade", "cAdjustCoverage" })
+                 "cLodFade", "cAdjustCoverage", "cPom", "cParallaxDiscard", "cParallax", "cReconstructNormalZ", "cRmaos",
+                 "cPrecipLit" })
         {
             EXPECT_NE(text.find(name), std::string::npos) << name;
             EXPECT_EQ(text.find(std::string(name) + " &&"), std::string::npos) << name;

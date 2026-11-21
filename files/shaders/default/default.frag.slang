@@ -50,6 +50,22 @@ import lib.objectconstants;
 #define LOD_FADE
 #endif
 #define ADJUST_COVERAGE
+// Plan B: the parallax, the discard of displaced coordinates, the normal map's two-channel form, the material map's
+// layout and the precipitation light are constants too; each only where the units it reads exist.
+#ifdef HEIGHT_MAP
+#define PARALLAX_POM
+#define PARALLAX_DISCARD
+#endif
+#ifdef NORMAL_MAP
+#define PARALLAX
+#define RECONSTRUCT_NORMAL_Z
+#endif
+#ifdef MATERIAL_MAP
+#define MATERIAL_MAP_RMAOS
+#endif
+#if defined(DIFFUSE_MAP) && defined(TEXCOORD)
+#define PRECIPITATION_LIT
+#endif
 #ifdef NORMAL
 #define POINT_SHADOW
 // Per pixel lighting, the material model's lit surfaces and the wetness and cover on them exist wherever there is a
@@ -221,6 +237,7 @@ FragmentOutput fragMain(FragmentInput input)
     float3x3 normalToView = transpose(float3x3(input.io.viewTangent, input.io.viewBinormal, input.io.viewNormal));
 #if defined(HEIGHT_MAP) && defined(PARALLAX_POM)
     // Task 0045: the height file wins over a normal map's alpha (see the GLSL).
+    IF_BEGIN(cPom)
     {
         float2 pomDx = ddx(input.io.texCoord[diffuseUV].xy);
         float2 pomDy = ddy(input.io.texCoord[diffuseUV].xy);
@@ -241,12 +258,23 @@ FragmentOutput fragMain(FragmentInput input)
             pomShade = 1.0 - POM_CAVITY_SHADE * pom.cavity * pomFade;
         }
 #ifdef PARALLAX_DISCARD
+        IF_BEGIN(cParallaxDiscard)
         float2 pomUv = input.io.texCoord[diffuseUV].xy + offset;
         if (pomUv.x < 0.0 || pomUv.y < 0.0 || pomUv.x > 1.0 || pomUv.y > 1.0)
             discard;
+        IF_END
 #endif
     }
-#elif defined(PARALLAX)
+    IF_END
+#endif
+#ifdef MODE_CONSTANTS
+#ifdef PARALLAX
+    IF_BEGIN(cParallax)
+    float height = normalMap.Sample(input.io.texCoord[diffuseUV]).a;
+    offset = getParallaxOffset(mul(transpose(normalToView), normalize(-input.io.viewPos)), height);
+    IF_END
+#endif
+#elif !(defined(HEIGHT_MAP) && defined(PARALLAX_POM)) && defined(PARALLAX)
     float height = normalMap.Sample(input.io.texCoord[diffuseUV]).a;
     offset = getParallaxOffset(mul(transpose(normalToView), normalize(-input.io.viewPos)), height);
 #endif
@@ -350,7 +378,9 @@ FragmentOutput fragMain(FragmentInput input)
     tangentNormal.xy += pomNormalXY;
 #endif
 #ifdef RECONSTRUCT_NORMAL_Z
+    IF_BEGIN(cReconstructNormalZ)
     tangentNormal.z = sqrt(1.0 - dot(tangentNormal.xy, tangentNormal.xy));
+    IF_END
 #endif
     float3 viewNormal = normalize(mul(normalToView, tangentNormal));
     // With a normal map, the environment coordinates use the pixel's normal (objects.frag).
@@ -478,7 +508,14 @@ FragmentOutput fragMain(FragmentInput input)
             pbrLit = pbrSurfaceFrom(float4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
 #endif
 #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
-#ifdef MATERIAL_MAP_RMAOS
+#ifdef MODE_CONSTANTS
+            if (cRmaos)
+                pbrLit = pbrApplyMapRmaos(pbrLit, material.pbr,
+                    materialMap.Sample(input.io.texCoord[diffuseUV] + offset), MATERIAL_ROUGHNESS_SCALE);
+            else
+                pbrLit = pbrApplyMap(
+                    pbrLit, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset).rgb);
+#elif defined(MATERIAL_MAP_RMAOS)
             // Task 0044: the True PBR layout; the scale is in the descriptor's spare float (0: none).
             pbrLit = pbrApplyMapRmaos(pbrLit, material.pbr,
                 materialMap.Sample(input.io.texCoord[diffuseUV] + offset), MATERIAL_ROUGHNESS_SCALE);
@@ -632,7 +669,13 @@ FragmentOutput fragMain(FragmentInput input)
     PbrSurface pbrLit = pbrSurfaceFrom(float4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
 #endif
 #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
-#ifdef MATERIAL_MAP_RMAOS
+#ifdef MODE_CONSTANTS
+    if (cRmaos)
+        pbrLit = pbrApplyMapRmaos(pbrLit, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset),
+            MATERIAL_ROUGHNESS_SCALE);
+    else
+        pbrLit = pbrApplyMap(pbrLit, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset).rgb);
+#elif defined(MATERIAL_MAP_RMAOS)
     // Task 0044: the True PBR layout; the scale is in the descriptor's spare float (0: none).
     pbrLit = pbrApplyMapRmaos(
         pbrLit, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset), MATERIAL_ROUGHNESS_SCALE);
@@ -870,12 +913,14 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
 #ifdef PRECIPITATION_LIT
     // Task 0040: a streak scatters the scene's light (see the GLSL). The texture colour stays.
+    IF_BEGIN(cPrecipLit)
     outColor.xyz = toLinearIfView(diffuseMap.Sample(input.io.texCoord[diffuseUV].xy).xyz)
         * precipitationLight(input.io.viewPos, ambientLight);
     outColor.a *= precipFade(length(input.io.viewPos));
 #ifdef GBUFFER_AMBIENT
     ambientPart = float3(0.0); // the streak's light is not the surface ambient that ambient occlusion would darken
 #endif
+    IF_END
 #endif
     // Debug geometry (unlit colour mode 3) is not fogged, as the OSG build's debug shader was not.
     switch (colorMode)
@@ -954,7 +999,13 @@ FragmentOutput fragMain(FragmentInput input)
     PbrSurface pbrOut = pbrSurfaceFrom(float4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
 #endif
 #if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
-#ifdef MATERIAL_MAP_RMAOS
+#ifdef MODE_CONSTANTS
+    if (cRmaos)
+        pbrOut = pbrApplyMapRmaos(pbrOut, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset),
+            MATERIAL_ROUGHNESS_SCALE);
+    else
+        pbrOut = pbrApplyMap(pbrOut, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset).rgb);
+#elif defined(MATERIAL_MAP_RMAOS)
     pbrOut = pbrApplyMapRmaos(
         pbrOut, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset), MATERIAL_ROUGHNESS_SCALE);
 #else

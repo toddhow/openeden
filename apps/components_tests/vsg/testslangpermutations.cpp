@@ -112,6 +112,19 @@ namespace
                 // What the twin reads whatever the draw: the fog's ambient cube start and the coverage adjustment.
                 for (const char* define : { "AMBIENT_CUBE", "ADJUST_COVERAGE" })
                     defines.push_back(define);
+                // Plan B: the parallax, the material map layout, the two-channel normal map and the precipitation light
+                // are the GLSL's defines on wherever the shader can use them.
+                if (canonicalDefines.find("HEIGHT_MAP") != std::string::npos)
+                    for (const char* define : { "PARALLAX_POM", "PARALLAX_DISCARD" })
+                        defines.push_back(define);
+                if (canonicalDefines.find("NORMAL_MAP") != std::string::npos)
+                    for (const char* define : { "PARALLAX", "RECONSTRUCT_NORMAL_Z" })
+                        defines.push_back(define);
+                if (canonicalDefines.find("MATERIAL_MAP") != std::string::npos)
+                    defines.push_back("MATERIAL_MAP_RMAOS");
+                if (canonicalDefines.find("DIFFUSE_MAP") != std::string::npos
+                    && canonicalDefines.find("TEXCOORD") != std::string::npos)
+                    defines.push_back("PRECIPITATION_LIT");
                 // The lit surface's features exist only where there is a normal.
                 if (canonicalDefines.find("NORMAL") != std::string::npos)
                     for (const char* define : { "GI", "GI_SKY", "WETNESS", "WETNESS_PUDDLES", "COVER", "PBR", "POINT_SHADOW" })
@@ -230,7 +243,13 @@ namespace
             { "cCoverLit", Pipeline::ObjectConstantId::CoverLit, 'b' },
             { "cLodFade", Pipeline::ObjectConstantId::LodFade, 'b' },
             { "cAdjustCoverage", Pipeline::ObjectConstantId::AdjustCoverage, 'b' },
-            { "cLodSway", Pipeline::ObjectConstantId::LodSway, 'b' } };
+            { "cLodSway", Pipeline::ObjectConstantId::LodSway, 'b' },
+            { "cPom", Pipeline::ObjectConstantId::Pom, 'b' },
+            { "cParallaxDiscard", Pipeline::ObjectConstantId::ParallaxDiscard, 'b' },
+            { "cParallax", Pipeline::ObjectConstantId::Parallax, 'b' },
+            { "cReconstructNormalZ", Pipeline::ObjectConstantId::ReconstructNormalZ, 'b' },
+            { "cRmaos", Pipeline::ObjectConstantId::Rmaos, 'b' },
+            { "cPrecipLit", Pipeline::ObjectConstantId::PrecipLit, 'b' } };
         return table;
     }
 

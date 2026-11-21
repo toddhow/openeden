@@ -507,6 +507,13 @@ namespace vsgUtil
                      "PARALLAX_POM_HIGH", "PARALLAX_POM_LOW", "PBR", "PBR_PHYSICAL", "POINT_SHADOW",
                      "VOLUME_CLOUD_SHADOW", "WETNESS", "WETNESS_DEBUG", "WETNESS_PUDDLES" })
                 defines.erase(name);
+            // Plan B: control flow over units the set still decides. The precipitation light needs the diffuse map and
+            // its coordinates (the shader's block), so a set without them keeps the define.
+            for (const char* name : { "MATERIAL_MAP_RMAOS", "PARALLAX", "PARALLAX_DISCARD", "PARALLAX_POM",
+                     "RECONSTRUCT_NORMAL_Z" })
+                defines.erase(name);
+            if (defines.count("DIFFUSE_MAP") != 0 && defines.count("TEXCOORD") != 0)
+                defines.erase("PRECIPITATION_LIT");
             defines.insert("MODE_CONSTANTS");
             return defines;
         }

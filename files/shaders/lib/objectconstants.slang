@@ -20,6 +20,12 @@
 [vk::constant_id(2026)] const bool cLodFade = false;
 [vk::constant_id(2027)] const bool cAdjustCoverage = false;
 [vk::constant_id(2028)] const bool cLodSway = false;
+[vk::constant_id(2029)] const bool cPom = false;
+[vk::constant_id(2030)] const bool cParallaxDiscard = false;
+[vk::constant_id(2031)] const bool cParallax = false;
+[vk::constant_id(2032)] const bool cReconstructNormalZ = false;
+[vk::constant_id(2033)] const bool cRmaos = false;
+[vk::constant_id(2034)] const bool cPrecipLit = false;
 #endif
 
 #endif
