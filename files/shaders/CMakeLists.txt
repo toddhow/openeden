@@ -80,22 +80,6 @@ set(SHADER_FILES
     water/main.frag
     water/fresnel.glsl
     water/rainripples.glsl
-    sky/atmosphere/inout.glsl
-    sky/atmosphere/main.frag
-    sky/atmosphere/main.vert
-    sky/clouds/inout.glsl
-    sky/clouds/lit.glsl
-    sky/clouds/main.frag
-    sky/clouds/main.vert
-    sky/moon/main.frag
-    sky/moon/main.vert
-    sky/night/inout.glsl
-    sky/night/main.frag
-    sky/night/main.vert
-    sky/sun/main.frag
-    sky/sun/main.vert
-    sky/sunglare/main.frag
-    sky/sunglare/main.vert
     comp/bindings.glsl
     comp/worldoverlay/workgroupsize.glsl
     comp/worldoverlay/update.comp

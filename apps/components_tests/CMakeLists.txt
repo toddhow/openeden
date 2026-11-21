@@ -377,7 +377,6 @@ file(GLOB UNITTEST_SRC_FILES
 
     vsg/testcompilemutex.cpp
     vsg/testshadercompile.cpp
-    vsg/testslangshaders.cpp
     vsg/testshaderdefines.cpp
     vsg/testshaderconstants.cpp
     vsg/testsmallfamilies.cpp
