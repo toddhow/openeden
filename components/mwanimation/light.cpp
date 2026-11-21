@@ -24,6 +24,18 @@
 
 namespace
 {
+    // OPENEDEN_LIGHT_FLICKER_FIXED=<brightness> (developer aid, task 0363 stage d): every flickering or pulsing light
+    // holds this brightness (0 to 1, a Morrowind light's own is 0.25 to 1), so two runs light a scene alike and a frame
+    // comparison of a shader change is not drowned by the lights' random phases. Unset: the lights flicker as always.
+    float fixedFlickerBrightness()
+    {
+        static const float value = []() {
+            const char* text = std::getenv("OPENEDEN_LIGHT_FLICKER_FIXED");
+            return text != nullptr ? static_cast<float>(std::atof(text)) : -1.f;
+        }();
+        return value;
+    }
+
     // OPENEDEN_LIGHT_FLICKER_TRACE=1 (developer aid, task 0355 stage h): LFLICK lines with the brightness of the first
     // twelve flickering lights of the process, one per run of the controller (600 per light).
     struct FlickerTrace
@@ -106,7 +118,8 @@ namespace
                     mPhase = mPhase <= 0.5f ? 1.f : 0.25f;
             }
             // OpenEden: the colour flickers, not the radius, as OpenMW's LightController at 442eec6e2f.
-            light.color = mBaseColor * mBrightness /* * actorFade*/;
+            light.color = mBaseColor * (fixedFlickerBrightness() >= 0.f ? fixedFlickerBrightness() : mBrightness)
+                /* * actorFade*/;
             mTrace.sample(time, mBrightness);
         }
     };
@@ -143,7 +156,7 @@ namespace
                 mDt.last = time;
             }
             const float b = mWalk.step(mDt.get(time));
-            light.color = mBaseColor * b;
+            light.color = mBaseColor * (fixedFlickerBrightness() >= 0.f ? fixedFlickerBrightness() : b);
             // Task 0362 item 2: a light with a movement amplitude wanders round its place (the offset is seeded, no clock).
             if (mMoves)
             {

@@ -6,6 +6,18 @@
 // M * v is mul(M, v) and v * M is mul(v, M); mat3(m) of a mat4 is (float3x3)m; inverse comes from the glsl module.
 import glsl;
 
+#ifdef MODE_CONSTANTS
+// Task 0363 (stage d, plan M): the constants permutation of the one vertex define that is a setting, the far tree sway
+// (lib/objectconstants.slang, Pipeline::objectVertexConstants). The sway's code is compiled in and branches on cLodSway.
+import lib.objectconstants;
+#define LOD_SWAY
+#define IF_BEGIN(c) if (c) {
+#define IF_END }
+#else
+#define IF_BEGIN(c)
+#define IF_END
+#endif
+
 import lib.pushconstants;
 #include "lib/material/bindings.slang"
 #include "lib/material/descriptors_vert.slang"
@@ -166,6 +178,7 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
 #endif
 
 #if defined(LOD_SWAY) && defined(COLOR)
+    IF_BEGIN(cLodSway)
     {
         // See the GLSL (needs COLOR). The GLSL's texmat[0] (first column) is texmat[r][0] for r = 0..2 here.
         float3 swayWorld = mul(scene.invView, viewPos).xyz;
@@ -180,6 +193,7 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
             swayPush *= clamp(length(viewPos.xyz) / swayBoostReference, 1.0, 6.0);
         viewPos.xyz += mul(transpose((float3x3)scene.invView), float3(swayPush * (input.inColor.a * input.inColor.a), 0.0));
     }
+    IF_END
 #endif
 
     output.io.viewPos = viewPos.xyz;
@@ -222,7 +236,11 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
         = pointLightDiffuse(clipPosToScreenCoord(output.position), normalize(viewNormal), viewPos.xyz);
 #endif
 #ifdef COLOR
-#if defined(LOD_SWAY)
+#ifdef MODE_CONSTANTS
+    output.io.color = input.inColor;
+    if (cLodSway)
+        output.io.color = float4(input.inColor.rgb, 1.0); // the alpha byte carried the sway weight
+#elif defined(LOD_SWAY)
     output.io.color = float4(input.inColor.rgb, 1.0); // the alpha byte carried the sway weight
 #else
     output.io.color = input.inColor;

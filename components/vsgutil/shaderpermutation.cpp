@@ -474,7 +474,9 @@ namespace vsgUtil
         const bool water = path == "water/main.frag";
         const bool terrainFragment = path == "terrain/main.frag";
         const bool terrainVertex = path == "terrain/main.vert";
-        if (!water && !terrainFragment && !terrainVertex)
+        const bool objectFragment = path == "default/main.frag";
+        const bool objectVertex = path == "default/main.vert";
+        if (!water && !terrainFragment && !terrainVertex && !objectFragment && !objectVertex)
             return defines;
         const auto* settings = options->getObject<SettingsConstants>(settingsConstantsKey);
         if (settings == nullptr || !settings->constantDefines)
@@ -484,6 +486,28 @@ namespace vsgUtil
             for (const char* name : { "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW" })
                 defines.erase(name);
             defines.insert("SHADOW_CONSTANTS");
+            return defines;
+        }
+        if (objectVertex)
+        {
+            // Task 0363 (stage d): the far tree sway is the vertex stage's only control define; a stage without it keeps
+            // its set, so the listed define sets stay what they are.
+            if (defines.erase("LOD_SWAY") != 0)
+                defines.insert("MODE_CONSTANTS");
+            return defines;
+        }
+        if (objectFragment)
+        {
+            // Task 0363 (stage d, plan M): the object shader keeps the defines that change its interface or its
+            // outputs (the texture units, the varyings, MATERIAL, the G-buffer outputs, the particle path, the sample
+            // mask, parallax occlusion and its discard, the precipitation light) and takes the settings-driven ones as
+            // constants (Pipeline::objectFragmentConstants and the settings table).
+            for (const char* name : { "ADJUST_COVERAGE", "AMBIENT_CUBE", "CLOUD_SHADOW", "CLOUD_SHADOW_DEBUG", "COVER",
+                     "COVER_DEBUG", "DEBUG_SHADOW", "FORCE_PER_PIXEL_LIGHTING", "GI", "GI_SKY", "LOD_FADE",
+                     "PARALLAX_POM_HIGH", "PARALLAX_POM_LOW", "PBR", "PBR_PHYSICAL", "POINT_SHADOW",
+                     "VOLUME_CLOUD_SHADOW", "WETNESS", "WETNESS_DEBUG", "WETNESS_PUDDLES" })
+                defines.erase(name);
+            defines.insert("MODE_CONSTANTS");
             return defines;
         }
         // Task 0363 (stage c): the terrain keeps the defines that change its interface (the maps and their classes,
@@ -721,7 +745,9 @@ namespace vsgUtil
             // which the GLSL of the pipeline's own defines does not (the GLSL has them only where the define is on);
             // the build compares each listed one with the GLSL of all those features on (SlangPermutations), and the
             // sets of this family are all listed.
-            if (set.count("MODE_CONSTANTS") != 0)
+            // Task 0363 (stage d): the water's SHADOW_CONSTANTS permutation is the same kind (its check was never sampled
+            // before the object shader's permutations moved the every-fifth sample onto it).
+            if (set.count("MODE_CONSTANTS") != 0 || set.count("SHADOW_CONSTANTS") != 0)
                 return {};
             std::map<uint32_t, uint32_t> pinned;
             for (const std::string& name : set)

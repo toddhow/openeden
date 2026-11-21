@@ -121,3 +121,35 @@
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: descriptor set=0 binding=7 sampler
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: in location=2 vec3f32
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
+
+# Task 0363 (stage d, plan M): the constants permutations (MODE_CONSTANTS). Their GLSL is the stage with every
+# settings-driven feature on (SlangPermutations: the probes and the sky field, the material model with wetness and
+# cover, the point light shadows, the cloud shadows; the fog's ambient cube and the coverage adjustment for every
+# draw). The declarations below are the same kind as above, all unread by the twin after slangc's dead code removal:
+# the texture coordinates of a set with no map that reads them; with PRECIPITATION_LIT the streak replaces the
+# lighting, so the point lights, the light grid and the point shadow maps (11, 16 to 19) and the vertex stage's point
+# light sum are dead; a PARTICLE has no normal, so the environment array, the object uniform, the shadow-side image and
+# the point light sum (binding 1, 16, set 1) are read only by the lit branches.
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PARTICLE_OCCLUSION PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PARTICLE_OCCLUSION PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PARTICLE_OCCLUSION PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PARTICLE_OCCLUSION PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=18 sampler
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PARTICLE_OCCLUSION PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PARTICLE_OCCLUSION PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: in location=4 vec3f32
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=18 sampler
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+[COLOR DIFFUSE_MAP MODE_CONSTANTS NORMAL PRECIPITATION_LIT TEXCOORD UVSETS_1] glsl-only: in location=4 vec3f32
+[COLOR GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL MATERIAL MODE_CONSTANTS NORMAL TEXCOORD UVSETS_1] glsl-only: in location=5 array1(vec2f32)
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE SOFT_PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE SOFT_PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE SOFT_PARTICLE UVSETS_1] glsl-only: descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE SOFT_PARTICLE UVSETS_1] glsl-only: in location=3 vec3f32
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE UVSETS_1] glsl-only: descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE UVSETS_1] glsl-only: descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+[DIFFUSE_MAP MATERIAL MODE_CONSTANTS PARTICLE UVSETS_1] glsl-only: in location=2 vec3f32
+[GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION MATERIAL MODE_CONSTANTS NORMAL TEXCOORD UVSETS_1] glsl-only: in location=5 array1(vec2f32)
+[MATERIAL MODE_CONSTANTS NORMAL TEXCOORD UVSETS_1] glsl-only: in location=4 array1(vec2f32)

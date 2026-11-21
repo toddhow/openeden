@@ -19,6 +19,7 @@
 #include "bindings.hpp"
 #include "gbufferblend.hpp"
 #include "layout.hpp"
+#include "objectconstants.hpp"
 
 namespace Pipeline
 {
@@ -427,13 +428,33 @@ namespace Pipeline
         }
 
         auto vertexSpecConstants = specConstants;
+        auto fragmentSpecConstants = specConstants;
         for (auto [binding, uvSet] : key.nonStandardUvSets)
             if (binding == Descriptors::TEXMAT_BINDING)
                 vertexSpecConstants.emplace(Descriptors::START_UVSET_CONSTANTS + binding, vsg::intValue::create(uvSet));
 
+        // Task 0363 (stage d): with `[Rendering] shader constants` the settings-driven defines of the object shader are
+        // constants of its MODE_CONSTANTS permutation; their values come from the stages' define sets (the cached
+        // stages, whose modules carry them). A stage with another path, a GLSL stage and a twin made with defines
+        // ignore ids they do not declare.
+        if (key.shader.path.empty() || key.shader.path == "default")
+        {
+            const auto* constantSettings = mShaderOptions
+                ? mShaderOptions->getObject<vsgUtil::SettingsConstants>(vsgUtil::settingsConstantsKey)
+                : nullptr;
+            if (constantSettings != nullptr && constantSettings->constantDefines)
+            {
+                if (vertexStage->module && vertexStage->module->hints)
+                    for (const auto& [id, value] : objectVertexConstants(vertexStage->module->hints->defines))
+                        vertexSpecConstants[id] = value;
+                if (fragmentStage->module && fragmentStage->module->hints)
+                    for (const auto& [id, value] : objectFragmentConstants(fragmentStage->module->hints->defines))
+                        fragmentSpecConstants[id] = value;
+            }
+        }
+
         shaders[0]->specializationConstants = vertexSpecConstants;
 
-        auto fragmentSpecConstants = specConstants;
         fragmentSpecConstants.emplace(1, vsg::intValue::create(key.alphaTestMode));
         fragmentSpecConstants.emplace(2, vsg::intValue::create(key.colorMode));
         fragmentSpecConstants.emplace(3, vsg::Value<VkBool32>::create(key.specular));

@@ -15,6 +15,7 @@
 // records, with the same `.interface-exceptions` files; it is what remains when a GLSL file is deleted.
 #include <gtest/gtest.h>
 
+#include <components/pipeline/objectconstants.hpp>
 #include <components/pipeline/terrain.hpp>
 #include <components/resource/shadersettings.hpp>
 #include <components/vsgutil/shaderpermutation.hpp>
@@ -103,6 +104,28 @@ namespace
             // Task 0363 (stage c): MODE_CONSTANTS is the terrain's constants permutation: its interface is the GLSL's
             // with every feature on (the sky field, the ambient cube, wetness with puddles, cover, the cloud shadows,
             // point light shadows with the maps, the two debug views); the map class and G-buffer defines are real.
+            // Task 0363 (stage d): the object shader's (default/main.frag and main.vert): the GLSL with every
+            // settings-driven define on (the probes and the sky field, the ambient cube, the material model with
+            // wetness and cover, the cloud shadows and the shadow hud, and the point light shadows where there is a
+            // normal), or the far tree sway for the vertex stage.
+            if (name == "MODE_CONSTANTS" && file.rfind("default/", 0) == 0)
+            {
+                if (file == "default/main.vert")
+                {
+                    defines.push_back("LOD_SWAY");
+                    continue;
+                }
+                for (const char* settingsName : { "CLOUD_SHADOW", "VOLUME_CLOUD_SHADOW", "DEBUG_SHADOW" })
+                    settingsDefines.insert(settingsName);
+                // What the twin reads whatever the draw: the fog's ambient cube start and the coverage adjustment.
+                for (const char* define : { "AMBIENT_CUBE", "ADJUST_COVERAGE" })
+                    defines.push_back(define);
+                // The lit surface's features exist only where there is a normal.
+                if (canonicalDefines.find("NORMAL") != std::string::npos)
+                    for (const char* define : { "GI", "GI_SKY", "WETNESS", "WETNESS_PUDDLES", "COVER", "PBR", "POINT_SHADOW" })
+                        defines.push_back(define);
+                continue;
+            }
             if (name == "MODE_CONSTANTS")
             {
                 for (const char* settingsName : { "CLOUD_SHADOW", "VOLUME_CLOUD_SHADOW", "DEBUG_CHUNKS", "DEBUG_SHADOW" })
@@ -213,7 +236,7 @@ namespace
         if (stageFile == "water/main.frag")
             possible.insert("SHADOW_CONSTANTS");
         // Task 0363 (stage c): the terrain's constants permutation (vsgUtil::constantDefinesFor).
-        if (stageFile.rfind("terrain/", 0) == 0)
+        if (stageFile.rfind("terrain/", 0) == 0 || stageFile.rfind("default/", 0) == 0)
             possible.insert("MODE_CONSTANTS");
         return possible;
     }
@@ -308,7 +331,17 @@ namespace
             { "cCover", Id::Cover, 'b' }, { "cCoverDebug", Id::CoverDebug, 'b' },
             { "cAmbientCube", Id::AmbientCube, 'b' }, { "cPointShadow", Id::PointShadow, 'b' },
             { "cAoTerrain", Id::AoTerrain, 'b' }, { "cPomMinSteps", Id::PomMinSteps, 'i' },
-            { "cPomMaxSteps", Id::PomMaxSteps, 'i' }, { "cPomRefineTaps", Id::PomRefineTaps, 'i' } };
+            { "cPomMaxSteps", Id::PomMaxSteps, 'i' }, { "cPomRefineTaps", Id::PomRefineTaps, 'i' },
+            // Task 0363 (stage d): the object shader's own constants (lib/objectconstants.slang).
+            { "cGi", Pipeline::ObjectConstantId::Gi, 'b' },
+            { "cPerPixel", Pipeline::ObjectConstantId::PerPixelLighting, 'b' },
+            { "cPbrLit", Pipeline::ObjectConstantId::PbrLit, 'b' },
+            { "cPbrPhysical", Pipeline::ObjectConstantId::PbrPhysical, 'b' },
+            { "cWetLit", Pipeline::ObjectConstantId::WetLit, 'b' },
+            { "cCoverLit", Pipeline::ObjectConstantId::CoverLit, 'b' },
+            { "cLodFade", Pipeline::ObjectConstantId::LodFade, 'b' },
+            { "cAdjustCoverage", Pipeline::ObjectConstantId::AdjustCoverage, 'b' },
+            { "cLodSway", Pipeline::ObjectConstantId::LodSway, 'b' } };
         return table;
     }
 

@@ -24,6 +24,46 @@ import glsl;
 // The GLSL's numUvSets (0) is the length of the texture coordinate array, fixed here by UVSETS_<n>, and its specular
 // (3) and bumpUV are never read.
 
+#ifdef MODE_CONSTANTS
+// Task 0363 (stage d, plan M): the constants permutation. The settings-driven defines of this stage (the material
+// model, the probes and the sky field, the ambient cube, wetness, cover, the point light shadows, the far cluster fade,
+// the coverage adjustment and the per pixel lighting) are specialization constants (lib/modeconstants.slang,
+// lib/objectconstants.slang; Pipeline::objectFragmentConstants): the features are compiled in and each use branches on
+// its constant alone. The names below are defined only so that this file's own #ifdefs and the textual includes take
+// their "on" path; the modules (shadow, pixellighting, pbrlighting, parallax) read MODE_CONSTANTS themselves. The
+// content defines (texture units, varyings, MATERIAL, the G-buffer outputs, ALPHA_TO_COVERAGE, the parallax maps, the
+// particle path) stay defines: they change the interface or the outputs. IF_BEGIN(c) ... IF_END is "if (c) { ... }" in
+// this form and nothing in the define form (so that the define form's SPIR-V stays byte for byte what it was).
+import lib.modeconstants;
+import lib.objectconstants;
+#define GI
+#define GI_SKY
+#define AMBIENT_CUBE
+#define WETNESS
+#define WETNESS_PUDDLES
+#define WETNESS_DEBUG
+#define COVER
+#define COVER_DEBUG
+#define PBR
+#define PBR_PHYSICAL
+#ifdef MATERIAL
+#define LOD_FADE
+#endif
+#define ADJUST_COVERAGE
+#ifdef NORMAL
+#define POINT_SHADOW
+// Per pixel lighting, the material model's lit surfaces and the wetness and cover on them exist wherever there is a
+// normal; whether a draw takes them is cPerPixel, cPbrLit, cWetLit and cCoverLit.
+#define PER_PIXEL_LIGHTING 1
+#define PBR_LIT 1
+#define WET_LIT 1
+#define COVER_LIT 1
+#endif
+#define IF_BEGIN(c) if (c) {
+#define IF_END }
+#else
+#define IF_BEGIN(c)
+#define IF_END
 // Normal and specular maps light each pixel, as OpenMW's PER_PIXEL_LIGHTING (task 0012, V4h).
 #if defined(NORMAL) && (defined(NORMAL_MAP) || defined(SPECULAR_MAP) || defined(PBR) || defined(FORCE_PER_PIXEL_LIGHTING))
 #define PER_PIXEL_LIGHTING 1
@@ -39,6 +79,7 @@ import glsl;
 // Task 0039: snow and ash cover, in the same surfaces.
 #if defined(NORMAL) && defined(PBR) && defined(COVER)
 #define COVER_LIT 1
+#endif
 #endif
 
 import lib.view.scene;
@@ -213,10 +254,12 @@ FragmentOutput fragMain(FragmentInput input)
 #ifdef DIFFUSE_MAP
     outColor = diffuseMap.Sample(input.io.texCoord[diffuseUV].xy + offset);
 #ifdef ADJUST_COVERAGE
+    IF_BEGIN(cAdjustCoverage)
     uint diffuseWidth, diffuseHeight;
     diffuseMap.GetDimensions(diffuseWidth, diffuseHeight);
     outColor.a *= coveragePreservingAlphaScale((input.io.texCoord[diffuseUV].xy + offset)
         * float2(int2(int(diffuseWidth), int(diffuseHeight))));
+    IF_END
 #endif
 #else
     outColor = float4(1);
@@ -227,10 +270,12 @@ FragmentOutput fragMain(FragmentInput input)
 #ifdef DARK_MAP
     outColor *= darkMap.Sample(input.io.texCoord[darkUV]);
 #ifdef ADJUST_COVERAGE
+    IF_BEGIN(cAdjustCoverage)
     uint darkWidth, darkHeight;
     darkMap.GetDimensions(darkWidth, darkHeight);
     outColor.a
         *= coveragePreservingAlphaScale(input.io.texCoord[darkUV] * float2(int2(int(darkWidth), int(darkHeight))));
+    IF_END
 #endif
 #endif
 #ifdef DETAIL_MAP
@@ -256,8 +301,10 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
 #ifdef LOD_FADE
     // Task 0059: a far object cluster fading in or out; the fade is the material's specular alpha.
+    IF_BEGIN(cLodFade)
     if (dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, material.specular.a) == 0.0)
         discard;
+    IF_END
 #endif
     if (/*depthPass*/ dot(scene.lightViewPos.xyz, scene.lightViewPos.xyz) == 0)
     {
@@ -317,6 +364,179 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
     // The shadow bias uses the geometry normal, as OpenMW's shadowing never saw the normal map.
     float sunShadow = shadow(input.io.viewPos, normalize(input.io.viewNormal));
+#ifdef MODE_CONSTANTS
+    // Task 0363 (stage d): the lit surface's features, each taken by its own constant (the define form is below).
+    // Everything the features write is declared first with the value it has when the feature is off.
+    if (cPointShadow)
+        pointShadowNormal = normalize(input.io.viewNormal);
+    // Task 0037: rain wetness at this point (see the GLSL).
+    WetSurface wetS;
+    wetS.wet = 0.0;
+    wetS.exposure = 1.0;
+    wetS.puddle = 0.0;
+    float3 wetWorldPos = mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz;
+    float wetPuddleDark = wetPuddleDarkening;
+    float wetRippleGate = 1.0;
+    PuddleShade wetPm = {};
+    if (cWetLit)
+    {
+        wetS = wetSurfaceAt(wetWorldPos, mul((float3x3)scene.invView, viewNormal));
+        if (cWetnessPuddles)
+        {
+            // Task 0095, stage W-c (see the GLSL).
+            wetPm = puddleShadeAt(
+                wetWorldPos, wetS.wet, mul((float3x3)scene.invView, normalize(input.io.viewNormal)).z, true);
+            if (wetPm.covered)
+            {
+                wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;
+                wetPuddleDark = wetPuddleDarkening * puddleDepthTint(wetPm.depth);
+                wetRippleGate = wetPm.rippleGate;
+            }
+        }
+#ifdef MATERIAL
+        float wetSkin = material.subsurface > 0.5 ? 1.0 : 0.0;
+#else
+        float wetSkin = 0.0;
+#endif
+        float wetGlow = smoothstep(0.0, 0.3, dot(getEmission(vertexColor), float3(1.0)));
+        float wetKeep = (1.0 - wetSkin) * (1.0 - wetGlow);
+        wetS.wet *= wetKeep;
+        wetS.puddle *= wetKeep;
+        if (wetS.puddle > 0.0)
+        {
+            float3 wetPN = wetPuddleNormal(wetWorldPos);
+            // The rain's ripples only show where the water is deep enough (the baked map).
+            if (wetRippleGate < 1.0)
+                wetPN = normalize(lerp(float3(0.0, 0.0, 1.0), wetPN, wetRippleGate));
+            viewNormal = normalize(lerp(viewNormal, mul(transpose((float3x3)scene.invView), wetPN), wetS.puddle));
+        }
+    }
+    // Task 0039: snow or ash on this point (see the GLSL).
+    CoverSurface coverS;
+    coverS.mask = 0.0;
+    coverS.kind = 0;
+    coverS.amount = 0.0;
+    coverS.upwardness = 0.0;
+    coverS.exposure = 1.0;
+    if (cCoverLit)
+    {
+        coverS = coverSurfaceAt(
+            mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz, mul((float3x3)scene.invView, viewNormal));
+        if (coverS.mask > 0.0)
+        {
+#ifdef MATERIAL
+            float coverSkin = material.subsurface > 0.5 ? 1.0 : 0.0;
+#else
+            float coverSkin = 0.0;
+#endif
+            float coverGlow = smoothstep(0.0, 0.3, dot(getEmission(vertexColor), float3(1.0)));
+            coverS.mask *= (1.0 - coverSkin) * (1.0 - coverGlow);
+        }
+    }
+    // Task 0355 stage e: the cell's ambient cube by the surface's world normal (the flat ambient where none is loaded).
+    if (cAmbientCube)
+        ambientLight = ambientCubeAmbient(mul((float3x3)scene.invView, viewNormal), ambientLight);
+    float skyReflVisibility = 1.0;
+    float skyDataWeight = 0.0;
+    if (cGi)
+    {
+        ambientLight = giAmbient(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
+            mul((float3x3)scene.invView, viewNormal), ambientLight);
+        if (cGiSky)
+        {
+            // Task 0036: the exterior sky-visibility field.
+            ambientLight = skyVisAmbientKeep(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
+                mul((float3x3)scene.invView, viewNormal), ambientLight,
+                mul((float3x3)scene.invView, reflect(normalize(input.io.viewPos), viewNormal)), skyReflVisibility,
+                skyDataWeight);
+        }
+    }
+    float shininess = 1e-4;
+    float3 specularColor = float3(0);
+    float3 pointDiffuse = float3(0);
+    float3 pointSpecular = float3(0);
+    float3 diffuseLight = float3(0);
+    float3 specularLight = float3(0);
+    PbrSurface pbrLit = {};
+    float3 pbrF0 = float3(0);
+    if (cPerPixel)
+    {
+        // OpenMW's doLighting with PER_PIXEL_LIGHTING: point lights summed here, specular from the specular map.
+#if defined(SPECULAR_MAP) && defined(TEXCOORD)
+        float4 specularTex = specularMap.Sample(input.io.texCoord[diffuseUV]);
+        shininess = max(specularTex.a * 255.0, 1e-4);
+        specularColor = toLinearIfView(specularTex.xyz);
+        pbrShininess = shininess;
+        pbrSpecular = specularTex.xyz;
+#endif
+        if (cPbrLit)
+        {
+            // The material model (lib/material/pbr.glsl).
+#ifdef MATERIAL
+            pbrLit = pbrSurfaceFrom(material.pbr, material.subsurface, pbrShininess, pbrSpecular);
+#else
+            pbrLit = pbrSurfaceFrom(float4(-1.0, 0.0, -1.0, 1.0), 0.0, pbrShininess, pbrSpecular);
+#endif
+#if defined(MATERIAL_MAP) && defined(TEXCOORD) && defined(MATERIAL)
+#ifdef MATERIAL_MAP_RMAOS
+            // Task 0044: the True PBR layout; the scale is in the descriptor's spare float (0: none).
+            pbrLit = pbrApplyMapRmaos(pbrLit, material.pbr,
+                materialMap.Sample(input.io.texCoord[diffuseUV] + offset), MATERIAL_ROUGHNESS_SCALE);
+#else
+            pbrLit = pbrApplyMap(
+                pbrLit, material.pbr, materialMap.Sample(input.io.texCoord[diffuseUV] + offset).rgb);
+#endif
+#endif
+            float3 pbrBase = outColor.xyz;
+            // Task 0039: a layer of snow or ash replaces the surface's colour; it is not a metal, and it is rough.
+            if (cCoverLit)
+            {
+                if (coverS.mask > 0.0)
+                {
+                    float3 coverColour = coverColourOf(coverS.kind);
+                    pbrBase = lerp(pbrBase, coverColour, coverS.mask);
+                    outColor.xyz = lerp(outColor.xyz, coverColour, coverS.mask);
+                    pbrLit.metalness *= 1.0 - coverS.mask;
+                    pbrLit.roughness = lerp(pbrLit.roughness, coverRoughnessOf(coverS.kind), coverS.mask);
+                }
+            }
+            // Task 0037: wet surfaces are darker and smoother (a puddle most of all). Metals keep their colour.
+            if (cWetLit)
+            {
+                if (wetS.wet > 0.0)
+                {
+                    float wetSurface = wetS.wet * (1.0 - pbrLit.metalness);
+                    outColor.xyz *= wetDarkening(wetSurface, pbrLit.roughness) * lerp(1.0, wetPuddleDark, wetS.puddle);
+                    pbrLit.roughness
+                        = lerp(wetRoughnessOf(pbrLit.roughness, wetSurface), wetPuddleRoughness, wetS.puddle);
+                }
+            }
+            pbrF0 = pbrSpecularF0(pbrBase, pbrLit.metalness, pbrLit.reflectance);
+            pbrPointLights(viewPosToScreenCoord(input.io.viewPos, scene.projection), viewNormal, input.io.viewPos,
+                pbrLit.roughness, pbrF0, pointDiffuse, pointSpecular);
+            diffuseLight = pointDiffuse + directionalDiffuse(viewNormal) * sunShadow;
+            specularLight = pointSpecular
+                + scene.lightSpecular.xyz
+                    * pbrSpecularLobe(
+                        viewNormal, normalize(input.io.viewPos), scene.lightViewPos.xyz, pbrLit.roughness, pbrF0)
+                    * sunShadow;
+        }
+        else
+        {
+            pointLightsPerPixel(viewPosToScreenCoord(input.io.viewPos, scene.projection), viewNormal,
+                input.io.viewPos, shininess, pointDiffuse, pointSpecular);
+            diffuseLight = pointDiffuse + directionalDiffuse(viewNormal) * sunShadow;
+            specularLight = pointSpecular
+                + scene.lightSpecular.xyz
+                    * specularIntensity(viewNormal, normalize(input.io.viewPos), shininess, scene.lightViewPos.xyz)
+                    * sunShadow;
+        }
+    }
+    else
+    {
+        diffuseLight = input.io.pointLightDiffuse + directionalDiffuse(viewNormal) * sunShadow;
+    }
+#else
 #ifdef POINT_SHADOW
     pointShadowNormal = normalize(input.io.viewNormal);
 #endif
@@ -462,9 +682,95 @@ FragmentOutput fragMain(FragmentInput input)
 #else
     float3 diffuseLight = input.io.pointLightDiffuse + directionalDiffuse(viewNormal) * sunShadow;
 #endif
+#endif
 #else
     float3 diffuseLight = float3(0);
 #endif
+#ifdef MODE_CONSTANTS
+#ifdef PBR_LIT
+    if (cPbrLit)
+    {
+        // Metals have no diffuse (and tint their specular with the base colour); see the GLSL for `physical`.
+        float pbrNoV = max(dot(viewNormal, -normalize(input.io.viewPos)), 1e-3);
+        float pbrDiffuseScale = 1.0;
+        float pbrAmbientScale = 1.0;
+        float pbrSpecularScale = 1.0;
+        if (cPbrPhysical)
+        {
+            float3 pbrKd = float3(1.0) - pbrFresnel(pbrNoV, pbrF0);
+            pbrDiffuseScale = (1.0 - pbrLit.metalness) * dot(pbrKd, float3(1.0 / 3.0));
+            pbrAmbientScale = (1.0 - pbrLit.metalness) * pbrLit.occlusion;
+            pbrSpecularScale = 1.0;
+        }
+        else
+        {
+            pbrDiffuseScale = 1.0 - pbrLit.metalness;
+            pbrAmbientScale = pbrDiffuseScale;
+            pbrSpecularScale = max(clamp((pbrLit.reflectance - 0.5) * 2.0, 0.0, 1.0), pbrLit.metalness);
+        }
+#ifdef GBUFFER_AMBIENT
+        // The part of the colour that ambient light makes, as materialTermsScaled adds it.
+        ambientPart = outColor.xyz * (ambientLight * getAmbient(vertexColor) * pbrAmbientScale);
+#endif
+        outColor *= materialTermsScaled(ambientLight, diffuseLight, vertexColor, pbrAmbientScale, pbrDiffuseScale);
+        outColor.xyz += specularLight * pbrSpecularScale;
+        if (cGi)
+        {
+            // Baked reflection probes (task 0028, stage d), only where the surface reflects at all.
+            if (giReflectionEnabled())
+            {
+                float3 reflWorldPos = mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz;
+                float3 reflWorldDir = mul((float3x3)scene.invView, reflect(normalize(input.io.viewPos), viewNormal));
+                float2 reflAB = reflEnvBrdf(pbrLit.roughness, pbrNoV);
+                float3 reflLight = giReflection(reflWorldPos, reflWorldDir, pbrLit.roughness, scene.ambient.xyz);
+                float reflScale = pbrSpecularScale;
+                if (cPbrPhysical)
+                    reflScale = pbrSpecularScale * pbrLit.occlusion;
+                if (cGiSky)
+                {
+                    // The sky image lights a surface only as far as it sees the sky in the mirror direction, and a
+                    // rough dielectric gets little of it (skyReflectionFactor); interior probes are unchanged.
+                    if (giReflectionIsSkyEnvironment())
+                        reflScale *= skyReflectionFactor(
+                            skyReflVisibility, skyDataWeight, pbrLit.roughness, pbrLit.metalness);
+                }
+                outColor.xyz += reflLight * (pbrF0 * reflAB.x + float3(reflAB.y)) * reflScale;
+            }
+        }
+        if (cWetLit)
+        {
+            if (wetS.puddle > 0.0)
+            {
+                // The sky in the puddle (task 0037).
+                float3 wetEye = mul((float3x3)scene.invView, normalize(input.io.viewPos));
+                float3 wetN = mul((float3x3)scene.invView, viewNormal);
+                float3 wetDir = reflect(wetEye, wetN);
+                float3 wetSky = wetSkyReflection(wetWorldPos, wetDir, wetPuddleRoughness);
+                outColor.xyz += wetSky * (wetFresnel(dot(wetN, -wetEye)) * wetPuddleReflection * wetS.puddle);
+            }
+            if (cWetnessDebug)
+                outColor.xyz = float3(wetS.wet, wetS.exposure, wetS.puddle);
+            if (cWetnessPuddles)
+            {
+                // Task 0095: a debug view of the puddle map (the setting `wetness puddle debug`).
+                if (puddleDebugMode() != 0u)
+                    outColor.xyz = puddleDebugColour(wetPm);
+            }
+        }
+        if (cCoverDebug)
+            outColor.xyz = float3(coverS.amount, coverS.upwardness, coverS.mask);
+    }
+    else
+    {
+        outColor *= materialTermsAmbient(ambientLight, diffuseLight, vertexColor);
+        if (cPerPixel)
+            outColor.xyz += specularColor * specularLight;
+    }
+#else
+    // The same lighting terms as materialTerms when nothing changed the ambient.
+    outColor *= materialTermsAmbient(ambientLight, diffuseLight, vertexColor);
+#endif
+#else
 #ifdef PBR_LIT
     {
         // Metals have no diffuse (and tint their specular with the base colour); see the GLSL for `physical`.
@@ -541,6 +847,7 @@ FragmentOutput fragMain(FragmentInput input)
     outColor.xyz += specularColor * specularLight;
 #endif
 #endif
+#endif
 
 #ifdef NORMAL
     if (object.envColor.w != 0)
@@ -577,7 +884,12 @@ FragmentOutput fragMain(FragmentInput input)
             break;
         default:
         {
-#ifdef AMBIENT_CUBE
+#ifdef MODE_CONSTANTS
+            float4 fogStart = float4(0.0);
+            IF_BEGIN(cAmbientCube)
+            fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
+            IF_END
+#elif defined(AMBIENT_CUBE)
             const float4 fogStart = fogStartColour(); // task 0362 item 1: a game pack's fog starts in another colour
 #else
             const float4 fogStart = float4(0.0);
@@ -592,8 +904,10 @@ FragmentOutput fragMain(FragmentInput input)
         }
     }
 
-#ifdef DEBUG_SHADOW
+#if defined(DEBUG_SHADOW) || defined(MODE_CONSTANTS)
+    IF_BEGIN(cDebugShadow)
     outColor = debugShadow(outColor, input.fragCoord.xy);
+    IF_END
 #endif
 
 #ifdef NORMAL

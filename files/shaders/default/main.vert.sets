@@ -40,3 +40,7 @@ ENV_MAP GBUFFER_MOTION NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
 COLOR INSTANCE INSTANCE_TINT NORMAL TEXCOORD UVSETS_1 VERTEX
 #
 # Not listed on purpose: COLOR NORMAL TEXCOORD TEXMAT UVSETS_1 VERTEX (a test of the run-time compiler, SlangRuntimeLibrary.sets_the_build_never_listed_pass_through_the_production_check_with_an_exact_count, needs it unlisted; the profile makes it, so it compiles at run time).
+
+# Task 0363 (stage d, plan M): the constants permutations (vsgUtil::constantDefinesFor with `[Rendering] shader constants`):
+# the vertex stage's sets that had LOD_SWAY, which becomes the constant cLodSway.
+COLOR MODE_CONSTANTS NORMAL TEXCOORD UVSETS_1 VERTEX
