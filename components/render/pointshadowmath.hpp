@@ -15,6 +15,11 @@
 
 #include "depthmath.hpp"
 
+// Qt defines `slots` as a keyword macro in every translation unit that includes a Qt header (the editor's); this header
+// uses the word as an ordinary name, so the macro is set aside while it is read.
+#pragma push_macro("slots")
+#undef slots
+
 namespace Render::PointShadow
 {
     /*
@@ -256,5 +261,7 @@ namespace Render::PointShadow
         return static_cast<double>(lit) / count;
     }
 }
+
+#pragma pop_macro("slots")
 
 #endif
