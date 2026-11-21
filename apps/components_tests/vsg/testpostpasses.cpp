@@ -568,13 +568,22 @@ namespace
                         expected["sss"] = 16 * (ao ? 2 : 1);
                     if (defines.count("DEBUG_VIEW") != 0)
                         expected["debug"] = 16 * (1 + (ao ? 1 : 0) + (sss ? 1 : 0));
+                    if (defines.count("GRADE") != 0)
+                    {
+                        // The grade's two come after the debug view's (task 0363, stage e: the GRADE sets are built).
+                        const uint32_t gradeOffset
+                            = 16 * (1 + (ao ? 1 : 0) + (sss ? 1 : 0) + (defines.count("DEBUG_VIEW") != 0 ? 1 : 0));
+                        expected["grade"] = gradeOffset;
+                        expected["gradeTint"] = gradeOffset + 16;
+                    }
                     EXPECT_EQ(glsl, expected) << "[" << canonical << "]";
                 }
                 ++compared;
             }
         }
-        // The 23 permutations of stage g and the .omwfx passes' vertex stage of stage h.
-        EXPECT_EQ(compared, 24u);
+        // The 23 permutations of stage g, the .omwfx passes' vertex stage of stage h and the 16 tonemap sets with GRADE
+        // of task 0363, stage e.
+        EXPECT_EQ(compared, 40u);
     }
 #endif
 }

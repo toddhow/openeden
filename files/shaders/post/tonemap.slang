@@ -1,6 +1,6 @@
 // The tonemap pass in Slang (task 0072, stage g): the twin of post/tonemap.frag, compiled for every combination of
-// AO, BLOOM, DEBUG_VIEW and SSS (Render::Tonemap::setSource) and, at run time, GRADE (task 0127 stage W-S4: not a built
-// permutation). It must declare what the GLSL declares (checked by
+// AO, BLOOM, DEBUG_VIEW, GRADE and SSS (Render::Tonemap::setSource; task 0363, stage e: GRADE, task 0127 stage W-S4,
+// is built too: 32 sets). It must declare what the GLSL declares (checked by
 // SlangPermutations): the C++ side builds the descriptor set layout and the push constant offsets by hand. The curves
 // and the constants repeat Render::Hdr (hdrmath.hpp), the occlusion filter Render::Ao (aomath.hpp) and the subsurface
 // scattering Render::Sss (sssmath.hpp); change them together.

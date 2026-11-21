@@ -63,6 +63,57 @@ member push_constant 32:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;32:vec4f32;
 end
+set AO BLOOM DEBUG_VIEW GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:debug
+member push_constant 48:grade
+member push_constant 64:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;
+end
+set AO BLOOM DEBUG_VIEW GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:sss
+member push_constant 48:debug
+member push_constant 64:grade
+member push_constant 80:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;
+end
 set AO BLOOM DEBUG_VIEW SSS
 capability 1
 capability 50
@@ -88,6 +139,47 @@ member push_constant 32:sss
 member push_constant 48:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+end
+set AO BLOOM GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:grade
+member push_constant 48:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+end
+set AO BLOOM GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:sss
+member push_constant 48:grade
+member push_constant 64:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;
 end
 set AO BLOOM SSS
 capability 1
@@ -130,6 +222,55 @@ member push_constant 32:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;32:vec4f32;
 end
+set AO DEBUG_VIEW GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:debug
+member push_constant 48:grade
+member push_constant 64:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;
+end
+set AO DEBUG_VIEW GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:sss
+member push_constant 48:debug
+member push_constant 64:grade
+member push_constant 80:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;
+end
 set AO DEBUG_VIEW SSS
 capability 1
 capability 50
@@ -154,6 +295,45 @@ member push_constant 32:sss
 member push_constant 48:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+end
+set AO GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:grade
+member push_constant 48:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+end
+set AO GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=7 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=8 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=9 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:ao
+member push_constant 32:sss
+member push_constant 48:grade
+member push_constant 64:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;
 end
 set AO SSS
 capability 1
@@ -202,6 +382,47 @@ member push_constant 16:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;
 end
+set BLOOM DEBUG_VIEW GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:debug
+member push_constant 32:grade
+member push_constant 48:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+end
+set BLOOM DEBUG_VIEW GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:sss
+member push_constant 32:debug
+member push_constant 48:grade
+member push_constant 64:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;
+end
 set BLOOM DEBUG_VIEW SSS
 capability 1
 capability 50
@@ -222,6 +443,37 @@ member push_constant 16:sss
 member push_constant 32:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;32:vec4f32;
+end
+set BLOOM GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:grade
+member push_constant 32:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;
+end
+set BLOOM GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:sss
+member push_constant 32:grade
+member push_constant 48:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
 end
 set BLOOM SSS
 capability 1
@@ -254,6 +506,45 @@ member push_constant 16:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;
 end
+set DEBUG_VIEW GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:debug
+member push_constant 32:grade
+member push_constant 48:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+end
+set DEBUG_VIEW GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=2 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=3 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=4 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=5 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:sss
+member push_constant 32:debug
+member push_constant 48:grade
+member push_constant 64:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;
+end
 set DEBUG_VIEW SSS
 capability 1
 capability 50
@@ -273,6 +564,35 @@ member push_constant 16:sss
 member push_constant 32:debug
 out location=0 vec4f32
 push_constant 0:vec4f32;16:vec4f32;32:vec4f32;
+end
+set GRADE
+capability 1
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:grade
+member push_constant 32:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;
+end
+set GRADE SSS
+capability 1
+capability 50
+descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=10 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=11 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=12 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in location=0 vec2f32
+member push_constant 0:params
+member push_constant 16:sss
+member push_constant 32:grade
+member push_constant 48:gradeTint
+out location=0 vec4f32
+push_constant 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
 end
 set SSS
 capability 1

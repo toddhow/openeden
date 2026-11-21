@@ -1,6 +1,6 @@
-# The define sets of post/tonemap.frag (task 0072, stage g): every combination of the four names
-# Render::Tonemap::setSource asks for (bloom with hdr bloom, the debug view with gbuffer debug view, AO with ao,
-# SSS with sss), all reachable, so all 16 are built.
+# The define sets of post/tonemap.frag (task 0072, stage g; task 0363, stage e): every combination of the five names
+# Render::Tonemap::setSource asks for (bloom with hdr bloom, the debug view with gbuffer debug view, AO with ao, SSS with
+# sss, and GRADE, the image space grade a Skyrim session turns on), all reachable, so all 32 are built.
 -
 AO
 BLOOM
@@ -17,3 +17,19 @@ AO BLOOM SSS
 AO DEBUG_VIEW SSS
 BLOOM DEBUG_VIEW SSS
 AO BLOOM DEBUG_VIEW SSS
+GRADE
+AO GRADE
+BLOOM GRADE
+AO BLOOM GRADE
+DEBUG_VIEW GRADE
+AO DEBUG_VIEW GRADE
+BLOOM DEBUG_VIEW GRADE
+AO BLOOM DEBUG_VIEW GRADE
+GRADE SSS
+AO GRADE SSS
+BLOOM GRADE SSS
+AO BLOOM GRADE SSS
+DEBUG_VIEW GRADE SSS
+AO DEBUG_VIEW GRADE SSS
+BLOOM DEBUG_VIEW GRADE SSS
+AO BLOOM DEBUG_VIEW GRADE SSS

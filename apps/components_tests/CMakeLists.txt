@@ -380,6 +380,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testslangshaders.cpp
     vsg/testshaderdefines.cpp
     vsg/testshaderconstants.cpp
+    vsg/testsmallfamilies.cpp
     vsg/testshaderpermutation.cpp
     vsg/testambientcubecompile.cpp
     vsg/testslanginterfacerecords.cpp
